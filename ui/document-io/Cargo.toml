@@ -1,0 +1,15 @@
+[package]
+name = "jps-document-io"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.92"
+
+[dependencies]
+image = { version = "=0.25.10", default-features = false, features = ["jpeg"] }
+krilla = { version = "=0.8.2", default-features = false }
+krilla-svg = "=0.8.1"
+resvg = { version = "=0.47.0", default-features = false }
+same-file = "1"
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"

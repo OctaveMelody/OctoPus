@@ -1,0 +1,698 @@
+{
+  "baochifu": {
+    "source": "baochifu.svg"
+  },
+  "bianyinfu_huanyuan": {
+    "source": "bianyinfu_huanyuan.svg"
+  },
+  "bianyinfu_jiang": {
+    "source": "bianyinfu_jiang.svg"
+  },
+  "bianyinfu_sheng": {
+    "source": "bianyinfu_sheng.svg"
+  },
+  "boyinfu_shang1": {
+    "source": "boyinfu_shang1.svg"
+  },
+  "dakuohu_you_2": {
+    "source": "dakuohu_you_2.svg"
+  },
+  "dakuohu_zuo_2": {
+    "source": "dakuohu_zuo_2.svg"
+  },
+  "diaohao_fu": {
+    "source": "diaohao_fu.svg"
+  },
+  "diaohao_zimu_a": {
+    "source": "diaohao_zimu_a.svg"
+  },
+  "diaohao_zimu_b": {
+    "source": "diaohao_zimu_b.svg"
+  },
+  "diaohao_zimu_c": {
+    "source": "diaohao_zimu_c.svg"
+  },
+  "diaohao_zimu_d": {
+    "source": "diaohao_zimu_d.svg"
+  },
+  "diaohao_zimu_e": {
+    "source": "diaohao_zimu_e.svg"
+  },
+  "diaohao_zimu_f": {
+    "source": "diaohao_zimu_f.svg"
+  },
+  "diaohao_zimu_g": {
+    "source": "diaohao_zimu_g.svg"
+  },
+  "fudian": {
+    "source": "fudian.svg"
+  },
+  "huayin_shang": {
+    "source": "huayin_shang.svg"
+  },
+  "huayin_xia": {
+    "source": "huayin_xia.svg"
+  },
+  "hy10_0": {
+    "source": "hy10_0.svg"
+  },
+  "hy11_0": {
+    "source": "hy11_0.svg"
+  },
+  "hy14_0": {
+    "source": "hy14_0.svg"
+  },
+  "hy15_0": {
+    "source": "hy15_0.svg"
+  },
+  "hy18_0": {
+    "source": "hy18_0.svg"
+  },
+  "hy19_0": {
+    "source": "hy19_0.svg"
+  },
+  "hy22_0": {
+    "source": "hy22_0.svg"
+  },
+  "hy23_0": {
+    "source": "hy23_0.svg"
+  },
+  "hy26_0": {
+    "source": "hy26_0.svg"
+  },
+  "hy27_0": {
+    "source": "hy27_0.svg"
+  },
+  "hy2_0": {
+    "source": "hy2_0.svg"
+  },
+  "hy30_0": {
+    "source": "hy30_0.svg"
+  },
+  "hy31_0": {
+    "source": "hy31_0.svg"
+  },
+  "hy34_0": {
+    "source": "hy34_0.svg"
+  },
+  "hy35_0": {
+    "source": "hy35_0.svg"
+  },
+  "hy38_0": {
+    "source": "hy38_0.svg"
+  },
+  "hy39_0": {
+    "source": "hy39_0.svg"
+  },
+  "hy3_0": {
+    "source": "hy3_0.svg"
+  },
+  "hy42_0": {
+    "source": "hy42_0.svg"
+  },
+  "hy43_0": {
+    "source": "hy43_0.svg"
+  },
+  "hy46_0": {
+    "source": "hy46_0.svg"
+  },
+  "hy47_0": {
+    "source": "hy47_0.svg"
+  },
+  "hy50_0": {
+    "source": "hy50_0.svg"
+  },
+  "hy51_0": {
+    "source": "hy51_0.svg"
+  },
+  "hy54_0": {
+    "source": "hy54_0.svg"
+  },
+  "hy55_0": {
+    "source": "hy55_0.svg"
+  },
+  "hy58_0": {
+    "source": "hy58_0.svg"
+  },
+  "hy59_0": {
+    "source": "hy59_0.svg"
+  },
+  "hy62_0": {
+    "source": "hy62_0.svg"
+  },
+  "hy63_0": {
+    "source": "hy63_0.svg"
+  },
+  "hy66_0": {
+    "source": "hy66_0.svg"
+  },
+  "hy67_0": {
+    "source": "hy67_0.svg"
+  },
+  "hy6_0": {
+    "source": "hy6_0.svg"
+  },
+  "hy70_0": {
+    "source": "hy70_0.svg"
+  },
+  "hy71_0": {
+    "source": "hy71_0.svg"
+  },
+  "hy74_0": {
+    "source": "hy74_0.svg"
+  },
+  "hy75_0": {
+    "source": "hy75_0.svg"
+  },
+  "hy78_0": {
+    "source": "hy78_0.svg"
+  },
+  "hy79_0": {
+    "source": "hy79_0.svg"
+  },
+  "hy7_0": {
+    "source": "hy7_0.svg"
+  },
+  "hy82_0": {
+    "source": "hy82_0.svg"
+  },
+  "hy83_0": {
+    "source": "hy83_0.svg"
+  },
+  "hy91_0": {
+    "source": "hy91_0.svg"
+  },
+  "hy92_0": {
+    "source": "hy92_0.svg"
+  },
+  "hy93_0": {
+    "source": "hy93_0.svg"
+  },
+  "hy94_0": {
+    "source": "hy94_0.svg"
+  },
+  "hy95_0": {
+    "source": "hy95_0.svg"
+  },
+  "hy96_0": {
+    "source": "hy96_0.svg"
+  },
+  "hy97_0": {
+    "source": "hy97_0.svg"
+  },
+  "jiepaifu": {
+    "source": "jiepaifu.svg"
+  },
+  "jieshufu": {
+    "source": "jieshufu.svg"
+  },
+  "kuohu_you": {
+    "source": "kuohu_you.svg"
+  },
+  "kuohu_zuo": {
+    "source": "kuohu_zuo.svg"
+  },
+  "kuohu_zuo_bian": {
+    "source": "kuohu_zuo_bian.svg"
+  },
+  "lianyin_shuzi_3": {
+    "source": "lianyin_shuzi_3.svg"
+  },
+  "lianyinxian_you": {
+    "source": "lianyinxian_you.svg"
+  },
+  "lianyinxian_zuo": {
+    "source": "lianyinxian_zuo.svg"
+  },
+  "lidu_dim": {
+    "source": "lidu_dim.svg"
+  },
+  "lidu_f": {
+    "source": "lidu_f.svg"
+  },
+  "lidu_ff": {
+    "source": "lidu_ff.svg"
+  },
+  "lidu_mf": {
+    "source": "lidu_mf.svg"
+  },
+  "lidu_mp": {
+    "source": "lidu_mp.svg"
+  },
+  "lidu_p": {
+    "source": "lidu_p.svg"
+  },
+  "lidu_pp": {
+    "source": "lidu_pp.svg"
+  },
+  "lidu_rit": {
+    "source": "lidu_rit.svg"
+  },
+  "linshi_paihao_fenxian": {
+    "source": "linshi_paihao_fenxian.svg"
+  },
+  "linshi_paihao_shuzi_2": {
+    "source": "linshi_paihao_shuzi_2.svg"
+  },
+  "linshi_paihao_shuzi_3": {
+    "source": "linshi_paihao_shuzi_3.svg"
+  },
+  "linshi_paihao_shuzi_4": {
+    "source": "linshi_paihao_shuzi_4.svg"
+  },
+  "linshi_paihao_shuzi_6": {
+    "source": "linshi_paihao_shuzi_6.svg"
+  },
+  "linshi_paihao_shuzi_8": {
+    "source": "linshi_paihao_shuzi_8.svg"
+  },
+  "linshi_paihao_shuzi_9": {
+    "source": "linshi_paihao_shuzi_9.svg"
+  },
+  "paihao_xian": {
+    "source": "paihao_xian.svg"
+  },
+  "qy0_0": {
+    "source": "qy0_0.svg"
+  },
+  "qy0_1": {
+    "source": "qy0_1.svg"
+  },
+  "qy0_2": {
+    "source": "qy0_2.svg"
+  },
+  "qy0_3": {
+    "source": "qy0_3.svg"
+  },
+  "qy10_0": {
+    "source": "qy10_0.svg"
+  },
+  "qy11_0": {
+    "source": "qy11_0.svg"
+  },
+  "qy12_0": {
+    "source": "qy12_0.svg"
+  },
+  "qy13_0": {
+    "source": "qy13_0.svg"
+  },
+  "qy14_0": {
+    "source": "qy14_0.svg"
+  },
+  "qy15_0": {
+    "source": "qy15_0.svg"
+  },
+  "qy16_0": {
+    "source": "qy16_0.svg"
+  },
+  "qy17_0": {
+    "source": "qy17_0.svg"
+  },
+  "qy18_0": {
+    "source": "qy18_0.svg"
+  },
+  "qy19_0": {
+    "source": "qy19_0.svg"
+  },
+  "qy1_0": {
+    "source": "qy1_0.svg"
+  },
+  "qy1_1": {
+    "source": "qy1_1.svg"
+  },
+  "qy1_2": {
+    "source": "qy1_2.svg"
+  },
+  "qy20_0": {
+    "source": "qy20_0.svg"
+  },
+  "qy21_0": {
+    "source": "qy21_0.svg"
+  },
+  "qy22_0": {
+    "source": "qy22_0.svg"
+  },
+  "qy23_0": {
+    "source": "qy23_0.svg"
+  },
+  "qy24_0": {
+    "source": "qy24_0.svg"
+  },
+  "qy25_0": {
+    "source": "qy25_0.svg"
+  },
+  "qy26_0": {
+    "source": "qy26_0.svg"
+  },
+  "qy27_0": {
+    "source": "qy27_0.svg"
+  },
+  "qy28_0": {
+    "source": "qy28_0.svg"
+  },
+  "qy29_0": {
+    "source": "qy29_0.svg"
+  },
+  "qy2_0": {
+    "source": "qy2_0.svg"
+  },
+  "qy2_1": {
+    "source": "qy2_1.svg"
+  },
+  "qy2_2": {
+    "source": "qy2_2.svg"
+  },
+  "qy30_0": {
+    "source": "qy30_0.svg"
+  },
+  "qy31_0": {
+    "source": "qy31_0.svg"
+  },
+  "qy32_0": {
+    "source": "qy32_0.svg"
+  },
+  "qy33_0": {
+    "source": "qy33_0.svg"
+  },
+  "qy34_0": {
+    "source": "qy34_0.svg"
+  },
+  "qy35_0": {
+    "source": "qy35_0.svg"
+  },
+  "qy36_0": {
+    "source": "qy36_0.svg"
+  },
+  "qy37_0": {
+    "source": "qy37_0.svg"
+  },
+  "qy38_0": {
+    "source": "qy38_0.svg"
+  },
+  "qy39_0": {
+    "source": "qy39_0.svg"
+  },
+  "qy3_0": {
+    "source": "qy3_0.svg"
+  },
+  "qy3_2": {
+    "source": "qy3_2.svg"
+  },
+  "qy40_0": {
+    "source": "qy40_0.svg"
+  },
+  "qy41_0": {
+    "source": "qy41_0.svg"
+  },
+  "qy42_0": {
+    "source": "qy42_0.svg"
+  },
+  "qy43_0": {
+    "source": "qy43_0.svg"
+  },
+  "qy44_0": {
+    "source": "qy44_0.svg"
+  },
+  "qy45_0": {
+    "source": "qy45_0.svg"
+  },
+  "qy46_0": {
+    "source": "qy46_0.svg"
+  },
+  "qy47_0": {
+    "source": "qy47_0.svg"
+  },
+  "qy48_0": {
+    "source": "qy48_0.svg"
+  },
+  "qy49_0": {
+    "source": "qy49_0.svg"
+  },
+  "qy4_0": {
+    "source": "qy4_0.svg"
+  },
+  "qy4_2": {
+    "source": "qy4_2.svg"
+  },
+  "qy52_0": {
+    "source": "qy52_0.svg"
+  },
+  "qy53_0": {
+    "source": "qy53_0.svg"
+  },
+  "qy56_0": {
+    "source": "qy56_0.svg"
+  },
+  "qy57_0": {
+    "source": "qy57_0.svg"
+  },
+  "qy5_0": {
+    "source": "qy5_0.svg"
+  },
+  "qy5_2": {
+    "source": "qy5_2.svg"
+  },
+  "qy60_0": {
+    "source": "qy60_0.svg"
+  },
+  "qy61_0": {
+    "source": "qy61_0.svg"
+  },
+  "qy64_0": {
+    "source": "qy64_0.svg"
+  },
+  "qy65_0": {
+    "source": "qy65_0.svg"
+  },
+  "qy68_0": {
+    "source": "qy68_0.svg"
+  },
+  "qy69_0": {
+    "source": "qy69_0.svg"
+  },
+  "qy6_0": {
+    "source": "qy6_0.svg"
+  },
+  "qy6_2": {
+    "source": "qy6_2.svg"
+  },
+  "qy72_0": {
+    "source": "qy72_0.svg"
+  },
+  "qy73_0": {
+    "source": "qy73_0.svg"
+  },
+  "qy76_0": {
+    "source": "qy76_0.svg"
+  },
+  "qy77_0": {
+    "source": "qy77_0.svg"
+  },
+  "qy7_0": {
+    "source": "qy7_0.svg"
+  },
+  "qy80_0": {
+    "source": "qy80_0.svg"
+  },
+  "qy81_0": {
+    "source": "qy81_0.svg"
+  },
+  "qy84_0": {
+    "source": "qy84_0.svg"
+  },
+  "qy85_0": {
+    "source": "qy85_0.svg"
+  },
+  "qy86_0": {
+    "source": "qy86_0.svg"
+  },
+  "qy87_0": {
+    "source": "qy87_0.svg"
+  },
+  "qy88_0": {
+    "source": "qy88_0.svg"
+  },
+  "qy89_0": {
+    "source": "qy89_0.svg"
+  },
+  "qy8_0": {
+    "source": "qy8_0.svg"
+  },
+  "qy90_0": {
+    "source": "qy90_0.svg"
+  },
+  "qy9_0": {
+    "source": "qy9_0.svg"
+  },
+  "shengbufu_shang": {
+    "source": "shengbufu_shang.svg"
+  },
+  "shengbufu_xia": {
+    "source": "shengbufu_xia.svg"
+  },
+  "shuzi_a_1": {
+    "source": "shuzi_a_1.svg"
+  },
+  "shuzi_a_2": {
+    "source": "shuzi_a_2.svg"
+  },
+  "shuzi_a_3": {
+    "source": "shuzi_a_3.svg"
+  },
+  "shuzi_a_4": {
+    "source": "shuzi_a_4.svg"
+  },
+  "shuzi_a_5": {
+    "source": "shuzi_a_5.svg"
+  },
+  "shuzi_a_6": {
+    "source": "shuzi_a_6.svg"
+  },
+  "shuzi_a_7": {
+    "source": "shuzi_a_7.svg"
+  },
+  "shuzi_a_bian_4": {
+    "source": "shuzi_a_bian_4.svg"
+  },
+  "shuzi_b_0": {
+    "source": "shuzi_b_0.svg"
+  },
+  "shuzi_b_1": {
+    "source": "shuzi_b_1.svg"
+  },
+  "shuzi_b_2": {
+    "source": "shuzi_b_2.svg"
+  },
+  "shuzi_b_3": {
+    "source": "shuzi_b_3.svg"
+  },
+  "shuzi_b_4": {
+    "source": "shuzi_b_4.svg"
+  },
+  "shuzi_b_5": {
+    "source": "shuzi_b_5.svg"
+  },
+  "shuzi_b_6": {
+    "source": "shuzi_b_6.svg"
+  },
+  "shuzi_b_7": {
+    "source": "shuzi_b_7.svg"
+  },
+  "shuzi_b_bian_2": {
+    "source": "shuzi_b_bian_2.svg"
+  },
+  "shuzi_b_bian_3": {
+    "source": "shuzi_b_bian_3.svg"
+  },
+  "shuzi_b_bian_4": {
+    "source": "shuzi_b_bian_4.svg"
+  },
+  "shuzi_b_bian_6": {
+    "source": "shuzi_b_bian_6.svg"
+  },
+  "shuzi_b_bian_8": {
+    "source": "shuzi_b_bian_8.svg"
+  },
+  "shuzi_b_bian_9": {
+    "source": "shuzi_b_bian_9.svg"
+  },
+  "shuzi_c_1": {
+    "source": "shuzi_c_1.svg"
+  },
+  "shuzi_c_2": {
+    "source": "shuzi_c_2.svg"
+  },
+  "shuzi_c_3": {
+    "source": "shuzi_c_3.svg"
+  },
+  "shuzi_c_4": {
+    "source": "shuzi_c_4.svg"
+  },
+  "shuzi_c_5": {
+    "source": "shuzi_c_5.svg"
+  },
+  "shuzi_c_6": {
+    "source": "shuzi_c_6.svg"
+  },
+  "shuzi_c_7": {
+    "source": "shuzi_c_7.svg"
+  },
+  "shuzi_c_bian_4": {
+    "source": "shuzi_c_bian_4.svg"
+  },
+  "shuzi_null": {
+    "source": "shuzi_null.svg"
+  },
+  "xiaojiexian": {
+    "source": "xiaojiexian.svg"
+  },
+  "xiaojiexian_ds": {
+    "source": "xiaojiexian_ds.svg"
+  },
+  "xiaojiexian_hs": {
+    "source": "xiaojiexian_hs.svg"
+  },
+  "xiaojiexian_shuangxian": {
+    "source": "xiaojiexian_shuangxian.svg"
+  },
+  "xiaojiexian_ty": {
+    "source": "xiaojiexian_ty.svg"
+  },
+  "xiaojiexian_weibu": {
+    "source": "xiaojiexian_weibu.svg"
+  },
+  "xunhuan_you": {
+    "source": "xunhuan_you.svg"
+  },
+  "xunhuan_zuo": {
+    "source": "xunhuan_zuo.svg"
+  },
+  "xunhuan_zuoyou": {
+    "source": "xunhuan_zuoyou.svg"
+  },
+  "yanchang": {
+    "source": "yanchang.svg"
+  },
+  "yanyinfu": {
+    "source": "yanyinfu.svg"
+  },
+  "yingao_di": {
+    "source": "yingao_di.svg"
+  },
+  "yingao_gao": {
+    "source": "yingao_gao.svg"
+  },
+  "yiyin_shuzi_1": {
+    "source": "yiyin_shuzi_1.svg"
+  },
+  "yiyin_shuzi_2": {
+    "source": "yiyin_shuzi_2.svg"
+  },
+  "yiyin_shuzi_3": {
+    "source": "yiyin_shuzi_3.svg"
+  },
+  "yiyin_shuzi_4": {
+    "source": "yiyin_shuzi_4.svg"
+  },
+  "yiyin_shuzi_5": {
+    "source": "yiyin_shuzi_5.svg"
+  },
+  "yiyin_shuzi_6": {
+    "source": "yiyin_shuzi_6.svg"
+  },
+  "yiyin_shuzi_7": {
+    "source": "yiyin_shuzi_7.svg"
+  },
+  "yiyin_yingao_di": {
+    "source": "yiyin_yingao_di.svg"
+  },
+  "yiyin_yingao_gao": {
+    "source": "yiyin_yingao_gao.svg"
+  },
+  "yiyinxian_hou": {
+    "source": "yiyinxian_hou.svg"
+  },
+  "yiyinxian_qian": {
+    "source": "yiyinxian_qian.svg"
+  }
+}

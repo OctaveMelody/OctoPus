@@ -1,0 +1,73 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OctoPus by OctaveMelody",
+  "version": "0.1.0",
+  "identifier": "org.gptomato.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "npm run build:desktop",
+    "frontendDist": "../../../build/frontend"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "OctoPus by OctaveMelody",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 720,
+        "minHeight": 520
+      }
+    ],
+    "security": {
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": [
+            "$APPCACHE/reference-images/img-*.*",
+            "$APPCACHE/reference-images/pdf-*.*"
+          ],
+          "requireLiteralLeadingDot": false
+        }
+      },
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "deb",
+      "appimage",
+      "msi",
+      "nsis"
+    ],
+    "linux": {
+      "deb": {
+        "depends": [
+          "poppler-utils"
+        ],
+        "replaces": [
+          "byte-melody"
+        ],
+        "conflicts": [
+          "byte-melody"
+        ]
+      }
+    },
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "category": "Music",
+    "publisher": "OctaveMelody",
+    "shortDescription": "Jianpu score editor with live SVG preview",
+    "longDescription": "Edit Jianpu source with a real-time SVG preview, transcribe PNG, JPEG, and PDF references into reviewable drafts, and export score documents. LilyPond conversion is not currently available.",
+    "resources": {
+      "../../../samples/jps_files/": "examples/",
+      "../../../build/desktop-engine/re-tomato-engine/": "engine/"
+    }
+  }
+}
