@@ -33,50 +33,13 @@ pixel = [
     "pillow>=10.2.0",
     "playwright>=1.60.0",
 ]
-dev = [
-    "mypy>=1.13",
-    "hypothesis>=6.100",
-    "pillow>=10.2.0",
-    "playwright>=1.60.0",
-    "pytest>=8",
-    "ruff>=0.9",
-]
 
 [project.scripts]
 re-tomato = "re_tomato.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src", "."]
-include = ["re_tomato*", "audit*"]
+include = ["re_tomato*", "ui", "ui.engine"]
 
 [tool.setuptools.package-data]
 "re_tomato.assets.glyphs" = ["*.svg", "registry.json"]
-
-[tool.pytest.ini_options]
-addopts = "-q"
-testpaths = ["tests"]
-pythonpath = ["src", "."]
-markers = [
-    "evidence: offline probe and evidence regressions",
-    "corpus: authoritative raw or pixel corpus gates",
-]
-
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-extend-exclude = ["tools/probes"]
-
-[tool.ruff.lint]
-select = ["E", "W", "F", "I", "UP", "B"]
-
-[tool.mypy]
-# Type checking follows the desktop worker's Python 3.12 environment/NumPy stubs.
-# Source syntax stays Python 3.11-compatible (Ruff's target and the CI runtime matrix).
-python_version = "3.12"
-# re_tomato lives under src/; audit/ (repo root) imports it, so mypy needs the path
-mypy_path = ["src"]
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true

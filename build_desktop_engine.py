@@ -72,8 +72,8 @@ def _request(
     }
 
 
-def _check_glyph_assets(bundle: Path) -> None:
-    expected = {path.name for path in GLYPH_DIR.glob("*.svg")} | {"registry.json"}
+def _check_glyph_assets(bundle: Path, glyph_dir: Path = GLYPH_DIR) -> None:
+    expected = {path.name for path in glyph_dir.glob("*.svg")} | {"registry.json"}
     found = {path.name for path in bundle.rglob("*") if path.is_file()}
     missing = sorted(expected - found)
     if missing:
@@ -147,16 +147,41 @@ def _smoke_test(bundle: Path, render_request: dict[str, object]) -> None:
         raise RuntimeError("frozen engine render did not exactly match the source adapter")
 
 
-def build() -> Path:
-    _validate_target_triple(os.environ.get("TAURI_ENV_TARGET_TRIPLE"))
-    if TARGET_DIR.is_symlink():
-        raise RuntimeError("refusing to write desktop engine through a symlinked Cargo target")
-    TARGET_DIR.mkdir(parents=True, exist_ok=True)
-    output_parent = OUTPUT_DIR.parent
-    if output_parent.is_symlink():
+def _publish_bundle(bundle: Path, output_dir: Path) -> None:
+    """Stage a checked worker, restoring the previous bundle if replacement fails."""
+    if output_dir.is_symlink() or output_dir.parent.is_symlink():
         raise RuntimeError("refusing to replace a symlinked desktop engine output")
-    if output_parent.exists():
-        shutil.rmtree(output_parent)
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    staging_root = Path(tempfile.mkdtemp(prefix=".worker-publish-", dir=output_dir.parent))
+    staged = staging_root / "new"
+    previous = staging_root / "previous"
+    try:
+        shutil.copytree(bundle, staged, symlinks=True)
+        if output_dir.exists():
+            output_dir.replace(previous)
+        try:
+            staged.replace(output_dir)
+        except BaseException:
+            if previous.exists():
+                previous.replace(output_dir)
+            raise
+        if previous.exists():
+            shutil.rmtree(previous)
+    finally:
+        # A failed rollback must leave its backup available for recovery.
+        if not previous.exists():
+            shutil.rmtree(staging_root)
+
+
+def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Path:
+    _validate_target_triple(os.environ.get("TAURI_ENV_TARGET_TRIPLE"))
+    entry_point = repository_root / "ui" / "engine" / "desktop_entry.py"
+    glyph_dir = repository_root / "src" / "re_tomato" / "assets" / "glyphs"
+    output_dir = target_dir / "desktop-engine" / "re-tomato-engine"
+    if target_dir.is_symlink():
+        raise RuntimeError("refusing to write desktop engine through a symlinked Cargo target")
+    if output_dir.is_symlink() or output_dir.parent.is_symlink():
+        raise RuntimeError("refusing to replace a symlinked desktop engine output")
 
     if platform.system() not in {"Windows", "Linux"}:
         raise RuntimeError("desktop engine packaging currently supports Windows and Linux only")
@@ -169,10 +194,10 @@ def build() -> Path:
         )
     if importlib.metadata.version("rapidocr-onnxruntime") != "1.4.4":
         raise RuntimeError("desktop transcription requires RapidOCR 1.4.4")
-    if not ENTRY_POINT.is_file():
-        raise RuntimeError(f"desktop engine entry point is missing: {ENTRY_POINT}")
+    if not entry_point.is_file():
+        raise RuntimeError(f"desktop engine entry point is missing: {entry_point}")
 
-    sample = load_jps(ROOT / "samples" / "jps_files" / "Symbols.jps")
+    sample = load_jps(repository_root / "samples" / "jps_files" / "Symbols.jps")
     render_request = _request(
         "desktop-build-render",
         "render",
@@ -185,7 +210,8 @@ def build() -> Path:
         },
     )
 
-    with tempfile.TemporaryDirectory(prefix=".desktop-engine-build-", dir=TARGET_DIR) as work:
+    target_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".desktop-engine-build-", dir=target_dir) as work:
         work_dir = Path(work)
         dist_dir = work_dir / "dist"
         command = [
@@ -204,9 +230,9 @@ def build() -> Path:
             "--specpath",
             str(work_dir),
             "--paths",
-            str(ROOT),
+            str(repository_root),
             "--paths",
-            str(ROOT / "src"),
+            str(repository_root / "src"),
             "--collect-data",
             "re_tomato.assets",
             "--collect-all",
@@ -215,7 +241,7 @@ def build() -> Path:
             "onnxruntime",
             "--exclude-module",
             "playwright",
-            str(ENTRY_POINT),
+            str(entry_point),
         ]
         completed = subprocess.run(command, text=True, capture_output=True, check=False)
         if completed.returncode != 0:
@@ -223,14 +249,11 @@ def build() -> Path:
                 "PyInstaller failed:\n" + (completed.stderr or completed.stdout)[-8000:]
             )
         bundle = dist_dir / "re-tomato-engine"
-        _check_glyph_assets(bundle)
+        _check_glyph_assets(bundle, glyph_dir)
         _smoke_test(bundle, render_request)
-        output_parent.mkdir(parents=True, exist_ok=True)
-        staging = output_parent / "re-tomato-engine.staging"
-        shutil.copytree(bundle, staging, symlinks=True)
-        staging.replace(OUTPUT_DIR)
+        _publish_bundle(bundle, output_dir)
 
-    return OUTPUT_DIR
+    return output_dir
 
 
 if __name__ == "__main__":
