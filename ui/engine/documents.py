@@ -44,12 +44,12 @@ from pathlib import Path
 from typing import Any
 
 #: Override the UI workspace location (tests use this for isolation).
-UI_HOME_ENV = "RETOMATO_UI_HOME"
+UI_HOME_ENV = "OCTOPUS_UI_HOME"
 
 #: Override the corpus directory (packaged app ships its own copy beside the
 #: binary; tests may point it at a fixture tree). Read at call time so a
 #: test can swap it without re-importing.
-CORPUS_DIR_ENV = "RETOMATO_CORPUS_DIR"
+CORPUS_DIR_ENV = "OCTOPUS_CORPUS_DIR"
 
 
 def corpus_dir() -> Path:
@@ -105,7 +105,7 @@ class ConflictError(Exception):
 
 
 def ui_home() -> Path:
-    root = Path(os.environ.get(UI_HOME_ENV) or (Path(tempfile.gettempdir()) / "re-tomato-ui"))
+    root = Path(os.environ.get(UI_HOME_ENV) or (Path(tempfile.gettempdir()) / "octopus-ui"))
     root.mkdir(parents=True, exist_ok=True)
     return root
 

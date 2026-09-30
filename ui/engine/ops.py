@@ -1,4 +1,4 @@
-"""Engine operations: dispatch engine requests onto the core re_tomato pipeline.
+"""Engine operations: dispatch engine requests onto the core octopus pipeline.
 
 This is the single dispatch module shared by every transport (stdio sidecar,
 dev HTTP server): a transport reads one raw request line and hands it to
@@ -21,13 +21,13 @@ import re
 import time
 from pathlib import Path
 
-from re_tomato import __version__
-from re_tomato.jps import JpsDocument, jps_key, repair_mojibake
-from re_tomato.model.model_normalize import ScoreModel, normalize_document
-from re_tomato.parser.grammar import parse_document
-from re_tomato.render.core.layout_types import LayoutEvent
-from re_tomato.render.layout import LayoutPage, layout_page
-from re_tomato.render.svg import (
+from octopus import __version__
+from octopus.jps import JpsDocument, jps_key, repair_mojibake
+from octopus.model.model_normalize import ScoreModel, normalize_document
+from octopus.parser.grammar import parse_document
+from octopus.render.core.layout_types import LayoutEvent
+from octopus.render.layout import LayoutPage, layout_page
+from octopus.render.svg import (
     render_page_elements,
     render_score_model_page_with_layout,
     render_score_model_pages,
@@ -237,7 +237,7 @@ def _handle_render(request: RenderRequest) -> RenderResponse:
 def _source_document(request: RenderRequest) -> JpsDocument:
     """Build the same ``JpsDocument`` ``load_jps`` would build for this record.
 
-    Mirrors ``re_tomato.corpus.load_jps`` field for field (mojibake repair on
+    Mirrors ``octopus.corpus.load_jps`` field for field (mojibake repair on
     the code, page_config already normalized by the protocol layer, key via
     core ``jps_key()``) so the engine's output is byte-identical to the CLI's
     for the same content. The path is synthesized from the record name; only

@@ -15,14 +15,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 TARGET_DIR = ROOT / "build"
-OUTPUT_DIR = TARGET_DIR / "desktop-engine" / "re-tomato-engine"
+OUTPUT_DIR = TARGET_DIR / "desktop-engine" / "octopus-engine"
 ENTRY_POINT = ROOT / "ui" / "engine" / "desktop_entry.py"
-GLYPH_DIR = ROOT / "src" / "re_tomato" / "assets" / "glyphs"
+GLYPH_DIR = ROOT / "src" / "octopus" / "assets" / "glyphs"
 PYINSTALLER_VERSION = "6.22.3"
 
 sys.path[:0] = [str(ROOT), str(ROOT / "src")]
 
-from re_tomato.jps import load_jps  # noqa: E402
+from octopus.jps import load_jps  # noqa: E402
 from ui.engine.desktop_protocol import PROTOCOL_VERSION, dispatch  # noqa: E402
 
 
@@ -83,7 +83,7 @@ def _check_glyph_assets(bundle: Path, glyph_dir: Path = GLYPH_DIR) -> None:
 
 
 def _smoke_test(bundle: Path, render_request: dict[str, object]) -> None:
-    executable_name = "re-tomato-engine"
+    executable_name = "octopus-engine"
     if platform.system() == "Windows":
         executable_name += ".exe"
     executable = bundle / executable_name
@@ -176,8 +176,8 @@ def _publish_bundle(bundle: Path, output_dir: Path) -> None:
 def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Path:
     _validate_target_triple(os.environ.get("TAURI_ENV_TARGET_TRIPLE"))
     entry_point = repository_root / "ui" / "engine" / "desktop_entry.py"
-    glyph_dir = repository_root / "src" / "re_tomato" / "assets" / "glyphs"
-    output_dir = target_dir / "desktop-engine" / "re-tomato-engine"
+    glyph_dir = repository_root / "src" / "octopus" / "assets" / "glyphs"
+    output_dir = target_dir / "desktop-engine" / "octopus-engine"
     if target_dir.is_symlink():
         raise RuntimeError("refusing to write desktop engine through a symlinked Cargo target")
     if output_dir.is_symlink() or output_dir.parent.is_symlink():
@@ -222,7 +222,7 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             "--clean",
             "--onedir",
             "--name",
-            "re-tomato-engine",
+            "octopus-engine",
             "--distpath",
             str(dist_dir),
             "--workpath",
@@ -234,7 +234,7 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             "--paths",
             str(repository_root / "src"),
             "--collect-data",
-            "re_tomato.assets",
+            "octopus.assets",
             "--collect-all",
             "rapidocr_onnxruntime",
             "--collect-all",
@@ -248,7 +248,7 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             raise RuntimeError(
                 "PyInstaller failed:\n" + (completed.stderr or completed.stdout)[-8000:]
             )
-        bundle = dist_dir / "re-tomato-engine"
+        bundle = dist_dir / "octopus-engine"
         _check_glyph_assets(bundle, glyph_dir)
         _smoke_test(bundle, render_request)
         _publish_bundle(bundle, output_dir)

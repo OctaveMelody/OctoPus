@@ -67,7 +67,7 @@
     "longDescription": "Edit Jianpu source with a real-time SVG preview, transcribe PNG, JPEG, and PDF references into reviewable drafts, and export score documents. LilyPond conversion is not currently available.",
     "resources": {
       "../../../samples/jps_files/": "examples/",
-      "../../../build/desktop-engine/re-tomato-engine/": "engine/"
+      "../../../build/desktop-engine/octopus-engine/": "engine/"
     }
   }
 }

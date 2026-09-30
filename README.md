@@ -4,8 +4,8 @@ This directory contains the application source, packaging configuration, offline
 and the two JPS example collections. It needs no files from the GPT-Tomato development directory.
 Tests, audits, reference SVGs and development tools stay there.
 
-[Production requirements](requirements.md) define the independent runtime/build environment.
-Run `python3 setup_environment.py` to install its locked Python/frontend dependencies.
+[Production requirements](ENVIRONMENT.md) define the independent runtime/build environment.
+Run `python3 scripts/setup.py` to install its locked Python/frontend dependencies.
 
 Install Rust 1.92+ with Tauri CLI 2.11.5, Node.js 20.19+ with npm, and `uv`. Debian builds also
 need `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev` and

@@ -12,15 +12,15 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from re_tomato.jps import JpsDocument, jps_key, load_jps_text, serialize_jps
-from re_tomato.normalization.pipeline import normalize_document
-from re_tomato.normalization.types import ScoreModel
-from re_tomato.parser.grammar import parse_document
-from re_tomato.render.svg import (
+from octopus.jps import JpsDocument, jps_key, load_jps_text, serialize_jps
+from octopus.normalization.pipeline import normalize_document
+from octopus.normalization.types import ScoreModel
+from octopus.parser.grammar import parse_document
+from octopus.render.svg import (
     render_score_model,
     render_score_model_page_with_layout,
 )
-from re_tomato.transcription import transcribe
+from octopus.transcription import transcribe
 
 from .svg_preview import add_safe_custom_markup, add_safe_custom_page_markup
 

@@ -60,7 +60,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from re_tomato.jps import repair_mojibake
+from octopus.jps import repair_mojibake
 from ui.engine import documents as docs
 from ui.engine.ops import dispatch
 from ui.engine.protocol import serialize_response
@@ -68,7 +68,7 @@ from ui.engine.protocol import serialize_response
 MAX_BODY_BYTES = 10 * 1024 * 1024  # render requests carry full JPS records; 10 MiB is generous
 _LOOPBACK_HOST = "127.0.0.1"
 # Corpus directory resolution lives in documents.corpus_dir() (shared with the
-# 1.2.0 dispatch ops): RETOMATO_CORPUS_DIR override, repo default otherwise.
+# 1.2.0 dispatch ops): OCTOPUS_CORPUS_DIR override, repo default otherwise.
 # Read at request time so a test can swap it without re-importing.
 
 log = logging.getLogger("ui.engine.http_server")

@@ -6,8 +6,8 @@ import re
 import xml.etree.ElementTree as ET
 from html import escape
 
-from re_tomato.normalization.types import ScoreModel
-from re_tomato.render.svg_engine.custom import custom_elements
+from octopus.normalization.types import ScoreModel
+from octopus.render.svg_engine.custom import custom_elements
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
 MAX_CUSTOM_SVG_BYTES = 1024 * 1024

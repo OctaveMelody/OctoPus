@@ -94,7 +94,7 @@ def _register_cjk_fallbacks(families: set[str]) -> None:
         for candidate in candidates:
             if not Path(candidate).is_file():
                 continue
-            internal = f"reTomatoCjk-{family.replace(' ', '')}"
+            internal = f"octopusCjk-{family.replace(' ', '')}"
             try:
                 pdfmetrics.registerFont(TTFont(internal, candidate))
             except Exception:  # unreadable/corrupt font file: skip to next
@@ -132,9 +132,9 @@ def render_all_pages(
     map it to a descriptive error.
     """
     # Lazy: keep ui.engine.ops importable without the export dependencies.
-    from re_tomato.model.model_normalize import normalize_document
-    from re_tomato.parser.grammar import parse_document
-    from re_tomato.render.svg import render_score_model_pages
+    from octopus.model.model_normalize import normalize_document
+    from octopus.parser.grammar import parse_document
+    from octopus.render.svg import render_score_model_pages
     from ui.engine.ops import _source_document  # noqa: PLC0415 - lazy cycle guard
     from ui.engine.protocol import RenderRequest
 

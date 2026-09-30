@@ -26,7 +26,7 @@ import sys
 from collections.abc import Iterator
 from typing import Any, Protocol
 
-from re_tomato import __version__
+from octopus import __version__
 from ui.engine.ops import dispatch
 from ui.engine.protocol import (
     STATUS_PARSE_ERROR,

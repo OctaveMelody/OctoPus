@@ -23,9 +23,9 @@ fn engine_supervisor(_app: &AppHandle) -> Result<EngineSupervisor, String> {
 #[cfg(not(debug_assertions))]
 fn engine_supervisor(app: &AppHandle) -> Result<EngineSupervisor, String> {
     let executable = if cfg!(windows) {
-        "engine/re-tomato-engine.exe"
+        "engine/octopus-engine.exe"
     } else {
-        "engine/re-tomato-engine"
+        "engine/octopus-engine"
     };
     let path = app
         .path()

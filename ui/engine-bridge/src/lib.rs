@@ -865,7 +865,7 @@ for line in sys.stdin:
     #[test]
     fn missing_packaged_engine_never_falls_back_to_development_tools() {
         let executable =
-            std::env::temp_dir().join(format!("re-tomato-missing-engine-{}", std::process::id()));
+            std::env::temp_dir().join(format!("octopus-missing-engine-{}", std::process::id()));
         let mut engine = EngineSupervisor::packaged(executable);
 
         assert!(engine

@@ -21,7 +21,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
-from re_tomato.jps import decode_page_config
+from octopus.jps import decode_page_config
 
 STATUS_OK = "ok"
 STATUS_PARSE_ERROR = "parse_error"
