@@ -1,0 +1,39 @@
+Restoring original IPA fonts in OctoPus
+
+SimZhiSong is derived from IPA Mincho (ipam.ttf, IPA Font 003.03).
+LXGW Neo XiHei is derived from IPAex Gothic (ipaexg.ttf, IPAex Font 004.01).
+Their full IPA Font License Agreement 1.0 is shipped alongside this notice.
+Obtain original, unmodified fonts and their licenses at:
+https://moji.or.jp/ipafont/ipafontdownload/
+IPA Font: https://moji.or.jp/wp-content/ipafont/IPAfont/IPAfont00303.zip
+IPAex Font: https://moji.or.jp/wp-content/ipafont/IPAexfont/IPAexfont00401.zip
+
+To use the originals instead of these derived fonts:
+1. Obtain the OctoPus source repository corresponding to your installed version.
+   Follow ENVIRONMENT.md to prepare its independent build environment.
+2. Extract ipam.ttf and ipaexg.ttf without modifying their font data or names.
+   Copy ipam.ttf over src/octopus/assets/fonts/SimZhiSong.ttf and ipaexg.ttf over
+   src/octopus/assets/fonts/LXGWNeoXiHei.ttf. These are application resource paths;
+   the fonts' internal original family names stay IPAMincho and IPAexGothic.
+3. In src/octopus/assets/fonts/sources.json, for each of those two source entries,
+   keep format=ttf and its target file path; set family to the original name above.
+   Set url to a file:// absolute URL pointing to the extracted original TTF, and
+   sha256 to that file's SHA-256. Set version to the downloaded original version.
+   Point license_url to a file:// URL for its supplied license and update
+   license_sha256 to match it. Keep license_file pointing to the shipped notice.
+   Delete the matching old cached source file from build/font-sources/ if present.
+4. Run the documented scripts/prepare_fonts.py regeneration command. This regenerates
+   the verified manifest and coverage from the unmodified original font files.
+5. Replace every application family reference to SimZhiSong with IPAMincho, and
+   LXGW Neo XiHei with IPAexGothic, in ui/engine/font_profile.py, ui/web/src/fonts.css
+   and ui/web/src/main.tsx. Keep the existing resource filenames in CSS/Rust.
+   Disable the installed system-font preference by making system_font_path in
+   ui/engine/font_profile.py return None, so the restored originals are selected.
+6. Run python build.py using the environment specified in ENVIRONMENT.md. Use the
+   rebuilt portable application; its preview and PDF/JPG exporters now use the
+   original IPA fonts for SongTi and HeiTi. This replaces native embedded fonts
+   too, rather than changing only the frontend. Preserve all original license texts.
+
+The same procedure works for one font at a time. Original IPA fonts have a different
+character repertoire and metrics; unavailable Chinese glyphs use the Noto backup.
+No Microsoft fonts are included or redistributed by this restoration procedure.

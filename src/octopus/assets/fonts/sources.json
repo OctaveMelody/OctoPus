@@ -31,7 +31,52 @@
       "version": "2.1.5-3",
       "format": "deb",
       "license_file": "licenses/LiberationSans-OFL.txt"
+    },
+    {
+      "name": "lxgwwenkai-regular",
+      "url": "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522/LXGWWenKai-Regular.ttf",
+      "sha256": "39ad71264b588165b469e35e6afb162a378dacd1f95348160240ba9038ac3009",
+      "cache_file": "LXGWWenKai-Regular.ttf",
+      "file": "LXGWWenKai-Regular.ttf",
+      "family": "LXGW WenKai",
+      "format": "ttf",
+      "version": "v1.522",
+      "license": "OFL-1.1",
+      "license_file": "licenses/LxgwWenKai-OFL.txt",
+      "license_sha256": "c38b1994a5e48ac30ac7d1da7d0409fd8fd8127dfe28a13d6e787d5b1ef34a5e",
+      "license_url": "https://raw.githubusercontent.com/lxgw/LxgwWenKai/e8b5b48b79f19f29aa68b0a178eab3472ea9f7e8/OFL.txt"
+    },
+    {
+      "name": "simzhisong",
+      "url": "https://github.com/lxgw/SimXiZhi/releases/download/v1.103/SimZhiSong.ttf",
+      "sha256": "43f97af1df5c93c4550d9949ac85eebab761b17507ecd46b02b537682b6e6b13",
+      "cache_file": "SimZhiSong.ttf",
+      "file": "SimZhiSong.ttf",
+      "family": "SimZhiSong",
+      "format": "ttf",
+      "version": "v1.103",
+      "license": "IPA Font License 1.0",
+      "license_file": "licenses/SimXiZhi-IPA.txt",
+      "license_sha256": "daf91386d6f9a6a78e4e736c0c00375cae30214ac5c1dab2479f0a05fcb63edd",
+      "license_url": "https://raw.githubusercontent.com/lxgw/SimXiZhi/6305b4adddb4be7a8b97ab6074b103d456a5b677/License.txt"
+    },
+    {
+      "name": "lxgwneoxihei",
+      "url": "https://github.com/lxgw/LxgwNeoXiHei/releases/download/v1.305/LXGWNeoXiHei.ttf",
+      "sha256": "893cfbec604768f03785ab4f369508de68c274273359a5cadee17e2852975d5c",
+      "cache_file": "LXGWNeoXiHei.ttf",
+      "file": "LXGWNeoXiHei.ttf",
+      "family": "LXGW Neo XiHei",
+      "format": "ttf",
+      "version": "v1.305",
+      "license": "IPA Font License 1.0",
+      "license_file": "licenses/LxgwNeoXiHei-IPA.txt",
+      "license_sha256": "bce9800ab47cd0961c2a536d5ecfb983442d58eec1db5ff88a5f1a8d1c682367",
+      "license_url": "https://raw.githubusercontent.com/lxgw/LxgwNeoXiHei/v1.305/LICENSE.md"
     }
   ],
-  "zstandard_version": "0.25.0"
+  "zstandard_version": "0.25.0",
+  "notices": [
+    "licenses/IPA-RESTORATION.txt"
+  ]
 }

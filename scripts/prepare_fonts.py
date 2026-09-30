@@ -115,6 +115,12 @@ def prepare(cache: Path) -> None:
                 faces.append({"file": filename, "family": family,
                               "weight": "bold" if weight == 700 else "normal", "style": "normal",
                               "source": source["name"], "instance_weight": weight})
+        elif source["format"] == "ttf":
+            fetch(source["license_url"], source["license_sha256"], FONTS / source["license_file"])
+            filename = source["file"]
+            (FONTS / filename).write_bytes(data)
+            faces.append({"file": filename, "family": source["family"], "weight": "normal",
+                          "style": "normal", "source": source["name"]})
         else:
             package = deb_files(data)
             (FONTS / source["license_file"]).write_bytes(package.pop("copyright"))
@@ -129,6 +135,8 @@ def prepare(cache: Path) -> None:
     licenses = [{"file": source["license_file"],
                  "sha256": digest((FONTS / source["license_file"]).read_bytes())}
                 for source in recipe["sources"]]
+    licenses.extend({"file": filename, "sha256": digest((FONTS / filename).read_bytes())}
+                    for filename in recipe.get("notices", []))
     coverage = {}
     for family in sorted({face["family"] for face in faces}):
         sets = [set(TTFont(FONTS / face["file"]).getBestCmap())
@@ -141,7 +149,7 @@ def prepare(cache: Path) -> None:
             else:
                 ranges.append([code, code])
         coverage[family] = ranges
-    manifest = {"coverage": coverage, "license": "OFL-1.1",
+    manifest = {"coverage": coverage, "license": "OFL-1.1 and IPA Font License 1.0",
                 "fonttools_version": fontTools.__version__,
                 "faces": faces, "licenses": licenses}
     (FONTS / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

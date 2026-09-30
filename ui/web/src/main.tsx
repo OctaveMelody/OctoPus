@@ -6,6 +6,8 @@ import "./workspace/app.css";
 import "./fonts.css";
 
 const scoreFonts = [
+  'normal 400 16px "LXGW WenKai"', 'normal 400 16px "SimZhiSong"',
+  'normal 400 16px "LXGW Neo XiHei"',
   'normal 400 16px "Noto Sans SC"', 'normal 700 16px "Noto Sans SC"',
   'normal 400 16px "Noto Serif SC"', 'normal 700 16px "Noto Serif SC"',
   'normal 400 16px "Liberation Sans"', 'normal 700 16px "Liberation Sans"',

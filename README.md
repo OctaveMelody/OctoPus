@@ -59,12 +59,17 @@ The preceding successful portable build is retained under `portable.previous/`.
 
 ## Fonts and examples
 
-Production preview and exports use bundled Noto Sans SC, Noto Serif SC and Liberation Sans
-fonts, with their OFL licenses. No font installation is needed. Microsoft YaHei/SimHei requests
-map to Noto Sans SC, SimSun to Noto Serif SC, and Arial to Liberation Sans with Chinese fallback.
-PDF exports embed fonts; JPEG exports contain pixels. External SVG viewers need the named fonts
-installed. [Font assets and reproducible preparation](src/octopus/assets/fonts/README.md) describe
-checksums, sources and licenses.
+Settings offer HeiTi, SongTi and KaiTi. Windows uses installed SimHei, SimSun and
+KaiTi when available; each missing family falls back to bundled Neo XiHei, SimZhiSong
+and WenKai Regular, respectively. Linux production uses the bundled fallbacks.
+Noto provides additional Chinese glyph coverage, and Liberation Sans covers Latin
+Arial requests. No font installation is needed. PDF embeds fonts; JPEG stores pixels.
+External SVG viewers need the named fonts installed.
+[Font assets and reproducible preparation](src/octopus/assets/fonts/README.md) describe
+sources, checksums, OFL/IPA licenses and original IPA font restoration instructions.
+
+Note style choices are Regular, Italic and Bold. Existing documents retain their
+legacy font names and note-style IDs until those settings are edited.
 
 Development reference tests use installed Microsoft fonts; their metrics and pixels differ from
 the open-font production substitutions. The production repository contains no Microsoft font files.

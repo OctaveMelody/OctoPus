@@ -1,48 +1,51 @@
-# Redistributable release fonts
+# Application fonts
 
-This is the canonical production font asset directory. The Python wheel/worker, native Rust
-exporter and frontend all use these same inputs. Fonts are app-local; no system install occurs.
+The settings panel offers HeiTi, SongTi and KaiTi. On Windows, an installed SimHei,
+SimSun or KaiTi is preferred independently for each role. A missing family uses its
+bundled fallback: LXGW Neo XiHei v1.305, SimZhiSong v1.103 or LXGW WenKai Regular
+v1.522, respectively. Production Linux uses those bundled fallbacks. Source/debug
+reference builds prefer installed Microsoft reference fonts, including on Linux.
+Legacy family names and note-style IDs remain readable. New documents use HeiTi
+and Bold; note-style choices are Regular, Italic and Bold. They select the existing
+numbered-note glyph sets; text font weight/style is a separate setting.
 
-Noto Sans SC regular/bold replaces Microsoft YaHei and SimHei. Noto Serif SC regular/bold replaces
-SimSun (and provides a serif fallback for KaiTi; it is not a brush-style equivalent). Liberation
-Sans 2.1.5 regular/bold/italic/bold-italic replaces Arial. Unsupported requests use Noto Sans SC.
-These substitutions are stylistic; Chinese glyph metrics/pixels differ from Microsoft fonts.
-The manifest records actual Unicode coverage shared by each family's faces. A text element that
-needs unavailable glyphs (for example Chinese requested in Arial) uses a bundled CJK face; Latin
-Arial text keeps Liberation Sans. Font metadata and visible text are not rewritten.
+This directory is the canonical asset source for the Python worker, native Rust
+exporter and frontend. Eleven TTF faces are bundled: the three chosen regular
+faces, Noto Sans SC/Serif SC regular/bold backups, and four Liberation Sans styles
+for Arial-compatible Latin text. Missing glyphs fall back to a bundled Noto face.
+The three regular-only families use their supplied face without synthetic weights.
+PDFs embed fonts; JPGs contain pixels. External SVG viewers need the named fonts.
+Fonts are app-local and no system font is installed or replaced.
 
-sources.json pins original download URLs, upstream revisions and checksums. Noto static TTF
-instances at weight 400/700 are generated using fontTools 4.60.2 for PDF/native compatibility.
-The family names remain Noto Sans SC/Noto Serif SC; modified fonts do not use the reserved name
-Source. The Liberation faces are unmodified. All fonts retain OFL 1.1 terms and copyright notices;
-licenses/ contains the complete notices/texts shipped in the application and frontend assets.
+WenKai, Noto and Liberation use OFL 1.1. Neo XiHei and SimZhiSong use IPA Font
+License 1.0. All original names, binary font data and complete notices are retained
+for the three chosen faces. See [IPA restoration instructions](licenses/IPA-RESTORATION.txt)
+for restoring the original IPA fonts in source and executable distributions.
+That notice is included and verified with the font licenses in every package.
+Noto static weights 400/700 are generated using fontTools 4.60.2; their names do
+not use the reserved name Source. No Microsoft font binaries are redistributed.
 
-Verify committed inputs without network access:
+sources.json pins URLs, versions and SHA-256 values. manifest.json records all
+face/license hashes and shared Unicode coverage. Verify without network access:
 
 ```sh
 python3 scripts/prepare_fonts.py --verify
 ```
 
-Reproduce downloads/static instances from this repository root:
+Reproduce inputs from this repository root:
 
 ```sh
 uv run --no-project --with fonttools==4.60.2 --with zstandard==0.25.0 \
   python scripts/prepare_fonts.py
 ```
 
-Sources are cached under ignored build/font-sources/ (or use --cache with a workspace cache).
-Existing cached sources are still hash-verified. Regeneration verifies pinned build-tool versions;
-review manifest hashes before committing any intentional font update. Microsoft font binaries
-must never be added here, to the frontend, or to release packages.
+Sources are cached under ignored build/font-sources/ (or --cache). Cached inputs
+remain hash-verified. Review manifest changes before committing updates.
 
-Source engine tests default to the reference profile. OCTOPUS_FONT_PROFILE=release selects the
-release profile for source-engine/Python export checks. Frozen workers always use release fonts;
-native release exports load only the eight embedded faces, and source/debug native exports use
-system fonts unless release is selected. Original score settings and reference corpus bytes stay
-unchanged; the profile changes SVG font requests at the engine boundary. The source CLI renderer
-continues to produce reference SVGs for corpus auditing.
-
-App preview loads bundled font faces before mounting. Python PDF registration and raster export
-use the same font files; release raster export disables system fonts. Native exports embed the
-font inputs and do not require fonts installed on the host. PDF embeds text fonts, JPG contains
-pixels; external standalone SVG viewers need the named Noto/Liberation fonts installed.
+OCTOPUS_FONT_PROFILE=release enables production font policy in source exports.
+Frozen workers always use that policy, with Windows system-family preference.
+The native exporter embeds all eleven faces and loads host fonts on Windows or
+in debug/reference mode. Python PDF and raster paths use the same selected files.
+Release rasterization receives only explicit bundled/selected Windows files.
+The browser preloads bundled faces before mounting. Existing reference corpus
+bytes and the source CLI's auditing output remain unchanged.

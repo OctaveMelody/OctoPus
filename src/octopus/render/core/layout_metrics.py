@@ -70,7 +70,10 @@ def page_metrics(model: ScoreModel) -> PageMetrics:
         margin_right=margin_right,
         body_margin_top=body_margin_top,
         title_font=str(page_config.get("biaoti_font", "Microsoft YaHei")),
-        note_font=str(page_config.get("shuzi_font", "b")),
+        note_font={"regular": "a", "italic": "c", "bold": "b"}.get(
+            str(page_config.get("shuzi_font", "b")).casefold(),
+            str(page_config.get("shuzi_font", "b")),
+        ),
         lyric_font=str(page_config.get("geci_font", "Microsoft YaHei")),
         title_size=_config_int(
             page_config, "biaoti_size", 36, minimum=1, maximum=_MAX_FONT_SIZE

@@ -89,6 +89,9 @@ def _register_cjk_fallbacks(families: set[str]) -> None:
     except ImportError:  # pragma: no cover - exercised only without deps
         return
     for family in families:
+        if family.casefold() in {"simhei", "simsun", "kaiti"}:
+            # These matching system faces are registered by the shared font policy.
+            continue
         candidates = _CJK_FONT_CANDIDATES.get(family.lower())
         if candidates is None:
             continue

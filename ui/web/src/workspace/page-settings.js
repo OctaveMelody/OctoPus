@@ -31,11 +31,10 @@ export const pageSettingGroups = [
         key: "biaoti_font",
         label: "pageSettingsTitleFont",
         kind: "select",
-        defaultValue: "Microsoft YaHei",
+        defaultValue: "HeiTi",
         options: [
-          { value: "Microsoft YaHei", label: "fontMicrosoftYaHei" },
-          { value: "SimSun", label: "fontSimSun" },
-          { value: "SimHei", label: "fontSimHei" },
+          { value: "HeiTi", label: "fontHeiTi" },
+          { value: "SongTi", label: "fontSongTi" },
           { value: "KaiTi", label: "fontKaiTi" },
         ],
       },
@@ -43,22 +42,21 @@ export const pageSettingGroups = [
         key: "shuzi_font",
         label: "pageSettingsNoteFont",
         kind: "select",
-        defaultValue: "b",
+        defaultValue: "Bold",
         options: [
-          { value: "a", label: "noteStyleOne" },
-          { value: "c", label: "noteStyleTwo" },
-          { value: "b", label: "noteStyleThree" },
+          { value: "Regular", label: "noteStyleRegular" },
+          { value: "Italic", label: "noteStyleItalic" },
+          { value: "Bold", label: "noteStyleBold" },
         ],
       },
       {
         key: "geci_font",
         label: "pageSettingsLyricFont",
         kind: "select",
-        defaultValue: "Microsoft YaHei",
+        defaultValue: "HeiTi",
         options: [
-          { value: "Microsoft YaHei", label: "fontMicrosoftYaHei" },
-          { value: "SimSun", label: "fontSimSun" },
-          { value: "SimHei", label: "fontSimHei" },
+          { value: "HeiTi", label: "fontHeiTi" },
+          { value: "SongTi", label: "fontSongTi" },
           { value: "KaiTi", label: "fontKaiTi" },
         ],
       },
@@ -151,7 +149,13 @@ function readValue(config, field) {
     if (typeof stored === "string" && /^[-+]?\d+$/.test(stored.trim())) return Number(stored);
     return field.defaultValue;
   }
-  return typeof stored === "string" ? stored : field.defaultValue;
+  if (typeof stored !== "string") return field.defaultValue;
+  if (field.key === "shuzi_font") return ({ a: "Regular", c: "Italic", b: "Bold" })[stored] ?? stored;
+  if (field.key === "biaoti_font" || field.key === "geci_font") {
+    return ({ "Microsoft YaHei": "HeiTi", SimHei: "HeiTi", "黑体": "HeiTi",
+      SimSun: "SongTi", NSimSun: "SongTi", "宋体": "SongTi", "楷体": "KaiTi" })[stored] ?? stored;
+  }
+  return stored;
 }
 
 /** @param {import("./page-settings.js").PageSetting} field @param {string | number} value @param {string | number} original */

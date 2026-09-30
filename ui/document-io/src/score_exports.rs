@@ -116,7 +116,7 @@ fn svg_options() -> usvg::Options<'static> {
 
 fn svg_options_for_profile(release: bool) -> usvg::Options<'static> {
     let mut font_database = usvg::fontdb::Database::new();
-    if release {
+    {
         const FACES: &[&[u8]] = &[
             include_bytes!("../../../src/octopus/assets/fonts/NotoSansSC-Regular.ttf"),
             include_bytes!("../../../src/octopus/assets/fonts/NotoSansSC-Bold.ttf"),
@@ -126,13 +126,17 @@ fn svg_options_for_profile(release: bool) -> usvg::Options<'static> {
             include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-Bold.ttf"),
             include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-Italic.ttf"),
             include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-BoldItalic.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/LXGWWenKai-Regular.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/SimZhiSong.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/LXGWNeoXiHei.ttf"),
         ];
         for face in FACES {
             font_database.load_font_data(face.to_vec());
         }
         font_database.set_sans_serif_family("Noto Sans SC");
         font_database.set_serif_family("Noto Serif SC");
-    } else {
+    }
+    if !release || cfg!(target_os = "windows") {
         font_database.load_system_fonts();
     }
     usvg::Options {
@@ -241,9 +245,11 @@ mod tests {
     }
 
     #[test]
-    fn release_database_contains_only_bundled_faces() {
+    fn release_database_includes_fallback_faces() {
         let options = super::svg_options_for_profile(true);
-        assert_eq!(options.fontdb.faces().count(), 8);
+        if !cfg!(target_os = "windows") {
+            assert_eq!(options.fontdb.faces().count(), 11);
+        }
         let families: Vec<_> = options
             .fontdb
             .faces()
@@ -252,7 +258,12 @@ mod tests {
         assert!(families.contains(&"Noto Sans SC"));
         assert!(families.contains(&"Noto Serif SC"));
         assert!(families.contains(&"Liberation Sans"));
-        assert!(!families.contains(&"Microsoft YaHei"));
+        assert!(families.contains(&"LXGW WenKai"));
+        assert!(families.contains(&"SimZhiSong"));
+        assert!(families.contains(&"LXGW Neo XiHei"));
+        if !cfg!(target_os = "windows") {
+            assert!(!families.contains(&"Microsoft YaHei"));
+        }
         let svg = SVG_PAGE.replace("Microsoft YaHei", "Noto Sans SC");
         let pdf = super::export_pdf_with_options(&[svg], options).unwrap();
         assert!(pdf

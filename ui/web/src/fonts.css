@@ -6,3 +6,9 @@
 @font-face { font-family: "Liberation Sans"; src: url("/fonts/LiberationSans-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: block; }
 @font-face { font-family: "Liberation Sans"; src: url("/fonts/LiberationSans-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: block; }
 @font-face { font-family: "Liberation Sans"; src: url("/fonts/LiberationSans-BoldItalic.ttf") format("truetype"); font-weight: 700; font-style: italic; font-display: block; }
+
+@font-face { font-family: "LXGW WenKai"; src: url("/fonts/LXGWWenKai-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: "SimZhiSong"; src: url("/fonts/SimZhiSong.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: block; }
+@font-face { font-family: "LXGW Neo XiHei"; src: url("/fonts/LXGWNeoXiHei.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: block; }
+/* Use each supplied regular face consistently with native/Python exports. */
+svg { font-synthesis: none; }

@@ -56,12 +56,15 @@ Linux 仍需要系统中的 GTK/WebKit 运行库和 Poppler 工具；Windows 需
 
 ## 字体和示例
 
-生产版预览和导出使用内置的 Noto Sans SC、Noto Serif SC 和 Liberation Sans 字体，
-并附带 OFL 许可证，无需安装字体。Microsoft YaHei（微软雅黑）和 SimHei（黑体）请求
-使用 Noto Sans SC；SimSun（宋体）使用 Noto Serif SC；Arial 使用 Liberation Sans，
-其中的中文字符由内置中文字体补充。
-PDF 导出会嵌入字体，JPEG 导出直接保存像素；外部 SVG 查看器需要安装对应的字体。
-[字体资源及可复现的准备流程](src/octopus/assets/fonts/README.md) 说明了校验值、来源和许可证。
+字体选项为黑体（HeiTi）、宋体（SongTi）和楷体（KaiTi）。Windows 优先使用已安装的
+SimHei、SimSun、KaiTi；每种字体缺失时分别使用内置 Neo XiHei、SimZhiSong、WenKai Regular。
+Linux 生产版使用这些内置替代字体。Noto 补充中文字符覆盖，Liberation Sans 替代 Arial 西文。
+无需安装字体。PDF 会嵌入字体，JPEG 保存像素；外部 SVG 查看器需要安装相应字体。
+[字体资源及可复现准备流程](src/octopus/assets/fonts/README.md) 说明来源、校验值、
+OFL/IPA 许可证及恢复原始 IPA 字体的方法。
+
+音符样式选项为常规（Regular）、斜体（Italic）和粗体（Bold）。旧文档的字体名和样式标识
+在修改对应设置前仍保持兼容。
 
 开发参考测试使用系统中已安装的微软字体，其字形尺寸和像素结果与生产版的开源替代字体不同。
 生产仓库不包含微软字体文件。
