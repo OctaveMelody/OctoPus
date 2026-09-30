@@ -122,7 +122,7 @@ def apply_svg_fonts(svg: str) -> str:
     def fallback_text(match: re.Match[str]) -> str:
         text = html.unescape(_SVG_TAG.sub("", match[1]))
         element = match[0]
-        for family in _RELEASE_FAMILIES:
+        for family in coverage:
             if family in element and not contains(family, text):
                 replacement = next((candidate for candidate in ("Noto Sans SC", "Noto Serif SC")
                                     if contains(candidate, text)), "Noto Sans SC")
@@ -162,8 +162,18 @@ def bundled_fonts() -> tuple[tuple[str, str, str, Path], ...]:
 def font_coverage() -> dict[str, frozenset[int]]:
     root = bundled_fonts()[0][3].parent
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
-    return {family: frozenset(code for start, end in ranges for code in range(start, end + 1))
-            for family, ranges in manifest["coverage"].items()}
+    coverage = {family: frozenset(code for start, end in ranges for code in range(start, end + 1))
+                for family, ranges in manifest["coverage"].items()}
+    if release_profile():
+        for family, _, _ in _FONT_ROLES.values():
+            path = system_font_path(family)
+            if path is not None and path.is_file():
+                # Installed Windows versions vary; inspect the selected file's actual cmap.
+                from reportlab.pdfbase.ttfonts import TTFont  # type: ignore[import-untyped]
+
+                font = TTFont("octopus-system-coverage", str(path))
+                coverage[family] = frozenset(font.face.charToGlyph)
+    return coverage
 
 
 class RasterFontOptions(TypedDict, total=False):
