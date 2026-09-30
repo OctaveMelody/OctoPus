@@ -106,3 +106,22 @@ hashes and includes them in the worker, preview and native exporter. Builds need
 or system font installation. See [font asset guide](src/octopus/assets/fonts/README.md).
 The source engine defaults to reference fonts; use OCTOPUS_FONT_PROFILE=release for open-font
 checks. Packaged workers/native exports use the release fonts. Reference fonts stay outside Git.
+
+## Portable production testing
+
+Every native `python build.py` build also publishes an untracked portable tree under
+`dist/<target-triple>/portable/`, alongside installation packages. Linux builds include a Debian
+bundle to obtain the matching resource layout, even when another bundle type is requested.
+The builder verifies worker/font/glyph assets, a Chinese render and example bytes before replacing
+the portable output. `portable.previous/` retains the last successful portable build.
+
+On Linux, run from any working directory:
+
+```sh
+./dist/x86_64-unknown-linux-gnu/portable/usr/bin/gpt-tomato-desktop
+```
+
+On Windows, run `dist/<target-triple>/portable/gpt-tomato-desktop.exe`. Keep the complete portable
+folder together. Linux still requires the host GTK/WebKit libraries and Poppler tools; Windows
+requires WebView2. This is an application-local production testing tree, not a static OS runtime.
+Both build/ and dist/ are ignored by Git. Fonts are bundled and no font installation is needed.
