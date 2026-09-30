@@ -4,10 +4,9 @@ Renders the requested document revision to standalone SVG pages through the
 SAME pipeline as ``render`` (``_source_document`` identity +
 ``render_score_model_pages``), converts each page with svglib into a
 reportlab drawing, and assembles one multi-page vector PDF. Text stays real
-PDF text (selectable/printable); CJK families resolve through svglib's own
-font chain (fontconfig on Linux — the Tauri launcher points FONTCONFIG_PATH
-at the bundled font dir; a small platform-aware candidate table covers
-Windows, which has no fontconfig).
+PDF text (selectable/printable). Release exports register pinned bundled TrueType
+faces explicitly; reference exports retain svglib's host font resolution and
+the platform-aware CJK candidate table.
 
 Tool decision (2026-09-22, evidence in IMPLEMENTATION_PLAN.md): svglib +
 reportlab over cairosvg — both render all corpus pages with equivalent
@@ -32,6 +31,8 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
+
+from ui.engine.font_profile import apply_svg_fonts, register_pdf_fonts
 
 #: Bare-ampersand escape — the same rule as the frontend's
 #: ``escapeBareAmpersands`` (R10a export hygiene). Attribute values are never
@@ -153,7 +154,7 @@ def render_all_pages(
     pages = render_score_model_pages(model, list(range(len(model.pages))))
     if not pages:
         raise ValueError("the document renders no pages — nothing to export")
-    return tuple(pages)
+    return tuple(apply_svg_fonts(page) for page in pages)
 
 
 def build_pdf(
@@ -175,6 +176,7 @@ def build_pdf(
     from svglib.svglib import svg2rlg  # type: ignore[import-untyped]
 
     pages = render_all_pages(code, custom_code, page_config, name, source_key, display_name)
+    register_pdf_fonts()
     _register_cjk_fallbacks(_families_used(pages))
 
     out = io.BytesIO()

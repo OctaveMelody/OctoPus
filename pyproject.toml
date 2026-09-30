@@ -43,3 +43,5 @@ include = ["octopus*", "ui", "ui.engine"]
 
 [tool.setuptools.package-data]
 "octopus.assets.glyphs" = ["*.svg", "registry.json"]
+
+"octopus.assets.fonts" = ["*.ttf", "*.json", "*.md", "licenses/*.txt"]

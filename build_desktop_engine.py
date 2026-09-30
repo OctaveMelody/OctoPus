@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.metadata
 import json
 import os
@@ -82,6 +83,23 @@ def _check_glyph_assets(bundle: Path, glyph_dir: Path = GLYPH_DIR) -> None:
         raise RuntimeError("frozen engine unexpectedly contains audit-only Playwright")
 
 
+def _check_font_assets(bundle: Path) -> None:
+    source = ROOT / "src/octopus/assets/fonts"
+    manifests = list(bundle.rglob("octopus/assets/fonts/manifest.json"))
+    if len(manifests) != 1:
+        raise RuntimeError("frozen engine is missing its release font manifest")
+    root = manifests[0].parent
+    if manifests[0].read_bytes() != (source / "manifest.json").read_bytes():
+        raise RuntimeError("frozen engine font manifest differs from source")
+    manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
+    for entry in [*manifest["faces"], *manifest["licenses"]]:
+        path = root / entry["file"]
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]:
+            raise RuntimeError(
+                f"frozen engine is missing/corrupt release font asset: {entry['file']}"
+            )
+
+
 def _smoke_test(bundle: Path, render_request: dict[str, object]) -> None:
     executable_name = "octopus-engine"
     if platform.system() == "Windows":
@@ -91,14 +109,22 @@ def _smoke_test(bundle: Path, render_request: dict[str, object]) -> None:
         raise RuntimeError(f"PyInstaller output is missing its worker executable: {executable}")
 
     handshake = _request("desktop-build-handshake", "handshake", 0, {})
-    expected_handshake = dispatch(
-        json.dumps(handshake, ensure_ascii=True, allow_nan=False).encode("utf-8"),
-        generation="desktop-build-reference",
-    )
-    expected = dispatch(
-        json.dumps(render_request, ensure_ascii=True, allow_nan=False).encode("utf-8"),
-        generation="desktop-build-reference",
-    )
+    previous_profile = os.environ.get("OCTOPUS_FONT_PROFILE")
+    os.environ["OCTOPUS_FONT_PROFILE"] = "release"
+    try:
+        expected_handshake = dispatch(
+            json.dumps(handshake, ensure_ascii=True, allow_nan=False).encode("utf-8"),
+            generation="desktop-build-reference",
+        )
+        expected = dispatch(
+            json.dumps(render_request, ensure_ascii=True, allow_nan=False).encode("utf-8"),
+            generation="desktop-build-reference",
+        )
+    finally:
+        if previous_profile is None:
+            os.environ.pop("OCTOPUS_FONT_PROFILE", None)
+        else:
+            os.environ["OCTOPUS_FONT_PROFILE"] = previous_profile
     input_text = (
         "\n".join(
             json.dumps(item, ensure_ascii=True, allow_nan=False)
@@ -144,7 +170,10 @@ def _smoke_test(bundle: Path, render_request: dict[str, object]) -> None:
         or response.get("document_revision") != render_request["document_revision"]
         or response.get("result") != expected.get("result")
     ):
-        raise RuntimeError("frozen engine render did not exactly match the source adapter")
+        raise RuntimeError(
+            "frozen engine render did not exactly match the source adapter: "
+            + json.dumps(response.get("error"), ensure_ascii=True)[:1000]
+        )
 
 
 def _publish_bundle(bundle: Path, output_dir: Path) -> None:
@@ -250,6 +279,7 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             )
         bundle = dist_dir / "octopus-engine"
         _check_glyph_assets(bundle, glyph_dir)
+        _check_font_assets(bundle)
         _smoke_test(bundle, render_request)
         _publish_bundle(bundle, output_dir)
 

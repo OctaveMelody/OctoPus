@@ -12,11 +12,9 @@ directly; the one failure is the known malformed-quote page (see
 the repair provably does NOT touch on any other corpus page. Fidelity vs an
 independent ground truth: 0.25% pixel diff on a normal page, 2.90% on the
 repaired one (both within the ~3% rasterizer baseline measured for the PDF
-line). resvg resolves fonts natively — fontdb reads fontconfig configuration
-on Linux (honoring FONTCONFIG_PATH, which the Tauri launcher points at the
-bundled font dir) and DirectWrite on Windows, where Microsoft YaHei / SimHei
-are system fonts — so no bootstrap table is needed (unlike svglib's
-fc-match subprocess chain).
+line). Release resvg export loads only the pinned bundled font files and skips
+system fonts. Reference export retains the normal system-font resolution.
+
 
 Output shape: one JPEG per page (the website's JPG export shape), zoom 2.0
 (1000×1415 user units → 2000×2830 px ≈ A4 at ~203 DPI), quality 90,
@@ -33,6 +31,8 @@ from __future__ import annotations
 import io
 import re
 from typing import Any
+
+from ui.engine.font_profile import raster_font_options
 
 #: Rasterization scale: 2× the SVG root (1000 user units wide → 2000 px),
 #: ≈ A4 at ~203 DPI — print/sharing quality without bloating file size.
@@ -95,7 +95,9 @@ def build_jpgs(
     pages = render_all_pages(code, custom_code, page_config, name, source_key, display_name)
     jpegs: list[bytes] = []
     for svg in pages:
-        png = resvg_py.svg_to_bytes(svg_string=_well_form(svg), zoom=_EXPORT_ZOOM)
+        png = resvg_py.svg_to_bytes(
+            svg_string=_well_form(svg), zoom=_EXPORT_ZOOM, **raster_font_options()
+        )
         opened = Image.open(io.BytesIO(png))
         if opened.mode != "RGB":
             # Composite any alpha onto white before JPEG (lossy, no alpha).

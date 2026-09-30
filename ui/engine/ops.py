@@ -34,6 +34,7 @@ from octopus.render.svg import (
 )
 from ui.engine import documents as docs
 from ui.engine import jpg_export, pdf_export
+from ui.engine.font_profile import apply_svg_fonts
 from ui.engine.protocol import (
     STATUS_ERROR,
     STATUS_INTERNAL,
@@ -184,6 +185,7 @@ def _handle_render(request: RenderRequest) -> RenderResponse:
                     model, indices, serialization_profile=request.serialization_profile
                 )
             )
+        pages = tuple(apply_svg_fonts(page) for page in pages)
     except Exception as exc:  # noqa: BLE001 - the sidecar must survive bad input
         return RenderResponse(
             id=request.id,

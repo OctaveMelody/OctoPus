@@ -98,3 +98,11 @@ worker cross-compilation is unsupported. macOS packaging is deferred.
 `dist/<target-triple>/`. The worker builder preserves its previous output until a new bundle
 has passed glyph checks and handshake/render smoke tests. Each repository has its own locks;
 update them intentionally with `uv lock`/npm/Cargo and validate the resulting change.
+
+## Release fonts
+
+Pinned OFL font assets and licenses are in src/octopus/assets/fonts/. Packaging verifies their
+hashes and includes them in the worker, preview and native exporter. Builds need no font download
+or system font installation. See [font asset guide](src/octopus/assets/fonts/README.md).
+The source engine defaults to reference fonts; use OCTOPUS_FONT_PROFILE=release for open-font
+checks. Packaged workers/native exports use the release fonts. Reference fonts stay outside Git.

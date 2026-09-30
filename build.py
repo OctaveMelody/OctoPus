@@ -24,6 +24,9 @@ def main() -> None:
     if not args.bundles:
         parser.error("native packaging currently supports Linux and Windows")
 
+    subprocess.run([os.sys.executable, str(ROOT / "scripts/prepare_fonts.py"), "--verify"],
+                   cwd=ROOT, check=True)
+
     if not (WEB / "node_modules").is_dir():
         subprocess.run(["npm.cmd" if os.name == "nt" else "npm", "ci"], cwd=WEB, check=True)
 

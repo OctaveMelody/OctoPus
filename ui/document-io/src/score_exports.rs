@@ -20,8 +20,14 @@ const MAX_PDF_PAGE_POINTS: f32 = 14_400.0;
 const JPEG_QUALITY: u8 = 95;
 
 pub fn export_pdf(svg_pages: &[String]) -> Result<Vec<u8>, DocumentIoError> {
+    export_pdf_with_options(svg_pages, svg_options())
+}
+
+fn export_pdf_with_options(
+    svg_pages: &[String],
+    options: usvg::Options<'_>,
+) -> Result<Vec<u8>, DocumentIoError> {
     validate_svg_pages(svg_pages)?;
-    let options = svg_options();
     let mut document = Document::new();
 
     for svg in svg_pages {
@@ -103,9 +109,38 @@ fn validate_svg_pages(svg_pages: &[String]) -> Result<(), DocumentIoError> {
 }
 
 fn svg_options() -> usvg::Options<'static> {
+    let release = !cfg!(debug_assertions)
+        || std::env::var("OCTOPUS_FONT_PROFILE").as_deref() == Ok("release");
+    svg_options_for_profile(release)
+}
+
+fn svg_options_for_profile(release: bool) -> usvg::Options<'static> {
     let mut font_database = usvg::fontdb::Database::new();
-    font_database.load_system_fonts();
+    if release {
+        const FACES: &[&[u8]] = &[
+            include_bytes!("../../../src/octopus/assets/fonts/NotoSansSC-Regular.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/NotoSansSC-Bold.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/NotoSerifSC-Regular.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/NotoSerifSC-Bold.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-Regular.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-Bold.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-Italic.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-BoldItalic.ttf"),
+        ];
+        for face in FACES {
+            font_database.load_font_data(face.to_vec());
+        }
+        font_database.set_sans_serif_family("Noto Sans SC");
+        font_database.set_serif_family("Noto Serif SC");
+    } else {
+        font_database.load_system_fonts();
+    }
     usvg::Options {
+        font_family: if release {
+            "Noto Sans SC".into()
+        } else {
+            "Times New Roman".into()
+        },
         fontdb: Arc::new(font_database),
         ..Default::default()
     }
@@ -203,6 +238,29 @@ mod tests {
 
     fn page() -> Vec<String> {
         vec![SVG_PAGE.to_owned()]
+    }
+
+    #[test]
+    fn release_database_contains_only_bundled_faces() {
+        let options = super::svg_options_for_profile(true);
+        assert_eq!(options.fontdb.faces().count(), 8);
+        let families: Vec<_> = options
+            .fontdb
+            .faces()
+            .flat_map(|face| face.families.iter().map(|family| family.0.as_str()))
+            .collect();
+        assert!(families.contains(&"Noto Sans SC"));
+        assert!(families.contains(&"Noto Serif SC"));
+        assert!(families.contains(&"Liberation Sans"));
+        assert!(!families.contains(&"Microsoft YaHei"));
+        let svg = SVG_PAGE.replace("Microsoft YaHei", "Noto Sans SC");
+        let pdf = super::export_pdf_with_options(&[svg], options).unwrap();
+        assert!(pdf
+            .windows(b"/ToUnicode".len())
+            .any(|item| item == b"/ToUnicode"));
+        assert!(pdf
+            .windows(b"/FontFile".len())
+            .any(|item| item == b"/FontFile"));
     }
 
     #[test]

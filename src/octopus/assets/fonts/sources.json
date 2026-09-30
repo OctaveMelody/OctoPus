@@ -1,0 +1,37 @@
+{
+  "fonttools_version": "4.60.2",
+  "sources": [
+    {
+      "name": "notosanssc",
+      "url": "https://raw.githubusercontent.com/google/fonts/a85815a42757630ce188fdad368c2dfc444d4773/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+      "sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
+      "cache_file": "NotoSansSC[wght].ttf",
+      "license_file": "licenses/NotoSansSC-OFL.txt",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/a85815a42757630ce188fdad368c2dfc444d4773/ofl/notosanssc/OFL.txt",
+      "license_sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+      "upstream_revision": "a85815a42757630ce188fdad368c2dfc444d4773",
+      "format": "variable-ttf"
+    },
+    {
+      "name": "notoserifsc",
+      "url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf",
+      "sha256": "050080d9255a86808f2945bffac582b31ef32bc36411ce29563b4961670c66f9",
+      "cache_file": "NotoSerifSC[wght].ttf",
+      "license_file": "licenses/NotoSerifSC-OFL.txt",
+      "license_url": "https://raw.githubusercontent.com/google/fonts/8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5/ofl/notoserifsc/OFL.txt",
+      "license_sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6",
+      "upstream_revision": "8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5",
+      "format": "variable-ttf"
+    },
+    {
+      "name": "liberation-sans",
+      "url": "https://archive.ubuntu.com/ubuntu/pool/main/f/fonts-liberation/fonts-liberation_2.1.5-3_all.deb",
+      "sha256": "065c2ab1abc9108b17d401016dc594b79750904390f095845c93bb06e1153acc",
+      "cache_file": "fonts-liberation_2.1.5-3_all.deb",
+      "version": "2.1.5-3",
+      "format": "deb",
+      "license_file": "licenses/LiberationSans-OFL.txt"
+    }
+  ],
+  "zstandard_version": "0.25.0"
+}
