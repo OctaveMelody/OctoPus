@@ -30,11 +30,11 @@ def publish_portable(destination: Path, release: Path, packages: list[Path], sys
             if len(debs) != 1:
                 raise RuntimeError("portable Linux output requires exactly one Debian package")
             subprocess.run(["dpkg-deb", "-x", str(debs[0]), str(staged)], check=True)
-            executable = staged / "usr/bin/gpt-tomato-desktop"
+            executable = staged / "usr/bin/octopus"
             resources = staged / "usr/lib" / config["productName"]
         elif system == "Windows":
             staged.mkdir()
-            executable = staged / "gpt-tomato-desktop.exe"
+            executable = staged / "octopus.exe"
             shutil.copy2(release / executable.name, executable)
             resources = staged
             shutil.copytree(ROOT / "build/desktop-engine/octopus-engine", resources / "engine")

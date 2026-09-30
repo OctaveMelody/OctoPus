@@ -118,10 +118,10 @@ the portable output. `portable.previous/` retains the last successful portable b
 On Linux, run from any working directory:
 
 ```sh
-./dist/x86_64-unknown-linux-gnu/portable/usr/bin/gpt-tomato-desktop
+./dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus
 ```
 
-On Windows, run `dist/<target-triple>/portable/gpt-tomato-desktop.exe`. Keep the complete portable
+On Windows, run `dist/<target-triple>/portable/octopus.exe`. Keep the complete portable
 folder together. Linux still requires the host GTK/WebKit libraries and Poppler tools; Windows
 requires WebView2. This is an application-local production testing tree, not a static OS runtime.
 Both build/ and dist/ are ignored by Git. Fonts are bundled and no font installation is needed.

@@ -95,8 +95,8 @@ function getStorage(): Storage | null {
   }
 }
 
-const LAST_OPENED_JPS_PATH_KEY = "gpt-tomato.last-opened-jps-path.v1";
-const LAST_SAVED_JPS_PATH_KEY = "gpt-tomato.last-saved-jps-path.v1";
+const LAST_OPENED_JPS_PATH_KEY = "octopus.last-opened-jps-path.v1";
+const LAST_SAVED_JPS_PATH_KEY = "octopus.last-saved-jps-path.v1";
 
 function rememberedPath(key: string): string | null {
   try {

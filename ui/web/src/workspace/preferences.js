@@ -6,7 +6,7 @@
 /** @typedef {"T1" | "T2"} TranscriptionLayout */
 /** @typedef {{language: Language, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
 
-export const PREFERENCES_KEY = "gpt-tomato.workspace.v1";
+export const PREFERENCES_KEY = "octopus.workspace.v1";
 
 /** @type {Record<LayoutId, Split>} */
 const DEFAULT_SPLITS = {
