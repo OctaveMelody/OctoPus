@@ -1068,6 +1068,15 @@ export function App() {
     }
   }
 
+  function positionFindMenu(menu: HTMLDetailsElement | null) {
+    if (!menu?.open) return;
+    const anchor = menu.querySelector("summary")!.getBoundingClientRect();
+    const popup = menu.querySelector<HTMLElement>(".find-menu-items")!;
+    const panel = menu.closest(".editor-panel")!.getBoundingClientRect();
+    popup.style.left = `${Math.max(panel.left + 8, Math.min(anchor.left, panel.right - popup.offsetWidth - 8))}px`;
+    popup.style.top = `${anchor.bottom + 4}px`;
+  }
+
   function editClipboard(action: "cut" | "copy" | "paste") {
     try {
       if (!editorController.current?.[action]()) throw new Error(copy.clipboardUnavailable);
@@ -1103,11 +1112,8 @@ export function App() {
                 {copy.unsavedFlag}
               </span>
             )}
-            <button className="heading-action" disabled={!documentOpen} onClick={() => editorController.current?.formatSource()} type="button">
-              {copy.formatSource}
-            </button>
           </div>
-          <div aria-label={copy.editorTools} className="editor-heading-tools" role="toolbar">
+          <div aria-label={copy.editorTools} className="editor-heading-tools" role="toolbar" onScroll={() => positionFindMenu(findMenuRef.current)}>
             <button disabled={!documentOpen || !editorHistory.undo} onClick={() => editorController.current?.undo()} type="button">
               {copy.undo}
             </button>
@@ -1123,14 +1129,18 @@ export function App() {
             <button disabled={!documentOpen} onClick={() => editClipboard("paste")} type="button">
               {copy.paste}
             </button>
-            <details className="find-menu" ref={findMenuRef} onKeyDown={(event) => {
+            <details className="find-menu" ref={findMenuRef} onToggle={(event) => positionFindMenu(event.currentTarget)} onKeyDown={(event) => {
               if (event.key === "Escape") {
                 event.currentTarget.open = false;
                 event.currentTarget.querySelector("summary")?.focus();
               }
             }}>
               <summary aria-disabled={!documentOpen} onClick={(event) => {
-                if (!documentOpen) event.preventDefault();
+                event.preventDefault();
+                const menu = findMenuRef.current;
+                if (!documentOpen || !menu) return;
+                menu.open = !menu.open;
+                positionFindMenu(menu);
               }}>{copy.find}</summary>
               <div className="find-menu-items" role="group" aria-label={copy.find}>
                 {[false, true].map((replace) => (
@@ -1145,6 +1155,9 @@ export function App() {
               {copy.selectAll}
             </button>
           </div>
+          <button className="heading-action editor-format-action" disabled={!documentOpen} onClick={() => editorController.current?.formatSource()} type="button">
+            {copy.formatSource}
+          </button>
         </div>
         {documentOpen && <JpsEditor
           documentId={score.id}
