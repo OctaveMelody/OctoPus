@@ -21,7 +21,7 @@ from octopus.render.svg import (
     render_score_model_page_with_layout,
 )
 from octopus.transcription import transcribe
-from ui.engine.font_profile import apply_svg_fonts
+from ui.engine.font_profile import apply_svg_fonts, system_font_availability
 
 from .svg_preview import add_safe_custom_markup, add_safe_custom_page_markup
 
@@ -162,7 +162,8 @@ def _render(payload: dict[str, Any]) -> dict[str, Any]:
     model = _score_model(payload)
     pages = render_score_model(model, export_mode="safe-source")
     pages, custom_markup_omitted = add_safe_custom_markup(model, pages)
-    pages = [apply_svg_fonts(page) for page in pages]
+    sources = payload.get("page_config", {}).get("_font_sources")
+    pages = [apply_svg_fonts(page, sources) for page in pages]
     return {
         "pages": pages,
         "page_count": len(pages),
@@ -216,7 +217,7 @@ def _render_page(payload: dict[str, Any]) -> dict[str, Any]:
         raise PageOutOfRangeError(len(model.pages))
     svg, layout = render_score_model_page_with_layout(model, page_index)
     svg, custom_markup_omitted = add_safe_custom_page_markup(model, page_index, svg)
-    svg = apply_svg_fonts(svg)
+    svg = apply_svg_fonts(svg, payload.get("page_config", {}).get("_font_sources"))
     events = [
         {
             "event_index": item.event.index,
@@ -427,6 +428,7 @@ def dispatch(line: bytes, generation: str) -> dict[str, Any]:
                 "custom_svg_display": True,
                 "ocr": importlib.util.find_spec("rapidocr_onnxruntime") is not None,
                 "lilypond": False,
+                "fonts": system_font_availability(),
             }
         else:
             operation = request["operation"]

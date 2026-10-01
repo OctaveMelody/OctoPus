@@ -157,7 +157,7 @@ def render_all_pages(
     pages = render_score_model_pages(model, list(range(len(model.pages))))
     if not pages:
         raise ValueError("the document renders no pages — nothing to export")
-    return tuple(apply_svg_fonts(page) for page in pages)
+    return tuple(apply_svg_fonts(page, page_config.get("_font_sources")) for page in pages)
 
 
 def build_pdf(

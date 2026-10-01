@@ -19,7 +19,7 @@ export type FocusPane = PaneId | null;
 
 export type LifecycleAction = "new" | "open" | "examples" | "close-document" | "exit" | "transcribe-new";
 
-export type DialogKind = "new" | "dirty" | "settings-dirty" | "examples" | "recovery" | "reference-import" | null;
+export type DialogKind = "new" | "dirty" | "settings-dirty" | "examples" | "recovery" | "reference-import" | "preferences" | null;
 
 export type CatalogKind = "example" | "working-copy";
 
@@ -111,7 +111,9 @@ export type ExportFormat = "svg" | "pdf" | "jpg";
 
 export type ExportDpi = 96 | 300 | null;
 
-export type EngineCapabilities = { ocr: boolean; lilypond: boolean };
+export type FontAvailability = Record<string, { family: string; fallback: string; available: boolean }>;
+export type FontSources = WorkspacePreferences["fontSources"];
+export type EngineCapabilities = { ocr: boolean; lilypond: boolean; fonts?: FontAvailability };
 
 export type ExportReceipt = {
   documentId: string;

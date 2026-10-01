@@ -4,7 +4,7 @@
 /** @typedef {{documentId: string, revision: number, pageCount: number, filenames: string[], customMarkupOmitted: boolean}} SvgExportReceipt */
 /** @typedef {"pdf" | "jpg"} ScoreExportFormat */
 /** @typedef {{documentId: string, revision: number, format: ScoreExportFormat, dpi: number | null, pageCount: number, filenames: string[], customMarkupOmitted: boolean}} ScoreExportReceipt */
-/** @typedef {{ocr: boolean, lilypond: boolean}} EngineCapabilities */
+/** @typedef {{ocr: boolean, lilypond: boolean, fonts?: Record<string, {family: string, fallback: string, available: boolean}>}} EngineCapabilities */
 /** @typedef {{id: string, path: string, name: string, mimeType: "image/png" | "image/jpeg", byteLength: number, width: number, height: number, orientation: number}} StagedReferenceImage */
 /** @typedef {{id: string, path: string, name: string, byteLength: number, sha256: string}} StagedReferencePdf */
 /** @typedef {{images: StagedReferenceImage[], pdfs: StagedReferencePdf[], order: string[]}} StagedReferenceAssets */

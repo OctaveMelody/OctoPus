@@ -4,7 +4,8 @@
 /** @typedef {{x: number, y: number}} Split */
 /** @typedef {"N1" | "N2"} NormalLayout */
 /** @typedef {"T1" | "T2"} TranscriptionLayout */
-/** @typedef {{language: Language, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
+/** @typedef {Record<string, "system" | "fallback">} FontSources */
+/** @typedef {{fontSources: FontSources, language: Language, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
 
 export const PREFERENCES_KEY = "octopus.workspace.v1";
 
@@ -31,6 +32,7 @@ function bounded(value, fallback, minimum, maximum) {
 /** @param {string} [osLanguage] @returns {WorkspacePreferences} */
 export function defaultPreferences(osLanguage = "en") {
   return {
+    fontSources: Object.fromEntries(["heiti-1", "heiti-2", "songti", "kaiti", "fangsong"].map(role => [role, "system"])),
     language: osLanguage.toLowerCase().startsWith("zh") ? "zh-CN" : "en",
     mode: "normal",
     normalLayout: "N1",
@@ -67,6 +69,8 @@ export function readPreferences(storage, osLanguage = "en") {
       t1.y = 80 - t1.x;
     }
     return {
+      fontSources: Object.fromEntries(Object.keys(defaults.fontSources).map(role =>
+        [role, isRecord(candidate.fontSources) && candidate.fontSources[role] === "fallback" ? "fallback" : "system"])),
       language: candidate.language === "zh-CN" || candidate.language === "en"
         ? candidate.language
         : defaults.language,

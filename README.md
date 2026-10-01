@@ -107,6 +107,10 @@ untouched legacy settings remain compatible. Development reference tests use ins
 Microsoft fonts. Production also prefers its configured OS fonts; fallback fonts can differ
 in metrics and pixels. Microsoft font files are not bundled, installed or redistributed.
 
+Open **Preferences** to change the interface language and select OS or bundled fonts for each
+role. Missing OS fonts are disabled and use the bundled fallback. Choices are stored locally
+and apply to preview and SVG/PDF/JPG export without changing the saved score.
+
 PDF exports embed fonts; JPEG stores pixels. External SVG viewers need the named fonts.
 The Python ReportLab PDF path uses the bundled role fallback when an installed font has
 unsupported CFF outlines. See the [font guide](src/octopus/assets/fonts/README.md) for details

@@ -72,7 +72,8 @@ pub(crate) async fn get_engine_capabilities(
             .capabilities()?;
         Ok(serde_json::json!({
             "ocr": capabilities["ocr"].as_bool().unwrap_or(false),
-            "lilypond": capabilities["lilypond"].as_bool().unwrap_or(false)
+            "lilypond": capabilities["lilypond"].as_bool().unwrap_or(false),
+            "fonts": capabilities["fonts"]
         }))
     })
     .await

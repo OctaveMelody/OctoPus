@@ -185,7 +185,9 @@ def _handle_render(request: RenderRequest) -> RenderResponse:
                     model, indices, serialization_profile=request.serialization_profile
                 )
             )
-        pages = tuple(apply_svg_fonts(page) for page in pages)
+        pages = tuple(
+            apply_svg_fonts(page, request.page_config.get("_font_sources")) for page in pages
+        )
     except Exception as exc:  # noqa: BLE001 - the sidecar must survive bad input
         return RenderResponse(
             id=request.id,

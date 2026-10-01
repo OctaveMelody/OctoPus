@@ -107,10 +107,19 @@ def system_font_path(family: str) -> Path | None:
     return None
 
 
-def role_family(role: str) -> str:
+def role_family(role: str, sources: dict[str, str] | None = None) -> str:
     _, fallback, _ = _FONT_ROLES[role]
     system = preferred_system_family(role)
-    return system if system_font_path(system) is not None else fallback
+    if (sources or {}).get(role) != "fallback" and system_font_path(system) is not None:
+        return system
+    return fallback
+
+
+def system_font_availability() -> dict[str, dict[str, str | bool]]:
+    """Report exact host families, independently for every selectable role."""
+    return {role: {"family": preferred_system_family(role), "fallback": entry[1],
+                   "available": system_font_path(preferred_system_family(role)) is not None}
+            for role, entry in _FONT_ROLES.items()}
 
 
 def release_profile() -> bool:
@@ -123,7 +132,7 @@ def release_profile() -> bool:
     return profile == "release"
 
 
-def release_family(family: str) -> str:
+def release_family(family: str, sources: dict[str, str] | None = None) -> str:
     first = html.unescape(family).split(",", 1)[0].strip().strip("\"'")
     role = {"HeiTi": "heiti-2", "heiti": "heiti-2", "黑体": "heiti-2",
             "黑体-1": "heiti-1", "黑体-2": "heiti-2", "宋体": "songti",
@@ -132,20 +141,25 @@ def release_family(family: str) -> str:
         first, first.casefold(),
     )
     if role in _FONT_ROLES:
-        return role_family(role)
+        return role_family(role, sources)
     canonical = {name.casefold(): name for name in _RELEASE_FAMILIES}
     if first.casefold() in canonical:
         return canonical[first.casefold()]
     if first.casefold() in {"simsun", "nsimsun", "serif"}:
-        return role_family("songti")
+        return role_family("songti", sources)
     if first.casefold() in {"arial", "liberation sans"}:
         return "Liberation Sans"
-    return role_family("heiti-2")
+    return role_family("heiti-2", sources)
 
 
-def apply_svg_fonts(svg: str) -> str:
+def apply_svg_fonts(svg: str, sources: dict[str, str] | None = None) -> str:
     """Change text font requests only; preserve reference output and document settings."""
-    release = release_profile()
+    if sources is not None and (not isinstance(sources, dict)
+                               or any(role not in _FONT_ROLES
+                                      or choice not in ("system", "fallback")
+                                      for role, choice in sources.items())):
+        raise ValueError("invalid font source preferences")
+    release = release_profile() or sources is not None
     if not release and not re.search(
         r"(?:HeiTi(?:-[12])?|SongTi|KaiTi|FangSong)", svg, re.IGNORECASE,
     ):
@@ -157,7 +171,7 @@ def apply_svg_fonts(svg: str) -> str:
         def resolve(request: str) -> str:
             first = request.split(",", 1)[0].strip().strip("\"'").casefold()
             if release or first in {*_FONT_ROLES, "heiti"}:
-                family = release_family(request)
+                family = release_family(request, sources)
                 # Parentheses are CSS tokens unless the family is quoted.
                 return f"&quot;{family}&quot;" if "(" in family else family
             return request
@@ -168,7 +182,7 @@ def apply_svg_fonts(svg: str) -> str:
         return name + equal + quote + value + closing
 
     mapped = _SVG_TAG.sub(lambda tag: _ATTRIBUTE.sub(rewrite_attribute, tag[0]), svg)
-    coverage = font_coverage()
+    coverage = font_coverage(include_system=sources is not None)
 
     def contains(family: str, text: str) -> bool:
         return all(char.isspace() or ord(char) in coverage[family] for char in text)
@@ -217,12 +231,12 @@ def bundled_fonts() -> tuple[tuple[str, str, str, Path], ...]:
 
 
 @lru_cache(maxsize=1)
-def font_coverage() -> dict[str, frozenset[int]]:
+def font_coverage(include_system: bool = False) -> dict[str, frozenset[int]]:
     root = bundled_fonts()[0][3].parent
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     coverage = {family: frozenset(code for start, end in ranges for code in range(start, end + 1))
                 for family, ranges in manifest["coverage"].items()}
-    if release_profile():
+    if release_profile() or include_system:
         for family, path in selected_system_fonts():
             if path.is_file():
                 face = font_face(path, family)

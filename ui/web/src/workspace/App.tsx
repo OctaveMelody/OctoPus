@@ -8,10 +8,10 @@ import { checkForUpdate, openHelpDestination } from "./help-actions.js";
 import type { HelpDestination, UpdateResult } from "./help-actions.js";
 
 import { JpsEditor, type JpsEditorHandle } from "../editor/JpsEditor";
+import { PreferencesForm } from "./PreferencesForm";
 import { PageSettings } from "./PageSettings";
 import { ReferencePanel } from "../reference/ReferencePanel";
 import { messages } from "./i18n";
-import type { Language } from "./i18n";
 import brandMark from "./octopus.svg";
 import { useScorePreview } from "./useScorePreview";
 import { ScorePreview } from "./ScorePreview";
@@ -224,8 +224,11 @@ export function App() {
     fields: newScoreFields,
     dirty: newScoreDraftActive && newScoreDraftChanged(newFileName, newScoreFields),
   };
+  const outputFontSources = Object.fromEntries(Object.entries(preferences.fontSources).map(
+    ([role, source]) => [role, engineCapabilities.fonts?.[role]?.available ? source : "fallback"],
+  ));
   const { isExporting, currentExportStatus, startExport } = useScoreExports({
-    score, currentDocument, documentOpen, copyRef });
+    score, currentDocument, documentOpen, copyRef, fontSources: outputFontSources });
   const referenceAssets = useReferenceAssets({ currentDocument, recoverySequence,
     currentRecoveryDraft, copyRef, setStatus, setActiveDialog, setDialogError, setPreferences,
     externalImportBusy: () => !recoveryReadyRef.current || saving.current || transcribing.current
@@ -235,7 +238,7 @@ export function App() {
     commitReferenceSet, importReferences, chooseReferenceImport, updateReferences } = referenceAssets;
 
   const preview = useScorePreview({ score, currentDocument, documentOpen, recoveryReady, copy,
-    setStatus, editorController, focusPane, setFocusPane });
+    setStatus, editorController, focusPane, setFocusPane, fontSources: outputFontSources });
   const { handleEditorCursor, resetPreview, sourceChanged } = preview;
 
   const layout: LayoutId = preferences.mode === "normal"
@@ -339,6 +342,10 @@ export function App() {
           && typeof capabilities.lilypond === "boolean"
         ) {
           setEngineCapabilities(capabilities);
+          setPreferences(current => ({ ...current, fontSources: Object.fromEntries(
+            Object.entries(current.fontSources).map(([role, source]) =>
+              [role, capabilities.fonts?.[role]?.available ? source : "fallback"])
+          ) }));
         }
       })
       .catch(() => {});
@@ -1443,18 +1450,8 @@ export function App() {
               wrapped={score.jsonWrapped}
             />
           )}
-          <label className="workspace-language">
-            {copy.language} <select
-              onChange={(event) => setPreferences((current) => ({
-                ...current,
-                language: event.target.value as Language,
-              }))}
-              value={preferences.language}
-            >
-              <option value="en">{copy.english}</option>
-              <option value="zh-CN">{copy.chinese}</option>
-            </select>
-          </label>
+          <button disabled={isSaving || referenceOperationBusy}
+            onClick={() => setActiveDialog("preferences")} type="button">{copy.preferences}</button>
           <button
             disabled={isSaving || referenceOperationBusy}
             onClick={requestNativeClose}
@@ -1546,6 +1543,9 @@ export function App() {
         }}
         ref={dialogRef}
       >
+        {activeDialog === "preferences" && <PreferencesForm copy={copy}
+          preferences={preferences} fonts={engineCapabilities.fonts}
+          onChange={setPreferences} onClose={() => setActiveDialog(null)} />}
         {activeDialog === "dirty" && (
           <section>
             <h2 id="lifecycle-dialog-title">{copy.unsavedTitle}</h2>

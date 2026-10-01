@@ -17,10 +17,11 @@ import {
 } from "./source-mapping.js";
 import type { DocumentSnapshot, FocusPane, PageCache, PageRenderResponse, PreviewQueue,
   PreviewRequest, RenderDiagnostic, RenderDiagnostics, RenderedPage, SourceAnchor, Status,
-  WorkspaceCopy } from "./types";
+  WorkspaceCopy, FontSources } from "./types";
 
 export function useScorePreview({ score, currentDocument, documentOpen, recoveryReady, copy,
-  setStatus, editorController, focusPane, setFocusPane }: {
+  setStatus, editorController, focusPane, setFocusPane, fontSources }: {
+  fontSources?: FontSources;
   score: DocumentSnapshot;
   currentDocument: RefObject<DocumentSnapshot>;
   documentOpen: boolean;
@@ -126,6 +127,8 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
   }
 
   useEffect(() => {
+    pageCacheRef.current = null;
+    setPageCache(null);
     const queue = createLatestPreviewQueue(
       (request: PreviewRequest, report, isLatest) => {
         const invokePage = (requestedDocument: DocumentSnapshot, pageIndex: number) => {
@@ -138,7 +141,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
               name: requestedDocument.name,
               code: requestedDocument.source,
               customCode: requestedDocument.customCode,
-              pageConfig: requestedDocument.pageConfig,
+              pageConfig: { ...requestedDocument.pageConfig, ...(fontSources ? { _font_sources: fontSources } : {}) },
               pageIndex,
             },
           });
@@ -179,7 +182,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
       queue.dispose();
       if (previewQueue.current === queue) previewQueue.current = null;
     };
-  }, []);
+  }, [JSON.stringify(fontSources)]);
 
   useEffect(() => {
     if (!documentOpen) return;
@@ -190,7 +193,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
       && cache.pages.has(selectedPage)
     ) return;
     previewQueue.current?.request({ document: score, pageIndex: selectedPage }, { immediate: true });
-  }, [documentOpen, score.id, revision, selectedPage]);
+  }, [documentOpen, score.id, revision, selectedPage, JSON.stringify(fontSources)]);
 
   useEffect(() => {
     if (!currentPage) return;

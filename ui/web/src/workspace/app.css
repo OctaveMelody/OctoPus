@@ -328,3 +328,12 @@ h2 { margin: 0; font-size: 14px; }
 .reference-panel { position: relative; }
 .reference-drop-active { outline: 3px solid #408699; outline-offset: -3px; }
 .reference-drop-hint { position: absolute; z-index: 30; inset: 52px 12px auto; pointer-events: none; border: 1px solid #408699; border-radius: 8px; padding: 16px; background: #effafd; color: #14394a; text-align: center; font-size: 14px; box-shadow: 0 4px 16px #17233b24; }
+
+.preferences-language { display: flex; align-items: center; gap: 12px; }
+.preferences-language select { padding: 6px 10px; border: 1px solid #cbd3df; border-radius: 5px; background: white; }
+.preferences-fonts { display: grid; gap: 7px; margin: 12px 0; }
+.preferences-fonts fieldset { margin: 0; border: 1px solid #d9dee7; border-radius: 6px; }
+.preferences-fonts label { display: flex; align-items: center; gap: 8px; padding: 3px; font-size: 13px; }
+.preferences-fonts label span { margin-left: auto; text-align: right; color: #687385; }
+.preferences-fonts label:has(input:disabled) { color: #9299a3; }
+.preferences-fonts label:has(input:disabled) span { color: inherit; }
