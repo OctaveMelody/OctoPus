@@ -91,6 +91,10 @@ from this repository's Python dependency extras.
 
 ## Build packages
 
+An unspecified build request means production only, including the portable executable.
+Development executables are built only on an explicit request, using the support repository's
+build instructions.
+
 Install the pinned Tauri CLI, then run `python3 build.py --bundles deb` on Linux. On native
 Windows use `python build.py --bundles nsis` or `--bundles msi`, with Microsoft C++ Build Tools
 and WebView2 installed. Rust/PyInstaller target architecture must match the native Python host;

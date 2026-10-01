@@ -88,6 +88,9 @@ uv run --locked --extra transcription python -m ui.engine
 
 ## 构建安装包
 
+未明确指定类型的构建请求仅构建生产版，包括便携版可执行程序。只有明确要求时才构建
+开发版可执行程序；开发版构建说明保留在支持仓库中。
+
 先安装锁定版本的 Tauri CLI，再于 Linux 运行 `python3 build.py --bundles deb`。
 Windows 原生环境使用 `python build.py --bundles nsis` 或 `--bundles msi`，并安装
 Microsoft C++ Build Tools 和 WebView2。Rust/PyInstaller 目标架构必须与运行 Python 的

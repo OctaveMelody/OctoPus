@@ -112,8 +112,8 @@ export const messages = {
     layout: "Layout",
     preferences: "Preferences",
     fontOutput: "Fonts for preview and output",
-    osFont: "OS preference",
-    bundledFont: "Free bundled fallback",
+    osFont: "OS Preference",
+    bundledFont: "Free Fallback",
     fontUnavailable: "Not installed",
     fontChecking: "OS font availability could not be confirmed; bundled fonts will be used.",
     fontPreferenceHelp: "Choose a font source for each role. Missing OS fonts use the bundled fallback. These preferences apply to preview and exports and are saved on this computer.",
@@ -376,7 +376,7 @@ export const messages = {
     preferences: "偏好设置",
     fontOutput: "预览与输出字体",
     osFont: "系统优先字体",
-    bundledFont: "免费内置替代字体",
+    bundledFont: "免费替代字体",
     fontUnavailable: "未安装",
     fontChecking: "无法确认系统字体是否可用，将使用内置字体。",
     fontPreferenceHelp: "分别选择各类字体的来源。系统字体缺失时使用内置替代字体。设置适用于预览和导出，并保存在本机。",
@@ -552,4 +552,19 @@ export const editorPhrases: Record<Language, Record<string, string>> = {
     "replaced match on line $": "已替换第 $ 行的匹配项",
     "on line": "位于行",
   },
+};
+
+export const fontFamilyNames: Record<Language, Record<string, string>> = {
+  en: {
+      "Zhuque Fangsong (technical preview)": "Zhuque FangSong",
+      "Zhuque Fangsong": "Zhuque FangSong",
+    },
+  "zh-CN": {
+      "Microsoft YaHei": "微软雅黑", "SimHei": "黑体", "SimSun": "宋体",
+      "KaiTi": "楷体", "FangSong": "仿宋", "PingFang SC": "苹方-简",
+      "Heiti SC": "黑体-简", "Songti SC": "宋体-简", "Kaiti SC": "楷体-简",
+      "STFangsong": "华文仿宋", "MiSans": "小米字体", "LXGW Neo XiHei": "霞鹜新晰黑",
+      "SimZhiSong": "新致宋", "LXGW WenKai": "霞鹜文楷", "Zhuque Fangsong": "朱雀仿宋",
+      "Zhuque Fangsong (technical preview)": "朱雀仿宋",
+    },
 };
