@@ -79,6 +79,30 @@ def digit_shape_similarity(gray: Image.Image, component: Component, digit: str) 
     return scores.get(digit, 0.0)
 
 
+def page_digit_templates(
+    gray: Image.Image, accepted: list[tuple[Component, DigitMatch]],
+) -> tuple[tuple[str, int], ...]:
+    """Use high-confidence glyphs observed on this page as additional font evidence."""
+    return tuple((match[0], _normalized_black_pixels(gray.crop(component.box)))
+                 for component, match in accepted if match[1] >= 0.95)
+
+
+def match_page_digit(
+    gray: Image.Image, component: Component, templates: tuple[tuple[str, int], ...],
+) -> DigitMatch | None:
+    """Require two agreeing exemplars and separation from every competing digit."""
+    candidate = _normalized_black_pixels(gray.crop(component.box))
+    scores: dict[str, list[float]] = {}
+    for digit, template in templates:
+        scores.setdefault(digit, []).append(_similarity(candidate, template))
+    ranked = sorted(((digit, sorted(values, reverse=True)[1])
+                     for digit, values in scores.items() if len(values) >= 2),
+                    key=lambda item: item[1], reverse=True)
+    if len(ranked) < 2 or ranked[0][1] < 0.86 or ranked[0][1] - ranked[1][1] < 0.1:
+        return None
+    return ranked[0][0], ranked[0][1], True
+
+
 def classify_mordent(gray: Image.Image, component: Component) -> bool:
     candidate = _normalized_black_pixels(gray.crop(component.box))
     return _similarity(candidate, _glyph_template("boyinfu_shang1")) >= 0.78

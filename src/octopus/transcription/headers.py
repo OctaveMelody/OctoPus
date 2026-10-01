@@ -5,8 +5,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
-from .components import Box, connected_components
+from PIL import Image
+
+from .components import Box, Component, connected_components
 from .image import _read_page, _score_components
 from .text import TextSpan, image_digit
 
@@ -36,7 +39,7 @@ def printed_key_span(
     for upper in strokes:
         for lower in strokes:
             if not (
-                2 <= lower.box[1] - upper.box[3] <= upper.width * 0.5
+                1 <= lower.box[1] - upper.box[3] <= upper.width * 0.5
                 and abs(upper.box[0] - lower.box[0]) <= 2
                 and abs(upper.width - lower.width) <= 2
             ):
@@ -52,7 +55,7 @@ def printed_key_span(
             if one is None:
                 continue
             for letter in digits:
-                if not 0 <= letter.box[0] - upper.box[2] <= height * 0.7:
+                if not 0 <= letter.box[0] - upper.box[2] <= height * 1.4:
                     continue
                 match = image_digit(gray, letter.box, "ABCDEFG")
                 if match:
@@ -67,6 +70,8 @@ def printed_key_span(
                              or 0 <= sign.box[0] - letter.box[2] <= height * 0.6)
                         and (reading := image_digit(gray, sign.box, "b♭#♯$")) is not None
                     ]
+                    if letter.box[0] - upper.box[2] > height * 0.7 and len(signs) != 1:
+                        continue
                     owned = [one, letter]
                     accidental = ""
                     confidence = match[1]
@@ -84,6 +89,34 @@ def printed_key_span(
     return None
 
 
+def _fraction_components(gray: Image.Image, components: list[Component]) -> list[Component]:
+    """Split a fraction rule joined to the bottom of its numerator in a small scan."""
+    found = list(components)
+    for component in components:
+        left, top, right, bottom = component.box
+        if not (6 <= component.height <= 40 and component.width >= component.height * 0.65):
+            continue
+        rows = [y for y in range(bottom - max(2, round(component.height * 0.25)), bottom)
+                if sum(cast(int, gray.getpixel((x, y))) < 160 for x in range(left, right))
+                >= component.width * 0.9]
+        if not rows or rows[-1] < bottom - 2:
+            continue
+        line_top = rows[0]
+        if line_top - top < 6:
+            continue
+        pieces = connected_components(gray.crop((left, top, right, line_top)))
+        if len(pieces) != 1:
+            continue
+        piece = pieces[0]
+        if piece.height < 6:
+            continue
+        found.extend((Component((left + piece.box[0], top + piece.box[1],
+                                 left + piece.box[2], top + piece.box[3]), piece.area),
+                      Component((left, line_top, right, rows[-1] + 1),
+                                (rows[-1] - line_top + 1) * component.width)))
+    return found
+
+
 def stacked_meter_span(
     path: Path, spans: tuple[TextSpan, ...], first_music_top: int
 ) -> TextSpan | None:
@@ -94,10 +127,11 @@ def stacked_meter_span(
     gray = _read_page(path)
     components = [
         component for component in connected_components(gray)
-        if key.box[2] - key.height * 0.7 <= component.box[0] <= key.box[2] + key.height
+        if key.box[2] - key.height * 0.7 <= component.box[0] <= key.box[2] + key.height * 1.7
         and key.box[1] - key.height * 0.55 <= component.box[1]
         < component.box[3] < first_music_top - 8
     ]
+    components = _fraction_components(gray, components)
     digits = [
         component for component in components
         if 6 <= component.height <= key.height * 0.8

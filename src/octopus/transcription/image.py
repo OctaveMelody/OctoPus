@@ -20,8 +20,17 @@ from .glyphs import (
     classify_digit,
     classify_mordent,
     digit_shape_similarity,
+    match_page_digit,
+    page_digit_templates,
 )
-from .marks import note_modifiers, row_parentheses, row_slurs, row_sustains, vertical_bend
+from .marks import (
+    curve_core_parts,
+    note_modifiers,
+    row_parentheses,
+    row_slurs,
+    row_sustains,
+    vertical_bend,
+)
 from .ornaments import EndingSegment, GraceGroup, row_endings, row_graces, voice_components
 from .text import TextSpan, image_digit, music_characters
 from .voices import DsbOverlay, VoiceGroup, recognize_dsb_overlays, recognize_voice_groups
@@ -355,8 +364,10 @@ def _split_digit_cluster(
 def _recover_row_digits(
     group: list[tuple[Component, DigitMatch]], components: list[Component],
     height: int, gray: Image.Image, claimed: set[Box],
+    templates: tuple[tuple[str, int], ...] = (),
 ) -> list[tuple[Component, DigitMatch]]:
     """Recover unresolved row ink without changing already accepted note glyphs."""
+    height = round(median(component.height for component, _ in group))
     center_y = sum(component.center_y for component, _ in group) / len(group)
     unresolved = [component for component in components
                   if component.box not in claimed
@@ -365,6 +376,16 @@ def _recover_row_digits(
                   and height * 0.2 <= component.width <= height * 6]
     if not unresolved:
         return []
+    found = []
+    for component in unresolved:
+        if component.width <= height and (page_match := match_page_digit(
+            gray, component, templates,
+        )) is not None:
+            found.append((component, page_match))
+            claimed.add(component.box)
+    unresolved = [component for component in unresolved if component.box not in claimed]
+    if not unresolved:
+        return found
     top = min(component.box[1] for component, _ in group)
     bottom = max(component.box[3] for component, _ in group)
     characters: list[tuple[str, float, float]] = []
@@ -375,8 +396,7 @@ def _recover_row_digits(
             characters.append(item)
     if sum(any(digit == match[0] and component.box[0] <= center <= component.box[2]
                for digit, _, center in characters) for component, match in group) < 3:
-        return []
-    found = []
+        return found
     for component in unresolved:
         left, upper, right, lower = component.box
         owned = [(digit, score, center) for digit, score, center in characters
@@ -519,12 +539,19 @@ def recognize_image(path: Path) -> PageObservation:
             and bar.height >= digit_height * 1.5 for bar in possible_bars
         ) >= 2:
             main.extend(admitted)
-    known_boxes.update(component.box for component, _ in candidates)
+    known_boxes = {component.box for component, _ in main}
+    templates = page_digit_templates(gray, main)
     for group in _groups(main, digit_height):
-        if len(group) >= 3 and any(
+        # Glyph recovery fills an established staff; it must not create a fragmentary row.
+        established = (max(component.box[2] for component, _ in group)
+                       - min(component.box[0] for component, _ in group) >= gray.width * 0.12
+                       or _by_local_brace(group, components, gray.width, digit_height))
+        if established and len(group) >= 3 and any(
             _barline(bar, group[0][0].center_y, digit_height, gray) for bar in possible_bars
         ):
-            recovered = _recover_row_digits(group, components, digit_height, gray, known_boxes)
+            recovered = _recover_row_digits(
+                group, components, digit_height, gray, known_boxes, templates,
+            )
             main.extend(recovered)
             candidates.extend(recovered)
     rows = []
@@ -661,8 +688,13 @@ def recognize_image(path: Path) -> PageObservation:
         notes = tuple(note.box for note in row.notes)
         music = tuple(sorted((*notes, *row_sustains(notes, row.unresolved_marks))))
         height = median(box[3] - box[1] for box in notes)
+        parts, core = curve_core_parts(source_components, source_gray, row.box[1], height)
+        recovered_notes = tuple(replace(note, octave=note.octave or note_modifiers(
+            note.box, parts, round(height), duration_gray=core,
+        )[0]) for note in row.notes)
         return replace(
             row,
+            notes=recovered_notes,
             slurs=row_slurs(music, row.box[1], height, source_components, source_gray),
             parentheses=row_parentheses(music, height, source_components, source_gray),
         )

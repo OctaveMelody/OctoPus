@@ -8,7 +8,7 @@ from typing import cast
 
 from PIL import Image
 
-from .components import Box, Component
+from .components import Box, Component, connected_components
 
 
 def vertical_bend(component: Component, gray: Image.Image) -> float | None:
@@ -27,7 +27,43 @@ def vertical_bend(component: Component, gray: Image.Image) -> float | None:
     return centers[1] - (centers[0] + centers[2]) / 2
 
 
+def curve_core_parts(
+    components: list[Component], gray: Image.Image, row_top: int, height: float,
+) -> tuple[list[Component], Image.Image]:
+    """Separate dark ink where grey scan bridges join a long curve to octave dots."""
+    compounds = [component for component in components if (
+        component.width >= height * 1.8
+        and 3 <= component.height <= height
+        and row_top - height * 2.5 < component.box[1] < row_top - height * 0.4
+        and component.box[3] < row_top
+        and component.area > component.width * max(4, height * 0.2)
+    )]
+    if not compounds:
+        return [], gray
+    core = gray.point(lambda value: 0 if value < 60 else 255)
+    parts: list[Component] = []
+    for component in compounds:
+        left, top, _, _ = component.box
+        separated = [Component((left + part.box[0], top + part.box[1],
+                                left + part.box[2], top + part.box[3]), part.area)
+                     for part in connected_components(core.crop(component.box))]
+        # A bridge must actually split; darkening one unchanged mark is not new evidence.
+        if sum(part.area >= 3 for part in separated) >= 2:
+            parts.extend(separated)
+    return parts, core
+
+
 def row_slurs(
+    notes: tuple[Box, ...], row_top: int, height: float,
+    components: list[Component], gray: Image.Image,
+) -> tuple[tuple[int | None, int | None], ...]:
+    found = _detached_row_slurs(notes, row_top, height, components, gray)
+    parts, core = curve_core_parts(components, gray, row_top, height)
+    recovered = _detached_row_slurs(notes, row_top, height, parts, core)
+    return tuple(dict.fromkeys((*found, *recovered)))
+
+
+def _detached_row_slurs(
     notes: tuple[Box, ...], row_top: int, height: float,
     components: list[Component], gray: Image.Image,
 ) -> tuple[tuple[int | None, int | None], ...]:
@@ -275,7 +311,7 @@ def note_modifiers(
     duration_dots: list[Component] = []
     lines: list[Component] = []
     joined_lines = 0
-    joined_dot = False
+    joined_dot_boxes: set[Box] = set()
     used_joined: set[Box] = set()
     dot_reach = digit_height * (0.55 if gray is not None else 0.8)
     line_reach = digit_height * (0.55 if gray is not None else 0.72)
@@ -333,7 +369,8 @@ def note_modifiers(
             count, has_dot = _joined_underline_and_dot(note, component, gray, digit_height)
             if count:
                 joined_lines += count
-                joined_dot |= has_dot
+                if has_dot:
+                    joined_dot_boxes.add(component.box)
                 used_joined.add(component.box)
         elif duration_gray is not None:
             count = _joined_duration_lines(note, component, duration_gray, digit_height, barlines)
@@ -348,6 +385,13 @@ def note_modifiers(
         lines.clear()
     if len(duration_dots) > 2:
         duration_dots.clear()
+    # Global pixels inside a joined beam's bounds can include an already detached dot.
+    # Count that physical mark once, while retaining a second dot outside those bounds.
+    joined_dot = any(not any(
+        left <= (dot.box[0] + dot.box[2]) / 2 < right
+        and top <= dot.center_y < bottom
+        for dot in dots_below
+    ) for left, top, right, bottom in joined_dot_boxes)
     octave = len(dots_above) - len(dots_below) - int(joined_dot)
     used = {
         component.box for component in (*dots_above, *dots_below, *duration_dots, *lines)
