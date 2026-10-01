@@ -1103,6 +1103,9 @@ export function App() {
                 {copy.unsavedFlag}
               </span>
             )}
+            <button className="heading-action" disabled={!documentOpen} onClick={() => editorController.current?.formatSource()} type="button">
+              {copy.formatSource}
+            </button>
           </div>
           <div aria-label={copy.editorTools} className="editor-heading-tools" role="toolbar">
             <button disabled={!documentOpen || !editorHistory.undo} onClick={() => editorController.current?.undo()} type="button">
@@ -1140,9 +1143,6 @@ export function App() {
             </details>
             <button disabled={!documentOpen} onClick={() => editorController.current?.selectAll()} type="button">
               {copy.selectAll}
-            </button>
-            <button className="heading-action" disabled={!documentOpen} onClick={() => editorController.current?.formatSource()} type="button">
-              {copy.formatSource}
             </button>
           </div>
         </div>

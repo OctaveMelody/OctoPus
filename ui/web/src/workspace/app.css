@@ -148,14 +148,15 @@ h2 { margin: 0; font-size: 14px; }
 .preview-panel .preview-tools { max-width: 100%; flex-wrap: wrap; overflow: visible; }
 .editor-heading-title { display: flex; min-width: 0; flex: none; align-items: baseline; gap: 7px; overflow: hidden; }
 .editor-heading-title h2 { flex: none; }
+.editor-heading-title .heading-action { flex: none; margin-inline-start: auto; align-self: center; white-space: nowrap; }
 .editor-file-name { min-width: 0; overflow: hidden; color: #697385; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .editor-heading-tools { position: relative; display: flex; max-width: 100%; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px; }
 .editor-heading-tools button { flex: none; white-space: nowrap; }
-.editor-heading-tools button, .transcribe-menu > summary, .find-menu > summary { min-height: 30px; border: 1px solid #d1d7e0; border-radius: 5px; padding: 0 9px; color: #344258; background: white; font-size: 12px; }
+.editor-heading-tools button, .editor-heading-title .heading-action, .transcribe-menu > summary, .find-menu > summary { min-height: 30px; border: 1px solid #d1d7e0; border-radius: 5px; padding: 0 9px; color: #344258; background: white; font-size: 12px; }
 .transcribe-menu > summary, .find-menu > summary { display: flex; align-items: center; cursor: pointer; list-style: none; white-space: nowrap; }
-.transcribe-menu > summary, .editor-heading-tools .heading-action, .preview-tools .heading-action { border-color: #aac2e6; background: #eaf2ff; }
+.transcribe-menu > summary, .editor-heading-title .heading-action, .preview-tools .heading-action { border-color: #aac2e6; background: #eaf2ff; }
 .preview-tools .heading-action { margin-inline-start: 12px; }
-.editor-heading-tools .heading-action:hover:not(:disabled), .preview-tools .heading-action:hover:not(:disabled) { background: #dce9fc; }
+.editor-heading-title .heading-action:hover:not(:disabled), .preview-tools .heading-action:hover:not(:disabled) { background: #dce9fc; }
 .transcribe-menu > summary:hover, .transcribe-menu[open] > summary { background: #dce9fc; }
 .transcribe-menu > summary::-webkit-details-marker, .find-menu > summary::-webkit-details-marker { display: none; }
 .find-menu > summary[aria-disabled="true"] { cursor: default; opacity: .6; }
