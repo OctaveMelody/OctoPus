@@ -51,6 +51,8 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
   selectedPageRef.current = selectedPage;
   const pageCacheRef = useRef<PageCache | null>(null);
   const editorCursor = useRef<{ offset: number; focused: boolean }>({ offset: 0, focused: false });
+  const followEditorCursor = useRef(true);
+  const selectingPreviewAnchor = useRef(false);
   const [cursorAnchor, setCursorAnchor] = useState<SourceAnchor | null>(null);
   const [previewZoom, setPreviewZoom] = useState(1);
   const [previewFit, setPreviewFit] = useState<"page" | "width">("width");
@@ -243,12 +245,13 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
     : null;
 
   useEffect(() => {
-    if (previewIsCurrent) {
+    if (previewIsCurrent && followEditorCursor.current) {
       cursorMarkerRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
     }
   }, [cursorAnchor, previewFitScale, previewIsCurrent, previewZoom, selectedPage]);
 
   function handleEditorCursor(offset: number, focused: boolean) {
+    if (focused && !selectingPreviewAnchor.current) followEditorCursor.current = true;
     editorCursor.current = { offset, focused };
     refreshCursorAnchor();
   }
@@ -306,13 +309,22 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
     const offsets = sourceOffsetMapRef.current;
     const from = offsets.codePointToUtf16(start);
     const to = offsets.codePointToUtf16(end);
-    if (from !== null && to !== null) editorController.current?.selectSourceRange(from, to);
+    if (from === null || to === null) return;
+    // Programmatic editor focus/selection must not feed back into preview scrolling.
+    followEditorCursor.current = false;
+    selectingPreviewAnchor.current = true;
+    try {
+      editorController.current?.selectSourceRange(from, to);
+    } finally {
+      selectingPreviewAnchor.current = false;
+    }
   }
 
   function resetPreview(nextDocument: DocumentSnapshot) {
     previewQueue.current?.invalidate();
     sourceOffsetMapRef.current = createSourceOffsetMap(nextDocument.source);
     editorCursor.current = { offset: 0, focused: false };
+    followEditorCursor.current = true;
     setCursorAnchor(null);
     pageCacheRef.current = null;
     setPageCache(null);
