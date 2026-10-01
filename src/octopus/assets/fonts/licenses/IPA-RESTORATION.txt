@@ -21,8 +21,9 @@ To use the originals instead of these derived fonts:
    sha256 to that file's SHA-256. Set version to the downloaded original version.
    Point license_url to a file:// URL for its supplied license and update
    license_sha256 to match it. Keep license_file pointing to the shipped notice.
-   Delete the matching old cached source file from build/font-sources/ if present.
-4. Run the documented scripts/prepare_fonts.py regeneration command. This regenerates
+   Delete the matching old cached source file from the companion OctoPus-dev/build/font-sources/ if present.
+4. Use the companion OctoPus-dev/tools/prepare_release_fonts.py helper to regenerate
+   the modified assets (see the production font guide). This regenerates
    the verified manifest and coverage from the unmodified original font files.
 5. Replace every application family reference to SimZhiSong with IPAMincho, and
    LXGW Neo XiHei with IPAexGothic, in ui/engine/font_profile.py, ui/web/src/fonts.css

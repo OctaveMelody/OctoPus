@@ -31,11 +31,13 @@ export const pageSettingGroups = [
         key: "biaoti_font",
         label: "pageSettingsTitleFont",
         kind: "select",
-        defaultValue: "HeiTi",
+        defaultValue: "HeiTi-2",
         options: [
-          { value: "HeiTi", label: "fontHeiTi" },
+          { value: "HeiTi-1", label: "fontHeiTi1" },
+          { value: "HeiTi-2", label: "fontHeiTi2" },
           { value: "SongTi", label: "fontSongTi" },
           { value: "KaiTi", label: "fontKaiTi" },
+          { value: "FangSong", label: "fontFangSong" },
         ],
       },
       {
@@ -53,11 +55,13 @@ export const pageSettingGroups = [
         key: "geci_font",
         label: "pageSettingsLyricFont",
         kind: "select",
-        defaultValue: "HeiTi",
+        defaultValue: "HeiTi-2",
         options: [
-          { value: "HeiTi", label: "fontHeiTi" },
+          { value: "HeiTi-1", label: "fontHeiTi1" },
+          { value: "HeiTi-2", label: "fontHeiTi2" },
           { value: "SongTi", label: "fontSongTi" },
           { value: "KaiTi", label: "fontKaiTi" },
+          { value: "FangSong", label: "fontFangSong" },
         ],
       },
     ],
@@ -152,7 +156,8 @@ function readValue(config, field) {
   if (typeof stored !== "string") return field.defaultValue;
   if (field.key === "shuzi_font") return ({ a: "Regular", c: "Italic", b: "Bold" })[stored] ?? stored;
   if (field.key === "biaoti_font" || field.key === "geci_font") {
-    return ({ "Microsoft YaHei": "HeiTi", SimHei: "HeiTi", "黑体": "HeiTi",
+    return ({ "Microsoft YaHei": "HeiTi-1", "微软雅黑": "HeiTi-1",
+      HeiTi: "HeiTi-2", SimHei: "HeiTi-2", "黑体": "HeiTi-2", "仿宋": "FangSong",
       SimSun: "SongTi", NSimSun: "SongTi", "宋体": "SongTi", "楷体": "KaiTi" })[stored] ?? stored;
   }
   return stored;

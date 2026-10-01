@@ -265,6 +265,8 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             "--collect-data",
             "octopus.assets",
             "--collect-all",
+            "fontTools",
+            "--collect-all",
             "rapidocr_onnxruntime",
             "--collect-all",
             "onnxruntime",
@@ -287,4 +289,8 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
 
 
 if __name__ == "__main__":
-    print(build())
+    if sys.argv[1:] == ["--verify-fonts"]:
+        _check_font_assets(ROOT / "src")
+        print("Verified production font assets and notices")
+    else:
+        print(build())

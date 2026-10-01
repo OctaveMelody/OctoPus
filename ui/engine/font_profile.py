@@ -16,6 +16,8 @@ from typing import TypedDict
 
 from octopus.assets import fonts as font_assets
 
+from .system_fonts import font_face, mac_font_roots
+
 _SVG_TAG = re.compile(r"<(?:[^>\"']|\"[^\"]*\"|'[^']*')+>")
 _ATTRIBUTE = re.compile(r"([\w:-]+)(\s*=\s*)([\"'])(.*?)(\3)", re.DOTALL)
 _FAMILY_STYLE = re.compile(r"(font-family\s*:\s*)([^;}]+)", re.IGNORECASE)
@@ -24,18 +26,60 @@ _TEXT_ELEMENT = re.compile(
 )
 _RELEASE_FAMILIES = {
     "Noto Sans SC", "Noto Serif SC", "Liberation Sans", "LXGW WenKai",
-    "SimZhiSong", "LXGW Neo XiHei",
+    "SimZhiSong", "LXGW Neo XiHei", "MiSans", "Zhuque Fangsong (technical preview)",
 }
 _FONT_ROLES: dict[str, tuple[str, str, tuple[str, ...]]] = {
-    "heiti": ("SimHei", "LXGW Neo XiHei", ("simhei.ttf",)),
+    "heiti-1": ("Microsoft YaHei", "MiSans", ("msyh.ttc", "msyh.ttf")),
+    "heiti-2": ("SimHei", "LXGW Neo XiHei", ("simhei.ttf",)),
+    "fangsong": ("FangSong", "Zhuque Fangsong (technical preview)",
+                 ("simfang.ttf", "fangsong.ttf")),
     "songti": ("SimSun", "SimZhiSong", ("simsun.ttc", "simsun.ttf")),
     "kaiti": ("KaiTi", "LXGW WenKai", ("simkai.ttf", "kaiti.ttf")),
 }
+
+_MAC_ROLES: dict[str, tuple[str, tuple[str, ...]]] = {
+    "heiti-1": ("PingFang SC", ("PingFang.ttc",)),
+    "heiti-2": ("Heiti SC", ("STHeiti Medium.ttc", "STHeiti Light.ttc")),
+    "songti": ("Songti SC", ("Songti.ttc",)),
+    "kaiti": ("Kaiti SC", ("Kaiti.ttc", "STKaiti.ttf")),
+    "fangsong": ("STFangsong", ("STFangsong.ttf",)),
+}
+
+
+def preferred_system_family(role: str) -> str:
+    return _MAC_ROLES[role][0] if sys.platform == "darwin" else _FONT_ROLES[role][0]
+
+
+def selected_system_fonts() -> list[tuple[str, Path]]:
+    result = []
+    for role in _FONT_ROLES:
+        family = preferred_system_family(role)
+        path = system_font_path(family)
+        if path is not None:
+            result.append((family, path))
+    return result
 
 
 @cache
 def system_font_path(family: str) -> Path | None:
     """Locate an installed matching family, never accept fontconfig's substitute."""
+    if sys.platform == "darwin":
+        entry = next((entry for entry in _MAC_ROLES.values() if entry[0] == family), None)
+        if entry is None:
+            return None
+        for root in mac_font_roots():
+            candidates = [root / name for name in entry[1]]
+            candidates.extend(path for path in root.glob("*")
+                              if path.suffix.lower() in {".ttf", ".ttc", ".otf"}
+                              and path not in candidates)
+            for path in candidates:
+                if path.is_file():
+                    try:
+                        if font_face(path, family) is not None:
+                            return path
+                    except (OSError, ValueError):
+                        continue
+        return None
     role = next((entry for entry in _FONT_ROLES.values() if entry[0] == family), None)
     if role is None:
         return None
@@ -64,7 +108,8 @@ def system_font_path(family: str) -> Path | None:
 
 
 def role_family(role: str) -> str:
-    system, fallback, _ = _FONT_ROLES[role]
+    _, fallback, _ = _FONT_ROLES[role]
+    system = preferred_system_family(role)
     return system if system_font_path(system) is not None else fallback
 
 
@@ -80,7 +125,10 @@ def release_profile() -> bool:
 
 def release_family(family: str) -> str:
     first = html.unescape(family).split(",", 1)[0].strip().strip("\"'")
-    role = {"黑体": "heiti", "宋体": "songti", "楷体": "kaiti"}.get(
+    role = {"HeiTi": "heiti-2", "heiti": "heiti-2", "黑体": "heiti-2",
+            "黑体-1": "heiti-1", "黑体-2": "heiti-2", "宋体": "songti",
+            "楷体": "kaiti", "仿宋": "fangsong", "Microsoft YaHei": "heiti-1",
+            "microsoft yahei": "heiti-1", "微软雅黑": "heiti-1", "SimHei": "heiti-2"}.get(
         first, first.casefold(),
     )
     if role in _FONT_ROLES:
@@ -92,13 +140,15 @@ def release_family(family: str) -> str:
         return role_family("songti")
     if first.casefold() in {"arial", "liberation sans"}:
         return "Liberation Sans"
-    return role_family("heiti")
+    return role_family("heiti-2")
 
 
 def apply_svg_fonts(svg: str) -> str:
     """Change text font requests only; preserve reference output and document settings."""
     release = release_profile()
-    if not release and not re.search(r"(?:HeiTi|SongTi|KaiTi)", svg, re.IGNORECASE):
+    if not release and not re.search(
+        r"(?:HeiTi(?:-[12])?|SongTi|KaiTi|FangSong)", svg, re.IGNORECASE,
+    ):
         return svg
     bundled_fonts()  # Fail explicitly when release assets are missing/corrupt.
 
@@ -106,7 +156,11 @@ def apply_svg_fonts(svg: str) -> str:
         name, equal, quote, value, closing = match.groups()
         def resolve(request: str) -> str:
             first = request.split(",", 1)[0].strip().strip("\"'").casefold()
-            return release_family(request) if release or first in _FONT_ROLES else request
+            if release or first in {*_FONT_ROLES, "heiti"}:
+                family = release_family(request)
+                # Parentheses are CSS tokens unless the family is quoted.
+                return f"&quot;{family}&quot;" if "(" in family else family
+            return request
         if name == "font-family":
             value = resolve(value)
         elif name == "style":
@@ -131,11 +185,15 @@ def apply_svg_fonts(svg: str) -> str:
                     attribute: re.Match[str], family: str = family, replacement: str = replacement,
                 ) -> str:
                     name, equal, quote, value, closing = attribute.groups()
-                    if name == "font-family" and value == family:
+                    if name == "font-family" and html.unescape(value).strip("\"' ") == family:
                         value = replacement
                     elif name == "style":
                         value = _FAMILY_STYLE.sub(
-                            lambda item: item[1] + (replacement if item[2] == family else item[2]),
+                            lambda item: item[1] + (
+                                replacement
+                                if html.unescape(item[2]).strip("\"' ") == family
+                                else item[2]
+                            ),
                             value,
                         )
                     return name + equal + quote + value + closing
@@ -165,14 +223,11 @@ def font_coverage() -> dict[str, frozenset[int]]:
     coverage = {family: frozenset(code for start, end in ranges for code in range(start, end + 1))
                 for family, ranges in manifest["coverage"].items()}
     if release_profile():
-        for family, _, _ in _FONT_ROLES.values():
-            path = system_font_path(family)
-            if path is not None and path.is_file():
-                # Installed Windows versions vary; inspect the selected file's actual cmap.
-                from reportlab.pdfbase.ttfonts import TTFont  # type: ignore[import-untyped]
-
-                font = TTFont("octopus-system-coverage", str(path))
-                coverage[family] = frozenset(font.face.charToGlyph)
+        for family, path in selected_system_fonts():
+            if path.is_file():
+                face = font_face(path, family)
+                if face is not None:
+                    coverage[family] = face[2]
     return coverage
 
 
@@ -186,15 +241,14 @@ class RasterFontOptions(TypedDict, total=False):
 
 def raster_font_options() -> RasterFontOptions:
     paths = [str(face[3]) for face in bundled_fonts()]
-    paths.extend(str(path) for system, _, _ in _FONT_ROLES.values()
-                 if (path := system_font_path(system)) is not None)
+    paths.extend(str(path) for _, path in selected_system_fonts())
     if not release_profile():
         return {"skip_system_fonts": False, "font_files": paths}
     return {
         "skip_system_fonts": True,
         "font_files": paths,
-        "font_family": role_family("heiti"),
-        "sans_serif_family": role_family("heiti"),
+        "font_family": role_family("heiti-2"),
+        "sans_serif_family": role_family("heiti-2"),
         "serif_family": role_family("songti"),
     }
 
@@ -204,11 +258,11 @@ def register_pdf_fonts() -> None:
 
     font_map = get_global_font_map()
     faces = list(bundled_fonts())
-    for family, _, _ in _FONT_ROLES.values():
-        path = system_font_path(family)
-        if path is not None:
-            faces.append((family, "normal", "normal", path))
-    single_faces = {"LXGW WenKai", "SimZhiSong", "LXGW Neo XiHei", "SimHei", "SimSun", "KaiTi"}
+    single_faces = {
+        "LXGW WenKai", "SimZhiSong", "LXGW Neo XiHei", "MiSans",
+        "Zhuque Fangsong (technical preview)",
+        "SimHei", "SimSun", "KaiTi", "Microsoft YaHei", "FangSong",
+    }
     for family, weight, style, path in faces:
         _, success = font_map.register_font(family, str(path), weight=weight, style=style)
         if not success:
@@ -219,3 +273,65 @@ def register_pdf_fonts() -> None:
                     font_map.register_font(
                         family, str(path), weight=other_weight, style=other_style,
                     )
+
+    import tempfile
+
+    from fontTools.ttLib import TTFont  # type: ignore[import-untyped]
+
+    # svglib's public registration API accepts files but not a TTC face index.
+    # Extract the chosen face temporarily, retaining its outlines and metadata.
+    with tempfile.TemporaryDirectory(prefix="octopus-pdf-font-") as work:
+        extracted: dict[tuple[Path, int], Path] = {}
+        for family, path in selected_system_fonts():
+            for weight in ("normal", "bold"):
+                style_path = path
+                if family == "Microsoft YaHei" and weight == "bold":
+                    for filename in ("msyhbd.ttc", "msyhbd.ttf"):
+                        candidate = path.with_name(filename)
+                        if candidate.is_file():
+                            style_path = candidate
+                            break
+                for style in ("normal", "italic"):
+                    face = font_face(style_path, family, 700 if weight == "bold" else 400,
+                                     style == "italic")
+                    if face is None or face[1]:
+                        continue  # Native exports support CFF; Python PDF uses explicit fallback.
+                    key = (style_path, face[0])
+                    if key not in extracted:
+                        with style_path.open("rb") as stream:
+                            collection = stream.read(4) == b"ttcf"
+                        if collection:
+                            target = Path(work) / f"face-{len(extracted)}.ttf"
+                            with TTFont(
+                                style_path, fontNumber=face[0], recalcTimestamp=False,
+                            ) as font:
+                                font.save(target)
+                            extracted[key] = target
+                        else:
+                            extracted[key] = style_path
+                    _, success = font_map.register_font(
+                        family, str(extracted[key]), weight=weight, style=style,
+                    )
+                    if not success:
+                        raise ValueError(f"could not register selected PDF font: {family}")
+
+
+def apply_pdf_font_fallbacks(svg: str) -> str:
+    """ReportLab cannot embed CFF; native macOS PDF exports retain the selected face."""
+    fallback = {}
+    for role in _FONT_ROLES:
+        family = preferred_system_family(role)
+        path = system_font_path(family)
+        face = font_face(path, family) if path is not None else None
+        if face is not None and face[1]:
+            fallback[family] = _FONT_ROLES[role][1]
+
+    def rewrite(match: re.Match[str]) -> str:
+        name, equal, quote, value, closing = match.groups()
+        if name == "font-family":
+            value = fallback.get(value, value)
+        elif name == "style":
+            value = _FAMILY_STYLE.sub(lambda item: item[1] + fallback.get(item[2], item[2]), value)
+        return name + equal + quote + value + closing
+
+    return _SVG_TAG.sub(lambda tag: _ATTRIBUTE.sub(rewrite, tag[0]), svg)

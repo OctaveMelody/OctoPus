@@ -1,51 +1,61 @@
 # Application fonts
 
-The settings panel offers HeiTi, SongTi and KaiTi. On Windows, an installed SimHei,
-SimSun or KaiTi is preferred independently for each role. A missing family uses its
-bundled fallback: LXGW Neo XiHei v1.305, SimZhiSong v1.103 or LXGW WenKai Regular
-v1.522, respectively. Production Linux uses those bundled fallbacks. Source/debug
-reference builds prefer installed Microsoft reference fonts, including on Linux.
-Legacy family names and note-style IDs remain readable. New documents use HeiTi
-and Bold; note-style choices are Regular, Italic and Bold. They select the existing
-numbered-note glyph sets; text font weight/style is a separate setting.
+The settings panel offers HeiTi-1, HeiTi-2, SongTi, KaiTi and FangSong. Each installed
+system family is preferred independently on Windows/macOS; a missing family uses its
+bundled fallback. Linux production uses the fallbacks. Source/debug reference builds
+prefer matching installed Microsoft fonts on Linux as well.
 
-This directory is the canonical asset source for the Python worker, native Rust
-exporter and frontend. Eleven TTF faces are bundled: the three chosen regular
-faces, Noto Sans SC/Serif SC regular/bold backups, and four Liberation Sans styles
-for Arial-compatible Latin text. Missing glyphs fall back to a bundled Noto face.
-The three regular-only families use their supplied face without synthetic weights.
-PDFs embed fonts; JPGs contain pixels. External SVG viewers need the named fonts.
-Fonts are app-local and no system font is installed or replaced.
+| Role | Windows | macOS | Bundled regular face |
+| --- | --- | --- | --- |
+| HeiTi-1 | Microsoft YaHei | PingFang SC | MiSans v4.009 |
+| HeiTi-2 | SimHei | Heiti SC | LXGW Neo XiHei v1.305 |
+| SongTi | SimSun | Songti SC | SimZhiSong v1.103 |
+| KaiTi | KaiTi | Kaiti SC | LXGW WenKai v1.522 |
+| FangSong | FangSong | STFangsong | Zhuque Fangsong v0.212 |
 
-WenKai, Noto and Liberation use OFL 1.1. Neo XiHei and SimZhiSong use IPA Font
-License 1.0. All original names, binary font data and complete notices are retained
-for the three chosen faces. See [IPA restoration instructions](licenses/IPA-RESTORATION.txt)
-for restoring the original IPA fonts in source and executable distributions.
-That notice is included and verified with the font licenses in every package.
-Noto static weights 400/700 are generated using fontTools 4.60.2; their names do
-not use the reserved name Source. No Microsoft font binaries are redistributed.
+Saved HeiTi remains an alias for HeiTi-2. New documents use HeiTi-2/Bold. Existing
+note presets remain Regular/Italic/Bold (a/c/b); legacy values and untouched settings
+remain readable. The five fallback families supply regular faces, without synthetic
+weights. Noto Sans/Serif regular/bold back up missing glyphs; four Liberation Sans
+styles cover Latin/Arial. Thirteen TTF faces are bundled, with ten notices/licenses.
+Zhuque is upstream's technical-preview release; its actual unmodified family name is
+Zhuque Fangsong (technical preview). Its missing characters use the Noto backup.
 
-sources.json pins URLs, versions and SHA-256 values. manifest.json records all
-face/license hashes and shared Unicode coverage. Verify without network access:
+Windows/macOS font files remain on their host and are never redistributed or installed
+by OctoPus. macOS collection inspection selects the requested family and closest weight,
+rather than the collection's first face. Preview and native exports retain supported
+system fonts, including CFF outlines. Python's ReportLab PDF path cannot embed CFF;
+that path explicitly uses the corresponding bundled fallback. TrueType collection faces
+are extracted temporarily for Python PDF registration, without changing their metadata
+or outlines. FontTools 4.60.2 supports collection inspection; native exports load host
+fonts on Windows/macOS and all bundled faces. PDFs embed text fonts; JPGs contain pixels.
+External SVG viewers need the requested fonts. No font is globally installed or replaced.
+
+WenKai, Noto, Zhuque and Liberation use OFL 1.1. Neo XiHei/SimZhiSong use IPA Font
+License 1.0; [original IPA restoration](licenses/IPA-RESTORATION.txt) is documented.
+MiSans uses Xiaomi's own license, permitting use in applications with attribution and
+notice retention; it is not OFL and must not be modified or distributed separately as
+font software. The application About panel credits Xiaomi MiSans. Its unmodified font
+and complete official agreement (PDF plus extracted text) accompany the application.
+Original names/binaries/notices are retained. Noto static weights 400/700 are generated
+with FontTools 4.60.2 and do not use the reserved name Source.
+
+sources.json pins source/archive hashes, members, versions and notices. manifest.json
+records face/license hashes and shared family coverage. Verify independently in production:
 
 ```sh
-python3 scripts/prepare_fonts.py --verify
+python3 build_desktop_engine.py --verify-fonts
 ```
 
-Reproduce inputs from this repository root:
+Downloads, extraction and regeneration are development support work. From OctoPus-dev:
 
 ```sh
-uv run --no-project --with fonttools==4.60.2 --with zstandard==0.25.0 \
-  python scripts/prepare_fonts.py
+uv run --no-sync --with zstandard==0.25.0 python tools/prepare_release_fonts.py
 ```
 
-Sources are cached under ignored build/font-sources/ (or --cache). Cached inputs
-remain hash-verified. Review manifest changes before committing updates.
-
-OCTOPUS_FONT_PROFILE=release enables production font policy in source exports.
-Frozen workers always use that policy, with Windows system-family preference.
-The native exporter embeds all eleven faces and loads host fonts on Windows or
-in debug/reference mode. Python PDF and raster paths use the same selected files.
-Release rasterization receives only explicit bundled/selected Windows files.
-The browser preloads bundled faces before mounting. Existing reference corpus
-bytes and the source CLI's auditing output remain unchanged.
+The helper targets ../OctoPus/src/octopus/assets/fonts and caches pinned sources in ignored
+OctoPus-dev/build/font-sources/. Production builds only verify/use committed inputs and
+require no development repository or download helper. The worker, native exporter, wheel
+and frontend all consume the same canonical production assets and complete notices.
+OCTOPUS_FONT_PROFILE=release enables production font policy for source checks. Frozen
+workers always use production policy, even when a reference override is supplied.

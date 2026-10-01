@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ui.engine.font_profile import apply_svg_fonts, register_pdf_fonts
+from ui.engine.font_profile import apply_pdf_font_fallbacks, apply_svg_fonts, register_pdf_fonts
 
 #: Bare-ampersand escape — the same rule as the frontend's
 #: ``escapeBareAmpersands`` (R10a export hygiene). Attribute values are never
@@ -89,7 +89,7 @@ def _register_cjk_fallbacks(families: set[str]) -> None:
     except ImportError:  # pragma: no cover - exercised only without deps
         return
     for family in families:
-        if family.casefold() in {"simhei", "simsun", "kaiti"}:
+        if family.casefold() in {"simhei", "simsun", "kaiti", "microsoft yahei", "fangsong"}:
             # These matching system faces are registered by the shared font policy.
             continue
         candidates = _CJK_FONT_CANDIDATES.get(family.lower())
@@ -179,6 +179,7 @@ def build_pdf(
     from svglib.svglib import svg2rlg  # type: ignore[import-untyped]
 
     pages = render_all_pages(code, custom_code, page_config, name, source_key, display_name)
+    pages = tuple(apply_pdf_font_fallbacks(page) for page in pages)
     register_pdf_fonts()
     _register_cjk_fallbacks(_families_used(pages))
 

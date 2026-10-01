@@ -56,15 +56,18 @@ Linux 仍需要系统中的 GTK/WebKit 运行库和 Poppler 工具；Windows 需
 
 ## 字体和示例
 
-字体选项为黑体（HeiTi）、宋体（SongTi）和楷体（KaiTi）。Windows 优先使用已安装的
-SimHei、SimSun、KaiTi；每种字体缺失时分别使用内置 Neo XiHei、SimZhiSong、WenKai Regular。
-Linux 生产版使用这些内置替代字体。Noto 补充中文字符覆盖，Liberation Sans 替代 Arial 西文。
-无需安装字体。PDF 会嵌入字体，JPEG 保存像素；外部 SVG 查看器需要安装相应字体。
-[字体资源及可复现准备流程](src/octopus/assets/fonts/README.md) 说明来源、校验值、
-OFL/IPA 许可证及恢复原始 IPA 字体的方法。
+字体选项为黑体-1（HeiTi-1）、黑体-2（HeiTi-2）、宋体、楷体和仿宋。
+Windows 分别优先使用 Microsoft YaHei、SimHei、SimSun、KaiTi、FangSong；
+macOS 分别优先使用 PingFang SC、Heiti SC、Songti SC、Kaiti SC、STFangsong。
+每种系统字体缺失时分别使用内置 MiSans Regular、Neo XiHei、SimZhiSong、
+WenKai Regular、Zhuque Fangsong。Linux 生产版使用这些内置替代字体。
+旧 HeiTi 设置仍对应 HeiTi-2；Noto 补充缺失字符，Liberation Sans 替代 Arial 西文。
+PDF 会嵌入字体，JPEG 保存像素；外部 SVG 查看器需要相应字体。
+[字体指南](src/octopus/assets/fonts/README.md) 说明许可证、macOS 字体集合选择、
+Python PDF 的 CFF 替代及原始 IPA 字体恢复方法。关于窗口注明小米 MiSans，
+软件附完整小米许可协议；Zhuque v0.212 为上游技术预览版本。
 
-音符样式选项为常规（Regular）、斜体（Italic）和粗体（Bold）。旧文档的字体名和样式标识
-在修改对应设置前仍保持兼容。
+音符样式仍为常规（Regular）、斜体（Italic）、粗体（Bold）。未修改的旧设置保持兼容。
 
 开发参考测试使用系统中已安装的微软字体，其字形尺寸和像素结果与生产版的开源替代字体不同。
 生产仓库不包含微软字体文件。

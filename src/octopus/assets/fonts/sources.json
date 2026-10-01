@@ -73,10 +73,41 @@
       "license_file": "licenses/LxgwNeoXiHei-IPA.txt",
       "license_sha256": "bce9800ab47cd0961c2a536d5ecfb983442d58eec1db5ff88a5f1a8d1c682367",
       "license_url": "https://raw.githubusercontent.com/lxgw/LxgwNeoXiHei/v1.305/LICENSE.md"
+    },
+    {
+      "name": "misans-regular",
+      "url": "https://hyperos.mi.com/font-download/MiSans.zip",
+      "sha256": "b6aa1fc827035922612df8edf36e5609bca1c5441e25cd57572204569b7b81d9",
+      "cache_file": "MiSans.zip",
+      "format": "zip-ttf",
+      "member": "MiSans/ttf/MiSans-Regular.ttf",
+      "file": "MiSans-Regular.ttf",
+      "family": "MiSans",
+      "version": "4.009",
+      "license": "Xiaomi MiSans Font Intellectual Property License Agreement",
+      "license_file": "licenses/MiSans-license.pdf",
+      "license_url": "https://hyperos.mi.com/font-download/MiSans%E5%AD%97%E4%BD%93%E7%9F%A5%E8%AF%86%E4%BA%A7%E6%9D%83%E8%AE%B8%E5%8F%AF%E5%8D%8F%E8%AE%AE.pdf",
+      "license_sha256": "4a93a27cd2bd81b3b5ecfd0a853144a876fa26938a93a68443c67d74172fcb86"
+    },
+    {
+      "name": "zhuque-fangsong",
+      "url": "https://github.com/TrionesType/zhuque/releases/download/v0.212/ZhuqueFangsong-v0.212.zip",
+      "sha256": "bb8b661a7643d2296a72d9d10530a00949419c4e527fb61783f73c2ba1a8c062",
+      "cache_file": "ZhuqueFangsong-v0.212.zip",
+      "format": "zip-ttf",
+      "member": "ZhuqueFangsong-Regular.ttf",
+      "file": "ZhuqueFangsong-Regular.ttf",
+      "family": "Zhuque Fangsong (technical preview)",
+      "version": "v0.212",
+      "license": "OFL-1.1",
+      "license_file": "licenses/ZhuqueFangsong-OFL.txt",
+      "license_url": "https://raw.githubusercontent.com/TrionesType/zhuque/803217b9663d1c6e1402e91acc94e4f572713d73/LICENSE.txt",
+      "license_sha256": "66cc01ad4df62fca6936431a426104cb32a52ce8da49de9a7d643e02d7659043"
     }
   ],
   "zstandard_version": "0.25.0",
   "notices": [
-    "licenses/IPA-RESTORATION.txt"
+    "licenses/IPA-RESTORATION.txt",
+    "licenses/MiSans-license.txt"
   ]
 }

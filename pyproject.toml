@@ -16,6 +16,7 @@ license = "GPL-3.0-or-later"
 # macos, x86_64+arm64); the engine imports them LAZLY (ui/engine/pdf_export.py
 # + jpg_export.py) so non-export ops stay dependency-free at import.
 dependencies = [
+    "fonttools==4.60.2",
     "pillow>=10",
     "reportlab>=4,<5",
     "resvg-py>=0.5,<1",
@@ -44,4 +45,4 @@ include = ["octopus*", "ui", "ui.engine"]
 [tool.setuptools.package-data]
 "octopus.assets.glyphs" = ["*.svg", "registry.json"]
 
-"octopus.assets.fonts" = ["*.ttf", "*.json", "*.md", "licenses/*.txt"]
+"octopus.assets.fonts" = ["*.ttf", "*.json", "*.md", "licenses/*.txt", "licenses/*.pdf"]

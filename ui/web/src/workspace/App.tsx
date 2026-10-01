@@ -1700,6 +1700,7 @@ export function App() {
             <h2 id="information-dialog-title">{copy.aboutTitle}</h2>
             <AppBrand />
             <p>{copy.aboutDescription}</p>
+            <p>{copy.fontCredits}</p>
             <div className="dialog-actions">
               <button autoFocus className="primary-button" onClick={() => setInformationDialog(null)} type="button">
                 {copy.done}

@@ -129,6 +129,8 @@ fn svg_options_for_profile(release: bool) -> usvg::Options<'static> {
             include_bytes!("../../../src/octopus/assets/fonts/LXGWWenKai-Regular.ttf"),
             include_bytes!("../../../src/octopus/assets/fonts/SimZhiSong.ttf"),
             include_bytes!("../../../src/octopus/assets/fonts/LXGWNeoXiHei.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/MiSans-Regular.ttf"),
+            include_bytes!("../../../src/octopus/assets/fonts/ZhuqueFangsong-Regular.ttf"),
         ];
         for face in FACES {
             font_database.load_font_data(face.to_vec());
@@ -136,7 +138,7 @@ fn svg_options_for_profile(release: bool) -> usvg::Options<'static> {
         font_database.set_sans_serif_family("Noto Sans SC");
         font_database.set_serif_family("Noto Serif SC");
     }
-    if !release || cfg!(target_os = "windows") {
+    if !release || cfg!(any(target_os = "windows", target_os = "macos")) {
         font_database.load_system_fonts();
     }
     usvg::Options {
@@ -247,8 +249,8 @@ mod tests {
     #[test]
     fn release_database_includes_fallback_faces() {
         let options = super::svg_options_for_profile(true);
-        if !cfg!(target_os = "windows") {
-            assert_eq!(options.fontdb.faces().count(), 11);
+        if !cfg!(any(target_os = "windows", target_os = "macos")) {
+            assert_eq!(options.fontdb.faces().count(), 13);
         }
         let families: Vec<_> = options
             .fontdb
@@ -261,7 +263,9 @@ mod tests {
         assert!(families.contains(&"LXGW WenKai"));
         assert!(families.contains(&"SimZhiSong"));
         assert!(families.contains(&"LXGW Neo XiHei"));
-        if !cfg!(target_os = "windows") {
+        assert!(families.contains(&"MiSans"));
+        assert!(families.contains(&"Zhuque Fangsong (technical preview)"));
+        if !cfg!(any(target_os = "windows", target_os = "macos")) {
             assert!(!families.contains(&"Microsoft YaHei"));
         }
         let svg = SVG_PAGE.replace("Microsoft YaHei", "Noto Sans SC");
@@ -272,6 +276,18 @@ mod tests {
         assert!(pdf
             .windows(b"/FontFile".len())
             .any(|item| item == b"/FontFile"));
+    }
+
+    #[test]
+    fn quoted_fangsong_family_embeds_the_selected_font() {
+        let svg = SVG_PAGE.replace(
+            "Microsoft YaHei",
+            "&quot;Zhuque Fangsong (technical preview)&quot;",
+        );
+        let pdf = super::export_pdf_with_options(&[svg], super::svg_options_for_profile(true))
+            .unwrap();
+        let name = b"ZhuqueFangsong-Regular";
+        assert!(pdf.windows(name.len()).any(|item| item == name));
     }
 
     #[test]

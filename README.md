@@ -59,17 +59,18 @@ The preceding successful portable build is retained under `portable.previous/`.
 
 ## Fonts and examples
 
-Settings offer HeiTi, SongTi and KaiTi. Windows uses installed SimHei, SimSun and
-KaiTi when available; each missing family falls back to bundled Neo XiHei, SimZhiSong
-and WenKai Regular, respectively. Linux production uses the bundled fallbacks.
-Noto provides additional Chinese glyph coverage, and Liberation Sans covers Latin
-Arial requests. No font installation is needed. PDF embeds fonts; JPEG stores pixels.
-External SVG viewers need the named fonts installed.
-[Font assets and reproducible preparation](src/octopus/assets/fonts/README.md) describe
-sources, checksums, OFL/IPA licenses and original IPA font restoration instructions.
+Settings offer HeiTi-1, HeiTi-2, SongTi, KaiTi and FangSong. Windows prefers
+Microsoft YaHei, SimHei, SimSun, KaiTi and FangSong; macOS prefers PingFang SC,
+Heiti SC, Songti SC, Kaiti SC and STFangsong. Each missing family falls back to
+MiSans Regular, Neo XiHei, SimZhiSong, WenKai Regular or Zhuque Fangsong, respectively.
+Linux production uses those bundled fallbacks. Saved HeiTi still means HeiTi-2.
+Noto provides missing glyph coverage and Liberation Sans covers Latin Arial requests.
+PDF embeds fonts; JPEG stores pixels. External SVG viewers need the named fonts.
+[Font guide](src/octopus/assets/fonts/README.md) explains licenses, macOS collection
+selection, Python PDF's CFF fallback and original IPA font restoration. MiSans is credited
+in the application and shipped with Xiaomi's full license; Zhuque v0.212 is a technical preview.
 
-Note style choices are Regular, Italic and Bold. Existing documents retain their
-legacy font names and note-style IDs until those settings are edited.
+Note styles remain Regular, Italic and Bold. Untouched legacy settings stay compatible.
 
 Development reference tests use installed Microsoft fonts; their metrics and pixels differ from
 the open-font production substitutions. The production repository contains no Microsoft font files.
