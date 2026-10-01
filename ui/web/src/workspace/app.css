@@ -146,7 +146,7 @@ h2 { margin: 0; font-size: 14px; }
 .editor-panel > .panel-heading, .preview-panel > .panel-heading { flex-wrap: wrap; padding-block: 6px; }
 .editor-panel > .panel-heading { flex-shrink: 0; display: grid; grid-template-columns: auto minmax(80px, 1fr) minmax(0, auto) auto; align-items: center; column-gap: 8px; }
 .preview-panel .preview-tools { max-width: 100%; flex-wrap: wrap; overflow: visible; }
-.editor-heading-title { display: flex; align-items: center; white-space: nowrap; }
+.editor-heading-title { display: flex; align-items: center; margin-inline-end: 8px; white-space: nowrap; }
 .editor-heading-title h2 { flex: none; }
 .editor-format-action { justify-self: end; white-space: nowrap; }
 .editor-heading-file { display: flex; min-width: 0; max-width: clamp(60px, 12vw, 180px); align-items: center; gap: 7px; overflow: hidden; }
