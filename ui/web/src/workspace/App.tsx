@@ -124,15 +124,16 @@ function newScoreDraftChanged(name: string, fields: NewScoreFields) {
   return name !== "Untitled.jps" || JSON.stringify(fields) !== JSON.stringify(EMPTY_NEW_SCORE);
 }
 
-function AppBrand() {
+function AppBrand({ label, onOpen }: { label: string; onOpen: () => void }) {
   return (
-    <span className="app-brand">
+    <a aria-label={label} className="app-brand" href="https://github.com/OctaveMelody/OctoPus"
+      onClick={event => { event.preventDefault(); onOpen(); }}>
       <img alt="" className="brand-mark" height="40" src={brandMark} width="40" />
       <span className="brand-type">
         <span className="brand-name">Octo<span>Pus</span></span>
         <span className="brand-studio">by <strong>OctaveMelody</strong></span>
       </span>
-    </span>
+    </a>
   );
 }
 
@@ -1356,7 +1357,9 @@ export function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <h1 aria-label={copy.title} className="topbar-title"><AppBrand /></h1>
+        <h1 aria-label={copy.title} className="topbar-title">
+          <AppBrand label={copy.projectHome} onOpen={() => { void openHelp("home"); }} />
+        </h1>
         <nav aria-label={copy.documentActions} className="document-actions">
           <button disabled={isSaving || referenceOperationBusy} onClick={() => requestAction("new")} type="button">{copy.new}</button>
           <button disabled={isSaving || referenceOperationBusy} onClick={() => requestAction("open")} type="button">{copy.open}</button>
@@ -1769,7 +1772,7 @@ export function App() {
         {informationDialog === "about" && (
           <section>
             <h2 id="information-dialog-title">{copy.aboutTitle}</h2>
-            <AppBrand />
+            <AppBrand label={copy.projectHome} onOpen={() => { void openHelp("home"); }} />
             <p>{copy.aboutDescription}</p>
             <p><a href="https://github.com/OctaveMelody/OctoPus" onClick={event => {
               event.preventDefault(); void openHelp("home");
