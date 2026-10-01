@@ -3,6 +3,8 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { AdaptiveToolbar } from "./AdaptiveToolbar";
 import { ActionMenu } from "./ActionMenu";
+import { checkForUpdate, openHelpDestination } from "./help-actions.js";
+import type { HelpDestination, UpdateResult } from "./help-actions.js";
 
 import { JpsEditor, type JpsEditorHandle } from "../editor/JpsEditor";
 import { PageSettings } from "./PageSettings";
@@ -161,7 +163,11 @@ export function App() {
   const editorController = useRef<JpsEditorHandle | null>(null);
   currentDocument.current = score;
   const [status, setStatus] = useState<Status>({ kind: "ready" });
-  const [informationDialog, setInformationDialog] = useState<"help" | "about" | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateResult, setUpdateResult] = useState<UpdateResult | null>(null);
+  const [updateError, setUpdateError] = useState("");
+  const [browserError, setBrowserError] = useState("");
+  const [informationDialog, setInformationDialog] = useState<"about" | "update" | "browser-error" | null>(null);
   const [activeDialog, setActiveDialog] = useState<DialogKind>(null);
   const [pendingAction, setPendingAction] = useState<LifecycleAction | null>(null);
   const [dialogError, setDialogError] = useState("");
@@ -175,7 +181,6 @@ export function App() {
   const [isSaving, setIsSaving] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const exportMenuRef = useRef<HTMLDetailsElement>(null);
-  const helpMenuRef = useRef<HTMLDetailsElement>(null);
   const findMenuRef = useRef<HTMLDetailsElement>(null);
   const transcriptionMenuRef = useRef<HTMLDetailsElement>(null);
   const transitionSequence = useRef(0);
@@ -220,8 +225,10 @@ export function App() {
   const { isExporting, currentExportStatus, startExport } = useScoreExports({
     score, currentDocument, documentOpen, copyRef });
   const referenceAssets = useReferenceAssets({ currentDocument, recoverySequence,
-    currentRecoveryDraft, copyRef, setStatus, setActiveDialog, setDialogError, setPreferences });
-  const { references, referenceSources, currentReferences, pendingReferenceImport,
+    currentRecoveryDraft, copyRef, setStatus, setActiveDialog, setDialogError, setPreferences,
+    externalImportBusy: () => !recoveryReadyRef.current || saving.current || transcribing.current
+      || activeDialogRef.current !== null || Boolean(informationDialogRef.current?.open) });
+  const { referenceDropActive, references, referenceSources, currentReferences, pendingReferenceImport,
     isImportingReferences, isCommittingReferences, isHandlingReferenceChoice,
     commitReferenceSet, importReferences, chooseReferenceImport, updateReferences } = referenceAssets;
 
@@ -243,7 +250,7 @@ export function App() {
   useEffect(() => {
     const closeMenusOnOutsideClick = (event: globalThis.MouseEvent) => {
       if (!(event.target instanceof Node)) return;
-      for (const menu of [exportMenuRef.current, helpMenuRef.current,
+      for (const menu of [exportMenuRef.current,
         transcriptionMenuRef.current, findMenuRef.current]) {
         if (menu?.open && !menu.contains(event.target)) menu.open = false;
       }
@@ -1080,6 +1087,30 @@ export function App() {
     popup.style.top = `${anchor.bottom + 4}px`;
   }
 
+  async function openHelp(destination: HelpDestination) {
+    try {
+      await openHelpDestination(destination, preferences.language);
+    } catch (error) {
+      setBrowserError(error instanceof Error ? error.message : String(error));
+      setInformationDialog("browser-error");
+    }
+  }
+
+  async function checkUpdates() {
+    if (checkingUpdate) return;
+    setInformationDialog("update");
+    setCheckingUpdate(true);
+    setUpdateResult(null);
+    setUpdateError("");
+    try {
+      setUpdateResult(await checkForUpdate());
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }
+
   function editClipboard(action: "cut" | "copy" | "paste") {
     try {
       if (!editorController.current?.[action]()) throw new Error(copy.clipboardUnavailable);
@@ -1224,6 +1255,7 @@ export function App() {
       <ReferencePanel
         key="reference"
         copy={copy}
+        dropActive={referenceDropActive}
         images={referencePanelImages}
         busy={referenceOperationBusy}
         importing={isImportingReferences}
@@ -1376,25 +1408,14 @@ export function App() {
           <button disabled={!documentOpen || isSaving || referenceOperationBusy} onClick={() => requestAction("close-document")} type="button">
             {copy.closeDocument}
           </button>
-          <details className="help-menu" ref={helpMenuRef}>
-            <summary>{copy.helpMenu}</summary>
-            <div aria-label={copy.helpMenu} className="help-menu-items">
-              <button onClick={(event) => {
-                const menu = event.currentTarget.closest("details");
-                if (menu) menu.open = false;
-                setInformationDialog("help");
-              }} type="button">
-                {copy.help}
-              </button>
-              <button onClick={(event) => {
-                const menu = event.currentTarget.closest("details");
-                if (menu) menu.open = false;
-                setInformationDialog("about");
-              }} type="button">
-                {copy.about}
-              </button>
-            </div>
-          </details>
+          <ActionMenu label={copy.helpMenu} actions={[
+            {label: copy.userManual, run: () => { void openHelp("manual"); }},
+            {label: copy.reportIssues, run: () => { void openHelp("issues"); }},
+            {label: copy.submitRequests, run: () => { void openHelp("requests"); }},
+            {label: copy.checkForUpdate, disabled: checkingUpdate, run: () => { void checkUpdates(); }},
+            {label: copy.about, run: () => setInformationDialog("about")},
+          ]}/>
+
           {currentExportStatus && (
             <span
               aria-live={currentExportStatus.kind === "error" ? "assertive" : "polite"}
@@ -1718,20 +1739,31 @@ export function App() {
         }}
         ref={informationDialogRef}
       >
-        {informationDialog === "help" && (
+        {informationDialog === "update" && (
           <section>
-            <h2 id="information-dialog-title">{copy.helpTitle}</h2>
-            <ul className="help-list">
-              <li>{copy.helpEditing}</li>
-              <li>{copy.helpMatching}</li>
-              <li>{copy.helpShortcuts}</li>
-              <li>{copy.helpPageSettings}</li>
-            </ul>
-            <div className="dialog-actions">
-              <button autoFocus className="primary-button" onClick={() => setInformationDialog(null)} type="button">
-                {copy.done}
-              </button>
-            </div>
+            <h2 id="information-dialog-title">{copy.checkForUpdate}</h2>
+            {checkingUpdate && <p role="status">{copy.checkingUpdate}</p>}
+            {updateError && <p role="alert">{copy.updateFailed} {updateError}</p>}
+            {updateResult && <>
+              <p>{updateResult.status === "available" ? copy.updateAvailable
+                : updateResult.status === "up_to_date" ? copy.updateCurrent
+                : updateResult.status === "unknown_version" ? copy.updateUnknown : copy.updateUnavailable}</p>
+              <p>{copy.installedVersion}: {updateResult.current_version}</p>
+              {updateResult.latest_version && <p>{copy.latestVersion}: {updateResult.latest_version}</p>}
+            </>}
+            <p><a href="https://github.com/OctaveMelody/OctoPus/releases" onClick={event => {
+              event.preventDefault(); void openHelp("releases");
+            }}>{copy.releases}</a></p>
+            <div className="dialog-actions"><button autoFocus className="primary-button"
+              onClick={() => setInformationDialog(null)} type="button">{copy.done}</button></div>
+          </section>
+        )}
+        {informationDialog === "browser-error" && (
+          <section>
+            <h2 id="information-dialog-title">{copy.browserErrorTitle}</h2>
+            <p role="alert">{browserError}</p>
+            <div className="dialog-actions"><button autoFocus className="primary-button"
+              onClick={() => setInformationDialog(null)} type="button">{copy.done}</button></div>
           </section>
         )}
         {informationDialog === "about" && (
@@ -1739,6 +1771,9 @@ export function App() {
             <h2 id="information-dialog-title">{copy.aboutTitle}</h2>
             <AppBrand />
             <p>{copy.aboutDescription}</p>
+            <p><a href="https://github.com/OctaveMelody/OctoPus" onClick={event => {
+              event.preventDefault(); void openHelp("home");
+            }}>{copy.projectHome}</a></p>
             <p>{copy.fontCredits}</p>
             <div className="dialog-actions">
               <button autoFocus className="primary-button" onClick={() => setInformationDialog(null)} type="button">

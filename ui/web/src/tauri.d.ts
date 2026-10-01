@@ -8,7 +8,7 @@ interface Window {
       getCurrentWindow(): {
         onCloseRequested(handler: (event: { preventDefault(): void }) => void): Promise<() => void>;
         onDragDropEvent(handler: (event: {
-          payload: { type: "enter" | "over" | "drop" | "leave", paths?: string[] };
+          payload: { type: "enter" | "over" | "drop" | "leave", paths?: string[], position?: { x: number; y: number } };
         }) => void): Promise<() => void>;
         close(): Promise<void>;
         destroy(): Promise<void>;

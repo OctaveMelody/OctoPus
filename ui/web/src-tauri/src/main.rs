@@ -2,7 +2,7 @@
 
 mod commands;
 
-use commands::{documents, engine, exports, references};
+use commands::{documents, engine, exports, help, references};
 use jps_document_io::{RecoverySnapshotSequence, SelectedJpsFiles};
 use jps_engine_bridge::EngineSupervisor;
 use std::sync::{Arc, Mutex};
@@ -46,6 +46,7 @@ fn toggle_window_maximize(window: WebviewWindow) {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let engine = engine_supervisor(app.handle()).map_err(std::io::Error::other)?;
             let transcription = engine_supervisor(app.handle()).map_err(std::io::Error::other)?;
@@ -79,6 +80,8 @@ fn main() {
             references::stage_reference_assets,
             references::transcribe_reference,
             toggle_window_maximize,
+            help::open_help_destination,
+            help::check_for_update,
             documents::write_recovery_snapshot
         ])
         .run(tauri::generate_context!())

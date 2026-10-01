@@ -4,6 +4,7 @@
 /ui/web/node_modules/
 /ui/web/src-tauri/gen/
 /ui/web/src-tauri/target/
+/ui/target/
 __pycache__/
 *.py[cod]
 *.egg-info/

@@ -77,11 +77,14 @@ export function referenceImageUrl(path) {
   return convertFileSrc(path);
 }
 
-/** @param {(paths: string[]) => void} handler @returns {Promise<() => void>} */
-export function onNativeReferenceDrop(handler) {
+/** @param {(paths: string[]) => void} handler
+ * @param {(position: {x: number, y: number} | null) => void} [hover]
+ * @returns {Promise<() => void>} */
+export function onNativeReferenceDrop(handler, hover = () => {}) {
   const tauriWindow = window.__TAURI__?.window?.getCurrentWindow();
   if (!tauriWindow) return Promise.resolve(() => {});
   return tauriWindow.onDragDropEvent(({ payload }) => {
+    hover(payload.type === "enter" || payload.type === "over" ? payload.position ?? null : null);
     if (payload.type === "drop") handler(payload.paths ?? []);
   });
 }

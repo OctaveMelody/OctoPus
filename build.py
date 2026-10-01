@@ -39,6 +39,7 @@ def publish_portable(destination: Path, release: Path, packages: list[Path], sys
             resources = staged
             shutil.copytree(ROOT / "build/desktop-engine/octopus-engine", resources / "engine")
             shutil.copytree(ROOT / "samples/jps_files", resources / "examples")
+            shutil.copytree(ROOT / "docs", resources / "docs")
         else:
             raise RuntimeError(f"portable output is unsupported on {system}")
         if not executable.is_file():
@@ -57,6 +58,10 @@ def publish_portable(destination: Path, release: Path, packages: list[Path], sys
                 copied = examples / source.relative_to(expected)
                 if not copied.is_file() or copied.read_bytes() != source.read_bytes():
                     raise RuntimeError(f"portable example missing/corrupt: {source.name}")
+        manual = ROOT / "docs/user-manual.html"
+        copied_manual = resources / "docs/user-manual.html"
+        if not copied_manual.is_file() or copied_manual.read_bytes() != manual.read_bytes():
+            raise RuntimeError("portable user manual missing/corrupt")
         # Retain the predecessor until a later build replaces it with the then-current tree.
         previous = destination / "portable.previous"
         if previous.exists():

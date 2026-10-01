@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Dispatch, RefObject, SetStateAction } from "react";
+import { referenceDropInside, referenceDropKind } from "./reference-drop.js";
 import { MAX_REFERENCE_PAGES } from "../reference/pdf-policy.js";
 import { discardReferenceImages, onNativeReferenceDrop, pruneReferenceImages, referenceImageUrl,
   stageReferenceAssets, writeRecoverySnapshot } from "./native-files.js";
@@ -14,16 +15,20 @@ import type { DialogKind, DocumentSnapshot, PdfImport, PendingReferenceImport, R
   StagedReferenceAssets, Status, WorkspaceCopy, WorkspacePreferences } from "./types";
 
 export function useReferenceAssets({ currentDocument, recoverySequence,
-  currentRecoveryDraft, copyRef, setStatus, setActiveDialog, setDialogError, setPreferences }: {
+  currentRecoveryDraft, copyRef, setStatus, setActiveDialog, setDialogError, setPreferences, externalImportBusy }: {
   currentDocument: RefObject<DocumentSnapshot>;
   recoverySequence: RefObject<number>;
   currentRecoveryDraft: () => RecoveryDraft | null;
+  externalImportBusy: () => boolean;
   copyRef: RefObject<WorkspaceCopy>;
   setStatus: Dispatch<SetStateAction<Status>>;
   setActiveDialog: Dispatch<SetStateAction<DialogKind>>;
   setDialogError: Dispatch<SetStateAction<string>>;
   setPreferences: Dispatch<SetStateAction<WorkspacePreferences>>;
 }) {
+  const [referenceDropActive, setReferenceDropActive] = useState(false);
+  const externalImportBusyRef = useRef(externalImportBusy);
+  externalImportBusyRef.current = externalImportBusy;
   const [references, setReferences] = useState(createReferenceSet);
   const currentReferences = useRef(references);
   currentReferences.current = references;
@@ -117,7 +122,7 @@ export function useReferenceAssets({ currentDocument, recoverySequence,
   }
 
   async function importReferences(paths: string[] | null = null) {
-    if (importingReferences.current || pendingReferenceImportRef.current || referenceCommitInFlight.current) {
+    if (externalImportBusyRef.current() || importingReferences.current || pendingReferenceImportRef.current || referenceCommitInFlight.current) {
       setStatus({ kind: "error", message: copyRef.current.imageImportInProgress });
       return;
     }
@@ -271,8 +276,20 @@ export function useReferenceAssets({ currentDocument, recoverySequence,
     let cancelled = false;
     let unlisten: (() => void) | undefined;
     void onNativeReferenceDrop((paths) => {
-      const references = paths.filter((path) => /\.(png|jpe?g|pdf)$/i.test(path));
-      if (references.length) void importReferences(references);
+      const kind = referenceDropKind(paths);
+      if (kind === "empty") return;
+      if (kind !== "supported") {
+        setStatus({ kind: "error", message: kind === "multiple"
+          ? copyRef.current.singleReferenceFile : copyRef.current.unsupportedReferenceDrop });
+        return;
+      }
+      void importReferences(paths);
+    }, (position) => {
+      const panel = document.querySelector<HTMLElement>(".reference-panel");
+      setReferenceDropActive(!externalImportBusyRef.current() && !importingReferences.current
+        && !pendingReferenceImportRef.current && !referenceCommitInFlight.current
+        && referenceDropInside(position, panel?.getBoundingClientRect() ?? null,
+          window.devicePixelRatio || 1));
     }).then((removeListener) => {
       if (cancelled) removeListener();
       else unlisten = removeListener;
@@ -301,7 +318,7 @@ export function useReferenceAssets({ currentDocument, recoverySequence,
     setPendingReferenceImport(null);
   }
 
-  return { references, referenceSources, currentReferences, pendingReferenceImport,
+  return { referenceDropActive, references, referenceSources, currentReferences, pendingReferenceImport,
     isImportingReferences, isCommittingReferences, isHandlingReferenceChoice,
     commitReferenceSet, importReferences, chooseReferenceImport, updateReferences,
     discardPendingImport, restoreReferences,

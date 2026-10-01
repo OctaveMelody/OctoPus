@@ -323,3 +323,7 @@ h2 { margin: 0; font-size: 14px; }
   .editor-heading-file { visibility: hidden; }
   .editor-format-action { padding-inline: 5px; font-size: 11px; }
 }
+
+.reference-panel { position: relative; }
+.reference-drop-active { outline: 3px solid #408699; outline-offset: -3px; }
+.reference-drop-hint { position: absolute; z-index: 30; inset: 52px 12px auto; pointer-events: none; border: 1px solid #408699; border-radius: 8px; padding: 16px; background: #effafd; color: #14394a; text-align: center; font-size: 14px; box-shadow: 0 4px 16px #17233b24; }

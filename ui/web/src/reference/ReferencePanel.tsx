@@ -46,6 +46,7 @@ type ReferenceView = {
 
 type Props = {
   copy: Copy;
+  dropActive?: boolean;
   images: ReferencePage[];
   selectedId: string | null;
   views: Record<string, ReferenceView>;
@@ -63,6 +64,7 @@ type Props = {
 
 export function ReferencePanel({
   copy,
+  dropActive = false,
   images,
   selectedId,
   views,
@@ -184,7 +186,10 @@ export function ReferencePanel({
     : viewport;
 
   return (
-    <section aria-label={copy.reference} className="panel reference-panel">
+    <section aria-label={copy.reference} className={`panel reference-panel${dropActive ? " reference-drop-active" : ""}`}
+      onDragOver={event => { event.preventDefault(); }}
+      onDrop={event => { event.preventDefault(); }}>
+      {dropActive && <div className="reference-drop-hint" role="status">{copy.dropReferenceHint}</div>}
       <div className="panel-heading">
         <div className="reference-heading-title">
           <h2>{copy.reference}</h2>
@@ -284,6 +289,7 @@ export function ReferencePanel({
         <div className="reference-empty">
           <p>{copy.referenceEmpty}</p>
           <span>{copy.importLater}</span>
+          <span>{copy.dropReferenceHint}</span>
           <button className="primary-button" disabled={busy} onClick={onImport} type="button">
             {importing ? copy.importingImages : copy.importImage}
           </button>
