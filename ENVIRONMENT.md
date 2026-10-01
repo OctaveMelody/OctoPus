@@ -1,5 +1,7 @@
 # Production running and building environment
 
+**English** | [简体中文](ENVIRONMENT.zh-CN.md)
+
 This repository is self-contained. Its manifests, locks, setup script and builder must not
 read development tests, audit packages, instructions or environments from OctoPus-dev.
 
@@ -67,7 +69,7 @@ sudo apt-get install -y build-essential pkg-config libwebkit2gtk-4.1-dev libgtk-
 
 An installed Debian application uses the package-manager-resolved GTK/WebKit/runtime libraries
 and `poppler-utils`; its bundled Python worker needs no separate Python installation. Retain
-its neighboring engine/examples resources. Fonts must be installed for the scripts being rendered;
+its neighboring engine/examples/docs resources. Bundled fonts cover the supported rendering roles;
 Microsoft YaHei/SimHei/SimSun/Arial are needed for authoritative corpus comparisons, which live
 in development. Font replacement changes rendering and is not proof of reference parity.
 
@@ -101,18 +103,20 @@ update them intentionally with `uv lock`/npm/Cargo and validate the resulting ch
 
 ## Release fonts
 
-Pinned OFL font assets and licenses are in src/octopus/assets/fonts/. Packaging verifies their
+Pinned font assets and their OFL, IPA and Xiaomi MiSans licenses are in src/octopus/assets/fonts/. Packaging verifies their
 hashes and includes them in the worker, preview and native exporter. Builds need no font download
 or system font installation. See [font asset guide](src/octopus/assets/fonts/README.md).
-The source engine defaults to reference fonts; use OCTOPUS_FONT_PROFILE=release for open-font
-checks. Packaged workers/native exports use the release fonts. Reference fonts stay outside Git.
+The source engine defaults to reference fonts; use `OCTOPUS_FONT_PROFILE=release` for release-policy
+checks. Packaged workers/native exports prefer the configured installed OS families independently
+for each role, then use bundled substitutions when a family is missing. This also applies to
+production portable builds. Reference font files stay outside Git. See the [font tables](README.md#fonts).
 
 ## Portable production testing
 
 Every native `python build.py` build also publishes an untracked portable tree under
 `dist/<target-triple>/portable/`, alongside installation packages. Linux builds include a Debian
 bundle to obtain the matching resource layout, even when another bundle type is requested.
-The builder verifies worker/font/glyph assets, a Chinese render and example bytes before replacing
+The builder verifies worker/font/glyph assets, a Chinese render, example bytes and the packaged user manual before replacing
 the portable output. `portable.previous/` retains the last successful portable build.
 
 On Linux, run from any working directory:

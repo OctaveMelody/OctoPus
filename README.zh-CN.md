@@ -31,7 +31,7 @@ OctoPus 是一款桌面简谱编辑器，支持实时 SVG 预览、将图片和 
 
 ## 环境准备
 
-[环境说明](ENVIRONMENT.md) 定义了独立的运行和构建环境。
+[环境说明](ENVIRONMENT.zh-CN.md) 定义了独立的运行和构建环境。
 安装 Python 3.11+、uv、Node.js 20.19+（含 npm）、Rust 1.92+ 和 Tauri CLI 2.11.5，然后运行：
 
 ```sh
@@ -39,7 +39,7 @@ python3 scripts/setup.py
 ```
 
 Linux 原生构建还需要 GTK/WebKit 开发包和 Poppler 工具，详见
-[Linux 环境依赖](ENVIRONMENT.md#linux-host-packages)。构建过程通过 uv 准备 Python 3.12
+[Linux 环境依赖](ENVIRONMENT.zh-CN.md#linux-系统依赖包)。构建过程通过 uv 准备 Python 3.12
 和锁定版本的引擎构建依赖。请在目标操作系统上构建；Python 引擎不支持交叉编译。
 
 ## 构建
