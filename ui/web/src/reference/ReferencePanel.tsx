@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
 
+import { AdaptiveToolbar } from "../workspace/AdaptiveToolbar";
+import { ActionMenu } from "../workspace/ActionMenu";
+
 import type { messages } from "../workspace/i18n.js";
 import { PdfPageCanvas } from "./PdfPageCanvas";
 import { orientedImageSize, referenceFitScale, referenceStageSize } from "./reference-view.js";
@@ -187,7 +190,8 @@ export function ReferencePanel({
           <h2>{copy.reference}</h2>
           {image && <span className="reference-current-name" title={image.name}>{image.name}</span>}
         </div>
-        <div aria-label={copy.referenceTools} className="preview-tools reference-preview-tools" role="toolbar">
+        <AdaptiveToolbar label={copy.referenceTools} className="preview-tools reference-preview-tools"
+          expanded={<>
           {image && sourcePages.length > 1 && (
             <>
               <button
@@ -238,9 +242,36 @@ export function ReferencePanel({
               title={copy.rotateImage}
               type="button"
             >↻ 90°</button>
-            {transcriptionControl}
           </div>
-        </div>
+        </>} compact={<>
+          {image && sourcePages.length > 1 && <span>{copy.referenceImageCount(sourcePageIndex + 1, sourcePages.length)}</span>}
+          <button aria-label={copy.zoomOut} disabled={busy || !image || !view || view.zoom <= 0.5}
+            onClick={() => image && view && onViewChange(image.id, {zoom: Math.max(0.5, view.zoom - 0.25)})}
+            type="button">−</button>
+          <span>{copy.zoomPercent(Math.round((view?.zoom ?? 1) * 100))}</span>
+          <button aria-label={copy.zoomIn} disabled={busy || !image || !view || view.zoom >= 4}
+            onClick={() => image && view && onViewChange(image.id, {zoom: Math.min(4, view.zoom + 0.25)})}
+            type="button">+</button>
+          <ActionMenu label={copy.viewMenu} actions={[
+            {label: copy.fitPage, disabled: busy || !image,
+              run: () => { if (image) onViewChange(image.id, {fit: "page", zoom: 1, panX: 0, panY: 0}); }},
+            {label: copy.fitWidth, disabled: busy || !image,
+              run: () => { if (image) onViewChange(image.id, {fit: "width", zoom: 1, panX: 0, panY: 0}); }},
+            {label: copy.zoomOut, disabled: busy || !image || !view || view.zoom <= 0.5,
+              run: () => { if (image && view) onViewChange(image.id, {zoom: Math.max(0.5, view.zoom - 0.25)}); }},
+            {label: copy.zoomIn, disabled: busy || !image || !view || view.zoom >= 4,
+              run: () => { if (image && view) onViewChange(image.id, {zoom: Math.min(4, view.zoom + 0.25)}); }},
+            {label: copy.rotateImage, disabled: busy || !image || !view,
+              run: () => { if (image && view) onViewChange(image.id, {rotation: (view.rotation + 90) % 360}); }},
+            ...(sourcePages.length > 1 ? [
+              {label: copy.prevPageMenu, disabled: busy || sourcePageIndex <= 0,
+                run: () => onSelect(sourcePages[sourcePageIndex - 1].id)},
+              {label: copy.nextPageMenu, disabled: busy || sourcePageIndex >= sourcePages.length - 1,
+                run: () => onSelect(sourcePages[sourcePageIndex + 1].id)},
+            ] : []),
+          ]}/>
+        </>}/>
+        <div className="reference-heading-transcribe">{transcriptionControl}</div>
         <button aria-label={copy.closeReference} onClick={onClose} type="button">×</button>
       </div>
       {transcribing && (

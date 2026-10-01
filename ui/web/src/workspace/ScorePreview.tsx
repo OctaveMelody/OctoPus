@@ -1,3 +1,5 @@
+import { AdaptiveToolbar } from "./AdaptiveToolbar";
+import { ActionMenu } from "./ActionMenu";
 import type { useScorePreview } from "./useScorePreview";
 import type { Status, WorkspaceCopy } from "./types";
 
@@ -31,7 +33,8 @@ export function ScorePreview({ preview, copy, documentOpen, status }: {
     <section aria-label={copy.preview} className="panel preview-panel" key="preview">
       <div className="panel-heading">
         <h2>{copy.preview}</h2>
-        <div aria-label={copy.previewTools} className="preview-tools" role="toolbar">
+        <AdaptiveToolbar label={copy.previewTools} className="preview-tools"
+          expanded={<>
           {currentPageCache && (
             <>
               <button
@@ -83,7 +86,30 @@ export function ScorePreview({ preview, copy, documentOpen, status }: {
             onClick={renderSelectedPage}
             type="button"
           >{copy.render}</button>
-        </div>
+          </>} compact={<>
+            {currentPageCache && <span>{copy.page} {selectedPage + 1} / {currentPageCache.pageCount}</span>}
+            <button aria-label={copy.zoomOut} disabled={previewZoom <= 0.5}
+              onClick={() => setPreviewZoom(zoom => Math.max(0.5, zoom - 0.25))} type="button">−</button>
+            <span>{copy.zoomPercent(Math.round(previewZoom * 100))}</span>
+            <button aria-label={copy.zoomIn} disabled={previewZoom >= 4}
+              onClick={() => setPreviewZoom(zoom => Math.min(4, zoom + 0.25))} type="button">+</button>
+            <ActionMenu label={copy.viewMenu} actions={[
+              {label: copy.fitPage, disabled: !displayedPreview,
+                run: () => { setPreviewFit("page"); setPreviewZoom(1); }},
+              {label: copy.fitWidth, run: () => { setPreviewFit("width"); setPreviewZoom(1); }},
+              {label: copy.zoomOut, disabled: previewZoom <= 0.5,
+                run: () => setPreviewZoom(zoom => Math.max(0.5, zoom - 0.25))},
+              {label: copy.zoomIn, disabled: previewZoom >= 4,
+                run: () => setPreviewZoom(zoom => Math.min(4, zoom + 0.25))},
+              {label: copy.prevPageMenu, disabled: !currentPageCache || selectedPage <= 0,
+                run: () => selectPage(selectedPage - 1)},
+              {label: copy.nextPageMenu,
+                disabled: !currentPageCache || selectedPage + 1 >= currentPageCache.pageCount,
+                run: () => selectPage(selectedPage + 1)},
+            ]}/>
+            <button className="heading-action" disabled={!documentOpen}
+              onClick={renderSelectedPage} type="button">{copy.render}</button>
+          </>}/>
       </div>
       <div className="preview-canvas" onClick={selectPreviewAnchor} ref={previewCanvasRef}>
         {previewUrl && displayedPreview

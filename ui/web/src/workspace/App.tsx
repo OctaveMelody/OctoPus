@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
+import { AdaptiveToolbar } from "./AdaptiveToolbar";
+import { ActionMenu } from "./ActionMenu";
+
 import { JpsEditor, type JpsEditorHandle } from "../editor/JpsEditor";
 import { PageSettings } from "./PageSettings";
 import { ReferencePanel } from "../reference/ReferencePanel";
@@ -1103,7 +1106,8 @@ export function App() {
           <div className="editor-heading-title">
             <h2>{copy.source}</h2>
           </div>
-          <div aria-label={copy.editorTools} className="editor-heading-tools" role="toolbar" onScroll={() => positionFindMenu(findMenuRef.current)}>
+          <AdaptiveToolbar label={copy.editorTools} className="editor-heading-tools"
+            expanded={<>
             <button disabled={!documentOpen || !editorHistory.undo} onClick={() => editorController.current?.undo()} type="button">
               {copy.undo}
             </button>
@@ -1144,7 +1148,22 @@ export function App() {
             <button disabled={!documentOpen} onClick={() => editorController.current?.selectAll()} type="button">
               {copy.selectAll}
             </button>
-          </div>
+            </>} compact={<>
+              <ActionMenu label={copy.editMenu} actions={[
+                {label: copy.undo, disabled: !documentOpen || !editorHistory.undo,
+                  run: () => { editorController.current?.undo(); }},
+                {label: copy.redo, disabled: !documentOpen || !editorHistory.redo,
+                  run: () => { editorController.current?.redo(); }},
+                ...(["cut", "copy", "paste"] as const).map(action => ({label: copy[action],
+                  disabled: !documentOpen, run: () => editClipboard(action)})),
+                {label: copy.find, disabled: !documentOpen,
+                  run: () => { editorController.current?.find(false); }},
+                {label: copy.replaceMenu, disabled: !documentOpen,
+                  run: () => { editorController.current?.find(true); }},
+                {label: copy.selectAll, disabled: !documentOpen,
+                  run: () => { editorController.current?.selectAll(); }},
+              ]}/>
+            </>}/>
           <div className="editor-heading-file">
             {documentOpen && (
               <span className="editor-file-name" title={score.name}>
@@ -1494,7 +1513,6 @@ export function App() {
             {copy.focusPreview}
           </button>
           {focusPane && <button onClick={() => setFocusPane(null)} type="button">{copy.exitFocus}</button>}
-          <button onClick={toggleFullscreen} type="button">{copy.fullScreen}</button>
         </div>
       </section>
       <section
