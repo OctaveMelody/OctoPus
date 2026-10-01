@@ -58,10 +58,12 @@ def publish_portable(destination: Path, release: Path, packages: list[Path], sys
                 copied = examples / source.relative_to(expected)
                 if not copied.is_file() or copied.read_bytes() != source.read_bytes():
                     raise RuntimeError(f"portable example missing/corrupt: {source.name}")
-        manual = ROOT / "docs/user-manual.html"
-        copied_manual = resources / "docs/user-manual.html"
-        if not copied_manual.is_file() or copied_manual.read_bytes() != manual.read_bytes():
-            raise RuntimeError("portable user manual missing/corrupt")
+        for manual in sorted((ROOT / "docs").rglob("*")):
+            if not manual.is_file():
+                continue
+            copied_manual = resources / "docs" / manual.relative_to(ROOT / "docs")
+            if not copied_manual.is_file() or copied_manual.read_bytes() != manual.read_bytes():
+                raise RuntimeError(f"portable user manual missing/corrupt: {manual.name}")
         # Retain the predecessor until a later build replaces it with the then-current tree.
         previous = destination / "portable.previous"
         if previous.exists():

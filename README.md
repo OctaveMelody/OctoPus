@@ -27,8 +27,11 @@ These items are planned; image/PDF transcription currently produces provisional 
 
 ## User Manual
 
-Open **Help → User Manual** in the app, or read the [offline English/Chinese manual](docs/user-manual.html).
-The manual uses language tabs and is included with installation and portable packages.
+Open **Help → User Manual** in the app, or read the [offline English/Chinese manual](docs/user-manual/index.html).
+The manual covers UI workflows, supported JPS notation, limitations and planned improvements.
+It uses language tabs and is included with installation and portable packages. Matching
+[English PDF](docs/PDF/OctoPus-User-Manual-en.pdf) and
+[Chinese PDF](docs/PDF/OctoPus-User-Manual-zh-CN.pdf) versions are available.
 
 ## Setup
 
@@ -113,7 +116,7 @@ license; Zhuque v0.212 is an upstream technical preview. All bundled font notice
 ## Repository contents
 
 - `src/octopus/` and `ui/`: application source and the offline Python worker.
-- `docs/user-manual.html`: the packaged, tab-switchable English/Chinese user manual.
+- `docs/user-manual/index.html`: the packaged, tab-switchable English/Chinese user manual.
 - `samples/jps_files/`: 65 bundled score examples.
 - `samples/jps_files_pretty/`: additional source material.
 - `OctoPus-dev` (separate repository): tests, audits, reference output and development tools.

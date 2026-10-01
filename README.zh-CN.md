@@ -26,8 +26,10 @@ OctoPus 是一款桌面简谱编辑器，支持实时 SVG 预览、将图片和 
 
 ## 用户手册
 
-在程序中选择 **帮助 → 用户手册**，或打开[中英文离线手册](docs/user-manual.html)。
-手册提供语言标签页，并随安装包和便携版附带。
+在程序中选择 **帮助 → 用户手册**，或打开[中英文离线手册](docs/user-manual/index.html)。
+手册涵盖界面操作、支持的 JPS 记谱、当前限制及计划，提供语言标签页，并随安装包和便携版附带。
+另有对应[英文 PDF](docs/PDF/OctoPus-User-Manual-en.pdf) 和
+[中文 PDF](docs/PDF/OctoPus-User-Manual-zh-CN.pdf)。
 
 ## 环境准备
 
@@ -107,7 +109,7 @@ ReportLab 无法嵌入的 CFF 轮廓，该 Python PDF 导出路径会使用对�
 ## 仓库内容
 
 - `src/octopus/` 和 `ui/`：应用源码及离线 Python 引擎。
-- `docs/user-manual.html`：随软件附带、可切换中英文标签页的用户手册。
+- `docs/user-manual/index.html`：随软件附带、可切换中英文标签页的用户手册。
 - `samples/jps_files/`：65 个打包乐谱示例。
 - `samples/jps_files_pretty/`：额外的源文件。
 - `OctoPus-dev`（独立仓库）：测试、审计、参考输出和开发工具。

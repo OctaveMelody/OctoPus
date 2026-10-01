@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OctoPus User Manual - 用户手册</title><link rel="stylesheet" href="manual.css">
+<script src="manual.js" defer></script></head><body>
+<header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">OctoPus
+<small>by OctaveMelody</small></a><nav role="tablist" aria-label="Manual language / 手册语言">
+<button id="tab-en" role="tab" aria-selected="true" aria-controls="manual-en">English</button>
+<button id="tab-zh-CN" role="tab" aria-selected="false" aria-controls="manual-zh-CN"
+ tabindex="-1">简体中文</button></nav></header><main><article id="manual-en" lang="en" role="tabpanel" aria-labelledby="tab-en"><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
+<h1>User Manual</h1>
+<p>Version 0.1.0 · 2026-10-01</p>
+<p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-en.pdf">Download PDF</a></p>
+</div><nav class="contents" aria-label="Contents"><a href="#en-introduction">1. Introduction</a><a href="#en-capabilities">2. Capabilities, limits and roadmap</a><a href="#en-quickstart">3. Your first score</a><a href="#en-workspace">4. The workspace and UI</a><a href="#en-files">5. Files, saving and recovery</a><a href="#en-source">6. Editing JPS source</a><a href="#en-preview">7. Preview, cursor and navigation</a><a href="#en-reference">8. Original images/PDFs and transcription</a><a href="#en-layout">9. Modes, layouts and focus</a><a href="#en-settings">10. Page settings and fonts</a><a href="#en-export">11. Export and portable use</a><a href="#en-shortcuts">12. Keyboard and Help</a><a href="#en-jps-structure">13. JPS structure and conventions</a><a href="#en-headers">14. Descriptive header</a><a href="#en-notes">15. Notes, register and duration</a><a href="#en-beaming">16. Custom beat grouping</a><a href="#en-accidentals">17. Accidentals and grace notes</a><a href="#en-dynamics">18. Dynamics and hairpins</a><a href="#en-ornaments">19. Ornaments, parentheses and annotations</a><a href="#en-barlines">20. Barlines and repeat instructions</a><a href="#en-slurs">21. Slurs and tuplets</a><a href="#en-endings">22. Endings and temporary meter</a><a href="#en-voices">23. Voices and temporary accompaniment</a><a href="#en-lyrics">24. Lyrics: Chinese, English and mixed text</a><a href="#en-pagination">25. Manual page breaks</a><a href="#en-practice">26. Practical editing and review checklist</a><a href="#en-troubleshooting">27. Troubleshooting and feedback</a><a href="#en-sources">28. Reference basis and compatibility</a></nav>
+<section id="en-introduction"><h2>1. Introduction</h2>
+<p>OctoPus (Octave + Jianpu) is a desktop editor for numbered music notation. Write a score as JPS (Jianpu Script) text, review a live SVG score, compare it with an original image or PDF, and export finished pages. A .jps file describes musical content; page settings control its presentation. This guide describes version 0.1.0, updated 1 October 2026.</p>
+<p>The program works locally for editing, rendering and supported transcription once installed. Help links and update checks need a browser or network connection. This manual works offline; its English and Chinese versions share the same topics and examples. Use the language tabs, or download the matching PDF.</p>
+</section>
+<section id="en-capabilities"><h2>2. Capabilities, limits and roadmap</h2>
+<table><thead><tr><th>Available now</th><th>Scope</th></tr>
+</thead>
+<tbody><tr><td>JPS editing</td><td>New/open/save, undo/redo, clipboard, find/replace, source formatting and bundled samples.</td></tr>
+<tr><td>Live SVG preview</td><td>Source/score correspondence, page navigation, zoom and page layout controls.</td></tr>
+<tr><td>Reference transcription</td><td>PNG/JPG/JPEG/PDF input, original display and provisional JPS drafts for review.</td></tr>
+<tr><td>Export</td><td>SVG, PDF and JPEG; locally packaged worker and bundled font substitutions.</td></tr>
+<tr><td>Languages</td><td>English/Chinese interface and user manual.</td></tr>
+</tbody>
+</table>
+<p><b>Current limits.</b> Transcription is not guaranteed to recover a complete score. Check notes, accidentals, octave dots, durations, lyrics, slurs, grace notes, endings and page order. General running-header/footer/page-number filtering is still incomplete. Complex layout and cross-page spans need manual review. There is no desktop playback/MIDI workflow, LilyPond exporter or MusicXML import/export UI. Staff-notation recognition is planned, not a supported replacement for Jianpu input. Automatic update installation is not provided. Native macOS packaging is deferred; Windows/macOS host acceptance is separate from Linux testing.</p>
+<ul><li>Planned: improve transcription quality, including difficult marks and repeated page furniture.</li>
+<li>Planned: LilyPond source export and MusicXML export/import.</li>
+<li>Planned: import and recognize staff-notation sheet music as JPS.</li>
+<li>Plans indicate intended direction, not a release date or a current capability.</li>
+</ul>
+</section>
+<section id="en-quickstart"><h2>3. Your first score</h2>
+<ul><li>Start OctoPus and choose <b>New</b>. Enter a title, choose the basic score fields and confirm.</li>
+<li>Replace the source with the example below, or open a comparable score from <b>Samples Library</b>.</li>
+<li>Wait for the SVG preview to finish rendering. Click a note to locate its source; edit the text and review the result.</li>
+<li>Use <b>Page Settings</b> for margins/fonts, <b>Save As</b> for a .jps file, then <b>Export</b> for the finished score.</li>
+</ul>
+<pre><code>V: 1.0
+B: First score
+Z: Practice example
+D: C
+P: 4/4
+J: 90
+
+Q: 1 2 3 4 | 5 6 7 1&#x27; ||
+C: 春 风 吹 来 花 儿 开 了</code></pre>
+<p>This example has two four-note bars; the final note is one octave above the base register. The eight Chinese lyric characters map to the eight notes.</p>
+</section>
+<section id="en-workspace"><h2>4. The workspace and UI</h2>
+<p>The top row provides New, Open, Save, Save As, Export, Close, Help, Import PNG/JPG/PDF, Samples Library, Page Settings, Language and Exit. The logo icon and text open the project home. The second row selects Mode/Layout, adjusts split sizes and focuses a pane.</p>
+<table><thead><tr><th>Pane</th><th>Purpose</th></tr>
+</thead>
+<tbody><tr><td>JPS source</td><td>Edit text. Filename and Unsaved status sit immediately before the right-aligned Format Source button. Editing actions follow the JPS source heading.</td></tr>
+<tr><td>SVG preview</td><td>Rendered score, fit/zoom/page controls and render diagnostics.</td></tr>
+<tr><td>Original Image/PDF</td><td>Reference page, fit/zoom/rotate controls and Transcribe menu; visible in Transcription mode.</td></tr>
+</tbody>
+</table>
+<p>On a narrow pane, view controls become a <b>View</b> menu and source tools become <b>Edit</b>. SVG View includes Fit Page, Fit Width, Prev Page and Next Page; Original View includes fit and rotation plus PDF page navigation when applicable. Very narrow panes also expose zoom through View. This keeps actions on one heading row.</p>
+</section>
+<section id="en-files"><h2>5. Files, saving and recovery</h2>
+<p><b>Open</b> loads a .jps score. Both plain JPS text and compatible JSON-wrapped JPS documents are supported. The wrapper may contain source, page settings and existing metadata. <b>Save</b> writes the current document; a new document first needs a destination. <b>Save As</b> changes the destination. Changing page settings for plain text may require a wrapper to preserve them; heed the dialog notice.</p>
+<p><b>Close</b> closes the score; <b>Exit</b> closes the application. If changes are unsaved, choose Save, Discard or Cancel. Recovery can restore the last recoverable draft and managed references after interruption; it does not replace ordinary saved backups. Reference images/PDFs are separate from score source: retain their original files. Opening a sample creates a working document; choose your own save location before overwriting anything.</p>
+</section>
+<section id="en-source"><h2>6. Editing JPS source</h2>
+<p>Use Undo/Redo, Cut/Copy/Paste, Find, Replace and Select All from the heading or compact Edit menu. Find opens the search UI; Replace exposes replacement controls. Standard editor keyboard shortcuts remain available. Clipboard availability depends on the operating system. <b>Format Source</b> spaces musical tokens while retaining notation content; it cannot repair musical mistakes or validate a transcription. Quoted annotations and attached grace groups need careful review after edits.</p>
+<p>Prefer ASCII punctuation for syntax: colon :, quote ", comma , apostrophe ' and slash /. Use full-line # comments to explain the source. Do not paste curly quotes or a full-width colon as syntax. Keep attached modifiers next to their note. Preserve a copy before a large replacement and use Undo when needed.</p>
+</section>
+<section id="en-preview"><h2>7. Preview, cursor and navigation</h2>
+<p>The preview updates as source changes. Clicking or moving the source cursor highlights the matching score position and brings that row toward the preview center. Clicking a preview note or lyric selects its source without automatically moving the preview. Direct source clicks/keyboard movement resume following. Only uniquely mapped elements are selectable; some decorative or temporary-voice elements may not have a precise source target.</p>
+<p>Use -/+ to zoom, Fit Page for the whole page and Fit Width for width-based reading. Page arrows or View menu items navigate rendered pages. Refresh requests a new render. Click diagnostics below the preview to jump to the related source. A previous preview can remain visible during rendering; wait for completion and resolve relevant warnings before exporting.</p>
+</section>
+<section id="en-reference"><h2>8. Original images/PDFs and transcription</h2>
+<p>Choose Import PNG/JPG/PDF or drop <b>one</b> PNG, JPG/JPEG or PDF into Original Image/PDF. An existing reference prompts Replace Reference or Cancel. Import is blocked while another import, replacement decision, recovery, save, transcription or conflicting dialog is active. Unsupported/multiple dropped files are rejected without import.</p>
+<p>Drag the displayed original to pan; use fit, zoom and Rotate 90°. Rotation changes the viewing orientation, not the original file. A PDF has page navigation. The pane close control returns to Normal mode; the managed reference is retained. Input limits include 100 MiB per image/PDF, at most 200 PDF/reference pages and 40 million pixels per decoded image/PDF page. Damaged, encrypted or unsupported files may fail; reduce the input if the program reports a size or page-limit error.</p>
+<ul><li>Transcribe New: generates a provisional new score. Handle any unsaved-score prompt before replacing the working score.</li>
+<li>Transcribe Append: adds recognized music to the current source, using a page break boundary when needed and omitting repeated draft headers for a nonempty score. Undo can reverse the insertion.</li>
+<li>A PDF is transcribed as a document, not only its displayed page. Review the warnings and each page against the original; collapse warnings when you need editing space.</li>
+<li>Correct uncertain recognition manually. Check octave dots, beams, dotted durations, accidentals, grace notes, slurs, endings and lyrics before saving/exporting.</li>
+</ul>
+</section>
+<section id="en-layout"><h2>9. Modes, layouts and focus</h2>
+<table><thead><tr><th>Mode/layout</th><th>Use</th></tr>
+</thead>
+<tbody><tr><td>Normal N1</td><td>JPS source and preview side by side.</td></tr>
+<tr><td>Normal N2</td><td>JPS source and preview stacked.</td></tr>
+<tr><td>Transcription T1</td><td>Original, source and preview in three columns.</td></tr>
+<tr><td>Transcription T2</td><td>Original and preview above the source editor.</td></tr>
+</tbody>
+</table>
+<p>Use the width/height sliders to adjust splits. Focus Original, Focus Editor or Focus Preview temporarily expands one pane; Exit Focus restores the layout. Controls adapt as the available width changes. F11 toggles the window maximized state; the toolbar has no separate Maximize button.</p>
+</section>
+<section id="en-settings"><h2>10. Page settings and fonts</h2>
+<p>Page Settings groups paper (A4/A5), margins and body offset; title/lyric fonts and note style; title/subtitle/lyric sizes; music-to-lyric, lyric-to-lyric, lyric-to-music and voice spacing; and slur shape (Automatic, Arc, Flat top). Sizes/margins are renderer units, not millimeters. <b>Apply</b> updates the score while keeping the dialog open; <b>OK</b> applies and closes; <b>Cancel</b> discards unapplied draft changes. Already applied changes are not reverted by Cancel. Save the score to retain changes.</p>
+<table><thead><tr><th>Role</th><th>Windows/Linux preference</th><th>macOS preference</th><th>Bundled fallback</th></tr>
+</thead>
+<tbody><tr><td>HeiTi-1 (default)</td><td>Microsoft YaHei</td><td>PingFang SC</td><td>MiSans Regular</td></tr>
+<tr><td>HeiTi-2</td><td>SimHei</td><td>Heiti SC</td><td>LXGW Neo XiHei</td></tr>
+<tr><td>SongTi</td><td>SimSun</td><td>Songti SC</td><td>SimZhiSong</td></tr>
+<tr><td>KaiTi</td><td>KaiTi</td><td>Kaiti SC</td><td>LXGW WenKai Regular</td></tr>
+<tr><td>FangSong</td><td>FangSong</td><td>STFangsong</td><td>Zhuque Fangsong Regular</td></tr>
+</tbody>
+</table>
+<p>Each installed family is preferred independently, including in production portable builds. Linux needs an exact fontconfig match. Missing families use bundled substitutions. Bundled text with missing characters tries Noto Sans SC, then Noto Serif SC for coverage; neither guarantees every Unicode character. Latin Arial requests use Liberation Sans (Regular/Italic/Bold/Bold Italic). Note styles are Regular, Italic and Bold. Saved HeiTi maps to HeiTi-2. Font substitutions can change spacing. Microsoft fonts are not redistributed. MiSans has its own Xiaomi license; other bundled notices include OFL and IPA licenses.</p>
+</section>
+<section id="en-export"><h2>11. Export and portable use</h2>
+<p>Choose Export and select SVG, PDF, JPG (96 DPI) or JPG (300 DPI), then choose the output destination. PDF produces one multipage document; SVG/JPG produce page files. 300 DPI is useful for print-quality raster output. The disabled LilyPond item is a planned feature. Save the JPS as the editable master before sharing rendered files. PDF embeds fonts, JPEG stores pixels and SVG preserves vector content, but external SVG viewers need matching text fonts. Inspect the result in its destination viewer. The separate Python ReportLab PDF path cannot embed CFF-outline system fonts and uses the role fallback there; this is not a blanket limitation of native desktop export.</p>
+<p>Keep the entire portable folder together, including engine, examples and docs. On Linux run <code>dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus</code>; Windows uses <code>portable/octopus.exe</code>. The worker is bundled, so no separate Python is required. Linux still requires GTK/WebKit runtime libraries and Poppler; Windows requires WebView2. Portable does not mean every host dependency is embedded.</p>
+</section>
+<section id="en-shortcuts"><h2>12. Keyboard and Help</h2>
+<table><thead><tr><th>Shortcut</th><th>Action</th></tr>
+</thead>
+<tbody><tr><td>Ctrl/Cmd+N</td><td>New score</td></tr>
+<tr><td>Ctrl/Cmd+O</td><td>Open score</td></tr>
+<tr><td>Ctrl/Cmd+S / Shift+S</td><td>Save / Save As</td></tr>
+<tr><td>Ctrl/Cmd+Z</td><td>Undo</td></tr>
+<tr><td>Ctrl/Cmd+Y or Shift+Z</td><td>Redo</td></tr>
+<tr><td>Ctrl/Cmd+E</td><td>Insert the editor’s last inserted content when available</td></tr>
+<tr><td>Ctrl/Cmd+X / C / V / A</td><td>Cut / Copy / Paste / Select All in the editor</td></tr>
+<tr><td>Ctrl/Cmd+F</td><td>Editor search</td></tr>
+<tr><td>F11</td><td>Toggle window maximization</td></tr>
+<tr><td>Arrow / Home / End / Escape</td><td>Navigate menus; Escape dismisses. Language tabs also support arrow/Home/End.</td></tr>
+</tbody>
+</table>
+<p>Some shortcuts are inactive while a modal dialog is open or a form control has focus. Help offers User Manual, Report Issues, Submit Requests, Check for Update and About OctoPus. Issues open the project issue page; Requests opens the pull-request page. Check for Update compares the latest stable GitHub release and reports unavailable information, unfamiliar tags or network errors separately; it does not install updates. About and the logo link to the project home.</p>
+</section>
+<section id="en-jps-structure"><h2>13. JPS structure and conventions</h2>
+<p>JPS is ordinary text, normally stored with extension .jps. A score has a descriptive header followed by music Q: and lyrics C:. One Q line represents a printed music row; following C lines belong to that row. Numbered prefixes identify voices. Blank lines improve source readability. A whole line beginning with # is a comment; inside a Q line, # is an accidental, not a comment.</p>
+<p>The original specification calls V, B, D and P required fields. Include them for a complete portable score even though OctoPus tolerates incomplete drafts. Use uppercase header/prefix letters and lowercase literal <code>[fenye]</code>. Preserve the header/body distinction; repeated B/Z fields serve specific layout purposes. Unknown syntax may be preserved with diagnostics rather than rendered as intended.</p>
+</section>
+<section id="en-headers"><h2>14. Descriptive header</h2>
+<table><thead><tr><th>Field</th><th>Example value</th><th>Meaning</th></tr>
+</thead>
+<tbody><tr><td>V</td><td>1.0</td><td>Script version / 脚本版本</td></tr>
+<tr><td>B</td><td>Practice</td><td>Title; repeats become subtitles / 标题，重复成为副标题</td></tr>
+<tr><td>Z</td><td>Name - composer</td><td>Author/credit; multiple right-aligned lines / 作者，可多行右对齐</td></tr>
+<tr><td>D</td><td>E$</td><td>Key; A-G with # sharp or $ flat / 调号，A-G 加 # 或 $</td></tr>
+<tr><td>P</td><td>4/4</td><td>Meter; alternatives may follow / 拍号，可附其他拍号</td></tr>
+<tr><td>J</td><td>90</td><td>Tempo number and/or descriptive text / 速度数值及/或文字</td></tr>
+<tr><td>X</td><td>10</td><td>Score sequence number / 乐谱序号</td></tr>
+</tbody>
+</table>
+<pre><code>V: 1.0
+B: Main title
+B: Subtitle
+Z: Writer - lyrics
+Z: Composer - music
+D: F#
+P: 4/4 (2/4 1/4)
+J: 90 Allegro
+X: 10</code></pre>
+<p>Use a capital A-G key letter: C, F#, E$. Multiple B lines put subtitle text under the first title; multiple Z lines place credits at the upper right. P uses slash-separated numerator/denominator; spaces and parentheses can describe auxiliary meters. J may be numeric beats per minute, words, or both. X is metadata, not a voice number. Header values describe the score; a tempo field does not enable playback.</p>
+</section>
+<section id="en-notes"><h2>15. Notes, register and duration</h2>
+<table><thead><tr><th>Syntax</th><th>Meaning</th></tr>
+</thead>
+<tbody><tr><td>1-7</td><td>Scale degrees / 简谱音级</td></tr>
+<tr><td>0</td><td>Rest / 休止符</td></tr>
+<tr><td>8</td><td>Invisible rest with layout space / 占位隐藏休止符</td></tr>
+<tr><td>9</td><td>Rhythm X note / 节奏 X 音符</td></tr>
+<tr><td>1' / 1''</td><td>One/two octaves above / 高一/两个八度</td></tr>
+<tr><td>1, / 1,,</td><td>One/two octaves below / 低一/两个八度</td></tr>
+<tr><td>1 - -</td><td>Quarter note plus two extension beats / 音符加两拍增时线</td></tr>
+<tr><td>1/ / 1// / 1///</td><td>Eighth / sixteenth / thirty-second / 八分、十六分、三十二分</td></tr>
+<tr><td>1. / 1..</td><td>Single/double dot / 单附点、双附点</td></tr>
+</tbody>
+</table>
+<p>A bare digit is the basic quarter-note unit in the compatibility notation. Each attached slash halves its duration. A dot adds half the undotted duration; two dots add half plus a quarter (1.75 times the original). Extension hyphens add the Jianpu continuation strokes. They do not each need a lyric skip. Add octave commas/apostrophes after the digit; avoid spaces between the note and its suffix.</p>
+<pre><code>Q: 1 2&#x27; 3,, 0 | 1/ 2/ 3// 4// 5/ 6 7 | 6. 7/ 1&#x27; - ||</code></pre>
+</section>
+<section id="en-beaming"><h2>16. Custom beat grouping</h2>
+<p>The reference notation uses quarter-note-based automatic beam grouping, which can be unsuitable for 6/8 or other compound/special grouping. Use <code>~</code> to join the adjacent notes in one group and <code>^</code> to force a split. These control visual beam grouping, not a new pitch or lyric syllable. Compare against the intended beat pattern rather than relying only on the P field.</p>
+<pre><code>P: 6/8
+Q: 1/~2/~3/^4/~5/~6/ |</code></pre>
+</section>
+<section id="en-accidentals"><h2>17. Accidentals and grace notes</h2>
+<p>Write sharp #, flat $ or natural = after the host digit, for example 4#, 7$, 3=. Grace notes are attached square-bracket groups after their host: <code>1[23]</code> displays preceding grace notes; <code>1[h23]</code> displays following grace notes. Inside a group, commas/apostrophes, slashes and accidentals still apply. Grace digits default to eighth notes; a slash makes a sixteenth. A bracket attached to a note is not an ending bracket on a barline.</p>
+<pre><code>Q: 4# 7$ 3= 1[2/3&#x27;] | 5[h6,7/] - ||</code></pre>
+</section>
+<section id="en-dynamics"><h2>18. Dynamics and hairpins</h2>
+<p>Attach an ampersand code to a note, such as <code>3&mp</code>. The reference terms are pp, p, mp, mf, f, ff, fff, cresc, dim, sf, fp, sfp, a tempo and rit. Use <code>&amp;a tempo</code> for the two-word term. Hairpins start with &lt; (crescendo) or &gt; (decrescendo) and end with !. Add + after the opening marker to move it upward when it overlaps another span. These are printed instructions; the desktop app does not interpret them as audio playback controls.</p>
+<pre><code>Q: 1&amp;p&lt; 2 3 4! | 5&gt;+ 4 3 2! | 1&amp;a tempo - - - ||</code></pre>
+<table><thead><tr><th>Code</th><th>Instruction</th></tr>
+</thead>
+<tbody><tr><td><code>&amp;pp</code></td><td>Very soft</td></tr>
+<tr><td><code>&amp;p</code></td><td>Soft</td></tr>
+<tr><td><code>&amp;mp</code></td><td>Moderately soft</td></tr>
+<tr><td><code>&amp;mf</code></td><td>Moderately loud</td></tr>
+<tr><td><code>&amp;f</code></td><td>Loud</td></tr>
+<tr><td><code>&amp;ff</code></td><td>Very loud</td></tr>
+<tr><td><code>&amp;fff</code></td><td>Extremely loud</td></tr>
+<tr><td><code>&amp;cresc</code></td><td>Crescendo</td></tr>
+<tr><td><code>&amp;dim</code></td><td>Diminuendo</td></tr>
+<tr><td><code>&amp;sf</code></td><td>Sudden accent</td></tr>
+<tr><td><code>&amp;fp</code></td><td>Loud then immediately soft</td></tr>
+<tr><td><code>&amp;sfp</code></td><td>Accented then immediately soft</td></tr>
+<tr><td><code>&amp;a tempo</code></td><td>Return to original tempo</td></tr>
+<tr><td><code>&amp;rit</code></td><td>Gradually slower</td></tr>
+</tbody>
+</table>
+</section>
+<section id="en-ornaments"><h2>19. Ornaments, parentheses and annotations</h2>
+<table><thead><tr><th>Code after a note</th><th>Meaning</th></tr>
+</thead>
+<tbody><tr><td>&amp;yc</td><td>Fermata / 延长记号</td></tr>
+<tr><td>&amp;bc</td><td>Tenuto / 保持音</td></tr>
+<tr><td>&amp;zy</td><td>Accent / 重音</td></tr>
+<tr><td>&amp;dy</td><td>Staccato / 顿音</td></tr>
+<tr><td>&amp;hx</td><td>Breath / 呼吸</td></tr>
+<tr><td>&amp;shy / &amp;xhy</td><td>Upward / downward slide / 上、下滑音</td></tr>
+<tr><td>&amp;sby / &amp;xby</td><td>Upper / lower mordent / 上、下波音</td></tr>
+<tr><td>&amp;cy</td><td>Trill / 颤音</td></tr>
+<tr><td>&amp;sby+ / &amp;xby+ / &amp;cy+</td><td>Variant ornament forms / 装饰变体</td></tr>
+<tr><td>&amp;zkh / &amp;ykh</td><td>Left / right accompaniment parenthesis / 伴奏左右括弧</td></tr>
+</tbody>
+</table>
+<p>These short codes come from the notation reference, often from Chinese name initials. Attach them to the correct note. The + suffix selects the illustrated alternative for mordents/trills. Add a quoted annotation after a note to print text above it. Accompaniment parentheses &amp;zkh and &amp;ykh are also placed after the host digit even when the drawn parenthesis appears before the music.</p>
+<pre><code>Q: 3&amp;yc 3&amp;bc 3&amp;zy 3&amp;dy | 3&amp;hx 3&amp;shy 3&amp;xhy 3&amp;cy |
+Q: 1&amp;zkh 2 3 4&amp;ykh | 5&quot;sing gently&quot; - - - ||</code></pre>
+</section>
+<section id="en-barlines"><h2>20. Barlines and repeat instructions</h2>
+<table><thead><tr><th>Syntax</th><th>Appearance/use</th></tr>
+</thead>
+<tbody><tr><td>|</td><td>Single / 普通小节线</td></tr>
+<tr><td>||</td><td>Thin-left/thick-right final line / 左细右粗终止线</td></tr>
+<tr><td>||/</td><td>Two thin lines / 双细线</td></tr>
+<tr><td>|:</td><td>Start repeat / 左反复</td></tr>
+<tr><td>:|</td><td>End repeat / 右反复</td></tr>
+<tr><td>:|:</td><td>End/start repeat / 两侧反复</td></tr>
+<tr><td>|/</td><td>Hidden, no layout width / 不显示、不占位</td></tr>
+<tr><td>|*</td><td>Hidden, reserves layout width / 不显示、占位</td></tr>
+</tbody>
+</table>
+<table><thead><tr><th>Barline-attached code</th><th>Meaning</th></tr>
+</thead>
+<tbody><tr><td>||&amp;fine</td><td>Fine / 终止</td></tr>
+<tr><td>||&amp;dc</td><td>D.C. / 从头反复</td></tr>
+<tr><td>||&amp;ds</td><td>D.S. / 从记号反复</td></tr>
+<tr><td>|&amp;ty</td><td>Segno / 大跳记号</td></tr>
+<tr><td>|&amp;hs</td><td>Coda / 花记号</td></tr>
+</tbody>
+</table>
+<p>Repeat/navigation marks belong to a barline, not an ordinary note. Use |/ at a row beginning when a barline-attached mark is needed without a visible barline. Use |* to reserve alignment space, especially with mixed single/multiple voices. These marks are printed; playback navigation is not provided.</p>
+</section>
+<section id="en-slurs"><h2>21. Slurs and tuplets</h2>
+<p>Wrap music in parentheses for a slur: <code>(1 2 3)</code>. Spans can nest and continue across barlines or music rows on the same page. Open the span in the earlier Q row and close it in the later row of the same voice. Use <code>(y1 2 3)</code> for a tuplet; the group count is inferred from its notes. Do not use a capital Y. Cross-page slurs are not automatically continuous: split/reopen spans at manual page boundaries and inspect the result.</p>
+<pre><code>Q: (1 (2 3) 4 | 5 6
+Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
+</section>
+<section id="en-endings"><h2>22. Endings and temporary meter</h2>
+<p>Ending brackets [ and ] are attached to barlines. Put their label in a quoted barline annotation. A start at the beginning of a row uses hidden |/. Add / after [ for an open right edge; add + (or several +) to raise the bracket and avoid overlapping slurs. Ending spans may cross rows; keep their endpoints in the correct voice. The same brackets attached to a note mean grace notes, so placement matters.</p>
+<pre><code>Q: |/[&quot;1&quot; 1 2 3 4 :|] |/[&quot;2&quot; 5 6 7 1&#x27; ||]
+Q: |/[+/&quot;1,2&quot; 1 2 3 4 | 5 6 7 1&#x27; |]</code></pre>
+<p>For a meter change, put <code>"p:3/4"</code> after the barline. This prints a local time signature; inspect grouping separately and use ~ or ^ where needed.</p>
+<pre><code>Q: 1 2 3 4 |&quot;p:3/4&quot; 5 6 7 |</code></pre>
+</section>
+<section id="en-voices"><h2>23. Voices and temporary accompaniment</h2>
+<p>Use Q1, Q2, etc. for music and C1, C2, etc. for the corresponding lyrics. A voice name can follow its number in quotes. Keep successive voices rhythmically aligned; numbered music rows form a system, while lyrics attach to their matching voice. Single and multiple voices can be mixed. A mid-row voice brace is indicated by &amp;sbf; use hidden rest 8 and hidden barline |* to reserve earlier space in secondary voices.</p>
+<pre><code>Q1&quot;Soprano&quot;: 1 2 3 4 |
+C1: 春 风 吹 来
+Q2&quot;Alto&quot;: 3, 4, 5, 6, |
+C2: 花 儿 开 了</code></pre>
+<p>Temporary accompaniment uses <code>{bz ...}</code>; temporary multiple voices use <code>{dsb ...}</code>. The keyword must immediately follow { and be lowercase. These inline groups are positioned against the main music. Copy an appropriate bundled example and check duration/alignment instead of assuming arbitrary blocks will align automatically.</p>
+<pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
+Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
+<p>A minimal mid-row brace pattern (inspect alignment in the preview):</p>
+<pre><code>Q1: 1 2 3 4 |&amp;sbf 5 6 7 1&#x27; |
+Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre>
+</section>
+<section id="en-lyrics"><h2>24. Lyrics: Chinese, English and mixed text</h2>
+<p>A C line belongs to the preceding music row; use matching voice numbers for multipart scores. Chinese characters ordinarily map one per note. Punctuation is recognized without becoming a separate sung syllable. @ skips a note; extension - strokes do not each need @. Join two Chinese characters with ~ to fit one note. Several C lines after one Q row supply separate verses.</p>
+<pre><code>Q: 1 2 3 4 | 5 - 6 7 |
+C: 春 风 @ 来 花~儿 开 了
+C: 第 二 段 词 也 能 写</code></pre>
+<p>Begin a lyric line with a quoted label such as "1.". Use underscore _ for a space inside that legacy lyric-label notation. English words/syllables are separated by /; do not map individual letters to notes. / can also make mixed Chinese/English boundaries explicit. Use @ for unsung notes and inspect melismas rather than treating ordinary spaces as dependable English syllable delimiters.</p>
+<pre><code>Q: 1 2 3 4 |
+C: &quot;Verse_1&quot; Sing/a/new/song
+C: &quot;2.&quot; 春/风/@/song</code></pre>
+</section>
+<section id="en-pagination"><h2>25. Manual page breaks</h2>
+<p>Place the exact lowercase token <code>[fenye]</code> on its own line. It creates a new score page; it is not a note annotation. Keep the intended music systems and their lyrics together. Long source does not imply automatic musical reflow or automatic page-spanning slurs. Split/reopen slurs at the page boundary, inspect ending brackets and confirm that each exported page fits its margins.</p>
+<pre><code>Q: 1 2 3 4 ||
+C: 第 一 页 词
+
+[fenye]
+
+Q: 5 6 7 1&#x27; ||
+C: 第 二 页 词</code></pre>
+</section>
+<section id="en-practice"><h2>26. Practical editing and review checklist</h2>
+<ul><li>Choose a bundled sample close to the score: ordinary melody, symbols/grace notes, multiple voices or lyrics. Work on a copy.</li>
+<li>Enter header fields first, then one music row. Check barlines and durations before adding lyrics.</li>
+<li>Attach octave, duration, accidental and ornament suffixes to the intended note. Distinguish note grace brackets from barline ending brackets.</li>
+<li>Add voices and lyric verses one at a time; check alignment after each change.</li>
+<li>Use ~ /^, bracket-height + and page settings deliberately to fix grouping/overlap. They do not repair wrong pitches.</li>
+<li>Compare each transcribed page with its original, including page transitions and annotations.</li>
+<li>Resolve diagnostics, save the editable master, export and inspect the final files.</li>
+</ul>
+</section>
+<section id="en-troubleshooting"><h2>27. Troubleshooting and feedback</h2>
+<table><thead><tr><th>Symptom</th><th>What to check</th></tr>
+</thead>
+<tbody><tr><td>Unexpected symbols or warnings</td><td>ASCII punctuation, colon after the row prefix, balanced quotes/brackets, correct suffix attachment and lowercase keywords.</td></tr>
+<tr><td>Lyrics shifted</td><td>C/Q voice pairing, @ for skipped notes, ~ for grouped Chinese text, / between English syllables.</td></tr>
+<tr><td>Slur/ending overlaps</td><td>Correct endpoints, page boundary, manual + offsets and available vertical spacing.</td></tr>
+<tr><td>Import fails</td><td>Supported file type, one input at a time, 100 MiB/200-page limits, readable unencrypted file and no active conflicting operation.</td></tr>
+<tr><td>Transcription unavailable/fails</td><td>Packaged OCR worker, original input quality and Poppler availability for PDF processing.</td></tr>
+<tr><td>Different font appearance</td><td>Actual installed OS family, bundled fallback, missing-glyph backup and external SVG viewer fonts.</td></tr>
+<tr><td>Browser or update failure</td><td>Default-browser association and network; unavailable release information is not proof of being up to date.</td></tr>
+</tbody>
+</table>
+<p>For a reproducible issue, share the app version, OS, minimal JPS, relevant settings, steps and expected/actual result. Include original/reference images only when appropriate. Use <a href="https://github.com/OctaveMelody/OctoPus/issues">Report Issues</a>; proposed changes use the <a href="https://github.com/OctaveMelody/OctoPus/pulls">pull-request page</a>. The historical specification’s old personal contact details are not the OctoPus support route.</p>
+</section>
+<section id="en-sources"><h2>28. Reference basis and compatibility</h2>
+<p>This manual consolidates the locally retained Jianpu-Spec v1.0 chapters: introduction, descriptive header, music, lyrics and feedback. Image-only symbol/dynamic/barline tables were read and rewritten as text tables above. It also uses the captured Website-Contents/Zhipu-jsCode-editor for source formatting and source/preview-position conventions, checked against OctoPus behavior. The retained Zhipu-draw file is empty and contributes no additional instructions.</p>
+<p>The notation syntax is inherited; the product/UI instructions and roadmap describe OctoPus. Historical claims about MIDI, playback, website auto-format settings or personal support contacts are not current desktop features. Runtime/parser, font policy, import limits and sample documents provide the current implementation cross-check. This is a rewritten usage guide, not a copy of the original scripts. References and authoring tools stay in OctoPus-dev; the production app ships this self-contained guide and its PDFs.</p>
+<p><a href="https://github.com/OctaveMelody/OctoPus">Project home</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/README.md">Production README</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/ENVIRONMENT.md">Build environment</a></p>
+</section>
+</article>
+<article id="manual-zh-CN" lang="zh-CN" role="tabpanel" aria-labelledby="tab-zh-CN" hidden><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
+<h1>用户手册</h1>
+<p>Version 0.1.0 · 2026-10-01</p>
+<p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
+</div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
+<section id="zh-CN-introduction"><h2>1. 简介</h2>
+<p>OctoPus（Octave + Jianpu）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。本手册适用于 0.1.0 版本，更新于 2026 年 10 月 1 日。</p>
+<p>安装完成后，编辑、渲染和受支持的转录功能可在本地运行。帮助链接及更新检查需要浏览器或网络连接。手册本身支持离线阅读；中英文版本具有相同主题和示例。可切换语言标签页，也可下载对应 PDF。</p>
+</section>
+<section id="zh-CN-capabilities"><h2>2. 功能、限制与计划</h2>
+<table><thead><tr><th>现有功能</th><th>范围</th></tr>
+</thead>
+<tbody><tr><td>JPS 编辑</td><td>新建、打开、保存、撤销/重做、剪贴板、查找替换、源码格式化及内置示例。</td></tr>
+<tr><td>实时 SVG 预览</td><td>源码与谱面对应、翻页、缩放及页面排版控制。</td></tr>
+<tr><td>原稿转录</td><td>导入 PNG/JPG/JPEG/PDF，显示原稿并生成待校对的 JPS 草稿。</td></tr>
+<tr><td>导出</td><td>SVG、PDF、JPEG；内置本地引擎与替代字体。</td></tr>
+<tr><td>语言</td><td>中英文界面及用户手册。</td></tr>
+</tbody>
+</table>
+<p><b>当前限制。</b>转录不能保证完整还原乐谱。请核对音符、变音、八度点、时值、歌词、连音线、倚音、跳房子及页序。通用的页眉、页脚和页码过滤仍不完善。复杂排版及跨页连线需要人工检查。桌面界面目前没有播放/MIDI 工作流、LilyPond 导出或 MusicXML 导入导出。五线谱识别属于计划功能，不能作为当前简谱输入的替代。没有自动安装更新功能。macOS 原生打包暂缓；Windows/macOS 主机验收与 Linux 测试分别进行。</p>
+<ul><li>计划：提升转录质量，包括复杂记号及重复的页面附属文字。</li>
+<li>计划：导出 LilyPond 源码及导入、导出 MusicXML。</li>
+<li>计划：导入五线谱资料并识别为 JPS。</li>
+<li>计划表示发展方向，不代表发布日期或现有功能。</li>
+</ul>
+</section>
+<section id="zh-CN-quickstart"><h2>3. 第一份乐谱</h2>
+<ul><li>启动 OctoPus，选择<b>新建</b>，输入标题及基本乐谱字段并确认。</li>
+<li>将源码替换为下面示例，或从<b>示例库</b>打开相似乐谱。</li>
+<li>等待 SVG 预览渲染完成。点击音符定位源码，修改文本并检查结果。</li>
+<li>通过<b>页面设置</b>调整边距与字体，用<b>另存为</b>保存 .jps，再通过<b>导出</b>生成最终谱面。</li>
+</ul>
+<pre><code>V: 1.0
+B: 第一份乐谱
+Z: 练习示例
+D: C
+P: 4/4
+J: 90
+
+Q: 1 2 3 4 | 5 6 7 1&#x27; ||
+C: 春 风 吹 来 花 儿 开 了</code></pre>
+<p>该示例有两个小节，每小节四个音符；最后一个音符高一个八度。八个歌词汉字分别对应八个音符。</p>
+</section>
+<section id="zh-CN-workspace"><h2>4. 工作区与界面</h2>
+<p>顶栏提供新建、打开、保存、另存为、导出、关闭、帮助、导入 PNG/JPG/PDF、示例库、页面设置、语言及退出。点击图标或品牌文字会打开项目主页。第二行用于选择模式和布局、调整分栏比例以及聚焦面板。</p>
+<table><thead><tr><th>面板</th><th>用途</th></tr>
+</thead>
+<tbody><tr><td>JPS 源码</td><td>编辑文本。文件名及未保存标记位于右侧格式化源码按钮前；编辑工具位于 JPS 源码标题后。</td></tr>
+<tr><td>SVG 预览</td><td>显示渲染乐谱、适合/缩放/翻页控制及渲染诊断。</td></tr>
+<tr><td>原始图片/PDF</td><td>显示参考页及适合/缩放/旋转控制、转录菜单；在转录模式中可见。</td></tr>
+</tbody>
+</table>
+<p>面板较窄时，视图工具折叠为<b>视图（View）</b>菜单，源码工具折叠为<b>编辑（Edit）</b>菜单。SVG 视图含适合页面、适合宽度、上一页和下一页；原稿视图含适合、旋转，PDF 适用时还含翻页。极窄面板也通过视图菜单提供缩放。这些操作保持在同一标题行。</p>
+</section>
+<section id="zh-CN-files"><h2>5. 文件、保存与恢复</h2>
+<p><b>打开</b>加载 .jps 乐谱。支持纯 JPS 文本及兼容的 JSON 包装文档；包装可包含源码、页面设置和原有元数据。<b>保存</b>写入当前文档，新文档首次保存需选择位置。<b>另存为</b>更换保存位置。对纯文本文档修改页面设置时，为保存设置可能需要转为包装格式，请留意对话框提示。</p>
+<p><b>关闭</b>关闭乐谱，<b>退出</b>关闭程序。有未保存修改时，可选择保存、放弃或取消。中断后的恢复功能可还原最后可恢复的草稿及托管原稿，但不能替代常规文件备份。参考图片/PDF 与乐谱源码分别管理，请保留原始文件。打开示例后得到工作文档；覆盖文件前应选择自己的保存位置。</p>
+</section>
+<section id="zh-CN-source"><h2>6. 编辑 JPS 源码</h2>
+<p>从标题行或折叠的编辑菜单使用撤销/重做、剪切/复制/粘贴、查找、替换及全选。查找打开搜索界面；替换显示替换控制。标准编辑器快捷键仍可用。剪贴板能力取决于操作系统。<b>格式化源码</b>调整音乐标记间距并保留记谱内容，不能纠正音乐错误或确认转录正确。修改后应仔细检查带引号的注释及紧附音符的倚音组。</p>
+<p>语法标点请使用半角 ASCII：冒号 :、双引号 "、逗号 ,、单引号 '、斜线 /。整行 # 注释可说明源码。不要将弯引号或全角冒号当作语法符号粘贴。附属记号应紧跟所属音符。大量替换前先备份，必要时使用撤销。</p>
+</section>
+<section id="zh-CN-preview"><h2>7. 预览、光标与导航</h2>
+<p>源码变化时预览自动更新。点击或移动源码光标会突出对应谱面位置，并将该行移向预览中央。点击预览音符或歌词只选择对应源码，不会自动移动预览；直接点击源码或用键盘移动会恢复跟随。仅具有唯一映射的元素可以定位；部分装饰或临时声部元素可能没有精确源码目标。</p>
+<p>用 -/+ 缩放，适合页面显示整页，适合宽度按面板宽度阅读。翻页按钮或视图菜单用于切换渲染页面；刷新重新渲染。点击预览下方诊断可跳到相关源码。渲染期间可能仍显示旧预览；导出前应等待完成并处理相关提示。</p>
+</section>
+<section id="zh-CN-reference"><h2>8. 原稿图片/PDF 与转录</h2>
+<p>选择导入 PNG/JPG/PDF，或将<b>单个</b> PNG、JPG/JPEG、PDF 拖入原始图片/PDF 面板。已有原稿时会询问替换原稿或取消。另一次导入、替换选择、恢复、保存、转录或冲突对话框正在进行时不能导入。拖入不支持的文件或多个文件会被拒绝。</p>
+<p>拖动原稿可平移；适合、缩放及旋转 90° 用于查看。旋转只改变显示方向，不修改原文件。PDF 支持翻页。关闭面板会返回普通模式，但保留托管原稿。输入限制包括每个图片/PDF 不超过 100 MiB、PDF/参考页不超过 200 页、每个解码图片或 PDF 页不超过四千万像素。损坏、加密或不支持的文件可能失败；出现大小或页数限制提示时请缩减输入。</p>
+<ul><li>转录新建：生成暂定的新乐谱；替换当前乐谱前先处理未保存提示。</li>
+<li>转录追加：向当前源码添加识别内容，必要时加分页边界；非空乐谱不重复加入草稿描述头。撤销可回退插入。</li>
+<li>PDF 按整份文档转录，不只处理当前显示页。阅读提示并逐页对照原稿；需要编辑空间时可折叠提示。</li>
+<li>手动修正不确定结果。保存/导出前核对八度点、减时线、附点、变音、倚音、连音线、跳房子和歌词。</li>
+</ul>
+</section>
+<section id="zh-CN-layout"><h2>9. 模式、布局与聚焦</h2>
+<table><thead><tr><th>模式/布局</th><th>用途</th></tr>
+</thead>
+<tbody><tr><td>普通 N1</td><td>源码和预览左右排列。</td></tr>
+<tr><td>普通 N2</td><td>源码和预览上下排列。</td></tr>
+<tr><td>转录 T1</td><td>原稿、源码及预览三栏排列。</td></tr>
+<tr><td>转录 T2</td><td>原稿和预览在上，源码编辑器在下。</td></tr>
+</tbody>
+</table>
+<p>通过宽度/高度滑块调节分栏。聚焦原稿、编辑器或预览可临时放大一个面板；退出聚焦恢复原布局。面板宽度改变时控件自动调整。F11 切换窗口最大化状态；工具栏不另设最大化按钮。</p>
+</section>
+<section id="zh-CN-settings"><h2>10. 页面设置与字体</h2>
+<p>页面设置分组提供纸张（A4/A5）、边距及正文起始位置；标题/歌词字体及音符样式；标题/副标题/歌词字号；曲到词、词到词、词到曲及声部间距；连音线形状（自动、圆弧、平顶）。字号和边距使用渲染器单位，并非毫米。<b>应用</b>更新乐谱并保持窗口打开；<b>确定</b>应用并关闭；<b>取消</b>放弃尚未应用的草稿修改，不会撤回已经应用的修改。请保存乐谱以保留设置。</p>
+<table><thead><tr><th>选项</th><th>Windows/Linux 优先</th><th>macOS 优先</th><th>内置替代</th></tr>
+</thead>
+<tbody><tr><td>HeiTi-1（默认）</td><td>Microsoft YaHei</td><td>PingFang SC</td><td>MiSans Regular</td></tr>
+<tr><td>HeiTi-2</td><td>SimHei</td><td>Heiti SC</td><td>LXGW Neo XiHei</td></tr>
+<tr><td>SongTi</td><td>SimSun</td><td>Songti SC</td><td>SimZhiSong</td></tr>
+<tr><td>KaiTi</td><td>KaiTi</td><td>Kaiti SC</td><td>LXGW WenKai Regular</td></tr>
+<tr><td>FangSong</td><td>FangSong</td><td>STFangsong</td><td>Zhuque Fangsong Regular</td></tr>
+</tbody>
+</table>
+<p>每种字体分别优先使用已安装的对应系统字体，生产便携版同样如此；Linux 需要 fontconfig 精确匹配。缺失时使用内置替代字体。内置文本出现缺字时，先尝试 Noto Sans SC，再检查 Noto Serif SC 的覆盖；不能保证所有 Unicode 字符都有字形。西文 Arial 请求使用 Liberation Sans（常规/斜体/粗体/粗斜体）。音符样式为常规、斜体及粗体。旧 HeiTi 对应 HeiTi-2。替代字体可能改变间距。微软字体不随软件分发。MiSans 使用小米独立许可；其他内置说明包含 OFL 和 IPA 许可。</p>
+</section>
+<section id="zh-CN-export"><h2>11. 导出与便携版使用</h2>
+<p>通过导出选择 SVG、PDF、JPG（96 DPI）或 JPG（300 DPI），再选择输出位置。PDF 生成一份多页文档；SVG/JPG 按页生成文件。300 DPI 适合印刷质量的像素输出。禁用的 LilyPond 项属于计划功能。分享渲染文件前先保存 JPS 作为可编辑原稿。PDF 嵌入字体，JPEG 保存像素，SVG 保留矢量内容，但外部 SVG 查看器需要相应文本字体。请在目标查看器检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，此时使用对应替代字体；这不是原生桌面导出的统一限制。</p>
+<p>请保持便携目录完整，包括 engine、examples 和 docs。Linux 运行 <code>dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus</code>，Windows 运行 <code>portable/octopus.exe</code>。已内置引擎，无需另装 Python。Linux 仍需 GTK/WebKit 运行库及 Poppler，Windows 需 WebView2。便携并不表示包含全部主机依赖。</p>
+</section>
+<section id="zh-CN-shortcuts"><h2>12. 快捷键与帮助</h2>
+<table><thead><tr><th>快捷键</th><th>操作</th></tr>
+</thead>
+<tbody><tr><td>Ctrl/Cmd+N</td><td>新建乐谱</td></tr>
+<tr><td>Ctrl/Cmd+O</td><td>打开乐谱</td></tr>
+<tr><td>Ctrl/Cmd+S / Shift+S</td><td>保存 / 另存为</td></tr>
+<tr><td>Ctrl/Cmd+Z</td><td>撤销</td></tr>
+<tr><td>Ctrl/Cmd+Y 或 Shift+Z</td><td>重做</td></tr>
+<tr><td>Ctrl/Cmd+E</td><td>可用时插入编辑器上次插入的内容</td></tr>
+<tr><td>Ctrl/Cmd+X / C / V / A</td><td>在编辑器中剪切 / 复制 / 粘贴 / 全选</td></tr>
+<tr><td>Ctrl/Cmd+F</td><td>编辑器查找</td></tr>
+<tr><td>F11</td><td>切换窗口最大化</td></tr>
+<tr><td>方向键 / Home / End / Escape</td><td>导航菜单，Escape 关闭；语言标签页也支持方向键/Home/End。</td></tr>
+</tbody>
+</table>
+<p>模态对话框打开或表单控件获得焦点时，部分快捷键不生效。帮助提供用户手册、报告问题、提交请求、检查更新及关于 OctoPus。报告问题打开项目 Issues 页，提交请求打开 Pull Requests 页。检查更新比较 GitHub 最新稳定发布，分别报告信息不可用、不熟悉的版本标签或网络错误，不会安装更新。关于窗口及品牌标识链接项目主页。</p>
+</section>
+<section id="zh-CN-jps-structure"><h2>13. JPS 结构与约定</h2>
+<p>JPS 是普通文本，通常以 .jps 为扩展名。乐谱由描述头及曲 Q:、词 C: 组成。一个 Q 行对应一行印刷曲谱；随后 C 行依附该曲行。带数字前缀标识声部。空行便于阅读。以 # 开始的整行是注释；Q 行中的 # 是升音记号，不是注释。</p>
+<p>原规范将 V、B、D、P 列为必需字段。虽然 OctoPus 容忍不完整草稿，完整乐谱仍应包含这些字段。建议使用大写字段/行前缀及小写字面量 <code>[fenye]</code>。注意描述头和主体的区别；重复 B/Z 字段有特定排版用途。未知语法可能被保留并提示，不代表能按预期渲染。</p>
+</section>
+<section id="zh-CN-headers"><h2>14. 描述头</h2>
+<table><thead><tr><th>字段</th><th>值示例</th><th>含义</th></tr>
+</thead>
+<tbody><tr><td>V</td><td>1.0</td><td>Script version / 脚本版本</td></tr>
+<tr><td>B</td><td>Practice</td><td>Title; repeats become subtitles / 标题，重复成为副标题</td></tr>
+<tr><td>Z</td><td>Name - composer</td><td>Author/credit; multiple right-aligned lines / 作者，可多行右对齐</td></tr>
+<tr><td>D</td><td>E$</td><td>Key; A-G with # sharp or $ flat / 调号，A-G 加 # 或 $</td></tr>
+<tr><td>P</td><td>4/4</td><td>Meter; alternatives may follow / 拍号，可附其他拍号</td></tr>
+<tr><td>J</td><td>90</td><td>Tempo number and/or descriptive text / 速度数值及/或文字</td></tr>
+<tr><td>X</td><td>10</td><td>Score sequence number / 乐谱序号</td></tr>
+</tbody>
+</table>
+<pre><code>V: 1.0
+B: 主标题
+B: 副标题
+Z: 作词者 词
+Z: 作曲者 曲
+D: F#
+P: 4/4 (2/4 1/4)
+J: 90 欢快地
+X: 10</code></pre>
+<p>调号使用大写 A-G，例如 C、F#、E$。多个 B 行在主标题下显示副标题；多个 Z 行将作者文字列于右上方。P 用斜线分隔分子/分母，空格与括号可列出辅助拍号。J 可以是每分钟拍数、文字或两者。X 是序号元数据，不是声部编号。描述头用于记谱，速度字段不会启用播放。</p>
+</section>
+<section id="zh-CN-notes"><h2>15. 音符、音区与时值</h2>
+<table><thead><tr><th>语法</th><th>含义</th></tr>
+</thead>
+<tbody><tr><td>1-7</td><td>Scale degrees / 简谱音级</td></tr>
+<tr><td>0</td><td>Rest / 休止符</td></tr>
+<tr><td>8</td><td>Invisible rest with layout space / 占位隐藏休止符</td></tr>
+<tr><td>9</td><td>Rhythm X note / 节奏 X 音符</td></tr>
+<tr><td>1' / 1''</td><td>One/two octaves above / 高一/两个八度</td></tr>
+<tr><td>1, / 1,,</td><td>One/two octaves below / 低一/两个八度</td></tr>
+<tr><td>1 - -</td><td>Quarter note plus two extension beats / 音符加两拍增时线</td></tr>
+<tr><td>1/ / 1// / 1///</td><td>Eighth / sixteenth / thirty-second / 八分、十六分、三十二分</td></tr>
+<tr><td>1. / 1..</td><td>Single/double dot / 单附点、双附点</td></tr>
+</tbody>
+</table>
+<p>兼容记谱中，单个数字以四分音符为基本单位。每个紧附斜线将时值减半。附点增加原时值的一半，双附点增加一半再加四分之一（合计原时值的 1.75 倍）。增时连字符表示简谱延续线；歌词无需为每条增时线单独跳过。八度逗号/单引号写在数字后，不要在音符与后缀间加空格。</p>
+<pre><code>Q: 1 2&#x27; 3,, 0 | 1/ 2/ 3// 4// 5/ 6 7 | 6. 7/ 1&#x27; - ||</code></pre>
+</section>
+<section id="zh-CN-beaming"><h2>16. 自定义节拍分组</h2>
+<p>参考记谱按四分音符单位自动分组，6/8 等复拍子或特殊分组可能需要手动处理。<code>~</code> 将相邻音符串接为一组，<code>^</code> 强制切开。这些记号控制减时线的视觉分组，不是新的音高或歌词音节。应对照实际节拍检查，不能只依赖 P 字段。</p>
+<pre><code>P: 6/8
+Q: 1/~2/~3/^4/~5/~6/ |</code></pre>
+</section>
+<section id="zh-CN-accidentals"><h2>17. 变音与倚音</h2>
+<p>升音 #、降音 $、还原 = 写在所属数字后，例如 4#、7$、3=。倚音使用音符后紧附的方括号：<code>1[23]</code> 表示前倚音，<code>1[h23]</code> 表示后倚音。组内仍支持逗号/单引号、斜线及变音。倚音默认八分，加一条斜线成为十六分。紧附音符的方括号与小节线处的跳房子括号不同。</p>
+<pre><code>Q: 4# 7$ 3= 1[2/3&#x27;] | 5[h6,7/] - ||</code></pre>
+</section>
+<section id="zh-CN-dynamics"><h2>18. 力度与渐强渐弱</h2>
+<p>在音符后附加 &amp; 编码，例如 <code>3&amp;mp</code>。参考术语包括 pp、p、mp、mf、f、ff、fff、cresc、dim、sf、fp、sfp、a tempo 和 rit；双词术语写作 <code>&amp;a tempo</code>。渐强以 &lt; 开始，渐弱以 &gt; 开始，以 ! 结束；开头记号后加 + 可上移以避免重叠。这些是印刷演奏提示，桌面程序不会将其转换为音频播放控制。</p>
+<pre><code>Q: 1&amp;p&lt; 2 3 4! | 5&gt;+ 4 3 2! | 1&amp;a tempo - - - ||</code></pre>
+<table><thead><tr><th>编码</th><th>演奏提示</th></tr>
+</thead>
+<tbody><tr><td><code>&amp;pp</code></td><td>很弱</td></tr>
+<tr><td><code>&amp;p</code></td><td>弱</td></tr>
+<tr><td><code>&amp;mp</code></td><td>稍弱</td></tr>
+<tr><td><code>&amp;mf</code></td><td>稍强</td></tr>
+<tr><td><code>&amp;f</code></td><td>强</td></tr>
+<tr><td><code>&amp;ff</code></td><td>很强</td></tr>
+<tr><td><code>&amp;fff</code></td><td>最强</td></tr>
+<tr><td><code>&amp;cresc</code></td><td>渐强</td></tr>
+<tr><td><code>&amp;dim</code></td><td>渐弱</td></tr>
+<tr><td><code>&amp;sf</code></td><td>突强</td></tr>
+<tr><td><code>&amp;fp</code></td><td>强后立即弱</td></tr>
+<tr><td><code>&amp;sfp</code></td><td>突强后立即弱</td></tr>
+<tr><td><code>&amp;a tempo</code></td><td>回到原速度</td></tr>
+<tr><td><code>&amp;rit</code></td><td>渐慢</td></tr>
+</tbody>
+</table>
+</section>
+<section id="zh-CN-ornaments"><h2>19. 装饰、括弧与注释</h2>
+<table><thead><tr><th>音符后编码</th><th>含义</th></tr>
+</thead>
+<tbody><tr><td>&amp;yc</td><td>Fermata / 延长记号</td></tr>
+<tr><td>&amp;bc</td><td>Tenuto / 保持音</td></tr>
+<tr><td>&amp;zy</td><td>Accent / 重音</td></tr>
+<tr><td>&amp;dy</td><td>Staccato / 顿音</td></tr>
+<tr><td>&amp;hx</td><td>Breath / 呼吸</td></tr>
+<tr><td>&amp;shy / &amp;xhy</td><td>Upward / downward slide / 上、下滑音</td></tr>
+<tr><td>&amp;sby / &amp;xby</td><td>Upper / lower mordent / 上、下波音</td></tr>
+<tr><td>&amp;cy</td><td>Trill / 颤音</td></tr>
+<tr><td>&amp;sby+ / &amp;xby+ / &amp;cy+</td><td>Variant ornament forms / 装饰变体</td></tr>
+<tr><td>&amp;zkh / &amp;ykh</td><td>Left / right accompaniment parenthesis / 伴奏左右括弧</td></tr>
+</tbody>
+</table>
+<p>这些短编码来自记谱参考，多以中文名称拼音首字母构成，应附到正确音符。波音/颤音的 + 后缀选用图例中的另一形态。音符后加双引号注释可在上方显示文字。伴奏括弧 &amp;zkh、&amp;ykh 同样写在所属数字后，即使绘制的左括弧位于音乐前方。</p>
+<pre><code>Q: 3&amp;yc 3&amp;bc 3&amp;zy 3&amp;dy | 3&amp;hx 3&amp;shy 3&amp;xhy 3&amp;cy |
+Q: 1&amp;zkh 2 3 4&amp;ykh | 5&quot;轻柔地&quot; - - - ||</code></pre>
+</section>
+<section id="zh-CN-barlines"><h2>20. 小节线与反复指示</h2>
+<table><thead><tr><th>语法</th><th>外观/用途</th></tr>
+</thead>
+<tbody><tr><td>|</td><td>Single / 普通小节线</td></tr>
+<tr><td>||</td><td>Thin-left/thick-right final line / 左细右粗终止线</td></tr>
+<tr><td>||/</td><td>Two thin lines / 双细线</td></tr>
+<tr><td>|:</td><td>Start repeat / 左反复</td></tr>
+<tr><td>:|</td><td>End repeat / 右反复</td></tr>
+<tr><td>:|:</td><td>End/start repeat / 两侧反复</td></tr>
+<tr><td>|/</td><td>Hidden, no layout width / 不显示、不占位</td></tr>
+<tr><td>|*</td><td>Hidden, reserves layout width / 不显示、占位</td></tr>
+</tbody>
+</table>
+<table><thead><tr><th>小节线后编码</th><th>含义</th></tr>
+</thead>
+<tbody><tr><td>||&amp;fine</td><td>Fine / 终止</td></tr>
+<tr><td>||&amp;dc</td><td>D.C. / 从头反复</td></tr>
+<tr><td>||&amp;ds</td><td>D.S. / 从记号反复</td></tr>
+<tr><td>|&amp;ty</td><td>Segno / 大跳记号</td></tr>
+<tr><td>|&amp;hs</td><td>Coda / 花记号</td></tr>
+</tbody>
+</table>
+<p>反复/导航记号属于小节线，不是普通音符。行首需要小节线附属记号却不应显示线时用 |/；需要占位对齐时用 |*，尤其是单、多声部混合。程序显示这些指示，但没有播放跳转功能。</p>
+</section>
+<section id="zh-CN-slurs"><h2>21. 连音线与多连音</h2>
+<p>用圆括号包围音乐表示连音线，例如 <code>(1 2 3)</code>。连线可嵌套，也可跨小节或同页曲行；在同一声部前行打开，在后行关闭。<code>(y1 2 3)</code> 表示多连音，数量由组内音符推定，y 必须小写。跨页连音线不会自动连续；手动分页时应分开并重新开始连线，检查最终效果。</p>
+<pre><code>Q: (1 (2 3) 4 | 5 6
+Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
+</section>
+<section id="zh-CN-endings"><h2>22. 跳房子与临时拍号</h2>
+<p>跳房子 [ 和 ] 附在小节线上；标号用双引号小节线注释。行首起点使用隐藏 |/。[ 后加 / 可使右端开放，加 +（或多个 +）可上移，避免与连音线重叠。跳房子可跨行，应在正确声部设置端点。同样方括号紧附音符时表示倚音，位置很重要。</p>
+<pre><code>Q: |/[&quot;1&quot; 1 2 3 4 :|] |/[&quot;2&quot; 5 6 7 1&#x27; ||]
+Q: |/[+/&quot;1,2&quot; 1 2 3 4 | 5 6 7 1&#x27; |]</code></pre>
+<p>临时拍号在小节线后写 <code>"p:3/4"</code>。它显示局部拍号；仍需检查分组，必要时使用 ~ 或 ^。</p>
+<pre><code>Q: 1 2 3 4 |&quot;p:3/4&quot; 5 6 7 |</code></pre>
+</section>
+<section id="zh-CN-voices"><h2>23. 声部与临时伴奏</h2>
+<p>曲使用 Q1、Q2 等，词使用对应 C1、C2。声部编号后可用引号写声部名。相邻声部应保持节奏对齐；带编号曲行形成声部系统，歌词依附对应声部。可混合单声部和多声部。行中开始声部括弧可用 &amp;sbf；次要声部前面的空位用隐藏休止符 8 和隐藏小节线 |* 对齐。</p>
+<pre><code>Q1&quot;高声部&quot;: 1 2 3 4 |
+C1: 春 风 吹 来
+Q2&quot;低声部&quot;: 3, 4, 5, 6, |
+C2: 花 儿 开 了</code></pre>
+<p>临时伴奏使用 <code>{bz ...}</code>，临时多声部使用 <code>{dsb ...}</code>。关键字紧跟 {，且小写。这些行内组与主旋律定位。建议参考相近内置示例并核对时值、对齐，不要假设任意块都能自动正确排列。</p>
+<pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
+Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
+<p>行中声部括弧的简化示例（请在预览中检查对齐）：</p>
+<pre><code>Q1: 1 2 3 4 |&amp;sbf 5 6 7 1&#x27; |
+Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre>
+</section>
+<section id="zh-CN-lyrics"><h2>24. 歌词：中文、英文与混排</h2>
+<p>C 行依附前面的曲行；多声部需使用匹配编号。中文通常一字对应一音符，标点自动识别，不另成为演唱音节。@ 跳过一个音符；每条增时线 - 不需单独 @。用 ~ 将两个汉字合在一个音符下。一行 Q 后可写多行 C，表示不同段歌词。</p>
+<pre><code>Q: 1 2 3 4 | 5 - 6 7 |
+C: 春 风 @ 来 花~儿 开 了
+C: 第 二 段 词 也 能 写</code></pre>
+<p>歌词行前可用引号标注，例如 "1."；这种兼容标签里需要空格时用下划线 _。英文按单词或音节用 / 分隔，不能将每个字母对应一个音符。/ 也可明确中英混排边界。未唱音符用 @；连唱需检查实际对应，不应把普通空格当成可靠的英文音节分隔符。</p>
+<pre><code>Q: 1 2 3 4 |
+C: &quot;Verse_1&quot; Sing/a/new/song
+C: &quot;2.&quot; 春/风/@/song</code></pre>
+</section>
+<section id="zh-CN-pagination"><h2>25. 手动分页</h2>
+<p>在独立一行写精确小写字面量 <code>[fenye]</code> 创建新谱页，它不是音符注释。应将声部系统及所属歌词放在一起。长源码不表示音乐会自动重新换行或连线自动跨页。分页处分开/重开连音线，检查跳房子，并确认导出的每页都位于边距内。</p>
+<pre><code>Q: 1 2 3 4 ||
+C: 第 一 页 词
+
+[fenye]
+
+Q: 5 6 7 1&#x27; ||
+C: 第 二 页 词</code></pre>
+</section>
+<section id="zh-CN-practice"><h2>26. 实用编辑与校对步骤</h2>
+<ul><li>先选与目标相近的内置示例：普通旋律、符号/倚音、多声部或歌词，并使用副本。</li>
+<li>先输入描述头，再逐行输入曲；加歌词前核对小节线与时值。</li>
+<li>八度、时值、变音及装饰后缀应属于正确音符；区分音符倚音括号与小节线跳房子括号。</li>
+<li>逐个增加声部及歌词段，每次修改后检查对齐。</li>
+<li>有目的地用 ~ /^、括号高度 + 和页面设置处理分组或重叠，它们不会修正错误音高。</li>
+<li>逐页比较转录结果与原稿，包括分页及注释。</li>
+<li>处理诊断，保存可编辑原稿，导出并检查最终文件。</li>
+</ul>
+</section>
+<section id="zh-CN-troubleshooting"><h2>27. 排错与反馈</h2>
+<table><thead><tr><th>现象</th><th>检查内容</th></tr>
+</thead>
+<tbody><tr><td>异常符号或诊断</td><td>半角标点、前缀后的冒号、引号/括号成对、后缀归属及小写关键字。</td></tr>
+<tr><td>歌词错位</td><td>C/Q 声部配对、跳音符用 @、中文合字用 ~、英文音节间用 /。</td></tr>
+<tr><td>连线或跳房子重叠</td><td>端点、分页、手动 + 偏移及垂直间距。</td></tr>
+<tr><td>导入失败</td><td>支持类型、一次单文件、100 MiB/200 页限制、可读非加密文件及无冲突操作。</td></tr>
+<tr><td>转录不可用/失败</td><td>内置 OCR 引擎、原稿质量及 PDF 处理需要的 Poppler。</td></tr>
+<tr><td>字体外观不同</td><td>实际系统字体、内置替代、缺字备用及外部 SVG 查看器字体。</td></tr>
+<tr><td>浏览器或更新失败</td><td>默认浏览器关联与网络；发布信息不可用不等于已经最新。</td></tr>
+</tbody>
+</table>
+<p>报告可复现问题时，请提供版本、系统、最小 JPS、相关设置、步骤及预期/实际结果，适当时附原稿。使用<a href="https://github.com/OctaveMelody/OctoPus/issues">报告问题</a>；改动提议使用<a href="https://github.com/OctaveMelody/OctoPus/pulls">Pull Requests 页</a>。历史规范的个人联系方式不是 OctoPus 支持渠道。</p>
+</section>
+<section id="zh-CN-sources"><h2>28. 参考依据与兼容性</h2>
+<p>本手册综合本地保存的 Jianpu-Spec v1.0 简介、描述头、曲、词及反馈章节；图片形式的符号、力度和小节线表已阅读并改写为上文文本表。另参考 Website-Contents/Zhipu-jsCode-editor 保存的源码格式化及源码/预览定位约定，并对照 OctoPus 行为。保存的 Zhipu-draw 文件为空，没有额外使用说明。</p>
+<p>记谱语法沿用参考规范，产品界面与计划描述 OctoPus。历史资料中的 MIDI、播放、网页自动格式化选项及个人联系方式不是当前桌面功能。运行实现、解析器、字体策略、输入限制及样例文档用于核对现状。本手册是重新编写的使用指南，不是原脚本副本。参考资料及编写工具保留在 OctoPus-dev；生产应用附带独立手册及 PDF。</p>
+<p><a href="https://github.com/OctaveMelody/OctoPus">项目主页</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/README.zh-CN.md">生产版说明</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/ENVIRONMENT.zh-CN.md">构建环境</a></p>
+</section>
+</article></main>
+<footer>OctoPus · OctaveMelody · 2026-10-01</footer></body></html>

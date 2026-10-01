@@ -32,13 +32,13 @@ pub(crate) fn project_url(destination: &HelpDestination) -> Option<String> {
 
 #[cfg(debug_assertions)]
 fn manual_path(_app: &AppHandle) -> Result<PathBuf, String> {
-    Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs/user-manual.html"))
+    Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs/user-manual/index.html"))
 }
 
 #[cfg(not(debug_assertions))]
 fn manual_path(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
-        .resolve("docs/user-manual.html", BaseDirectory::Resource)
+        .resolve("docs/user-manual/index.html", BaseDirectory::Resource)
         .map_err(|error| format!("could not locate user manual: {error}"))
 }
 
