@@ -138,9 +138,7 @@ fn svg_options_for_profile(release: bool) -> usvg::Options<'static> {
         font_database.set_sans_serif_family("Noto Sans SC");
         font_database.set_serif_family("Noto Serif SC");
     }
-    if !release || cfg!(any(target_os = "windows", target_os = "macos")) {
-        font_database.load_system_fonts();
-    }
+    font_database.load_system_fonts();
     usvg::Options {
         font_family: if release {
             "Noto Sans SC".into()
@@ -249,9 +247,6 @@ mod tests {
     #[test]
     fn release_database_includes_fallback_faces() {
         let options = super::svg_options_for_profile(true);
-        if !cfg!(any(target_os = "windows", target_os = "macos")) {
-            assert_eq!(options.fontdb.faces().count(), 13);
-        }
         let families: Vec<_> = options
             .fontdb
             .faces()
@@ -265,9 +260,6 @@ mod tests {
         assert!(families.contains(&"LXGW Neo XiHei"));
         assert!(families.contains(&"MiSans"));
         assert!(families.contains(&"Zhuque Fangsong (technical preview)"));
-        if !cfg!(any(target_os = "windows", target_os = "macos")) {
-            assert!(!families.contains(&"Microsoft YaHei"));
-        }
         let svg = SVG_PAGE.replace("Microsoft YaHei", "Noto Sans SC");
         let pdf = super::export_pdf_with_options(&[svg], options).unwrap();
         assert!(pdf

@@ -63,7 +63,9 @@ Settings offer HeiTi-1, HeiTi-2, SongTi, KaiTi and FangSong. Windows prefers
 Microsoft YaHei, SimHei, SimSun, KaiTi and FangSong; macOS prefers PingFang SC,
 Heiti SC, Songti SC, Kaiti SC and STFangsong. Each missing family falls back to
 MiSans Regular, Neo XiHei, SimZhiSong, WenKai Regular or Zhuque Fangsong, respectively.
-Linux production uses those bundled fallbacks. Saved HeiTi still means HeiTi-2.
+Linux production also prefers those Microsoft families when installed, using exact
+fontconfig matches; otherwise it uses the bundled fallbacks. This applies to portable
+builds as well. Saved HeiTi still means HeiTi-2.
 Noto provides missing glyph coverage and Liberation Sans covers Latin Arial requests.
 PDF embeds fonts; JPEG stores pixels. External SVG viewers need the named fonts.
 [Font guide](src/octopus/assets/fonts/README.md) explains licenses, macOS collection
@@ -72,6 +74,6 @@ in the application and shipped with Xiaomi's full license; Zhuque v0.212 is a te
 
 Note styles remain Regular, Italic and Bold. Untouched legacy settings stay compatible.
 
-Development reference tests use installed Microsoft fonts; their metrics and pixels differ from
-the open-font production substitutions. The production repository contains no Microsoft font files.
+Development reference tests use installed Microsoft fonts. Production prefers the configured
+system fonts too; bundled substitutions can differ in metrics and pixels when a match is missing. The production repository contains no Microsoft font files.
 `samples/jps_files/` supplies bundled examples; `samples/jps_files_pretty/` is additional source material.

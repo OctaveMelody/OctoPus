@@ -1,9 +1,11 @@
 # Application fonts
 
 The settings panel offers HeiTi-1, HeiTi-2, SongTi, KaiTi and FangSong. Each installed
-system family is preferred independently on Windows/macOS; a missing family uses its
-bundled fallback. Linux production uses the fallbacks. Source/debug reference builds
-prefer matching installed Microsoft fonts on Linux as well.
+system family is preferred independently on every OS; a missing family uses its
+bundled fallback. Windows/macOS use the mappings below. Linux, including the production
+portable, prefers the same Microsoft families as Windows via exact fontconfig matches.
+If fontconfig or the exact family is unavailable, the bundled fallback is used.
+Source/debug reference builds also prefer matching installed Microsoft fonts.
 
 | Role | Windows | macOS | Bundled regular face |
 | --- | --- | --- | --- |
@@ -21,14 +23,14 @@ styles cover Latin/Arial. Thirteen TTF faces are bundled, with ten notices/licen
 Zhuque is upstream's technical-preview release; its actual unmodified family name is
 Zhuque Fangsong (technical preview). Its missing characters use the Noto backup.
 
-Windows/macOS font files remain on their host and are never redistributed or installed
+System font files remain on their host and are never redistributed or installed
 by OctoPus. macOS collection inspection selects the requested family and closest weight,
 rather than the collection's first face. Preview and native exports retain supported
 system fonts, including CFF outlines. Python's ReportLab PDF path cannot embed CFF;
 that path explicitly uses the corresponding bundled fallback. TrueType collection faces
 are extracted temporarily for Python PDF registration, without changing their metadata
 or outlines. FontTools 4.60.2 supports collection inspection; native exports load host
-fonts on Windows/macOS and all bundled faces. PDFs embed text fonts; JPGs contain pixels.
+fonts on every host and all bundled faces. PDFs embed text fonts; JPGs contain pixels.
 External SVG viewers need the requested fonts. No font is globally installed or replaced.
 
 WenKai, Noto, Zhuque and Liberation use OFL 1.1. Neo XiHei/SimZhiSong use IPA Font

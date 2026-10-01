@@ -60,7 +60,8 @@ Linux 仍需要系统中的 GTK/WebKit 运行库和 Poppler 工具；Windows 需
 Windows 分别优先使用 Microsoft YaHei、SimHei、SimSun、KaiTi、FangSong；
 macOS 分别优先使用 PingFang SC、Heiti SC、Songti SC、Kaiti SC、STFangsong。
 每种系统字体缺失时分别使用内置 MiSans Regular、Neo XiHei、SimZhiSong、
-WenKai Regular、Zhuque Fangsong。Linux 生产版使用这些内置替代字体。
+WenKai Regular、Zhuque Fangsong。Linux 生产版也优先使用已安装的上述微软字体，
+通过 fontconfig 精确匹配；缺失时使用内置替代字体。便携版遵循相同规则。
 旧 HeiTi 设置仍对应 HeiTi-2；Noto 补充缺失字符，Liberation Sans 替代 Arial 西文。
 PDF 会嵌入字体，JPEG 保存像素；外部 SVG 查看器需要相应字体。
 [字体指南](src/octopus/assets/fonts/README.md) 说明许可证、macOS 字体集合选择、
@@ -69,6 +70,7 @@ Python PDF 的 CFF 替代及原始 IPA 字体恢复方法。关于窗口注明�
 
 音符样式仍为常规（Regular）、斜体（Italic）、粗体（Bold）。未修改的旧设置保持兼容。
 
-开发参考测试使用系统中已安装的微软字体，其字形尺寸和像素结果与生产版的开源替代字体不同。
+开发参考测试使用系统中已安装的微软字体。生产版也优先使用配置对应的系统字体；
+字体缺失时使用内置替代字体，其字形尺寸和像素结果可能不同。
 生产仓库不包含微软字体文件。
 `samples/jps_files/` 用于打包示例；`samples/jps_files_pretty/` 保留额外的源文件。

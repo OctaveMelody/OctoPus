@@ -92,7 +92,7 @@ def system_font_path(family: str) -> Path | None:
                 path = root / filename
                 if path.is_file():
                     return path
-    elif not release_profile():
+    else:
         try:
             result = subprocess.check_output(
                 ["fc-match", "-f", "%{family}|%{file}", family], text=True,
@@ -114,7 +114,7 @@ def role_family(role: str) -> str:
 
 
 def release_profile() -> bool:
-    # Frozen workers always use the application policy, including Windows system preference.
+    # Frozen workers always use application policy, including installed OS font preference.
     if getattr(sys, "frozen", False):
         return True
     profile = os.environ.get("OCTOPUS_FONT_PROFILE", "reference")
