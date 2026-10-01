@@ -49,6 +49,18 @@ J: 90
 Q: 1 2 3 4 | 5 6 7 1&#x27; ||
 C: 春 风 吹 来 花 儿 开 了</code></pre>
 <p>This example has two four-note bars; the final note is one octave above the base register. The eight Chinese lyric characters map to the eight notes.</p>
+<h3>Learn from a library score</h3>
+<p>Choose Samples Library, find Farewell, and open a working copy. Read its header, then locate the row beginning Q: 5 (3/ 5/). Put the source cursor on 1&#x27;. and inspect the dotted high note in the preview. Change only the dot, compare the result, and Undo. Next move an @ in a copied lyric row and see which note loses its syllable. Save As before keeping experiments. The downloadable excerpts below include the original header, even where only body lines are displayed.</p>
+<!-- sample:first-score:start -->
+<div class="sample-example" id="en-example-first-score">
+<h3>A melody with two lyric verses</h3><p>Open Farewell in Samples Library. This excerpt is its second sung row. Compare the four barlines, the dotted high 1, the lower 7, and the two lyric lines. Download the excerpt to try the same passage without the rest of the score.</p>
+<p class="sample-provenance">Samples Library: Farewell.jps · source lines 17-19. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/first-score.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 (2/ 3/) 4. 7,/ | 1 - - - |
+C: 晚风@拂柳笛声残，夕阳@山外山。
+C: 问君@此去几时还，来时@莫徘徊。</code></pre>
+<figure><img src="assets/examples/first-score-1.png" alt="A melody with two lyric verses - 1" loading="eager"><figcaption>Rendered output: A melody with two lyric verses</figcaption></figure>
+</div>
+<!-- sample:first-score:end -->
 </section>
 <section id="en-workspace"><h2>4. The workspace and UI</h2>
 <p>The top row provides New, Open, Save, Save As, Export, Close, Help, Import PNG/JPG/PDF, Samples Library, Page Settings, Preferences and Exit. The logo icon and text open the project home. The second row selects Mode/Layout and focuses a pane; drag the borders between panels to resize them.</p>
@@ -130,6 +142,10 @@ C: 春 风 吹 来 花 儿 开 了</code></pre>
 <section id="en-jps-structure"><h2>13. JPS structure and conventions</h2>
 <p>JPS is ordinary text, normally stored with extension .jps. A score has a descriptive header followed by music Q: and lyrics C:. One Q line represents a printed music row; following C lines belong to that row. Numbered prefixes identify voices. Blank lines improve source readability. A whole line beginning with # is a comment; inside a Q line, # is an accidental, not a comment.</p>
 <p>The original specification calls V, B, D and P required fields. Include them for a complete portable score even though OctoPus tolerates incomplete drafts. Use uppercase header/prefix letters and lowercase literal <code>[fenye]</code>. Preserve the header/body distinction; repeated B/Z fields serve specific layout purposes. Unknown syntax may be preserved with diagnostics rather than rendered as intended.</p>
+<h3>Read a score in three passes</h3>
+<p>First read the header for title, key, meter and tempo. Then read only Q rows: digits and rests are musical events, suffixes modify their host, and barlines divide the flow. Finally read C rows and count lyric slots against the notes. The source order is also layout order: moving an entire Q row changes where music appears; moving its C row away may attach the words to a different row. Start the body with music, not unattached lyrics.</p>
+<h3>Plain JPS versus a saved document wrapper</h3>
+<p>A library .jps can be a JSON document whose code field contains the JPS and whose page_config field stores layout settings. Edit the code in JPS source, not the JSON punctuation. Downloadable manual excerpts are plain UTF-8 JPS for copying and opening. They carry musical headers and body text; to reproduce the pictured spacing exactly, open the named library sample so its page settings are restored.</p>
 </section>
 <section id="en-headers"><h2>14. Descriptive header</h2>
 <table><thead><tr><th>Field</th><th>Example value</th><th>Meaning</th></tr>
@@ -153,6 +169,31 @@ P: 4/4 (2/4 1/4)
 J: 90 Allegro
 X: 10</code></pre>
 <p>Use a capital A-G key letter: C, F#, E$. Multiple B lines put subtitle text under the first title; multiple Z lines place credits at the upper right. P uses slash-separated numerator/denominator; spaces and parentheses can describe auxiliary meters. J may be numeric beats per minute, words, or both. X is metadata, not a voice number. Header values describe the score; a tempo field does not enable playback.</p>
+<h3>Required fields and repeated fields</h3>
+<p>For a complete score include V, B, D and P. V: 1.0 declares the syntax version; it is not the OctoPus application version. The first B is the centered main title and later B lines are centered subtitles. Each Z creates a separate right-aligned credit line. Optional J describes speed, and X can carry a catalog number. Keep these lines above the first Q. Empty or incomplete drafts may render, but do not rely on that as a portable document format.</p>
+<h3>Key, meter, tempo and comments</h3>
+<p>D: F# and D: E$ mean sharp and flat keys; use capital A-G and ASCII #/$, not full-width punctuation. P: 6/8 describes the meter; P: 4/4 (2/4 1/4) also lists auxiliary meters. It does not replace local barline meter changes. J: 90 uses a numeric tempo, J: Allegro uses text, and both can coexist. A full line starting # is ignored as a source comment, whereas 4# inside Q is a sharp note. Quoted annotations are printed; source comments are not.</p>
+<!-- sample:header-layout:start -->
+<div class="sample-example" id="en-example-header-layout">
+<h3>Header placement and a multilingual title</h3><p>The second B is a subtitle; the three Z lines are separate credits. D: E$ displays the flat key. P sets 4/4 and J supplies a numeric tempo. The title punctuation is text, not a musical barline.</p>
+<p class="sample-provenance">Samples Library: O-Canada.jps · source lines 13-15. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/header-layout.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>V: 1.0
+B: O Canada | Ô Canada
+B: --- Canada National Anthem
+D: E$
+P: 4/4
+J: 93
+Z: Sir Adolphe-Basile Routhier 　词
+Z: Calixa Lavallee 　曲
+Z: Robert Stanley Weir 英译
+
+Q: 3 - 5. 5/ | 1 - - 2 | 3 4 5 6 | 2 - - 0 |
+C: O /Can- /a- /da~! Our/ home / and /na-tive/ land~!
+C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,
+</code></pre>
+<figure><img src="assets/examples/header-layout-1.png" alt="Header placement and a multilingual title - 1" loading="eager"><figcaption>Rendered output: Header placement and a multilingual title</figcaption></figure>
+</div>
+<!-- sample:header-layout:end -->
 </section>
 <section id="en-notes"><h2>15. Notes, register and duration</h2>
 <table><thead><tr><th>Syntax</th><th>Meaning</th></tr>
@@ -170,15 +211,77 @@ X: 10</code></pre>
 </table>
 <p>A bare digit is the basic quarter-note unit in the compatibility notation. Each attached slash halves its duration. A dot adds half the undotted duration; two dots add half plus a quarter (1.75 times the original). Extension hyphens add the Jianpu continuation strokes. They do not each need a lyric skip. Add octave commas/apostrophes after the digit; avoid spaces between the note and its suffix.</p>
 <pre><code>Q: 1 2&#x27; 3,, 0 | 1/ 2/ 3// 4// 5/ 6 7 | 6. 7/ 1&#x27; - ||</code></pre>
+<h3>Scale degree, rest, hidden rest and rhythm X</h3>
+<p>1-7 name scale degrees relative to D; they are not absolute MIDI pitches. 0 is a printed rest. 8 is an invisible rest/blank slot used to reserve layout space, especially between voices; it is not the next scale degree. 9 draws a rhythm X rather than pitch 9. Continuation - strokes extend a sounding note; they are not additional sung attacks. A hidden 8 is still a source event: when lyrics drift, compare its placement and any @ markers rather than simply deleting every invisible slot.</p>
+<h3>Calculate duration before editing layout</h3>
+<p>The basic digit is a quarter-note unit. Relative values are: no slash = 1, / = 1/2, // = 1/4, /// = 1/8. A single dot multiplies the value by 1.5 and a double dot by 1.75. Thus 5/. is 3/4 of a quarter-note unit and 5//. is 3/8; 5.. is 1.75. Each separate continuation dash adds a continuation beat in ordinary Jianpu writing. In 4/4, four bare notes fill an ordinary bar; in 6/8, six eighth notes do. Beam joins, lyric joins and extra spaces do not fix an incorrect duration total.</p>
+<h3>Keep suffixes attached to their host</h3>
+<p>Use apostrophes for high register and commas for low register; repeat them for two or more octaves. A note such as 7,/# carries low register, an eighth-note slash and a sharp. Library scores use several compatible suffix orders, so start from a working example instead of splitting a compound token into disconnected text. A period inside music is a duration dot; punctuation inside C is lyric punctuation. Do not replace the ASCII apostrophe with a typographic quote.</p>
+<!-- sample:duration-rest:start -->
+<div class="sample-example" id="en-example-duration-rest">
+<h3>Duration, register and a hidden rest</h3><p>Read 3/ and 5/ as eighth notes, 1&#x27;. as a dotted high note, and 7,/ as a low eighth note. The final 0 is visible; 8 reserves space but prints no rest digit. &amp;zkh / &amp;ykh delimit the accompaniment visually.</p>
+<p class="sample-provenance">Samples Library: Farewell.jps · source lines 10-10. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/duration-rest.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 5&amp;zkh 3/ 5/ 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 2/ 3/ 4. 7,/ | 1 - - 0 8&amp;ykh |</code></pre>
+<figure><img src="assets/examples/duration-rest-1.png" alt="Duration, register and a hidden rest - 1" loading="eager"><figcaption>Rendered output: Duration, register and a hidden rest</figcaption></figure>
+</div>
+<!-- sample:duration-rest:end -->
+<!-- sample:short-values:start -->
+<div class="sample-example" id="en-example-short-values">
+<h3>Thirty-second notes and continuation strokes</h3><p>Three slashes produce three shortening lines. Compare the opening 0 rests, the low commas and high apostrophes, the short-note run, and 2 - at the end. The final (y...) is a tuplet, explained later.</p>
+<p class="sample-provenance">Samples Library: Flower-In-Water.jps · source lines 10-10. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/short-values.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 0&amp;zkh 0 6/// 1&#x27;/// 5/// 6/// 3/// 5/// 2/// 3/// 1/// 2/// 6,/// 1/// 5,/// 6,/// 2,/// 3,/// | 1/ 5,/ 6,/ 7,/ 5,/ 6,/ 5,/ | 2 - (y3 5 6&amp;ykh) |</code></pre>
+<figure><img src="assets/examples/short-values-1.png" alt="Thirty-second notes and continuation strokes - 1" loading="eager"><figcaption>Rendered output: Thirty-second notes and continuation strokes</figcaption></figure>
+</div>
+<!-- sample:short-values:end -->
 </section>
 <section id="en-beaming"><h2>16. Custom beat grouping</h2>
 <p>The reference notation uses quarter-note-based automatic beam grouping, which can be unsuitable for 6/8 or other compound/special grouping. Use <code>~</code> to join the adjacent notes in one group and <code>^</code> to force a split. These control visual beam grouping, not a new pitch or lyric syllable. Compare against the intended beat pattern rather than relying only on the P field.</p>
 <pre><code>P: 6/8
 Q: 1/~2/~3/^4/~5/~6/ |</code></pre>
+<h3>Where ~ and ^ act</h3>
+<p>In music, attach ~ after a short note to join it to the following group; attach ^ to force a break before the next note. In 1/~2/~3/^4/~5/~6/, the first and last three eighth notes form separate groups. This is especially useful when the inherited quarter-note grouping disagrees with a compound meter. Inspect both underline levels in a sixteenth-note run. In lyrics, ~ has a different role: joining text into one lyric slot. Neither music ~ nor ^ adds a note.</p>
+<!-- sample:beam-control:start -->
+<div class="sample-example" id="en-example-beam-control">
+<h3>Join and split beams in compound meter</h3><p>The header describes 6/8 and 9/8. In the first row, 6/^ forces a boundary, while 5/~ 4/~ 1/ joins a group. The second row shows longer runs joined with ~. These marks change beam grouping, not the note lengths.</p>
+<p class="sample-provenance">Samples Library: Autumn-Cicada - Fei-Yuqing.jps · source lines 11-12. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/beam-control.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 6/&amp;sby&amp;zkh | 5 6/^ 5/~ 4/~ 1/ | (3&#x27;. 3&#x27;) 3&#x27;/ | 2 3/ 2 1/ | (7,. 7,.) |
+Q: 5,//~ 6,//~ 7,//~ 1//~ 2//~ 3// 1//~ 2//~ 3//~ 4//~ 5//~ 6// | 4//~ 5//~ 6//~ 7//~ 1&#x27;//~ 2&#x27;// 7//~ 6//~ 5//~ 6//~ 4//~ 2// | (1. 1.) 8&amp;ykh |</code></pre>
+<figure><img src="assets/examples/beam-control-1.png" alt="Join and split beams in compound meter - 1" loading="eager"><figcaption>Rendered output: Join and split beams in compound meter</figcaption></figure>
+</div>
+<!-- sample:beam-control:end -->
 </section>
 <section id="en-accidentals"><h2>17. Accidentals and grace notes</h2>
 <p>Write sharp #, flat $ or natural = after the host digit, for example 4#, 7$, 3=. Grace notes are attached square-bracket groups after their host: <code>1[23]</code> displays preceding grace notes; <code>1[h23]</code> displays following grace notes. Inside a group, commas/apostrophes, slashes and accidentals still apply. Grace digits default to eighth notes; a slash makes a sixteenth. A bracket attached to a note is not an ending bracket on a barline.</p>
 <pre><code>Q: 4# 7$ 3= 1[2/3&#x27;] | 5[h6,7/] - ||</code></pre>
+<h3>Accidental placement and scope</h3>
+<p>Write the accidental on its host digit, such as 4#, 7$ or 3=. Its printed position is before the digit. D changes the header key; a note accidental changes a particular written note. When copying a passage into a different key context, inspect its later repeated notes and explicit naturals. OctoPus prints the notation supplied; it does not validate the intended harmonic spelling or infer every missing cancellation.</p>
+<h3>Grace notes are smaller attached groups</h3>
+<p>1[23] means a preceding group attached to main note 1; 1[h23] means a following group. The h goes just inside [, not after the closing bracket. The group may contain several notes, register marks, accidentals and shortening slashes. Inside a grace group a bare digit already has the short eighth-note form; / makes it sixteenth. The host still has its own duration and lyric. Do not count each grace digit as a separate main lyric slot, and do not move the brackets to a barline, where they become ending syntax.</p>
+<!-- sample:accidental-return:start -->
+<div class="sample-example" id="en-example-accidental-return">
+<h3>Flat/sharp followed by a natural</h3><p>In Q2, 3$ is followed by 3=; in Q4, 4# is followed by 4=. The modifier is typed after the digit but drawn before it. Hidden 8 slots keep the choir parts aligned. These two selected voices are rendered independently of the omitted parts.</p>
+<p class="sample-provenance">Samples Library: Edelweiss - Choir ChinEng.jps · source lines 23-23, 27-27. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/accidental-return.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q2: 3 - 8 3 | 5 - - | 5 - 8 5 | 4 - - | 3 - 5 | 4 8 3$ 8 2 | 3= - - | 1&#x27; - - |
+Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; - - |</code></pre>
+<figure><img src="assets/examples/accidental-return-1.png" alt="Flat/sharp followed by a natural - 1" loading="eager"><figcaption>Rendered output: Flat/sharp followed by a natural</figcaption></figure>
+</div>
+<!-- sample:accidental-return:end -->
+<!-- sample:grace-register:start -->
+<div class="sample-example" id="en-example-grace-register">
+<h3>Before/after grace notes and register</h3><p>The first four hosts compare before/after grace notes and their shorter values. The next bars compare low and high grace notes. [h...] follows the host visually; [...] precedes it. All groups are typed after the main note.</p>
+<p class="sample-provenance">Samples Library: Symbols.jps · source lines 8-8. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/grace-register.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 1[1/] 1[1] 1[h1] 1[h1/] | 1[1,/] 1[1,] 1[h1,,] 1[h1,,/] | 1[1&#x27;/] 1[1&#x27;&#x27;] 1[h1&#x27;] 1[h1&#x27;&#x27;/] |</code></pre>
+<figure><img src="assets/examples/grace-register-1.png" alt="Before/after grace notes and register - 1" loading="eager"><figcaption>Rendered output: Before/after grace notes and register</figcaption></figure>
+</div>
+<!-- sample:grace-register:end -->
+<!-- sample:grace-groups:start -->
+<div class="sample-example" id="en-example-grace-groups">
+<h3>Grace groups containing several notes</h3><p>The left bar contains preceding grace groups; the right bar repeats the pattern as following grace groups with h. Slashes within a group shorten the grace notes independently of the host.</p>
+<p class="sample-provenance">Samples Library: Symbols.jps · source lines 15-15. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/grace-groups.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 1&#x27;/[23] 7/[23/4] 2,/[3/4/] 3,/[45/] 4[5/6] 5&#x27;/[1/2/3/] 6/[5/67/] | 1&#x27;/[h23] 7/[h23/4] 2,/[h3/4/] 3,/[h45/] 4[h5/6] 5&#x27;/[h1/2/3/] 6/[h5/67/] |</code></pre>
+<figure><img src="assets/examples/grace-groups-1.png" alt="Grace groups containing several notes - 1" loading="eager"><figcaption>Rendered output: Grace groups containing several notes</figcaption></figure>
+</div>
+<!-- sample:grace-groups:end -->
 </section>
 <section id="en-dynamics"><h2>18. Dynamics and hairpins</h2>
 <p>Attach an ampersand code to a note, such as <code>3&mp</code>. The reference terms are pp, p, mp, mf, f, ff, fff, cresc, dim, sf, fp, sfp, a tempo and rit. Use <code>&amp;a tempo</code> for the two-word term. Hairpins start with &lt; (crescendo) or &gt; (decrescendo) and end with !. Add + after the opening marker to move it upward when it overlaps another span. These are printed instructions; the desktop app does not interpret them as audio playback controls.</p>
@@ -201,6 +304,25 @@ Q: 1/~2/~3/^4/~5/~6/ |</code></pre>
 <tr><td><code>&amp;rit</code></td><td>Gradually slower</td></tr>
 </tbody>
 </table>
+<h3>Start, end and height of a hairpin</h3>
+<p>Place &lt; or &gt; on the starting host and ! on the ending host. A lone opening marker has no dependable endpoint; close it deliberately before the page boundary. &lt;+ or &gt;++ raises that span above the default height, with more + requesting a greater adjustment. Use the smallest offset that avoids a slur/ending collision, then inspect nearby systems and exports. Page spacing controls move whole rows; a + offset moves the selected mark. These are different corrections.</p>
+<h3>Dynamics are printed instructions</h3>
+<p>Attach &amp;mp, &amp;mf, &amp;f and the other table entries to the note where the instruction begins. Keep multiword &amp;a tempo intact. Printed pp through fff describe loudness; cresc/dim describe change; rit and a tempo describe speed. An &amp;yc fermata is an ornament, not a loudness instruction, although it uses the same ampersand mechanism. Printed tempo/dynamics do not provide playback or MIDI output.</p>
+<!-- sample:hairpin-height:start -->
+<div class="sample-example" id="en-example-hairpin-height">
+<h3>Dynamics and raised hairpins in a choir</h3><p>Q1 and Q3 start with &amp;mp. &lt;+ begins a raised crescendo, ! ends it, then &gt; begins a decrescendo. Compare the span endpoints with the notes and rests in the other parts; lyric rows remain attached to their source system.</p>
+<p class="sample-provenance">Samples Library: Edelweiss - Choir ChinEng.jps · source lines 11-18. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/hairpin-height.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q1: 3&amp;mp -&lt;+ 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 3 | 3 8 4 8 5 | {dsb 6 - - | 5 - - | } 4 - - | 4 - - |
+C1: 雪绒花，雪绒花，清晨迎@着@我开放，
+C2: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q2: 3 - 3 | 5 - - | 5 - 5 | 4 - - | 3 - 3 | 3 8 1 8 1 | 1 - - | 2 - - |
+Q3: 5&amp;mp -&lt;+ 5 | 5 - -! | 1&#x27;&gt; - 1&#x27; | 6 - -! | 1&#x27; - 1&#x27; | 1&#x27; 8 6 8 6 | 6 - - | 7 - - |
+C3: 雪绒花，雪绒花，清晨迎@着@我开放，
+C4: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q4: 1 - 1 | 7, - - | 3 - 3 | 4 - - | 5 - 5 | 5 8 4 8 3 | 2 - - | 5 - - |</code></pre>
+<figure><img src="assets/examples/hairpin-height-1.png" alt="Dynamics and raised hairpins in a choir - 1" loading="eager"><figcaption>Rendered output: Dynamics and raised hairpins in a choir</figcaption></figure>
+</div>
+<!-- sample:hairpin-height:end -->
 </section>
 <section id="en-ornaments"><h2>19. Ornaments, parentheses and annotations</h2>
 <table><thead><tr><th>Code after a note</th><th>Meaning</th></tr>
@@ -220,6 +342,28 @@ Q: 1/~2/~3/^4/~5/~6/ |</code></pre>
 <p>These short codes come from the notation reference, often from Chinese name initials. Attach them to the correct note. The + suffix selects the illustrated alternative for mordents/trills. Add a quoted annotation after a note to print text above it. Accompaniment parentheses &amp;zkh and &amp;ykh are also placed after the host digit even when the drawn parenthesis appears before the music.</p>
 <pre><code>Q: 3&amp;yc 3&amp;bc 3&amp;zy 3&amp;dy | 3&amp;hx 3&amp;shy 3&amp;xhy 3&amp;cy |
 Q: 1&amp;zkh 2 3 4&amp;ykh | 5&quot;sing gently&quot; - - - ||</code></pre>
+<h3>Use the correct attachment and variant</h3>
+<p>&amp;yc holds a note, &amp;bc marks tenuto, &amp;zy marks an accent and &amp;dy a detached/staccato note. &amp;hx is a breath indication. &amp;shy/&amp;xhy are slides; &amp;sby/&amp;xby are upper/lower mordents; &amp;cy is a trill. The + forms in the table select alternate ornament shapes: this + is not interchangeable with a hairpin-height offset. Multiple compatible codes can be attached to one host, as in 6/&amp;sby&amp;zkh. Check the rendered result for crowding.</p>
+<h3>Three kinds of text and parentheses</h3>
+<p>A quoted annotation after a note, such as 5&quot;sing gently&quot;, prints near that host; a quoted barline annotation belongs to the boundary; a full # comment never prints. For accompaniment parentheses use &amp;zkh and &amp;ykh after the first and last host. Ordinary (...) in Q makes a musical slur, not a pair of accompaniment glyphs. Ordinary punctuation and the legacy (~...~) form in C belong to lyric text, not music-span syntax.</p>
+<!-- sample:fermata-rit:start -->
+<div class="sample-example" id="en-example-fermata-rit">
+<h3>Ritardando and fermata</h3><p>5&amp;rit prints the tempo instruction. 7,/&amp;yc prints a fermata above the low eighth note. Neither command changes playback, because OctoPus currently has no playback workflow.</p>
+<p class="sample-provenance">Samples Library: Farewell.jps · source lines 34-36. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/fermata-rit.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5&amp;rit (2/ 3/) 4. 7,/&amp;yc | 1 - - 0 ||
+C: 人生@难得是欢聚，唯有@别离多。
+C: (~问君@此去几时还，来时@莫徘徊~)</code></pre>
+<figure><img src="assets/examples/fermata-rit-1.png" alt="Ritardando and fermata - 1" loading="eager"><figcaption>Rendered output: Ritardando and fermata</figcaption></figure>
+</div>
+<!-- sample:fermata-rit:end -->
+<!-- sample:tenuto-parentheses:start -->
+<div class="sample-example" id="en-example-tenuto-parentheses">
+<h3>Tenuto and accompaniment parentheses</h3><p>The final bar attaches &amp;bc to each note. &amp;zkh is attached to its first note and &amp;ykh to its last, creating visible accompaniment parentheses without adding musical events.</p>
+<p class="sample-provenance">Samples Library: China-In-The-Lights.jps · source lines 21-21. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/tenuto-parentheses.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 8 2 (2/ 3/) (4/ 3/) 2/ 1/ | 1/. (1// 1/) 6/ 6 - | 1/ 7,/ 7,/ 1/ 2/ 1/ 2/ (3/ | 3/) (1/ 1) - - | 2&amp;bc&amp;zkh 3&amp;bc 4&amp;bc 5&amp;bc&amp;ykh |</code></pre>
+<figure><img src="assets/examples/tenuto-parentheses-1.png" alt="Tenuto and accompaniment parentheses - 1" loading="eager"><figcaption>Rendered output: Tenuto and accompaniment parentheses</figcaption></figure>
+</div>
+<!-- sample:tenuto-parentheses:end -->
 </section>
 <section id="en-barlines"><h2>20. Barlines and repeat instructions</h2>
 <table><thead><tr><th>Syntax</th><th>Appearance/use</th></tr>
@@ -244,11 +388,56 @@ Q: 1&amp;zkh 2 3 4&amp;ykh | 5&quot;sing gently&quot; - - - ||</code></pre>
 </tbody>
 </table>
 <p>Repeat/navigation marks belong to a barline, not an ordinary note. Use |/ at a row beginning when a barline-attached mark is needed without a visible barline. Use |* to reserve alignment space, especially with mixed single/multiple voices. These marks are printed; playback navigation is not provided.</p>
+<h3>Visible and invisible boundaries</h3>
+<p>Use | for an ordinary boundary, || for the final thin/thick boundary and ||/ for two thin lines. |:, :| and :|: mark repeat starts, ends and combined end/start boundaries. A barline divides music; it does not insert a rest. |/ is invisible and takes no barline width, useful at a row-start ending or navigation mark. |* is invisible but reserves width, useful for aligning a later voice entry. These two hidden forms are not interchangeable.</p>
+<h3>Fine, D.C., D.S., segno and coda</h3>
+<p>Attach &amp;fine, &amp;dc and &amp;ds to a barline to print Fine, D.C. or D.S.; &amp;ty draws the segno and &amp;hs the coda sign. For a row-start sign, create a hidden |/ anchor rather than attaching the code to an unrelated note. A repeat ending label such as &quot;1,2&quot; is separate from a navigation command. The viewer displays these symbols but does not execute a playback route. Check that the written route is musically complete yourself.</p>
+<!-- sample:repeat-start:start -->
+<div class="sample-example" id="en-example-repeat-start">
+<h3>A repeat beginning inside a source row</h3><p>The |: occurs after two bars. A repeat boundary is part of the musical flow, not a request for a new source row. The lyric skip markers align unsung notes before the chorus.</p>
+<p class="sample-provenance">Samples Library: JingleBells.jps · source lines 18-20. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/repeat-start.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 6,/ 4/ 3/~ 8~ 2/ 5/~ 8~ 5/ 5/~ 8~ 5/ | 6/ 5/ 4/~ 8~ 2/ 1. 0/ |: 3/ 3/ 3 3/ 3/ 3 |
+C: fun /it /is @/to /ride @/and /sing @/a /sleigh- /ing /song @/to- /night~. @Jin- /gle /bells~, jin- /gle /bells~,
+C: 今晚滑@雪真@快乐@把滑雪歌@儿唱。@叮叮当，叮叮当，</code></pre>
+<figure><img src="assets/examples/repeat-start-1.png" alt="A repeat beginning inside a source row - 1" loading="eager"><figcaption>Rendered output: A repeat beginning inside a source row</figcaption></figure>
+</div>
+<!-- sample:repeat-start:end -->
+<!-- sample:navigation-sign:start -->
+<div class="sample-example" id="en-example-navigation-sign">
+<h3>Segno and a barline meter annotation</h3><p>The last |&amp;ty carries a segno. The preceding |&quot;p:9/8&quot; introduces a local meter. A quoted barline instruction and an ampersand navigation symbol can serve different purposes on the same kind of anchor.</p>
+<p class="sample-provenance">Samples Library: Autumn-Cicada - Fei-Yuqing.jps · source lines 21-22. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/navigation-sign.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 5 3/ 5 3/ | 1&#x27; 6/ 1&#x27; 6/ | 5 5/^ (5/ 6/)~ 5/ |&quot;p:9/8&quot; (4/ 5/)~ 4/ (3. 3.) |&amp;ty
+C: 秋去冬来美景不在，莫教好@春逝@匆匆，</code></pre>
+<figure><img src="assets/examples/navigation-sign-1.png" alt="Segno and a barline meter annotation - 1" loading="eager"><figcaption>Rendered output: Segno and a barline meter annotation</figcaption></figure>
+</div>
+<!-- sample:navigation-sign:end -->
 </section>
 <section id="en-slurs"><h2>21. Slurs and tuplets</h2>
 <p>Wrap music in parentheses for a slur: <code>(1 2 3)</code>. Spans can nest and continue across barlines or music rows on the same page. Open the span in the earlier Q row and close it in the later row of the same voice. Use <code>(y1 2 3)</code> for a tuplet; the group count is inferred from its notes. Do not use a capital Y. Cross-page slurs are not automatically continuous: split/reopen spans at manual page boundaries and inspect the result.</p>
 <pre><code>Q: (1 (2 3) 4 | 5 6
 Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
+<h3>Nested, cross-bar and cross-row spans</h3>
+<p>Open ( on the first included note and close ) on the last. Nested pairs form separate spans; keep a count while editing. A barline inside the pair does not end the slur. On the same page, leave it open at the end of a Q row and close it on a later row of that voice. If a lyric line intervenes, it remains a lyric, not a slur terminator. At a manual page break, split/reopen the span deliberately. Ending branches also need intentional span boundaries; do not place a close on an unrelated voice merely to silence a warning.</p>
+<h3>A slur is not a tuplet</h3>
+<p>(1/ 2/ 3/) is an ordinary three-note slur; (y1/ 2/ 3/) is a tuplet. The renderer infers the count from the group, so changing its notes changes the printed number. Do not type a guessed number after y as though it were a ratio field. Keep the group limited to the intended notes and compare its bracket/number with the reference. A printed tuplet is not proof that every surrounding bar has been rhythmically validated.</p>
+<!-- sample:slur-bar:start -->
+<div class="sample-example" id="en-example-slur-bar">
+<h3>A slur crossing a barline</h3><p>In the second row, (3 - | 3) opens before a continuation and closes in the next bar. The same note number at both endpoints is not enough: the parentheses define the printed span.</p>
+<p class="sample-provenance">Samples Library: As-Wished.jps · source lines 11-12. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/slur-bar.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 3&amp;zkh 6,// 1// 3// 5// 4/ 3/ 2/ 1/ | 7,/ 1/ 2/ 7,/ 3 7 | 1 6,// 1// 3// 5// 4/ 3/ 2/ 1/ | 7, - 0/ 3,/ 6,/ 7,/ |
+Q: 1. 3// 5// 4 - | 0/ 7,/ 1/ 2/ (3 - | 3) 0 0 3/ 1&#x27;/ |&quot;p:2/4&quot; 7 5# |&quot;p:4/4&quot; 6 - -&amp;ykh</code></pre>
+<figure><img src="assets/examples/slur-bar-1.png" alt="A slur crossing a barline - 1" loading="eager"><figcaption>Rendered output: A slur crossing a barline</figcaption></figure>
+</div>
+<!-- sample:slur-bar:end -->
+<!-- sample:tuplets:start -->
+<div class="sample-example" id="en-example-tuplets">
+<h3>Ordinary slurs beside triplet groups</h3><p>(5// 5) is an ordinary slur; (y1/ 2/ 3/) creates a numbered three-note tuplet. The y is lowercase and comes immediately after the opening parenthesis.</p>
+<p class="sample-provenance">Samples Library: Flower-In-Water.jps · source lines 12-13. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/tuplets.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 1&#x27;/ 5/ 6/ 3// (5// 5) (y1/ 2/ 3/) | 2. 3/ 6, (y1/ 2/ 3/) | 2. 3/ 6, 0/ 6,/ | 5,/ 3/ 3 - 0 |
+C: 凄雨冷风中 @多少繁华如梦  曾经万紫千红   @随风吹落</code></pre>
+<figure><img src="assets/examples/tuplets-1.png" alt="Ordinary slurs beside triplet groups - 1" loading="eager"><figcaption>Rendered output: Ordinary slurs beside triplet groups</figcaption></figure>
+</div>
+<!-- sample:tuplets:end -->
 </section>
 <section id="en-endings"><h2>22. Endings and temporary meter</h2>
 <p>Ending brackets [ and ] are attached to barlines. Put their label in a quoted barline annotation. A start at the beginning of a row uses hidden |/. Add / after [ for an open right edge; add + (or several +) to raise the bracket and avoid overlapping slurs. Ending spans may cross rows; keep their endpoints in the correct voice. The same brackets attached to a note mean grace notes, so placement matters.</p>
@@ -256,9 +445,31 @@ Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
 Q: |/[+/&quot;1,2&quot; 1 2 3 4 | 5 6 7 1&#x27; |]</code></pre>
 <p>For a meter change, put <code>"p:3/4"</code> after the barline. This prints a local time signature; inspect grouping separately and use ~ or ^ where needed.</p>
 <pre><code>Q: 1 2 3 4 |&quot;p:3/4&quot; 5 6 7 |</code></pre>
+<h3>Place each ending on barlines</h3>
+<p>An ending opens with [ attached to a barline and closes with ] attached to a later barline. The quoted label belongs to the barline, not to a note. For a beginning at the left of a music row, use |/[&quot;1&quot;. Use [+, [++ and further + to raise the line above nearby slurs. An open-edge form can use / on the bracket syntax; library scores also use a closing |]/ to omit the right corner. Copy a complete opening/closing pair and inspect it rather than moving brackets alone.</p>
+<h3>Cross-row endings and local meter</h3>
+<p>An ending may continue into the next music row on the same page. Keep its label, endpoint, repeat barline and lyric ending consistent. For a local meter, write |&quot;p:3/4&quot; with lowercase p inside the quotes. A row-start local change can use |/&quot;p:3/4&quot;. This is different from header P: 3/4, which sets the initial meter. Review durations and custom grouping at every change; writing a meter annotation alone does not redistribute the source notes.</p>
+<!-- sample:first-second-ending:start -->
+<div class="sample-example" id="en-example-first-second-ending">
+<h3>First and second endings on one row</h3><p>The first [&quot;1&quot; begins on a barline and ends at :|]; [&quot;2&quot; follows on that same boundary and finishes at ||]. Compare the two branches with the matching lyric endings.</p>
+<p class="sample-provenance">Samples Library: JingleBells.jps · source lines 22-24. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/first-second-ending.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 3/ 5/ 1/. 2// 3 - | 4/~ 8~ 4/ 4./~ 4// 4/~ 8~ 3/ 3/~ 3//~ 3// |[&quot;1&quot; 3/ 2/ 2/~ 8~ 1/ (2/ 5.) :|][&quot;2&quot; 5/ 5/ 4/~ 8~ 2/ 1. ||]
+C: Jin- /gle /all /the /way~. Oh @/what /fun /it /is @/to /ride~, in /a /one- /horse /o- @/pen /sleigh~! one- /horse /o- @/pen /sleigh~!
+C: 铃儿响叮当，我@们滑雪多@快乐，我们坐在雪@橇上。坐在雪@橇上。</code></pre>
+<figure><img src="assets/examples/first-second-ending-1.png" alt="First and second endings on one row - 1" loading="eager"><figcaption>Rendered output: First and second endings on one row</figcaption></figure>
+</div>
+<!-- sample:first-second-ending:end -->
+<!-- sample:open-ending-meter:start -->
+<div class="sample-example" id="en-example-open-ending-meter">
+<h3>Raised ending, row-start anchor and open right edge</h3><p>|/ provides an invisible row-start anchor; [+ raises the bracket. The closing |]/ leaves an open right edge. The local &quot;p:2/4&quot; changes the printed meter during the passage.</p>
+<p class="sample-provenance">Samples Library: As-Wished.jps · source lines 32-32. Excerpt rendered with Free Fallback fonts; blank page space omitted. Extra top clearance separates the isolated ending from the header. <a download href="assets/examples/open-ending-meter.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q:  |/[+&quot;2&quot; 6/ 7/ 1&#x27;/ 2&#x27;/ 2&#x27;/ 3&#x27;// (3&#x27;// 3&#x27;/.) 3&#x27;// | 3&#x27;/ 2&#x27;// (4&#x27;// 4&#x27;/) 3&#x27;/ 2&#x27;/ 1&#x27;// (1&#x27;// 1&#x27;/.) 1&#x27;// |&quot;p:2/4&quot; 7/ 1&#x27;// (2&#x27;// 2&#x27;/) 7/ |]/</code></pre>
+<figure><img src="assets/examples/open-ending-meter-1.png" alt="Raised ending, row-start anchor and open right edge - 1" loading="eager"><figcaption>Rendered output: Raised ending, row-start anchor and open right edge</figcaption></figure>
+</div>
+<!-- sample:open-ending-meter:end -->
 </section>
 <section id="en-voices"><h2>23. Voices and temporary accompaniment</h2>
-<p>Use Q1, Q2, etc. for music and C1, C2, etc. for the corresponding lyrics. A voice name can follow its number in quotes. Keep successive voices rhythmically aligned; numbered music rows form a system, while lyrics attach to their matching voice. Single and multiple voices can be mixed. A mid-row voice brace is indicated by &amp;sbf; use hidden rest 8 and hidden barline |* to reserve earlier space in secondary voices.</p>
+<p>Use Q1, Q2, etc. for numbered music parts; C/C1/C2 rows supply the associated lyric lines. Preserve their ordering and inspect the preview when adapting library scores. A voice name can follow its number in quotes. Keep successive voices rhythmically aligned; numbered music rows form a system, while lyrics attach to their matching voice. Single and multiple voices can be mixed. A mid-row voice brace is indicated by &amp;sbf; use hidden rest 8 and hidden barline |* to reserve earlier space in secondary voices.</p>
 <pre><code>Q1&quot;Soprano&quot;: 1 2 3 4 |
 C1: 春 风 吹 来
 Q2&quot;Alto&quot;: 3, 4, 5, 6, |
@@ -269,6 +480,46 @@ Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
 <p>A minimal mid-row brace pattern (inspect alignment in the preview):</p>
 <pre><code>Q1: 1 2 3 4 |&amp;sbf 5 6 7 1&#x27; |
 Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre>
+<h3>Build a system one part at a time</h3>
+<p>Use Q1, Q2, Q3 and Q4 for simultaneous parts, not four successive solo rows. A quoted name follows the number before the colon, for example Q1&quot;Soprano&quot;:. Enter one system, compare bar boundaries and durations across its parts, then add its lyric rows and the next system. A missing rest cannot be repaired by visually adding spaces. Library scores include unnumbered C and numbered lyric lanes; their placement is context-sensitive. Preserve a working sample&#x27;s row ordering and confirm the result when assigning new lyrics.</p>
+<h3>Temporary blocks and a mid-row brace</h3>
+<p>{bz ...} is a temporary accompaniment block; {dsb ...} is temporary multiple-voice content. The lowercase keyword follows { immediately. These attach inline to the main passage, while top-level Q2 starts another full part. Count both brace endpoints and the slurs within the block. For a mid-row voice entry, &amp;sbf marks the brace position in the first voice; secondary voices use duration-compatible hidden 8 events and |* boundaries before the entry. This technique is in the reference but no bundled example uses &amp;sbf, so the minimal pattern above is a constructed exercise, not a library quotation.</p>
+<!-- sample:temporary-accompaniment:start -->
+<div class="sample-example" id="en-example-temporary-accompaniment">
+<h3>Temporary accompaniment above the melody</h3><p>The {bz ...} group is embedded inside the second bar, while the main slur closes on the following 6. A raised second-ending bracket spans the passage. Read brace, bracket and parenthesis pairs separately.</p>
+<p class="sample-provenance">Samples Library: Azalea.jps · source lines 29-30. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/temporary-accompaniment.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q:  |/[+++&quot;2&quot; (6/ 2&#x27;/) (2&#x27;/ 1&#x27;// 6//) | (6[5] - | {bz 6/&amp;zkh 2&#x27;/ 2&#x27;/ 3&#x27;/ | } 6) - | 3&#x27;/ 2&#x27;/ 3&#x27; | 2&#x27; - | 3&#x27; - | 3&#x27; - 8&amp;ykh ||]
+C: 映@山@@红。</code></pre>
+<figure><img src="assets/examples/temporary-accompaniment-1.png" alt="Temporary accompaniment above the melody - 1" loading="eager"><figcaption>Rendered output: Temporary accompaniment above the melody</figcaption></figure>
+</div>
+<!-- sample:temporary-accompaniment:end -->
+<!-- sample:temporary-voices:start -->
+<div class="sample-example" id="en-example-temporary-voices">
+<h3>Temporary multiple voices within a full choir system</h3><p>Q1 contains {dsb 6 - - | 5 - - | } while its main sequence continues with 4. Compare this inline branch with the ordinary Q2/Q3/Q4 parts. A brace group is not a new top-level Q row.</p>
+<p class="sample-provenance">Samples Library: Edelweiss - Choir ChinEng.jps · source lines 11-18. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/temporary-voices.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q1: 3&amp;mp -&lt;+ 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 3 | 3 8 4 8 5 | {dsb 6 - - | 5 - - | } 4 - - | 4 - - |
+C1: 雪绒花，雪绒花，清晨迎@着@我开放，
+C2: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q2: 3 - 3 | 5 - - | 5 - 5 | 4 - - | 3 - 3 | 3 8 1 8 1 | 1 - - | 2 - - |
+Q3: 5&amp;mp -&lt;+ 5 | 5 - -! | 1&#x27;&gt; - 1&#x27; | 6 - -! | 1&#x27; - 1&#x27; | 1&#x27; 8 6 8 6 | 6 - - | 7 - - |
+C3: 雪绒花，雪绒花，清晨迎@着@我开放，
+C4: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q4: 1 - 1 | 7, - - | 3 - 3 | 4 - - | 5 - 5 | 5 8 4 8 3 | 2 - - | 5 - - |</code></pre>
+<figure><img src="assets/examples/temporary-voices-1.png" alt="Temporary multiple voices within a full choir system - 1" loading="eager"><figcaption>Rendered output: Temporary multiple voices within a full choir system</figcaption></figure>
+</div>
+<!-- sample:temporary-voices:end -->
+<!-- sample:four-voices:start -->
+<div class="sample-example" id="en-example-four-voices">
+<h3>Four aligned parts and reserved blank slots</h3><p>Q1 through Q4 form one system. Compare the simultaneous barlines and the inserted 8 slots. Numbered C rows in library files can also denote successive lyric lanes: inspect their actual preview rather than mechanically renumbering a borrowed score.</p>
+<p class="sample-provenance">Samples Library: O-Canada Choir.jps · source lines 13-17. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/four-voices.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q1: 3 - 5. 5/ | 1 - - 2 | 3 8 4 8 5 6 | 2 - - 0 | 3 - 4#. 4/ | 5 - - 6 |
+Q2: 1 - 7,. 7,/ | 6, - - 7, | 1 8 1 8 1 1 | 1 - 7, 0 | 1 - 2. 2/ | 2 - - 3 |
+C: O /Can- /a- /da~! Our/ home / @and /@na-tive/ land~! @@True /pa-triot /love/ in
+Q3: 5 - 4. 4/ | 3 - - 5 | 5 8 5 8 5 4 | 5 - - 0 | 5 - 1&#x27;. 1&#x27;/ | 7 - - 6 |
+Q4: 1 - 5,. 5,/ | 6, - - 5, | 1 8 2 8 3 4 | 5 - - 0 | 1 - 6,. 6,/ | 7, - - 1 |</code></pre>
+<figure><img src="assets/examples/four-voices-1.png" alt="Four aligned parts and reserved blank slots - 1" loading="eager"><figcaption>Rendered output: Four aligned parts and reserved blank slots</figcaption></figure>
+</div>
+<!-- sample:four-voices:end -->
 </section>
 <section id="en-lyrics"><h2>24. Lyrics: Chinese, English and mixed text</h2>
 <p>A C line belongs to the preceding music row; use matching voice numbers for multipart scores. Chinese characters ordinarily map one per note. Punctuation is recognized without becoming a separate sung syllable. @ skips a note; extension - strokes do not each need @. Join two Chinese characters with ~ to fit one note. Several C lines after one Q row supply separate verses.</p>
@@ -279,6 +530,53 @@ C: 第 二 段 词 也 能 写</code></pre>
 <pre><code>Q: 1 2 3 4 |
 C: &quot;Verse_1&quot; Sing/a/new/song
 C: &quot;2.&quot; 春/风/@/song</code></pre>
+<h3>Count sung slots, not visible characters</h3>
+<p>A Chinese character usually fills one sung slot; punctuation does not require its own note. @ advances past an unsung note, while ~ joins adjacent lyric characters into one slot. A continuation dash does not require another @. When a melody has two notes under one syllable, put the syllable on the first and skip the next as required by the source pattern. Check hidden 8 events and rests as well: they can affect alignment even though a digit is not visible. Add one verse first, then duplicate the C row and replace its words.</p>
+<h3>Verse labels, spaces and lyric parentheses</h3>
+<p>Quoted labels precede the lyric they describe, such as C: &quot;1.&quot; ... or a label following initial @ skips. In the legacy label convention, use _ for an ordinary space: &quot;Verse_1&quot;. Do not confuse these quotes with a note annotation in Q. Some library scores enclose an alternate lyric with (~...~); retain the delimiters when borrowing that pattern and inspect the printed punctuation. Ordinary prose spaces are for readability, not a dependable way of mapping each sung syllable.</p>
+<h3>English syllables and mixed languages</h3>
+<p>Use / between sung words or syllables. Split a polysyllabic word deliberately, for example Can-/a-/da, while retaining a visible hyphen where required. A hyphen in C is lyric text, not a musical continuation. @ skips an unsung slot and Chinese/English boundaries may be made explicit with /. The reference allows some separators to be omitted beside Chinese/@, but explicit separators are clearer when editing. Library scores also use ~ within English syllable grouping; inspect the complete pattern before simplifying it.</p>
+<!-- sample:chinese-verses:start -->
+<div class="sample-example" id="en-example-chinese-verses">
+<h3>Chinese verses, skipped notes and a lyric enclosure</h3><p>Both sung verses follow the same Q row. @ skips the second note of a slurred group. The third C row uses the legacy (~...~) lyric enclosure; this is lyric text/grouping, not a music slur.</p>
+<p class="sample-provenance">Samples Library: Farewell.jps · source lines 17-20. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/chinese-verses.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 (2/ 3/) 4. 7,/ | 1 - - - |
+C: 晚风@拂柳笛声残，夕阳@山外山。
+C: 问君@此去几时还，来时@莫徘徊。
+C: (~人生@难得是欢聚，唯有@别离多~)</code></pre>
+<figure><img src="assets/examples/chinese-verses-1.png" alt="Chinese verses, skipped notes and a lyric enclosure - 1" loading="eager"><figcaption>Rendered output: Chinese verses, skipped notes and a lyric enclosure</figcaption></figure>
+</div>
+<!-- sample:chinese-verses:end -->
+<!-- sample:joined-characters:start -->
+<div class="sample-example" id="en-example-joined-characters">
+<h3>Chinese joins and bilingual lyric rows</h3><p>The Chinese text joins 马~儿 and 令~人 so each pair belongs to one lyric slot. The English line uses / to separate words/syllables and @ for unsung notes. Compare both under the same melody.</p>
+<p class="sample-provenance">Samples Library: JingleBells.jps · source lines 14-16. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/joined-characters.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 5/ 5/ 4/ 2/ (3 1/) 5,/ | 5,/ 3/ 2/ 1/ 5,. 5,/ | 5,/ 3/ 2/ 1/ 6,. 6,/ |
+C:  laugh- /ing /all /the /way~.  @@Bells /on /bob- /tail /ring~, @mak- /ing /spir- /its / bright~. What
+C: 欢笑又歌唱。@马~儿铃声响叮当，令~人精神多欢畅，我~们</code></pre>
+<figure><img src="assets/examples/joined-characters-1.png" alt="Chinese joins and bilingual lyric rows - 1" loading="eager"><figcaption>Rendered output: Chinese joins and bilingual lyric rows</figcaption></figure>
+</div>
+<!-- sample:joined-characters:end -->
+<!-- sample:english-syllables:start -->
+<div class="sample-example" id="en-example-english-syllables">
+<h3>English and French syllable alignment</h3><p>Can- /a- /da gives three sung slots. A hyphen in a lyric is visible text, not a duration extension. Both C rows share the melody; the long final syllable does not require a new lyric entry for every continuation stroke.</p>
+<p class="sample-provenance">Samples Library: O-Canada.jps · source lines 13-15. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/english-syllables.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 3 - 5. 5/ | 1 - - 2 | 3 4 5 6 | 2 - - 0 |
+C: O /Can- /a- /da~! Our/ home / and /na-tive/ land~!
+C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,</code></pre>
+<figure><img src="assets/examples/english-syllables-1.png" alt="English and French syllable alignment - 1" loading="eager"><figcaption>Rendered output: English and French syllable alignment</figcaption></figure>
+</div>
+<!-- sample:english-syllables:end -->
+<!-- sample:verse-label:start -->
+<div class="sample-example" id="en-example-verse-label">
+<h3>Quoted verse labels after an initial skip</h3><p>The pickup rest is skipped with @; then &quot;1.　&quot; and &quot;2.　&quot; label the verses. The library uses a full-width space in those labels. For a portable ASCII-space label, use the documented underscore convention.</p>
+<p class="sample-provenance">Samples Library: As-Wished.jps · source lines 14-16. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/verse-label.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 0/. 6,// |: 3 1// 2// 3// (4// 4.) 4// 3// | 2/ 1// (2// 2/) 7,/ 3 - | 0 1/ 3/ 2/ 1// (2// 2/.) 1// | 2/ 1// (2// 2/) 7,/ 3. 0// 6,// |
+C: @&quot;1.　&quot;你是 遥遥的路   @山野大雾里@的灯  @我是孩童啊 @走在你的@眼眸 @你是 明月清风 @我是
+C: @&quot;2.　&quot;@是 岁月长河   @星火燃起的@天空  @我是仰望者 @就把你唱@成歌 @你是</code></pre>
+<figure><img src="assets/examples/verse-label-1.png" alt="Quoted verse labels after an initial skip - 1" loading="eager"><figcaption>Rendered output: Quoted verse labels after an initial skip</figcaption></figure>
+</div>
+<!-- sample:verse-label:end -->
 </section>
 <section id="en-pagination"><h2>25. Manual page breaks</h2>
 <p>Place the exact lowercase token <code>[fenye]</code> on its own line. It creates a new score page; it is not a note annotation. Keep the intended music systems and their lyrics together. Long source does not imply automatic musical reflow or automatic page-spanning slurs. Split/reopen slurs at the page boundary, inspect ending brackets and confirm that each exported page fits its margins.</p>
@@ -289,6 +587,35 @@ C: 第 一 页 词
 
 Q: 5 6 7 1&#x27; ||
 C: 第 二 页 词</code></pre>
+<h3>Choose a boundary after a complete system</h3>
+<p>Put [fenye] on its own line between complete systems. In a multipart score, include every Q part and associated C row before breaking. Close or intentionally split slurs and inspect ending/hairpin endpoints at the boundary. After adding a page, navigate both pages and review their lower margins. The source controls music-row and page boundaries; changing paper or font settings does not replace explicit musical pagination. The example below has two rendered page crops, not a single tall page.</p>
+<!-- sample:page-boundary:start -->
+<div class="sample-example" id="en-example-page-boundary">
+<h3>Two systems separated by a manual page break</h3><p>The first system ends before [fenye]; the next starts with a complete Q1-Q4 system. Both output pages are shown. Keep each system and its lyric rows together when choosing a boundary.</p>
+<p class="sample-provenance">Samples Library: Edelweiss - Choir ChinEng.jps · source lines 29-47. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/page-boundary.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q1: 2&#x27;&amp;mf 0/ 5/ 8 5 | 7 8 6 8 5 | 3 - 8 5 | 1&#x27; - - | 6 - 8 1&#x27; | 2&#x27; - 8 1&#x27; | 7&gt; - - | 5 - -! |
+C1: 白@雪@般~的花@儿@愿你@芬芳，永@远开@花生长。
+C2: Blos-/ @ som/ @ of/ snow~, @may/ @you/ bloom/ @and/ grow~, bloom/ @and/ grow/ @for-/ ev-/ er.
+Q2: 5 0/ 4/ 8 4 | 4 8 4 8 4 | 3 - 8 3 | 3 - - | 4 - 8 6 | 6 - 8 6 | 5 - - | 5 - - |
+Q3: 2&#x27; 0/ 2&#x27;/ 8 2&#x27; | 2&#x27; 8 2&#x27; 8 2&#x27; | 1&#x27; - 8 1&#x27; | 1&#x27; - - | 1&#x27; - 8 1&#x27; | 2&#x27; - 8 2&#x27; | 2&#x27;&gt; - - | 7 - -! |
+C3: 白@雪@般~的花@儿@愿你@芬芳，永@远开@花生长。
+C4: Blos-/ @ som/ @ of/ snow~, @may/ @you/ bloom/ @and/ grow~, bloom/ @and/ grow/ @for-/ ev-/ er.
+Q4: 7 0/ 7/ 8 7 | 5 8 6 8 7 | (1&#x27; 7) 8 6 | 5 - - | 4 - 8 4 | 4# - 8 4 | 5 - - | 4 - - |
+
+[fenye]
+
+Q1: 3&lt;+ - 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 8 5 | 5 8 6 8 7 | 1&#x27;&lt; - - | 1&#x27;# - -! |
+C1: 雪绒花，雪绒花，永@远祝@福@我家乡。
+C2: E-/ del- /weiss~, E-/ del-/ weiss~, bless/ @my/ home-/ @land/ @for-/ ev-/ er~.
+Q2: 3 - 3 | 5 - - | 4 - 3 | 4 - - | 3 - 8 3 | 4 8 4 8 4 | 3 - - | 5 - - |
+Q3:  (3&#x27; 2&#x27;)&lt; 1&#x27; | 2&#x27; - -! | 1&#x27;&gt;++ - 1&#x27; | 1&#x27; - -! | 1&#x27; - 8 1&#x27; | 7 8 7 8 2&#x27; | 1&#x27;&lt;+ - - | 3&#x27; - -! |
+C3: 雪@绒花，雪绒花，永@远祝@福@我家乡。
+C4: E-/ @del- /weiss~, E-/ del-/ weiss~, bless/ @my/ home-/ @land/ @for-/ ev-/ er~.
+Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - |</code></pre>
+<figure><img src="assets/examples/page-boundary-1.png" alt="Two systems separated by a manual page break - 1" loading="eager"><figcaption>Rendered output: Two systems separated by a manual page break (1/2)</figcaption></figure>
+<figure><img src="assets/examples/page-boundary-2.png" alt="Two systems separated by a manual page break - 2" loading="eager"><figcaption>Rendered output: Two systems separated by a manual page break (2/2)</figcaption></figure>
+</div>
+<!-- sample:page-boundary:end -->
 </section>
 <section id="en-practice"><h2>26. Practical editing and review checklist</h2>
 <ul><li>Choose a bundled sample close to the score: ordinary melody, symbols/grace notes, multiple voices or lyrics. Work on a copy.</li>
@@ -299,6 +626,8 @@ C: 第 二 页 词</code></pre>
 <li>Compare each transcribed page with its original, including page transitions and annotations.</li>
 <li>Resolve diagnostics, save the editable master, export and inspect the final files.</li>
 </ul>
+<h3>Use the illustrations as editing exercises</h3>
+<p>Each illustrated block pairs exact selected source lines with a fresh OctoPus render. The header is included in the download; display crops remove unused page whitespace only. Open the named sample to see its full musical context, or open the excerpt to isolate the syntax. Change one token at a time, compare preview and export, then Undo. A successful render demonstrates notation/layout, not verified transcription or complete harmonic/rhythmic correctness.</p>
 </section>
 <section id="en-troubleshooting"><h2>27. Troubleshooting and feedback</h2>
 <table><thead><tr><th>Symptom</th><th>What to check</th></tr>
@@ -315,7 +644,7 @@ C: 第 二 页 词</code></pre>
 <p>For a reproducible issue, share the app version, OS, minimal JPS, relevant settings, steps and expected/actual result. Include original/reference images only when appropriate. Use <a href="https://github.com/OctaveMelody/OctoPus/issues">Report Issues</a>; proposed changes use the <a href="https://github.com/OctaveMelody/OctoPus/pulls">pull-request page</a>. The historical specification’s old personal contact details are not the OctoPus support route.</p>
 </section>
 <section id="en-sources"><h2>28. Reference basis and compatibility</h2>
-<p>This manual consolidates the locally retained Jianpu-Spec v1.0 chapters: introduction, descriptive header, music, lyrics and feedback. Image-only symbol/dynamic/barline tables were read and rewritten as text tables above. It also uses the captured Website-Contents/Zhipu-jsCode-editor for source formatting and source/preview-position conventions, checked against OctoPus behavior. The retained Zhipu-draw file is empty and contributes no additional instructions.</p>
+<p>This manual consolidates the locally retained Jianpu-Spec v1.0 chapters: introduction, descriptive header, music, lyrics and feedback. Image-only symbol/dynamic/barline tables were read and rewritten as searchable text tables. This edition adds detailed explanations and 25 attributed Sample Library excerpts with 26 rendered images; original reference screenshots are not redistributed. Minimal syntax drills remain where the library has no matching example. It also uses the captured Website-Contents/Zhipu-jsCode-editor for source formatting and source/preview-position conventions, checked against OctoPus behavior. The retained Zhipu-draw file is empty and contributes no additional instructions.</p>
 <p>The notation syntax is inherited; the product/UI instructions and roadmap describe OctoPus. Historical claims about MIDI, playback, website auto-format settings or personal support contacts are not current desktop features. Runtime/parser, font policy, import limits and sample documents provide the current implementation cross-check. This is a rewritten usage guide, not a copy of the original scripts. References and authoring tools stay in OctoPus-dev; the production app ships this self-contained guide and its PDFs.</p>
 <p><a href="https://github.com/OctaveMelody/OctoPus">Project home</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/README.md">Production README</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/ENVIRONMENT.md">Build environment</a></p>
 </section>
@@ -362,6 +691,18 @@ J: 90
 Q: 1 2 3 4 | 5 6 7 1&#x27; ||
 C: 春 风 吹 来 花 儿 开 了</code></pre>
 <p>该示例有两个小节，每小节四个音符；最后一个音符高一个八度。八个歌词汉字分别对应八个音符。</p>
+<h3>从示例曲谱入门</h3>
+<p>点击示例库，找到 Farewell 并打开工作副本。先读描述头，再找到以 Q: 5 (3/ 5/) 开头的行。将源码光标放在 1&#x27;. 上，对照预览中的高音附点。只删改附点，比较结果，再撤销。然后在复制的歌词行中移动一个 @，观察哪个音失去唱词。需要保留练习时先另存为。下方可下载的摘录都包含原描述头，即使页面只展示主体行。</p>
+<!-- sample:first-score:start -->
+<div class="sample-example" id="zh-CN-example-first-score">
+<h3>单声部旋律与两段歌词</h3><p>在示例库打开 Farewell（送别）。此处摘录第二行演唱旋律。逐一对照四个小节线、高音 1 的附点、低音 7 和两行歌词。下载摘录可单独练习该片段。</p>
+<p class="sample-provenance">示例库：Farewell.jps · 源码行 17-19。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/first-score.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 (2/ 3/) 4. 7,/ | 1 - - - |
+C: 晚风@拂柳笛声残，夕阳@山外山。
+C: 问君@此去几时还，来时@莫徘徊。</code></pre>
+<figure><img src="assets/examples/first-score-1.png" alt="单声部旋律与两段歌词 - 1" loading="eager"><figcaption>渲染结果: 单声部旋律与两段歌词</figcaption></figure>
+</div>
+<!-- sample:first-score:end -->
 </section>
 <section id="zh-CN-workspace"><h2>4. 工作区与界面</h2>
 <p>顶栏提供新建、打开、保存、另存为、导出、关闭、帮助、导入 PNG/JPG/PDF、示例库、页面设置、偏好设置及退出。点击图标或品牌文字会打开项目主页。第二行用于选择模式和布局以及聚焦面板；拖动面板之间的边界即可调整大小。</p>
@@ -443,6 +784,10 @@ C: 春 风 吹 来 花 儿 开 了</code></pre>
 <section id="zh-CN-jps-structure"><h2>13. JPS 结构与约定</h2>
 <p>JPS 是普通文本，通常以 .jps 为扩展名。乐谱由描述头及曲 Q:、词 C: 组成。一个 Q 行对应一行印刷曲谱；随后 C 行依附该曲行。带数字前缀标识声部。空行便于阅读。以 # 开始的整行是注释；Q 行中的 # 是升音记号，不是注释。</p>
 <p>原规范将 V、B、D、P 列为必需字段。虽然 OctoPus 容忍不完整草稿，完整乐谱仍应包含这些字段。建议使用大写字段/行前缀及小写字面量 <code>[fenye]</code>。注意描述头和主体的区别；重复 B/Z 字段有特定排版用途。未知语法可能被保留并提示，不代表能按预期渲染。</p>
+<h3>分三步阅读源码</h3>
+<p>先读描述头中的标题、调号、拍号和速度；再只读 Q 行：数字与休止符是音乐事件，后缀修饰前面的主音，小节线分隔音乐；最后读 C 行，将歌词位置与音符逐一核对。源码顺序也决定排版顺序：移动整行 Q 会改变音乐位置，把 C 从原行移走则可能使歌词依附另一行。主体应从曲开始，不要先放无所属的歌词。</p>
+<h3>纯 JPS 与保存文档外层</h3>
+<p>示例 .jps 可能是 JSON 文档：code 字段保存 JPS，page_config 字段保存页面设置。在 JPS 源码面板中编辑音乐内容，不必编辑 JSON 标点。手册下载摘录采用 UTF-8 纯 JPS，可直接打开或复制，包含描述头与主体。要精确复现图中的间距，应打开标明名称的示例以恢复其页面设置。</p>
 </section>
 <section id="zh-CN-headers"><h2>14. 描述头</h2>
 <table><thead><tr><th>字段</th><th>值示例</th><th>含义</th></tr>
@@ -466,6 +811,31 @@ P: 4/4 (2/4 1/4)
 J: 90 欢快地
 X: 10</code></pre>
 <p>调号使用大写 A-G，例如 C、F#、E$。多个 B 行在主标题下显示副标题；多个 Z 行将作者文字列于右上方。P 用斜线分隔分子/分母，空格与括号可列出辅助拍号。J 可以是每分钟拍数、文字或两者。X 是序号元数据，不是声部编号。描述头用于记谱，速度字段不会启用播放。</p>
+<h3>必需字段与重复字段</h3>
+<p>完整曲谱应写 V、B、D、P。V: 1.0 是语法版本，不是 OctoPus 程序版本。首个 B 为居中主标题，后续 B 为居中副标题；每个 Z 产生一行右对齐署名。J 可选，表示速度；X 可保存目录序号。把这些字段放在首个 Q 之前。未完成稿可能仍可预览，但不应以缺字段的形式作为通用文档。</p>
+<h3>调号、拍号、速度与注释</h3>
+<p>D: F# 与 D: E$ 分别表示升、降调；使用大写 A-G 和半角 #/$。P: 6/8 指定拍号，P: 4/4 (2/4 1/4) 还列出辅助拍号，但不能代替小节线上的局部换拍。J: 90 表示数字速度，J: 欢快的 表示文字，也可兼用。整行以 # 开头是源码注释；Q 内的 4# 却是升音。带引号的注释会印在谱上，源码注释不会。</p>
+<!-- sample:header-layout:start -->
+<div class="sample-example" id="zh-CN-example-header-layout">
+<h3>描述头排版与多语言标题</h3><p>第二个 B 是副标题；三个 Z 分别表示署名。D: E$ 显示降 E 调，P 指定 4/4，J 指定数字速度。标题中的竖线是普通文字，不是音乐小节线。</p>
+<p class="sample-provenance">示例库：O-Canada.jps · 源码行 13-15。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/header-layout.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>V: 1.0
+B: O Canada | Ô Canada
+B: --- Canada National Anthem
+D: E$
+P: 4/4
+J: 93
+Z: Sir Adolphe-Basile Routhier 　词
+Z: Calixa Lavallee 　曲
+Z: Robert Stanley Weir 英译
+
+Q: 3 - 5. 5/ | 1 - - 2 | 3 4 5 6 | 2 - - 0 |
+C: O /Can- /a- /da~! Our/ home / and /na-tive/ land~!
+C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,
+</code></pre>
+<figure><img src="assets/examples/header-layout-1.png" alt="描述头排版与多语言标题 - 1" loading="eager"><figcaption>渲染结果: 描述头排版与多语言标题</figcaption></figure>
+</div>
+<!-- sample:header-layout:end -->
 </section>
 <section id="zh-CN-notes"><h2>15. 音符、音区与时值</h2>
 <table><thead><tr><th>语法</th><th>含义</th></tr>
@@ -483,15 +853,77 @@ X: 10</code></pre>
 </table>
 <p>兼容记谱中，单个数字以四分音符为基本单位。每个紧附斜线将时值减半。附点增加原时值的一半，双附点增加一半再加四分之一（合计原时值的 1.75 倍）。增时连字符表示简谱延续线；歌词无需为每条增时线单独跳过。八度逗号/单引号写在数字后，不要在音符与后缀间加空格。</p>
 <pre><code>Q: 1 2&#x27; 3,, 0 | 1/ 2/ 3// 4// 5/ 6 7 | 6. 7/ 1&#x27; - ||</code></pre>
+<h3>音级、休止、隐藏休止与节奏 X</h3>
+<p>1-7 表示相对于 D 的音级，不是绝对 MIDI 音高。0 是可见休止符；8 是隐藏休止或空白事件，常用于声部占位，并非第八音级；9 画节奏 X，并非音高 9。增时线 - 延续发声，不是另一个需要唱词的起音。隐藏 8 仍是源码事件；歌词错位时，应对照它的位置及 @，不要直接删掉所有不可见占位。</p>
+<h3>先核对时值，再调整排版</h3>
+<p>基本数字按四分音符计算：无 / 为 1，/ 为 1/2，// 为 1/4，/// 为 1/8。单附点乘 1.5，双附点乘 1.75。因此 5/. 为四分音符的 3/4，5//. 为 3/8，5.. 为 1.75。常规简谱中的独立增时线增加延续拍。4/4 的普通完整小节可放四个四分音符；6/8 可放六个八分音符。连接减时线、合并歌词或增加空格都不能修正错误的总时值。</p>
+<h3>把后缀连在主音后</h3>
+<p>高音用撇号，低音用逗号；重复表示多个八度。7,/# 同时带低音、八分音符减时线与升号。示例中有多种兼容后缀顺序，宜以可用片段为基础修改，不要把复合音符拆成不相连的文字。Q 中的点是附点，C 中的标点属于歌词。不要将半角撇号改为排版引号。</p>
+<!-- sample:duration-rest:start -->
+<div class="sample-example" id="zh-CN-example-duration-rest">
+<h3>时值、音区与隐藏休止符</h3><p>3/ 与 5/ 为八分音符，1&#x27;. 为高音附点音符，7,/ 为低音八分音符。末尾的 0 可见，8 占位却不显示休止数字。&amp;zkh / &amp;ykh 标明伴奏括弧。</p>
+<p class="sample-provenance">示例库：Farewell.jps · 源码行 10-10。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/duration-rest.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 5&amp;zkh 3/ 5/ 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 2/ 3/ 4. 7,/ | 1 - - 0 8&amp;ykh |</code></pre>
+<figure><img src="assets/examples/duration-rest-1.png" alt="时值、音区与隐藏休止符 - 1" loading="eager"><figcaption>渲染结果: 时值、音区与隐藏休止符</figcaption></figure>
+</div>
+<!-- sample:duration-rest:end -->
+<!-- sample:short-values:start -->
+<div class="sample-example" id="zh-CN-example-short-values">
+<h3>三十二分音符与增时线</h3><p>三个 / 产生三条减时线。比较开头的 0、低音逗号和高音撇号、短音符串，以及末尾的 2 -。末尾 (y...) 是连音，后文详解。</p>
+<p class="sample-provenance">示例库：Flower-In-Water.jps · 源码行 10-10。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/short-values.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 0&amp;zkh 0 6/// 1&#x27;/// 5/// 6/// 3/// 5/// 2/// 3/// 1/// 2/// 6,/// 1/// 5,/// 6,/// 2,/// 3,/// | 1/ 5,/ 6,/ 7,/ 5,/ 6,/ 5,/ | 2 - (y3 5 6&amp;ykh) |</code></pre>
+<figure><img src="assets/examples/short-values-1.png" alt="三十二分音符与增时线 - 1" loading="eager"><figcaption>渲染结果: 三十二分音符与增时线</figcaption></figure>
+</div>
+<!-- sample:short-values:end -->
 </section>
 <section id="zh-CN-beaming"><h2>16. 自定义节拍分组</h2>
 <p>参考记谱按四分音符单位自动分组，6/8 等复拍子或特殊分组可能需要手动处理。<code>~</code> 将相邻音符串接为一组，<code>^</code> 强制切开。这些记号控制减时线的视觉分组，不是新的音高或歌词音节。应对照实际节拍检查，不能只依赖 P 字段。</p>
 <pre><code>P: 6/8
 Q: 1/~2/~3/^4/~5/~6/ |</code></pre>
+<h3>~ 与 ^ 的作用位置</h3>
+<p>在曲中，短音符后的 ~ 将其与后音连为一组，^ 强制在后音前断开。1/~2/~3/^4/~5/~6/ 把六个八分音符分为前后三音组，适用于沿用的四分拍自动分组与复合拍不符时。十六分音符串还需检查两层减时线。在歌词中 ~ 则用于合并一个唱词位置。曲中的 ~、^ 都不会增加音符。</p>
+<!-- sample:beam-control:start -->
+<div class="sample-example" id="zh-CN-example-beam-control">
+<h3>复合拍中的连接与拆分</h3><p>描述头列出 6/8 与 9/8。第一行的 6/^ 强制断开，5/~ 4/~ 1/ 连成一组；第二行展示以 ~ 连接的长音群。这些符号改变分组，不改变时值。</p>
+<p class="sample-provenance">示例库：Autumn-Cicada - Fei-Yuqing.jps · 源码行 11-12。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/beam-control.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 6/&amp;sby&amp;zkh | 5 6/^ 5/~ 4/~ 1/ | (3&#x27;. 3&#x27;) 3&#x27;/ | 2 3/ 2 1/ | (7,. 7,.) |
+Q: 5,//~ 6,//~ 7,//~ 1//~ 2//~ 3// 1//~ 2//~ 3//~ 4//~ 5//~ 6// | 4//~ 5//~ 6//~ 7//~ 1&#x27;//~ 2&#x27;// 7//~ 6//~ 5//~ 6//~ 4//~ 2// | (1. 1.) 8&amp;ykh |</code></pre>
+<figure><img src="assets/examples/beam-control-1.png" alt="复合拍中的连接与拆分 - 1" loading="eager"><figcaption>渲染结果: 复合拍中的连接与拆分</figcaption></figure>
+</div>
+<!-- sample:beam-control:end -->
 </section>
 <section id="zh-CN-accidentals"><h2>17. 变音与倚音</h2>
 <p>升音 #、降音 $、还原 = 写在所属数字后，例如 4#、7$、3=。倚音使用音符后紧附的方括号：<code>1[23]</code> 表示前倚音，<code>1[h23]</code> 表示后倚音。组内仍支持逗号/单引号、斜线及变音。倚音默认八分，加一条斜线成为十六分。紧附音符的方括号与小节线处的跳房子括号不同。</p>
 <pre><code>Q: 4# 7$ 3= 1[2/3&#x27;] | 5[h6,7/] - ||</code></pre>
+<h3>变音记号的位置与核对</h3>
+<p>变音记号写在所属数字后，如 4#、7$、3=，印刷位置却在数字前。D 改变描述头调号；音符变音记号针对具体书写音符。把片段复制到另一调号环境后，应检查后续重复音及还原号。OctoPus 按输入记谱，不能替用户判断和声拼写或补齐所有缺失还原。</p>
+<h3>倚音是依附主音的小音符组</h3>
+<p>1[23] 为依附主音 1 的前倚音组，1[h23] 为后倚音组。h 放在 [ 后，不放在 ] 后。组内可写多个音、音区、变音及减时线；裸数字已按八分倚音显示，/ 变为十六分。主音仍保留自身时值与歌词，不应为每个倚音数字另分配主旋律唱词；也不要将方括号移到小节线，那会变成结尾线语法。</p>
+<!-- sample:accidental-return:start -->
+<div class="sample-example" id="zh-CN-example-accidental-return">
+<h3>降号、升号与还原号</h3><p>Q2 中的 3$ 后有 3=，Q4 中的 4# 后有 4=。符号在源码中写于数字后，谱面却画在数字前。隐藏 8 用于对齐合唱声部。此摘录仅渲染所选两个声部。</p>
+<p class="sample-provenance">示例库：Edelweiss - Choir ChinEng.jps · 源码行 23-23, 27-27。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/accidental-return.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q2: 3 - 8 3 | 5 - - | 5 - 8 5 | 4 - - | 3 - 5 | 4 8 3$ 8 2 | 3= - - | 1&#x27; - - |
+Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; - - |</code></pre>
+<figure><img src="assets/examples/accidental-return-1.png" alt="降号、升号与还原号 - 1" loading="eager"><figcaption>渲染结果: 降号、升号与还原号</figcaption></figure>
+</div>
+<!-- sample:accidental-return:end -->
+<!-- sample:grace-register:start -->
+<div class="sample-example" id="zh-CN-example-grace-register">
+<h3>前后倚音与音区</h3><p>前四个主音比较前倚音、后倚音及短时值；后面的小节比较倚音的低音与高音。[h...] 在谱面位于主音之后，[...] 位于之前，但源码均写在主音数字后。</p>
+<p class="sample-provenance">示例库：Symbols.jps · 源码行 8-8。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/grace-register.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 1[1/] 1[1] 1[h1] 1[h1/] | 1[1,/] 1[1,] 1[h1,,] 1[h1,,/] | 1[1&#x27;/] 1[1&#x27;&#x27;] 1[h1&#x27;] 1[h1&#x27;&#x27;/] |</code></pre>
+<figure><img src="assets/examples/grace-register-1.png" alt="前后倚音与音区 - 1" loading="eager"><figcaption>渲染结果: 前后倚音与音区</figcaption></figure>
+</div>
+<!-- sample:grace-register:end -->
+<!-- sample:grace-groups:start -->
+<div class="sample-example" id="zh-CN-example-grace-groups">
+<h3>包含多个音的倚音组</h3><p>左小节为前倚音组，右小节以 h 表示相应后倚音组。组内的 / 单独缩短倚音，不改变主音时值。</p>
+<p class="sample-provenance">示例库：Symbols.jps · 源码行 15-15。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/grace-groups.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 1&#x27;/[23] 7/[23/4] 2,/[3/4/] 3,/[45/] 4[5/6] 5&#x27;/[1/2/3/] 6/[5/67/] | 1&#x27;/[h23] 7/[h23/4] 2,/[h3/4/] 3,/[h45/] 4[h5/6] 5&#x27;/[h1/2/3/] 6/[h5/67/] |</code></pre>
+<figure><img src="assets/examples/grace-groups-1.png" alt="包含多个音的倚音组 - 1" loading="eager"><figcaption>渲染结果: 包含多个音的倚音组</figcaption></figure>
+</div>
+<!-- sample:grace-groups:end -->
 </section>
 <section id="zh-CN-dynamics"><h2>18. 力度与渐强渐弱</h2>
 <p>在音符后附加 &amp; 编码，例如 <code>3&amp;mp</code>。参考术语包括 pp、p、mp、mf、f、ff、fff、cresc、dim、sf、fp、sfp、a tempo 和 rit；双词术语写作 <code>&amp;a tempo</code>。渐强以 &lt; 开始，渐弱以 &gt; 开始，以 ! 结束；开头记号后加 + 可上移以避免重叠。这些是印刷演奏提示，桌面程序不会将其转换为音频播放控制。</p>
@@ -514,6 +946,25 @@ Q: 1/~2/~3/^4/~5/~6/ |</code></pre>
 <tr><td><code>&amp;rit</code></td><td>渐慢</td></tr>
 </tbody>
 </table>
+<h3>渐强弱的起点、终点与高度</h3>
+<p>在起点主音上写 &lt; 或 &gt;，在终点写 !。单独开启的线没有可靠终点，应在分页前明确闭合。&lt;+、&gt;++ 比默认位置更高，+ 越多请求的抬高越大。先使用能避开连音线或结尾线的最小偏移，再检查相邻系统及导出。页面间距移动整行，+ 移动指定记号，两者是不同调整。</p>
+<h3>力度术语是谱面指示</h3>
+<p>把 &amp;mp、&amp;mf、&amp;f 等表中术语写在指示开始的音后，保留多词 &amp;a tempo 的完整写法。pp 至 fff 表示强弱，cresc/dim 表示渐变，rit、a tempo 表示速度。&amp;yc 延长记号不是力度，但同样使用 &amp; 机制。这些印刷术语不会提供播放或 MIDI 输出。</p>
+<!-- sample:hairpin-height:start -->
+<div class="sample-example" id="zh-CN-example-hairpin-height">
+<h3>合唱中的力度与抬高渐强线</h3><p>Q1 与 Q3 以 &amp;mp 开始。&lt;+ 开启抬高的渐强线，! 结束；随后 &gt; 开启渐弱线。对照其端点及其他声部的音符、休止符，并检查同一系统中的歌词。</p>
+<p class="sample-provenance">示例库：Edelweiss - Choir ChinEng.jps · 源码行 11-18。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/hairpin-height.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q1: 3&amp;mp -&lt;+ 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 3 | 3 8 4 8 5 | {dsb 6 - - | 5 - - | } 4 - - | 4 - - |
+C1: 雪绒花，雪绒花，清晨迎@着@我开放，
+C2: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q2: 3 - 3 | 5 - - | 5 - 5 | 4 - - | 3 - 3 | 3 8 1 8 1 | 1 - - | 2 - - |
+Q3: 5&amp;mp -&lt;+ 5 | 5 - -! | 1&#x27;&gt; - 1&#x27; | 6 - -! | 1&#x27; - 1&#x27; | 1&#x27; 8 6 8 6 | 6 - - | 7 - - |
+C3: 雪绒花，雪绒花，清晨迎@着@我开放，
+C4: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q4: 1 - 1 | 7, - - | 3 - 3 | 4 - - | 5 - 5 | 5 8 4 8 3 | 2 - - | 5 - - |</code></pre>
+<figure><img src="assets/examples/hairpin-height-1.png" alt="合唱中的力度与抬高渐强线 - 1" loading="eager"><figcaption>渲染结果: 合唱中的力度与抬高渐强线</figcaption></figure>
+</div>
+<!-- sample:hairpin-height:end -->
 </section>
 <section id="zh-CN-ornaments"><h2>19. 装饰、括弧与注释</h2>
 <table><thead><tr><th>音符后编码</th><th>含义</th></tr>
@@ -533,6 +984,28 @@ Q: 1/~2/~3/^4/~5/~6/ |</code></pre>
 <p>这些短编码来自记谱参考，多以中文名称拼音首字母构成，应附到正确音符。波音/颤音的 + 后缀选用图例中的另一形态。音符后加双引号注释可在上方显示文字。伴奏括弧 &amp;zkh、&amp;ykh 同样写在所属数字后，即使绘制的左括弧位于音乐前方。</p>
 <pre><code>Q: 3&amp;yc 3&amp;bc 3&amp;zy 3&amp;dy | 3&amp;hx 3&amp;shy 3&amp;xhy 3&amp;cy |
 Q: 1&amp;zkh 2 3 4&amp;ykh | 5&quot;轻柔地&quot; - - - ||</code></pre>
+<h3>选择正确主音与变体</h3>
+<p>&amp;yc 为延长，&amp;bc 为保持音，&amp;zy 为重音，&amp;dy 为顿音，&amp;hx 为换气。&amp;shy/&amp;xhy 为上、下滑音，&amp;sby/&amp;xby 为上、下波音，&amp;cy 为颤音。表中的 + 形式选择装饰记号变体，此处 + 不等同于渐强线高度偏移。可兼容的多种代码能附在一个主音上，如 6/&amp;sby&amp;zkh；需检查是否拥挤。</p>
+<h3>三种文字与括号用途</h3>
+<p>音后引号注释如 5&quot;轻柔地唱&quot; 印在该音附近；小节线引号注释属于边界；整行 # 注释不印刷。伴奏括弧应在首、末音后写 &amp;zkh、&amp;ykh。Q 中 (...) 是音乐连线，不是一对伴奏字形。C 中的普通标点及旧式 (~...~) 属于歌词，不是音乐跨度语法。</p>
+<!-- sample:fermata-rit:start -->
+<div class="sample-example" id="zh-CN-example-fermata-rit">
+<h3>渐慢与延长记号</h3><p>5&amp;rit 印出渐慢术语；7,/&amp;yc 在低音八分音符上画延长记号。OctoPus 当前没有播放功能，这些记号仅用于谱面。</p>
+<p class="sample-provenance">示例库：Farewell.jps · 源码行 34-36。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/fermata-rit.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5&amp;rit (2/ 3/) 4. 7,/&amp;yc | 1 - - 0 ||
+C: 人生@难得是欢聚，唯有@别离多。
+C: (~问君@此去几时还，来时@莫徘徊~)</code></pre>
+<figure><img src="assets/examples/fermata-rit-1.png" alt="渐慢与延长记号 - 1" loading="eager"><figcaption>渲染结果: 渐慢与延长记号</figcaption></figure>
+</div>
+<!-- sample:fermata-rit:end -->
+<!-- sample:tenuto-parentheses:start -->
+<div class="sample-example" id="zh-CN-example-tenuto-parentheses">
+<h3>保持音与伴奏括弧</h3><p>末小节每个音后均有 &amp;bc。&amp;zkh 写在首音后，&amp;ykh 写在末音后，形成可见伴奏括弧而不增加音乐事件。</p>
+<p class="sample-provenance">示例库：China-In-The-Lights.jps · 源码行 21-21。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/tenuto-parentheses.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 8 2 (2/ 3/) (4/ 3/) 2/ 1/ | 1/. (1// 1/) 6/ 6 - | 1/ 7,/ 7,/ 1/ 2/ 1/ 2/ (3/ | 3/) (1/ 1) - - | 2&amp;bc&amp;zkh 3&amp;bc 4&amp;bc 5&amp;bc&amp;ykh |</code></pre>
+<figure><img src="assets/examples/tenuto-parentheses-1.png" alt="保持音与伴奏括弧 - 1" loading="eager"><figcaption>渲染结果: 保持音与伴奏括弧</figcaption></figure>
+</div>
+<!-- sample:tenuto-parentheses:end -->
 </section>
 <section id="zh-CN-barlines"><h2>20. 小节线与反复指示</h2>
 <table><thead><tr><th>语法</th><th>外观/用途</th></tr>
@@ -557,11 +1030,56 @@ Q: 1&amp;zkh 2 3 4&amp;ykh | 5&quot;轻柔地&quot; - - - ||</code></pre>
 </tbody>
 </table>
 <p>反复/导航记号属于小节线，不是普通音符。行首需要小节线附属记号却不应显示线时用 |/；需要占位对齐时用 |*，尤其是单、多声部混合。程序显示这些指示，但没有播放跳转功能。</p>
+<h3>可见与隐藏边界</h3>
+<p>普通边界用 |，终止细粗线用 ||，双细线用 ||/；|:、:|、:|: 分别为反复起点、终点及合并边界。小节线分隔音乐，不插入休止符。|/ 不可见且不占小节线宽度，可作行首结尾线或跳转记号锚点；|* 不可见但占位，可对齐后进入的声部。两种隐藏线不能任意互换。</p>
+<h3>Fine、D.C.、D.S. 与跳转记号</h3>
+<p>将 &amp;fine、&amp;dc、&amp;ds 附在小节线后，分别显示 Fine、D.C.、D.S.；&amp;ty 画跳转记号，&amp;hs 画 Coda 记号。行首记号宜用隐藏 |/ 作锚点，不要附在无关音后。&quot;1,2&quot; 结尾标签与跳转指令不同。程序显示符号但不执行播放路线，需自行核对反复路径完整性。</p>
+<!-- sample:repeat-start:start -->
+<div class="sample-example" id="zh-CN-example-repeat-start">
+<h3>源码行内开始反复</h3><p>|: 位于两个小节之后。反复起点属于音乐内容，不表示必须另起源码行。歌词中的 @ 跳过进入副歌前未唱词的音符。</p>
+<p class="sample-provenance">示例库：JingleBells.jps · 源码行 18-20。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/repeat-start.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 6,/ 4/ 3/~ 8~ 2/ 5/~ 8~ 5/ 5/~ 8~ 5/ | 6/ 5/ 4/~ 8~ 2/ 1. 0/ |: 3/ 3/ 3 3/ 3/ 3 |
+C: fun /it /is @/to /ride @/and /sing @/a /sleigh- /ing /song @/to- /night~. @Jin- /gle /bells~, jin- /gle /bells~,
+C: 今晚滑@雪真@快乐@把滑雪歌@儿唱。@叮叮当，叮叮当，</code></pre>
+<figure><img src="assets/examples/repeat-start-1.png" alt="源码行内开始反复 - 1" loading="eager"><figcaption>渲染结果: 源码行内开始反复</figcaption></figure>
+</div>
+<!-- sample:repeat-start:end -->
+<!-- sample:navigation-sign:start -->
+<div class="sample-example" id="zh-CN-example-navigation-sign">
+<h3>跳转记号与小节线拍号注释</h3><p>末尾 |&amp;ty 带有跳转记号，前面的 |&quot;p:9/8&quot; 显示局部拍号。小节线引号注释与 &amp; 跳转符号虽都依附小节线，含义却不同。</p>
+<p class="sample-provenance">示例库：Autumn-Cicada - Fei-Yuqing.jps · 源码行 21-22。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/navigation-sign.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 5 3/ 5 3/ | 1&#x27; 6/ 1&#x27; 6/ | 5 5/^ (5/ 6/)~ 5/ |&quot;p:9/8&quot; (4/ 5/)~ 4/ (3. 3.) |&amp;ty
+C: 秋去冬来美景不在，莫教好@春逝@匆匆，</code></pre>
+<figure><img src="assets/examples/navigation-sign-1.png" alt="跳转记号与小节线拍号注释 - 1" loading="eager"><figcaption>渲染结果: 跳转记号与小节线拍号注释</figcaption></figure>
+</div>
+<!-- sample:navigation-sign:end -->
 </section>
 <section id="zh-CN-slurs"><h2>21. 连音线与多连音</h2>
 <p>用圆括号包围音乐表示连音线，例如 <code>(1 2 3)</code>。连线可嵌套，也可跨小节或同页曲行；在同一声部前行打开，在后行关闭。<code>(y1 2 3)</code> 表示多连音，数量由组内音符推定，y 必须小写。跨页连音线不会自动连续；手动分页时应分开并重新开始连线，检查最终效果。</p>
 <pre><code>Q: (1 (2 3) 4 | 5 6
 Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
+<h3>嵌套、跨小节与跨行连线</h3>
+<p>在包含的首音前写 (，末音后写 )。嵌套括号形成独立跨度，编辑时逐层计数；括号内的小节线不会结束连线。同页跨行时，可在一个 Q 行末保持开启，在同声部后续行闭合。中间 C 行仍是歌词，不会终止音乐连线。手动分页处须有意切分、重新开启；结尾分支也需明确边界，不能只为消除警告而在另一声部随意闭合。</p>
+<h3>连音线与多连音的区别</h3>
+<p>(1/ 2/ 3/) 是普通三音连线；(y1/ 2/ 3/) 是连音组。程序从组内音符推算数量，增删音符会改变显示数字。不要把猜测的数字接在 y 后，当作比例字段。限定组内范围，并对照原谱的数字和括号；显示连音数字不表示整小节时值已自动验证。</p>
+<!-- sample:slur-bar:start -->
+<div class="sample-example" id="zh-CN-example-slur-bar">
+<h3>跨小节连音线</h3><p>第二行 (3 - | 3) 在增时线前开启，跨过小节线后闭合。两端数字相同本身不会自动生成连线；括号才定义跨度。</p>
+<p class="sample-provenance">示例库：As-Wished.jps · 源码行 11-12。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/slur-bar.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 3&amp;zkh 6,// 1// 3// 5// 4/ 3/ 2/ 1/ | 7,/ 1/ 2/ 7,/ 3 7 | 1 6,// 1// 3// 5// 4/ 3/ 2/ 1/ | 7, - 0/ 3,/ 6,/ 7,/ |
+Q: 1. 3// 5// 4 - | 0/ 7,/ 1/ 2/ (3 - | 3) 0 0 3/ 1&#x27;/ |&quot;p:2/4&quot; 7 5# |&quot;p:4/4&quot; 6 - -&amp;ykh</code></pre>
+<figure><img src="assets/examples/slur-bar-1.png" alt="跨小节连音线 - 1" loading="eager"><figcaption>渲染结果: 跨小节连音线</figcaption></figure>
+</div>
+<!-- sample:slur-bar:end -->
+<!-- sample:tuplets:start -->
+<div class="sample-example" id="zh-CN-example-tuplets">
+<h3>普通连音线与三连音并列</h3><p>(5// 5) 是普通连音线，(y1/ 2/ 3/) 是标出数字的三连音。y 必须小写，并紧跟左括号。</p>
+<p class="sample-provenance">示例库：Flower-In-Water.jps · 源码行 12-13。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/tuplets.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 1&#x27;/ 5/ 6/ 3// (5// 5) (y1/ 2/ 3/) | 2. 3/ 6, (y1/ 2/ 3/) | 2. 3/ 6, 0/ 6,/ | 5,/ 3/ 3 - 0 |
+C: 凄雨冷风中 @多少繁华如梦  曾经万紫千红   @随风吹落</code></pre>
+<figure><img src="assets/examples/tuplets-1.png" alt="普通连音线与三连音并列 - 1" loading="eager"><figcaption>渲染结果: 普通连音线与三连音并列</figcaption></figure>
+</div>
+<!-- sample:tuplets:end -->
 </section>
 <section id="zh-CN-endings"><h2>22. 跳房子与临时拍号</h2>
 <p>跳房子 [ 和 ] 附在小节线上；标号用双引号小节线注释。行首起点使用隐藏 |/。[ 后加 / 可使右端开放，加 +（或多个 +）可上移，避免与连音线重叠。跳房子可跨行，应在正确声部设置端点。同样方括号紧附音符时表示倚音，位置很重要。</p>
@@ -569,9 +1087,31 @@ Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
 Q: |/[+/&quot;1,2&quot; 1 2 3 4 | 5 6 7 1&#x27; |]</code></pre>
 <p>临时拍号在小节线后写 <code>"p:3/4"</code>。它显示局部拍号；仍需检查分组，必要时使用 ~ 或 ^。</p>
 <pre><code>Q: 1 2 3 4 |&quot;p:3/4&quot; 5 6 7 |</code></pre>
+<h3>在小节线上放置结尾线</h3>
+<p>结尾线以小节线后的 [ 开启，以后续小节线后的 ] 闭合，引号标签属于小节线而非音符。行首可写 |/[&quot;1&quot;。用 [+、[++ 等把线抬到相邻连音线上方。方括号语法中的 / 可表示开放端；示例也用闭合处 |]/ 省略右侧竖角。复制时应带上完整起止配对，不能只移动孤立括号。</p>
+<h3>跨行结尾与局部换拍</h3>
+<p>同页结尾线可以延续到下一曲行；标签、终点、反复线及歌词结尾应相互一致。局部换拍写 |&quot;p:3/4&quot;，引号内 p 小写；行首可用 |/&quot;p:3/4&quot;。这不同于描述头 P: 3/4，后者设定初始拍号。每次换拍都应核对时值与自定义分组；单写拍号不会重新分配源码音符。</p>
+<!-- sample:first-second-ending:start -->
+<div class="sample-example" id="zh-CN-example-first-second-ending">
+<h3>同一行中的第一、第二结尾</h3><p>[&quot;1&quot; 在小节线上开始，并以 :|] 结束；同一边界紧接 [&quot;2&quot;，以 ||] 结束。比较两个结尾分支及各自歌词。</p>
+<p class="sample-provenance">示例库：JingleBells.jps · 源码行 22-24。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/first-second-ending.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 3/ 5/ 1/. 2// 3 - | 4/~ 8~ 4/ 4./~ 4// 4/~ 8~ 3/ 3/~ 3//~ 3// |[&quot;1&quot; 3/ 2/ 2/~ 8~ 1/ (2/ 5.) :|][&quot;2&quot; 5/ 5/ 4/~ 8~ 2/ 1. ||]
+C: Jin- /gle /all /the /way~. Oh @/what /fun /it /is @/to /ride~, in /a /one- /horse /o- @/pen /sleigh~! one- /horse /o- @/pen /sleigh~!
+C: 铃儿响叮当，我@们滑雪多@快乐，我们坐在雪@橇上。坐在雪@橇上。</code></pre>
+<figure><img src="assets/examples/first-second-ending-1.png" alt="同一行中的第一、第二结尾 - 1" loading="eager"><figcaption>渲染结果: 同一行中的第一、第二结尾</figcaption></figure>
+</div>
+<!-- sample:first-second-ending:end -->
+<!-- sample:open-ending-meter:start -->
+<div class="sample-example" id="zh-CN-example-open-ending-meter">
+<h3>抬高结尾线、行首锚点与右端开放</h3><p>|/ 提供不可见的行首锚点，[+ 抬高结尾线，闭合处 |]/ 使右端开放。局部 &quot;p:2/4&quot; 在片段内改变显示拍号。</p>
+<p class="sample-provenance">示例库：As-Wished.jps · 源码行 32-32。 摘录采用免费替代字体渲染，省略页面空白。 独立片段增加上方间距，避免结尾线与描述头重叠。 <a download href="assets/examples/open-ending-meter.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q:  |/[+&quot;2&quot; 6/ 7/ 1&#x27;/ 2&#x27;/ 2&#x27;/ 3&#x27;// (3&#x27;// 3&#x27;/.) 3&#x27;// | 3&#x27;/ 2&#x27;// (4&#x27;// 4&#x27;/) 3&#x27;/ 2&#x27;/ 1&#x27;// (1&#x27;// 1&#x27;/.) 1&#x27;// |&quot;p:2/4&quot; 7/ 1&#x27;// (2&#x27;// 2&#x27;/) 7/ |]/</code></pre>
+<figure><img src="assets/examples/open-ending-meter-1.png" alt="抬高结尾线、行首锚点与右端开放 - 1" loading="eager"><figcaption>渲染结果: 抬高结尾线、行首锚点与右端开放</figcaption></figure>
+</div>
+<!-- sample:open-ending-meter:end -->
 </section>
 <section id="zh-CN-voices"><h2>23. 声部与临时伴奏</h2>
-<p>曲使用 Q1、Q2 等，词使用对应 C1、C2。声部编号后可用引号写声部名。相邻声部应保持节奏对齐；带编号曲行形成声部系统，歌词依附对应声部。可混合单声部和多声部。行中开始声部括弧可用 &amp;sbf；次要声部前面的空位用隐藏休止符 8 和隐藏小节线 |* 对齐。</p>
+<p>曲使用 Q1、Q2 等声部编号；C/C1/C2 行提供相关歌词。改编示例时保留行顺序，并核对预览。声部编号后可用引号写声部名。相邻声部应保持节奏对齐；带编号曲行形成声部系统，歌词依附对应声部。可混合单声部和多声部。行中开始声部括弧可用 &amp;sbf；次要声部前面的空位用隐藏休止符 8 和隐藏小节线 |* 对齐。</p>
 <pre><code>Q1&quot;高声部&quot;: 1 2 3 4 |
 C1: 春 风 吹 来
 Q2&quot;低声部&quot;: 3, 4, 5, 6, |
@@ -582,6 +1122,46 @@ Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
 <p>行中声部括弧的简化示例（请在预览中检查对齐）：</p>
 <pre><code>Q1: 1 2 3 4 |&amp;sbf 5 6 7 1&#x27; |
 Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre>
+<h3>逐声部建立系统</h3>
+<p>Q1、Q2、Q3、Q4 表示同时发声的声部，不是连续四行独唱。声部名放在数字之后、冒号之前，如 Q1&quot;女高音&quot;:。先输入一组，对照各部小节边界与时值，再加歌词及下一组。缺少休止符不能靠空格补齐。示例含无编号 C 及编号歌词层，其依附受上下文影响；宜保留可用示例的行顺序，新增歌词后核对显示。</p>
+<h3>临时块与行中声部括弧</h3>
+<p>{bz ...} 是临时伴奏，{dsb ...} 是临时多声部，小写关键字紧跟 {。它们内嵌于主片段；顶层 Q2 则另建完整声部。需同时配对花括号及块内连线。行中进入时，第一声部的 &amp;sbf 指定括弧位置，其他声部在进入前用时值合适的 8 与 |* 占位。该技巧来自规范，但内置示例没有 &amp;sbf；上面的最小模式是构造练习，不是示例原文。</p>
+<!-- sample:temporary-accompaniment:start -->
+<div class="sample-example" id="zh-CN-example-temporary-accompaniment">
+<h3>旋律上方的临时伴奏</h3><p>{bz ...} 嵌入第二小节，主旋律连线在后面的 6 闭合。抬高的第二结尾线跨越整段。分别追踪花括号、方括号和圆括号的配对。</p>
+<p class="sample-provenance">示例库：Azalea.jps · 源码行 29-30。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/temporary-accompaniment.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q:  |/[+++&quot;2&quot; (6/ 2&#x27;/) (2&#x27;/ 1&#x27;// 6//) | (6[5] - | {bz 6/&amp;zkh 2&#x27;/ 2&#x27;/ 3&#x27;/ | } 6) - | 3&#x27;/ 2&#x27;/ 3&#x27; | 2&#x27; - | 3&#x27; - | 3&#x27; - 8&amp;ykh ||]
+C: 映@山@@红。</code></pre>
+<figure><img src="assets/examples/temporary-accompaniment-1.png" alt="旋律上方的临时伴奏 - 1" loading="eager"><figcaption>渲染结果: 旋律上方的临时伴奏</figcaption></figure>
+</div>
+<!-- sample:temporary-accompaniment:end -->
+<!-- sample:temporary-voices:start -->
+<div class="sample-example" id="zh-CN-example-temporary-voices">
+<h3>完整合唱系统中的临时多声部</h3><p>Q1 的 {dsb 6 - - | 5 - - | } 为临时分支，主序列仍继续到 4。比较该分支与正常 Q2/Q3/Q4。花括号组不等于另一个顶层 Q 行。</p>
+<p class="sample-provenance">示例库：Edelweiss - Choir ChinEng.jps · 源码行 11-18。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/temporary-voices.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q1: 3&amp;mp -&lt;+ 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 3 | 3 8 4 8 5 | {dsb 6 - - | 5 - - | } 4 - - | 4 - - |
+C1: 雪绒花，雪绒花，清晨迎@着@我开放，
+C2: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q2: 3 - 3 | 5 - - | 5 - 5 | 4 - - | 3 - 3 | 3 8 1 8 1 | 1 - - | 2 - - |
+Q3: 5&amp;mp -&lt;+ 5 | 5 - -! | 1&#x27;&gt; - 1&#x27; | 6 - -! | 1&#x27; - 1&#x27; | 1&#x27; 8 6 8 6 | 6 - - | 7 - - |
+C3: 雪绒花，雪绒花，清晨迎@着@我开放，
+C4: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q4: 1 - 1 | 7, - - | 3 - 3 | 4 - - | 5 - 5 | 5 8 4 8 3 | 2 - - | 5 - - |</code></pre>
+<figure><img src="assets/examples/temporary-voices-1.png" alt="完整合唱系统中的临时多声部 - 1" loading="eager"><figcaption>渲染结果: 完整合唱系统中的临时多声部</figcaption></figure>
+</div>
+<!-- sample:temporary-voices:end -->
+<!-- sample:four-voices:start -->
+<div class="sample-example" id="zh-CN-example-four-voices">
+<h3>四声部对齐与隐藏占位</h3><p>Q1 至 Q4 构成一组。比较同一时刻的小节线及插入的 8。示例文件中的编号 C 行也可能用于连续歌词层；借用曲谱时应检查实际预览，不要机械改号。</p>
+<p class="sample-provenance">示例库：O-Canada Choir.jps · 源码行 13-17。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/four-voices.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q1: 3 - 5. 5/ | 1 - - 2 | 3 8 4 8 5 6 | 2 - - 0 | 3 - 4#. 4/ | 5 - - 6 |
+Q2: 1 - 7,. 7,/ | 6, - - 7, | 1 8 1 8 1 1 | 1 - 7, 0 | 1 - 2. 2/ | 2 - - 3 |
+C: O /Can- /a- /da~! Our/ home / @and /@na-tive/ land~! @@True /pa-triot /love/ in
+Q3: 5 - 4. 4/ | 3 - - 5 | 5 8 5 8 5 4 | 5 - - 0 | 5 - 1&#x27;. 1&#x27;/ | 7 - - 6 |
+Q4: 1 - 5,. 5,/ | 6, - - 5, | 1 8 2 8 3 4 | 5 - - 0 | 1 - 6,. 6,/ | 7, - - 1 |</code></pre>
+<figure><img src="assets/examples/four-voices-1.png" alt="四声部对齐与隐藏占位 - 1" loading="eager"><figcaption>渲染结果: 四声部对齐与隐藏占位</figcaption></figure>
+</div>
+<!-- sample:four-voices:end -->
 </section>
 <section id="zh-CN-lyrics"><h2>24. 歌词：中文、英文与混排</h2>
 <p>C 行依附前面的曲行；多声部需使用匹配编号。中文通常一字对应一音符，标点自动识别，不另成为演唱音节。@ 跳过一个音符；每条增时线 - 不需单独 @。用 ~ 将两个汉字合在一个音符下。一行 Q 后可写多行 C，表示不同段歌词。</p>
@@ -592,6 +1172,53 @@ C: 第 二 段 词 也 能 写</code></pre>
 <pre><code>Q: 1 2 3 4 |
 C: &quot;Verse_1&quot; Sing/a/new/song
 C: &quot;2.&quot; 春/风/@/song</code></pre>
+<h3>按唱词位置计数，不按所有字符计数</h3>
+<p>汉字通常一字一唱词位置，标点不另占音符；@ 越过不唱词的音，~ 将相邻文字合并到一个位置，增时线不需要另一个 @。一字唱两音时，按源码模式把字放在首音，并跳过后音。还应检查隐藏 8 和休止符，它们可能影响对齐，即使没有可见数字。先完成一段，再复制 C 行修改其他段文字。</p>
+<h3>段号、空格与歌词括注</h3>
+<p>引号标签放在所标歌词之前，如 C: &quot;1.&quot; ...，也可跟在开头的 @ 跳过标记后。旧式标签中普通空格用 _，如 &quot;Verse_1&quot;。这些引号不同于 Q 的音符注释。有些示例以 (~...~) 括注替换唱词；借用时保留边界，并核对印出的括号。普通文字空格便于阅读，不能作为可靠的逐音节分配方式。</p>
+<h3>英文音节与混合语言</h3>
+<p>在唱词单词或音节之间使用 /，多音节词应有意拆分，如 Can-/a-/da，必要处保留可见连字符。C 中的 - 是歌词文字，不是音乐增时线。@ 跳过不唱词位置，中英边界可用 / 明示。规范允许汉字、@ 邻接处省略部分 /，但编辑时显式分隔更清楚。示例英文音节也使用 ~ 分组，简化前须先对照完整模式。</p>
+<!-- sample:chinese-verses:start -->
+<div class="sample-example" id="zh-CN-example-chinese-verses">
+<h3>中文多段歌词、跳过音符与歌词括注</h3><p>两段唱词跟随同一 Q 行，@ 跳过连线组中的第二音。第三个 C 行使用旧式 (~...~) 歌词括注，它属于歌词标记，不是音乐连音线。</p>
+<p class="sample-provenance">示例库：Farewell.jps · 源码行 17-20。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/chinese-verses.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 (2/ 3/) 4. 7,/ | 1 - - - |
+C: 晚风@拂柳笛声残，夕阳@山外山。
+C: 问君@此去几时还，来时@莫徘徊。
+C: (~人生@难得是欢聚，唯有@别离多~)</code></pre>
+<figure><img src="assets/examples/chinese-verses-1.png" alt="中文多段歌词、跳过音符与歌词括注 - 1" loading="eager"><figcaption>渲染结果: 中文多段歌词、跳过音符与歌词括注</figcaption></figure>
+</div>
+<!-- sample:chinese-verses:end -->
+<!-- sample:joined-characters:start -->
+<div class="sample-example" id="zh-CN-example-joined-characters">
+<h3>中文连字与双语歌词行</h3><p>中文用 马~儿、令~人 将两个字合并到一个歌词位置。英文以 / 分开单词或音节，以 @ 表示不唱词的音符。对照同一旋律下的两种语言。</p>
+<p class="sample-provenance">示例库：JingleBells.jps · 源码行 14-16。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/joined-characters.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 5/ 5/ 4/ 2/ (3 1/) 5,/ | 5,/ 3/ 2/ 1/ 5,. 5,/ | 5,/ 3/ 2/ 1/ 6,. 6,/ |
+C:  laugh- /ing /all /the /way~.  @@Bells /on /bob- /tail /ring~, @mak- /ing /spir- /its / bright~. What
+C: 欢笑又歌唱。@马~儿铃声响叮当，令~人精神多欢畅，我~们</code></pre>
+<figure><img src="assets/examples/joined-characters-1.png" alt="中文连字与双语歌词行 - 1" loading="eager"><figcaption>渲染结果: 中文连字与双语歌词行</figcaption></figure>
+</div>
+<!-- sample:joined-characters:end -->
+<!-- sample:english-syllables:start -->
+<div class="sample-example" id="zh-CN-example-english-syllables">
+<h3>英文与法文音节对齐</h3><p>Can- /a- /da 分成三个唱词位置。歌词中的连字符是可见文字，不是增时线。两行 C 共用旋律，长音末音节不必为每条增时线另加歌词。</p>
+<p class="sample-provenance">示例库：O-Canada.jps · 源码行 13-15。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/english-syllables.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 3 - 5. 5/ | 1 - - 2 | 3 4 5 6 | 2 - - 0 |
+C: O /Can- /a- /da~! Our/ home / and /na-tive/ land~!
+C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,</code></pre>
+<figure><img src="assets/examples/english-syllables-1.png" alt="英文与法文音节对齐 - 1" loading="eager"><figcaption>渲染结果: 英文与法文音节对齐</figcaption></figure>
+</div>
+<!-- sample:english-syllables:end -->
+<!-- sample:verse-label:start -->
+<div class="sample-example" id="zh-CN-example-verse-label">
+<h3>先跳过音符，再写带引号的段号</h3><p>先用 @ 跳过弱起休止符，再用 &quot;1.　&quot; 与 &quot;2.　&quot; 标记段号。示例标签使用全角空格；需要兼容的普通空格时，可用规范规定的下划线写法。</p>
+<p class="sample-provenance">示例库：As-Wished.jps · 源码行 14-16。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/verse-label.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 0/. 6,// |: 3 1// 2// 3// (4// 4.) 4// 3// | 2/ 1// (2// 2/) 7,/ 3 - | 0 1/ 3/ 2/ 1// (2// 2/.) 1// | 2/ 1// (2// 2/) 7,/ 3. 0// 6,// |
+C: @&quot;1.　&quot;你是 遥遥的路   @山野大雾里@的灯  @我是孩童啊 @走在你的@眼眸 @你是 明月清风 @我是
+C: @&quot;2.　&quot;@是 岁月长河   @星火燃起的@天空  @我是仰望者 @就把你唱@成歌 @你是</code></pre>
+<figure><img src="assets/examples/verse-label-1.png" alt="先跳过音符，再写带引号的段号 - 1" loading="eager"><figcaption>渲染结果: 先跳过音符，再写带引号的段号</figcaption></figure>
+</div>
+<!-- sample:verse-label:end -->
 </section>
 <section id="zh-CN-pagination"><h2>25. 手动分页</h2>
 <p>在独立一行写精确小写字面量 <code>[fenye]</code> 创建新谱页，它不是音符注释。应将声部系统及所属歌词放在一起。长源码不表示音乐会自动重新换行或连线自动跨页。分页处分开/重开连音线，检查跳房子，并确认导出的每页都位于边距内。</p>
@@ -602,6 +1229,35 @@ C: 第 一 页 词
 
 Q: 5 6 7 1&#x27; ||
 C: 第 二 页 词</code></pre>
+<h3>在完整系统之后选择分页点</h3>
+<p>将 [fenye] 独立成行，放在完整系统之间。多声部应先写完所有 Q 及相应 C，再分页。在边界闭合或有意切分连线，并检查结尾线、渐强弱端点。新增页后浏览前后两页，核对下边距。源码控制音乐行与分页边界；改变纸张或字体不能替代明确分页。下例展示两页裁去空白的输出，而非一张长页面。</p>
+<!-- sample:page-boundary:start -->
+<div class="sample-example" id="zh-CN-example-page-boundary">
+<h3>手动分页分隔的两组声部</h3><p>第一组声部在 [fenye] 前结束，下一页从完整 Q1-Q4 声部组开始。下方显示两页输出。分页时应将同一组声部及歌词完整保留在同一页。</p>
+<p class="sample-provenance">示例库：Edelweiss - Choir ChinEng.jps · 源码行 29-47。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/page-boundary.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q1: 2&#x27;&amp;mf 0/ 5/ 8 5 | 7 8 6 8 5 | 3 - 8 5 | 1&#x27; - - | 6 - 8 1&#x27; | 2&#x27; - 8 1&#x27; | 7&gt; - - | 5 - -! |
+C1: 白@雪@般~的花@儿@愿你@芬芳，永@远开@花生长。
+C2: Blos-/ @ som/ @ of/ snow~, @may/ @you/ bloom/ @and/ grow~, bloom/ @and/ grow/ @for-/ ev-/ er.
+Q2: 5 0/ 4/ 8 4 | 4 8 4 8 4 | 3 - 8 3 | 3 - - | 4 - 8 6 | 6 - 8 6 | 5 - - | 5 - - |
+Q3: 2&#x27; 0/ 2&#x27;/ 8 2&#x27; | 2&#x27; 8 2&#x27; 8 2&#x27; | 1&#x27; - 8 1&#x27; | 1&#x27; - - | 1&#x27; - 8 1&#x27; | 2&#x27; - 8 2&#x27; | 2&#x27;&gt; - - | 7 - -! |
+C3: 白@雪@般~的花@儿@愿你@芬芳，永@远开@花生长。
+C4: Blos-/ @ som/ @ of/ snow~, @may/ @you/ bloom/ @and/ grow~, bloom/ @and/ grow/ @for-/ ev-/ er.
+Q4: 7 0/ 7/ 8 7 | 5 8 6 8 7 | (1&#x27; 7) 8 6 | 5 - - | 4 - 8 4 | 4# - 8 4 | 5 - - | 4 - - |
+
+[fenye]
+
+Q1: 3&lt;+ - 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 8 5 | 5 8 6 8 7 | 1&#x27;&lt; - - | 1&#x27;# - -! |
+C1: 雪绒花，雪绒花，永@远祝@福@我家乡。
+C2: E-/ del- /weiss~, E-/ del-/ weiss~, bless/ @my/ home-/ @land/ @for-/ ev-/ er~.
+Q2: 3 - 3 | 5 - - | 4 - 3 | 4 - - | 3 - 8 3 | 4 8 4 8 4 | 3 - - | 5 - - |
+Q3:  (3&#x27; 2&#x27;)&lt; 1&#x27; | 2&#x27; - -! | 1&#x27;&gt;++ - 1&#x27; | 1&#x27; - -! | 1&#x27; - 8 1&#x27; | 7 8 7 8 2&#x27; | 1&#x27;&lt;+ - - | 3&#x27; - -! |
+C3: 雪@绒花，雪绒花，永@远祝@福@我家乡。
+C4: E-/ @del- /weiss~, E-/ del-/ weiss~, bless/ @my/ home-/ @land/ @for-/ ev-/ er~.
+Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - |</code></pre>
+<figure><img src="assets/examples/page-boundary-1.png" alt="手动分页分隔的两组声部 - 1" loading="eager"><figcaption>渲染结果: 手动分页分隔的两组声部 (1/2)</figcaption></figure>
+<figure><img src="assets/examples/page-boundary-2.png" alt="手动分页分隔的两组声部 - 2" loading="eager"><figcaption>渲染结果: 手动分页分隔的两组声部 (2/2)</figcaption></figure>
+</div>
+<!-- sample:page-boundary:end -->
 </section>
 <section id="zh-CN-practice"><h2>26. 实用编辑与校对步骤</h2>
 <ul><li>先选与目标相近的内置示例：普通旋律、符号/倚音、多声部或歌词，并使用副本。</li>
@@ -612,6 +1268,8 @@ C: 第 二 页 词</code></pre>
 <li>逐页比较转录结果与原稿，包括分页及注释。</li>
 <li>处理诊断，保存可编辑原稿，导出并检查最终文件。</li>
 </ul>
+<h3>用图例练习编辑</h3>
+<p>每个图例把所选原始源码行与重新生成的 OctoPus 结果配对，下载含描述头；图片只裁掉页面空白。打开标明示例可查看完整音乐上下文，打开摘录则可单独研究语法。每次只改一个符号，对照预览与导出，再撤销。成功渲染说明记谱和排版可显示，不代表转写、和声或时值已完全核实。</p>
 </section>
 <section id="zh-CN-troubleshooting"><h2>27. 排错与反馈</h2>
 <table><thead><tr><th>现象</th><th>检查内容</th></tr>
@@ -628,7 +1286,7 @@ C: 第 二 页 词</code></pre>
 <p>报告可复现问题时，请提供版本、系统、最小 JPS、相关设置、步骤及预期/实际结果，适当时附原稿。使用<a href="https://github.com/OctaveMelody/OctoPus/issues">报告问题</a>；改动提议使用<a href="https://github.com/OctaveMelody/OctoPus/pulls">Pull Requests 页</a>。历史规范的个人联系方式不是 OctoPus 支持渠道。</p>
 </section>
 <section id="zh-CN-sources"><h2>28. 参考依据与兼容性</h2>
-<p>本手册综合本地保存的 Jianpu-Spec v1.0 简介、描述头、曲、词及反馈章节；图片形式的符号、力度和小节线表已阅读并改写为上文文本表。另参考 Website-Contents/Zhipu-jsCode-editor 保存的源码格式化及源码/预览定位约定，并对照 OctoPus 行为。保存的 Zhipu-draw 文件为空，没有额外使用说明。</p>
+<p>本手册综合本地保存的 Jianpu-Spec v1.0 简介、描述头、曲、词及反馈章节；图片形式的符号、力度和小节线表已阅读并改写为可检索文本。本版增加逐项解释、25 个注明来源的示例库摘录及 26 张渲染图，不分发原规范截图；示例库没有相应写法时保留最小语法练习。另参考 Website-Contents/Zhipu-jsCode-editor 保存的源码格式化及源码/预览定位约定，并对照 OctoPus 行为。保存的 Zhipu-draw 文件为空，没有额外使用说明。</p>
 <p>记谱语法沿用参考规范，产品界面与计划描述 OctoPus。历史资料中的 MIDI、播放、网页自动格式化选项及个人联系方式不是当前桌面功能。运行实现、解析器、字体策略、输入限制及样例文档用于核对现状。本手册是重新编写的使用指南，不是原脚本副本。参考资料及编写工具保留在 OctoPus-dev；生产应用附带独立手册及 PDF。</p>
 <p><a href="https://github.com/OctaveMelody/OctoPus">项目主页</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/README.zh-CN.md">生产版说明</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/ENVIRONMENT.zh-CN.md">构建环境</a></p>
 </section>
