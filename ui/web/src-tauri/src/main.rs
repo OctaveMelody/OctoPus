@@ -29,9 +29,34 @@ fn engine_supervisor(app: &AppHandle) -> Result<EngineSupervisor, String> {
     };
     let path = app
         .path()
-        .resolve(executable, BaseDirectory::Resource)
+        .resolve(resource_relative(executable), BaseDirectory::Resource)
         .map_err(|error| format!("could not locate bundled Python engine: {error}"))?;
     Ok(EngineSupervisor::packaged(path))
+}
+
+fn resource_relative(path: &str) -> String {
+    if cfg!(target_os = "linux") {
+        path.to_owned()
+    } else {
+        format!("lib/OctoPus/{path}")
+    }
+}
+
+#[tauri::command]
+fn font_directory(app: AppHandle) -> Result<String, String> {
+    #[cfg(debug_assertions)]
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../src/octopus/assets/fonts");
+    #[cfg(not(debug_assertions))]
+    let path = app
+        .path()
+        .resolve(resource_relative("fonts"), BaseDirectory::Resource)
+        .map_err(|error| error.to_string())?;
+    let path = path.canonicalize().map_err(|error| error.to_string())?;
+    app.asset_protocol_scope()
+        .allow_directory(&path, true)
+        .map_err(|error| error.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[tauri::command]
@@ -62,6 +87,7 @@ fn main() {
         .manage(SelectedJpsFiles::default())
         .manage(RecoverySnapshotSequence::default())
         .invoke_handler(tauri::generate_handler![
+            font_directory,
             references::discard_reference_images,
             exports::export_score,
             exports::export_svg,

@@ -85,18 +85,19 @@ def _check_glyph_assets(bundle: Path, glyph_dir: Path = GLYPH_DIR) -> None:
 
 def _check_font_assets(bundle: Path) -> None:
     source = ROOT / "src/octopus/assets/fonts"
-    manifests = list(bundle.rglob("octopus/assets/fonts/manifest.json"))
+    manifests = ([bundle / "manifest.json"] if (bundle / "manifest.json").is_file()
+                 else list(bundle.rglob("octopus/assets/fonts/manifest.json")))
     if len(manifests) != 1:
-        raise RuntimeError("frozen engine is missing its release font manifest")
+        raise RuntimeError("release font directory is missing its manifest")
     root = manifests[0].parent
     if manifests[0].read_bytes() != (source / "manifest.json").read_bytes():
-        raise RuntimeError("frozen engine font manifest differs from source")
+        raise RuntimeError("release font manifest differs from source")
     manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
     for entry in [*manifest["faces"], *manifest["licenses"]]:
         path = root / entry["file"]
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]:
             raise RuntimeError(
-                f"frozen engine is missing/corrupt release font asset: {entry['file']}"
+                f"missing/corrupt release font asset: {entry['file']}"
             )
 
 
@@ -263,7 +264,7 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             "--paths",
             str(repository_root / "src"),
             "--collect-data",
-            "octopus.assets",
+            "octopus.assets.glyphs",
             "--collect-all",
             "fontTools",
             "--collect-all",
@@ -281,9 +282,11 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             )
         bundle = dist_dir / "octopus-engine"
         _check_glyph_assets(bundle, glyph_dir)
-        _check_font_assets(bundle)
+        font_dir = dist_dir / "fonts"
+        shutil.copytree(repository_root / "src/octopus/assets/fonts", font_dir)
+        _check_font_assets(font_dir)
         _smoke_test(bundle, render_request)
-        _publish_bundle(bundle, output_dir)
+        _publish_bundle(dist_dir, output_dir.parent)
 
     return output_dir
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "OctoPus by OctaveMelody",
+  "productName": "OctoPus",
   "version": "0.1.0",
   "identifier": "org.octopus.desktop",
   "build": {
@@ -28,12 +28,14 @@
         "scope": {
           "allow": [
             "$APPCACHE/reference-images/img-*.*",
-            "$APPCACHE/reference-images/pdf-*.*"
+            "$APPCACHE/reference-images/pdf-*.*",
+            "$RESOURCE/fonts/**",
+            "$RESOURCE/lib/OctoPus/fonts/**"
           ],
           "requireLiteralLeadingDot": false
         }
       },
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost"
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost; font-src 'self' asset: http://asset.localhost https://asset.localhost data:"
     }
   },
   "bundle": {
@@ -68,7 +70,8 @@
     "resources": {
       "../../../samples/jps_files/": "examples/",
       "../../../build/desktop-engine/octopus-engine/": "engine/",
-      "../../../docs/": "docs/"
+      "../../../docs/": "docs/",
+      "../../../src/octopus/assets/fonts/": "fonts/"
     }
   }
 }

@@ -133,3 +133,10 @@ On Windows, run `dist/<target-triple>/portable/octopus.exe`. Keep the complete p
 folder together. Linux still requires the host GTK/WebKit libraries and Poppler tools; Windows
 requires WebView2. This is an application-local production testing tree, not a static OS runtime.
 Both build/ and dist/ are ignored by Git. Fonts are bundled and no font installation is needed.
+
+Release packaging keeps fallback fonts outside the executable. Linux resources live in
+`usr/lib/OctoPus/`; Windows uses `lib/OctoPus/` beside `octopus.exe`; the macOS resource
+configuration uses `Contents/Resources/lib/OctoPus/` (native macOS builds remain pending).
+The shared `fonts/` directory contains all fallback/backup faces, manifest and licenses.
+Both preview and Python exports use this directory; keep the complete portable tree together.
+OS Preference remains the default, with per-role Free Fallback when unavailable or selected.

@@ -128,3 +128,9 @@ Windows 运行 `dist/<target-triple>/portable/octopus.exe`。请保持便携版�
 Linux 仍需要主机 GTK/WebKit 库和 Poppler 工具；Windows 需要 WebView2。
 这是带应用本地资源的生产测试版本，并非静态打包整个操作系统运行环境。
 `build/` 和 `dist/` 均由 Git 忽略。字体已内置，无需另外安装字体。
+
+发行版不把备用字体嵌入可执行文件。Linux 资源位于 `usr/lib/OctoPus/`；
+Windows 在 `octopus.exe` 旁使用 `lib/OctoPus/`；macOS 资源配置使用
+`Contents/Resources/lib/OctoPus/`（macOS 原生构建仍待支持）。共享的 `fonts/`
+目录包含所有替代及备份字体、清单和许可证，预览与 Python 导出共同使用。
+请保持便携目录完整。默认仍优先使用操作系统字体，缺失或手动选择时使用免费替代字体。

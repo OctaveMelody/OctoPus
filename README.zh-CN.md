@@ -79,6 +79,11 @@ Linux 仍需要系统中的 GTK/WebKit 运行库和 Poppler 工具；Windows 需
 
 ## 字体
 
+发行版替代和备份字体为独立文件，预览及导出共同使用。Linux 位于
+`usr/lib/OctoPus/fonts`，Windows 位于可执行文件旁的 `lib/OctoPus/fonts`；
+macOS 资源配置为 `Contents/Resources/lib/OctoPus/fonts`（原生构建仍待支持）。
+请保留字体及其许可证文件，操作系统字体优先策略保持不变。
+
 每种字体选项优先使用已安装的对应系统字体；缺失时使用内置替代字体，生产便携版也遵循
 相同规则。Linux 通过 fontconfig 精确查找 Windows 优先字体；没有精确匹配或没有
 fontconfig 时，使用内置替代字体。

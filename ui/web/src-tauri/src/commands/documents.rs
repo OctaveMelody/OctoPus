@@ -20,7 +20,10 @@ fn examples_directory(_app: &AppHandle) -> Result<PathBuf, String> {
 #[cfg(not(debug_assertions))]
 fn examples_directory(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
-        .resolve("examples", BaseDirectory::Resource)
+        .resolve(
+            crate::resource_relative("examples"),
+            BaseDirectory::Resource,
+        )
         .map_err(|error| format!("could not locate bundled JPS examples: {error}"))
 }
 

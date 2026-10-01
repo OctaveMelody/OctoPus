@@ -1,3 +1,5 @@
+use sha2::{Digest, Sha256};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use image::codecs::jpeg::JpegEncoder;
@@ -20,7 +22,7 @@ const MAX_PDF_PAGE_POINTS: f32 = 14_400.0;
 const JPEG_QUALITY: u8 = 95;
 
 pub fn export_pdf(svg_pages: &[String]) -> Result<Vec<u8>, DocumentIoError> {
-    export_pdf_with_options(svg_pages, svg_options())
+    export_pdf_with_options(svg_pages, svg_options()?)
 }
 
 fn export_pdf_with_options(
@@ -69,7 +71,7 @@ pub fn export_jpg_pages(svg_pages: &[String], dpi: u16) -> Result<Vec<Vec<u8>>, 
         return Err(DocumentIoError::InvalidExportDpi);
     }
 
-    let options = svg_options();
+    let options = svg_options()?;
     let mut total_pixels = 0_u64;
     let mut total_bytes = 0_usize;
     let mut outputs = Vec::with_capacity(svg_pages.len());
@@ -108,38 +110,62 @@ fn validate_svg_pages(svg_pages: &[String]) -> Result<(), DocumentIoError> {
     Ok(())
 }
 
-fn svg_options() -> usvg::Options<'static> {
+fn svg_options() -> Result<usvg::Options<'static>, DocumentIoError> {
     let release = !cfg!(debug_assertions)
         || std::env::var("OCTOPUS_FONT_PROFILE").as_deref() == Ok("release");
     svg_options_for_profile(release)
 }
 
-fn svg_options_for_profile(release: bool) -> usvg::Options<'static> {
+fn external_font_directory() -> Result<PathBuf, DocumentIoError> {
+    if cfg!(debug_assertions) {
+        return Ok(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../src/octopus/assets/fonts"));
+    }
+    let executable = std::env::current_exe()?;
+    let directory = executable
+        .parent()
+        .ok_or(DocumentIoError::ExportConversionFailed)?;
+    Ok(if cfg!(target_os = "linux") {
+        directory.join("../lib/OctoPus/fonts")
+    } else if cfg!(target_os = "macos") {
+        directory.join("../Resources/lib/OctoPus/fonts")
+    } else {
+        directory.join("lib/OctoPus/fonts")
+    })
+}
+
+fn svg_options_for_profile(release: bool) -> Result<usvg::Options<'static>, DocumentIoError> {
+    svg_options_for_fonts(release, &external_font_directory()?)
+}
+
+fn svg_options_for_fonts(
+    release: bool,
+    root: &Path,
+) -> Result<usvg::Options<'static>, DocumentIoError> {
     let mut font_database = usvg::fontdb::Database::new();
     {
-        const FACES: &[&[u8]] = &[
-            include_bytes!("../../../src/octopus/assets/fonts/NotoSansSC-Regular.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/NotoSansSC-Bold.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/NotoSerifSC-Regular.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/NotoSerifSC-Bold.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-Regular.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-Bold.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-Italic.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/LiberationSans-BoldItalic.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/LXGWWenKai-Regular.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/SimZhiSong.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/LXGWNeoXiHei.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/MiSans-Regular.ttf"),
-            include_bytes!("../../../src/octopus/assets/fonts/ZhuqueFangsong-Regular.ttf"),
-        ];
-        for face in FACES {
-            font_database.load_font_data(face.to_vec());
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(root.join("manifest.json"))?)
+                .map_err(|_| DocumentIoError::ExportConversionFailed)?;
+        let faces = manifest["faces"]
+            .as_array()
+            .filter(|faces| faces.len() == 13)
+            .ok_or(DocumentIoError::ExportConversionFailed)?;
+        for face in faces {
+            let name = face["file"]
+                .as_str()
+                .ok_or(DocumentIoError::ExportConversionFailed)?;
+            let bytes = std::fs::read(root.join(name))?;
+            let digest = format!("{:x}", Sha256::digest(&bytes));
+            if face["sha256"].as_str() != Some(digest.as_str()) {
+                return Err(DocumentIoError::ExportConversionFailed);
+            }
+            font_database.load_font_data(bytes);
         }
         font_database.set_sans_serif_family("Noto Sans SC");
         font_database.set_serif_family("Noto Serif SC");
     }
     font_database.load_system_fonts();
-    usvg::Options {
+    Ok(usvg::Options {
         font_family: if release {
             "Noto Sans SC".into()
         } else {
@@ -147,7 +173,7 @@ fn svg_options_for_profile(release: bool) -> usvg::Options<'static> {
         },
         fontdb: Arc::new(font_database),
         ..Default::default()
-    }
+    })
 }
 
 fn parse_svg(svg: &str, options: &usvg::Options<'_>) -> Result<usvg::Tree, DocumentIoError> {
@@ -245,8 +271,19 @@ mod tests {
     }
 
     #[test]
+    fn external_fonts_fail_when_missing_or_corrupt() {
+        let directory = tempfile::tempdir().unwrap();
+        assert!(super::svg_options_for_fonts(true, directory.path()).is_err());
+        std::fs::write(directory.path().join("bad.ttf"), b"corrupt").unwrap();
+        let face = serde_json::json!({"file": "bad.ttf", "sha256": "0".repeat(64)});
+        let manifest = serde_json::json!({"faces": vec![face; 13]});
+        std::fs::write(directory.path().join("manifest.json"), manifest.to_string()).unwrap();
+        assert!(super::svg_options_for_fonts(true, directory.path()).is_err());
+    }
+
+    #[test]
     fn release_database_includes_fallback_faces() {
-        let options = super::svg_options_for_profile(true);
+        let options = super::svg_options_for_profile(true).unwrap();
         let families: Vec<_> = options
             .fontdb
             .faces()
@@ -276,8 +313,9 @@ mod tests {
             "Microsoft YaHei",
             "&quot;Zhuque Fangsong (technical preview)&quot;",
         );
-        let pdf = super::export_pdf_with_options(&[svg], super::svg_options_for_profile(true))
-            .unwrap();
+        let pdf =
+            super::export_pdf_with_options(&[svg], super::svg_options_for_profile(true).unwrap())
+                .unwrap();
         let name = b"ZhuqueFangsong-Regular";
         assert!(pdf.windows(name.len()).any(|item| item == name));
     }

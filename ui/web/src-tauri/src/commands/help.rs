@@ -38,7 +38,10 @@ fn manual_path(_app: &AppHandle) -> Result<PathBuf, String> {
 #[cfg(not(debug_assertions))]
 fn manual_path(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
-        .resolve("docs/user-manual/index.html", BaseDirectory::Resource)
+        .resolve(
+            crate::resource_relative("docs/user-manual/index.html"),
+            BaseDirectory::Resource,
+        )
         .map_err(|error| format!("could not locate user manual: {error}"))
 }
 

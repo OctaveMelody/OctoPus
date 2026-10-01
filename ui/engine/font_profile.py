@@ -219,7 +219,8 @@ def apply_svg_fonts(svg: str, sources: dict[str, str] | None = None) -> str:
 
 @lru_cache(maxsize=1)
 def bundled_fonts() -> tuple[tuple[str, str, str, Path], ...]:
-    root = Path(str(files(font_assets)))
+    root = (Path(sys.executable).resolve().parent.parent / "fonts"
+            if getattr(sys, "frozen", False) else Path(str(files(font_assets))))
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     result: list[tuple[str, str, str, Path]] = []
     for face in manifest["faces"]:

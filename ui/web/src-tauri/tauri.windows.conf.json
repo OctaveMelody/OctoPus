@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "resources": {
+      "../../../samples/jps_files/": "lib/OctoPus/examples/",
+      "../../../build/desktop-engine/octopus-engine/": "lib/OctoPus/engine/",
+      "../../../docs/": "lib/OctoPus/docs/",
+      "../../../src/octopus/assets/fonts/": "lib/OctoPus/fonts/"
+    }
+  }
+}

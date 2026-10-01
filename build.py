@@ -36,16 +36,18 @@ def publish_portable(destination: Path, release: Path, packages: list[Path], sys
             staged.mkdir()
             executable = staged / "octopus.exe"
             shutil.copy2(release / executable.name, executable)
-            resources = staged
+            resources = staged / "lib/OctoPus"
+            resources.mkdir(parents=True)
             shutil.copytree(ROOT / "build/desktop-engine/octopus-engine", resources / "engine")
             shutil.copytree(ROOT / "samples/jps_files", resources / "examples")
             shutil.copytree(ROOT / "docs", resources / "docs")
+            shutil.copytree(ROOT / "src/octopus/assets/fonts", resources / "fonts")
         else:
             raise RuntimeError(f"portable output is unsupported on {system}")
         if not executable.is_file():
             raise RuntimeError("portable output is missing the native executable")
         bundle = resources / "engine"
-        _check_font_assets(bundle)
+        _check_font_assets(resources / "fonts")
         _check_glyph_assets(bundle)
         _smoke_test(bundle, _request("portable-render", "render", 1, {
             "name": "portable-check.jps", "code": "B: 简谱你好\nQ: 1 2 3 4 |",
@@ -102,6 +104,10 @@ def main() -> None:
     command = ["cargo", "tauri", "build", "--ci", "--bundles", bundles_requested]
     if args.target:
         command.extend(("--target", args.target))
+    # A renamed product must not accidentally republish a stale installer.
+    bundle_output = BUILD / (args.target or "") / "release/bundle"
+    if bundle_output.exists():
+        shutil.rmtree(bundle_output)
     subprocess.run(command, cwd=WEB, env={**os.environ, "CARGO_TARGET_DIR": str(BUILD)}, check=True)
 
     host = next(

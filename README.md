@@ -83,6 +83,11 @@ The preceding successful portable build is retained under `portable.previous/`.
 
 ## Fonts
 
+Release fallback and backup fonts are external files, shared by preview and exports.
+Linux: `usr/lib/OctoPus/fonts`; Windows: `lib/OctoPus/fonts` beside the executable.
+The macOS resource mapping is `Contents/Resources/lib/OctoPus/fonts` (native builds pending).
+Keep these files and their license notices with the program. OS font preference is unchanged.
+
 Each role prefers its installed OS font. If that family is unavailable, OctoPus uses the
 bundled fallback, including in production portable builds. Linux checks the Windows-preferred
 families through exact fontconfig matches; without a match or fontconfig it uses the fallback.

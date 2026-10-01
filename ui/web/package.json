@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node scripts/prepare-pdfjs-assets.mjs && vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "node scripts/prepare-pdfjs-assets.mjs && tsc --noEmit && vite build",
-    "build:desktop": "npm run build && node scripts/build-desktop-engine.mjs"
+    "build:desktop": "npm run build -- --mode desktop && node scripts/build-desktop-engine.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
