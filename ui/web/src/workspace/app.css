@@ -80,19 +80,11 @@ h2 { margin: 0; font-size: 14px; }
 
 .toolbar { display: flex; width: 100%; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 6px; padding: 6px 10px; border: 1px solid #d9dee7; border-radius: 10px; background: white; }
 
-.selectors, .split-controls, .focus-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.selectors, .focus-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 
-.selectors label, .split-controls label { display: flex; min-height: 34px; align-items: center; gap: 7px; color: #4d5868; font-size: 12px; }
+.selectors label { display: flex; min-height: 34px; align-items: center; gap: 7px; color: #4d5868; font-size: 12px; }
 
 .selectors select, .panel-heading select { max-width: 290px; border: 1px solid #d1d7e0; border-radius: 6px; padding: 4px 7px; color: #202632; background: white; }
-
-.split-controls { flex: 1; }
-
-.split-controls label { gap: 6px; white-space: nowrap; }
-
-.split-controls input { width: 112px; }
-
-.split-controls output { min-width: 30px; color: #6b7482; font-variant-numeric: tabular-nums; }
 
 .focus-controls { margin-left: auto; }
 
@@ -115,16 +107,24 @@ h2 { margin: 0; font-size: 14px; }
 .page-settings-actions button { min-height: 32px; border: 1px solid #d1d7e0; border-radius: 5px; padding: 0 10px; color: #344258; background: white; font-size: 12px; }
 .settings-note { margin: 0 0 8px; border-radius: 5px; padding: 8px 10px; color: #725015; background: #fff6df; font-size: 12px; }
 
-.workspace { display: grid; width: 100%; min-width: 0; min-height: 0; flex: 1; gap: 8px; margin: 0; overflow: hidden; }
+.workspace { position: relative; display: grid; width: 100%; min-width: 0; min-height: 0; flex: 1; gap: 0; margin: 0; overflow: hidden; }
 
-.layout-N1 { grid-template-columns: minmax(0, var(--split-x)) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: "editor preview"; }
-
-.layout-N2 { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, var(--split-y)) minmax(0, 1fr); grid-template-areas: "preview" "editor"; }
-
-.layout-T1 { grid-template-columns: minmax(0, var(--split-x)) minmax(0, var(--split-y)) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: "reference editor preview"; }
-
-.layout-T2 { grid-template-columns: minmax(0, var(--split-x)) minmax(0, 1fr); grid-template-rows: minmax(0, var(--split-y)) minmax(0, 1fr); grid-template-areas: "reference preview" "editor editor"; }
-
+.layout-N1 { grid-template-columns: minmax(0, var(--split-x)) 8px minmax(0, var(--split-rest-x)); grid-template-rows: minmax(0, 1fr); grid-template-areas: "editor divider-x preview"; }
+.layout-N2 { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, var(--split-y)) 8px minmax(0, var(--split-rest-y)); grid-template-areas: "preview" "divider-y" "editor"; }
+.layout-T1 { grid-template-columns: minmax(0, var(--split-x)) 8px minmax(0, var(--split-y)) 8px minmax(0, var(--split-rest-t1)); grid-template-rows: minmax(0, 1fr); grid-template-areas: "reference divider-x editor divider-y preview"; }
+.layout-T2 { grid-template-columns: minmax(0, var(--split-x)) 8px minmax(0, var(--split-rest-x)); grid-template-rows: minmax(0, var(--split-y)) 8px minmax(0, var(--split-rest-y)); grid-template-areas: "reference divider-x preview" "divider-y divider-y divider-y" "editor editor editor"; }
+.panel-divider { position: relative; touch-action: none; outline: none; }
+.divider-x { grid-area: divider-x; }
+.divider-y { grid-area: divider-y; }
+.panel-divider.vertical { cursor: col-resize; }
+.panel-divider.horizontal { cursor: row-resize; }
+.panel-divider::after { content: ""; position: absolute; border-radius: 2px; background: #cbd3df; }
+.panel-divider.vertical::after { top: 12px; bottom: 12px; width: 2px; left: 3px; }
+.panel-divider.horizontal::after { left: 12px; right: 12px; height: 2px; top: 3px; }
+.panel-divider:hover::after, .panel-divider:focus-visible::after, .panel-divider.resizing::after { background: #496fc4; }
+.workspace:has(.panel-divider.resizing) { user-select: none; }
+.workspace:has(.panel-divider.vertical.resizing) * { cursor: col-resize !important; }
+.workspace:has(.panel-divider.horizontal.resizing) * { cursor: row-resize !important; }
 
 .panel { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid #d9dee7; border-radius: 10px; background: white; box-shadow: 0 2px 8px #1a2d4a0b; }
 

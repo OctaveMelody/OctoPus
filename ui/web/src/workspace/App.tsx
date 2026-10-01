@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
+import { PanelDivider } from "./PanelDivider";
 import { AdaptiveToolbar } from "./AdaptiveToolbar";
 import { ActionMenu } from "./ActionMenu";
 import { checkForUpdate, openHelpDestination } from "./help-actions.js";
@@ -484,23 +485,10 @@ export function App() {
       : { ...current, transcriptionLayout: nextLayout === "T1" ? "T1" : "T2" });
   }
 
-  function changeSplit(axis: "x" | "y", rawValue: string) {
-    const value = Number(rawValue);
-    setPreferences((current) => {
-      const activeLayout = current.mode === "normal"
-        ? current.normalLayout
-        : current.transcriptionLayout;
-      const currentSplit = current.splits[activeLayout];
-      const nextSplit = { ...currentSplit };
-      if (activeLayout === "T1") {
-        const other = axis === "x" ? currentSplit.y : currentSplit.x;
-        nextSplit[axis] = Math.min(60, 80 - other, Math.max(20, value));
-      } else {
-        const maximum = activeLayout === "N1" || activeLayout === "T2" ? 60 : 80;
-        nextSplit[axis] = Math.min(maximum, Math.max(20, value));
-      }
-      return { ...current, splits: { ...current.splits, [activeLayout]: nextSplit } };
-    });
+  function changeSplit(nextSplit: { x: number; y: number }) {
+    setPreferences((current) => ({
+      ...current, splits: { ...current.splits, [layout]: nextSplit },
+    }));
   }
 
   function replaceDocument(nextDocument: DocumentSnapshot, notice = "") {
@@ -1063,8 +1051,11 @@ export function App() {
         { value: "T2", label: copy.transcriptionComparison },
       ];
   const setSplitStyle = {
-    "--split-x": `${split.x}%`,
-    "--split-y": `${split.y}%`,
+    "--split-x": `${split.x}fr`,
+    "--split-y": `${split.y}fr`,
+    "--split-rest-x": `${100 - split.x}fr`,
+    "--split-rest-y": `${100 - split.y}fr`,
+    "--split-rest-t1": `${100 - split.x - split.y}fr`,
   } as CSSProperties;
   function toggleFullscreen() {
     const core = window.__TAURI__?.core;
@@ -1490,35 +1481,6 @@ export function App() {
             </select>
           </label>
         </div>
-        <div aria-label={copy.layout} className="split-controls">
-          {(layout === "N1" || layout === "T1" || layout === "T2") && (
-            <label>
-              {xLabel} <output>{split.x}%</output>
-              <input
-                aria-label={xLabel}
-                max={layout === "T1" ? Math.min(60, 80 - split.y) : layout === "T2" || layout === "N1" ? 60 : 80}
-                min={20}
-                onChange={(event) => changeSplit("x", event.target.value)}
-                type="range"
-                value={split.x}
-              />
-            </label>
-          )}
-          {(layout === "N2" || layout === "T1" || layout === "T2") && (
-            <label>
-              {yLabel}
-              <output>{split.y}%</output>
-              <input
-                aria-label={yLabel}
-                max={layout === "T1" ? Math.min(60, 80 - split.x) : 80}
-                min={20}
-                onChange={(event) => changeSplit("y", event.target.value)}
-                type="range"
-                value={split.y}
-              />
-            </label>
-          )}
-        </div>
         <div aria-label={copy.focusControls} className="focus-controls">
           {preferences.mode === "transcription" && (
             <button
@@ -1545,6 +1507,13 @@ export function App() {
         style={setSplitStyle}
       >
         {paneOrder.map((pane) => panes[pane])}
+        {!focusPane && (layout === "N1" || layout === "T1" || layout === "T2") &&
+          <PanelDivider key={`${layout}-x`} layout={layout} axis="x" split={split}
+            label={xLabel} onChange={changeSplit} />}
+        {!focusPane && (layout === "N2" || layout === "T1" || layout === "T2") &&
+          <PanelDivider key={`${layout}-y`} layout={layout} axis="y" split={split}
+            label={yLabel} onChange={changeSplit} />}
+
       </section>
       <dialog
         aria-labelledby="lifecycle-dialog-title"

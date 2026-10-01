@@ -54,7 +54,7 @@ export function readPreferences(storage, osLanguage = "en") {
     /** @param {LayoutId} layout */
     const split = (layout) => {
       const raw = isRecord(rawSplits[layout]) ? rawSplits[layout] : {};
-      const xMaximum = layout === "T1" || layout === "N1" || layout === "T2" ? 60 : 80;
+      const xMaximum = layout === "T1" ? 60 : 80;
       const yMaximum = layout === "T1" ? 60 : 80;
       return {
         x: bounded(raw.x, DEFAULT_SPLITS[layout].x, 20, xMaximum),
