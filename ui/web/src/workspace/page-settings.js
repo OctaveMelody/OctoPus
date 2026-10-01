@@ -31,7 +31,7 @@ export const pageSettingGroups = [
         key: "biaoti_font",
         label: "pageSettingsTitleFont",
         kind: "select",
-        defaultValue: "HeiTi-2",
+        defaultValue: "HeiTi-1",
         options: [
           { value: "HeiTi-1", label: "fontHeiTi1" },
           { value: "HeiTi-2", label: "fontHeiTi2" },
@@ -55,7 +55,7 @@ export const pageSettingGroups = [
         key: "geci_font",
         label: "pageSettingsLyricFont",
         kind: "select",
-        defaultValue: "HeiTi-2",
+        defaultValue: "HeiTi-1",
         options: [
           { value: "HeiTi-1", label: "fontHeiTi1" },
           { value: "HeiTi-2", label: "fontHeiTi2" },

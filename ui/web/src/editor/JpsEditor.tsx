@@ -93,6 +93,7 @@ export type JpsEditorHandle = {
   applyPageConfig(pageConfig: Record<string, unknown>): void;
   undo(): boolean;
   redo(): boolean;
+  cut(): boolean;
   copy(): boolean;
   paste(): boolean;
   find(replace?: boolean): boolean;
@@ -223,6 +224,10 @@ export function JpsEditor({
       redo() {
         editor.focus();
         return redo(editor);
+      },
+      cut() {
+        editor.focus();
+        return document.execCommand("cut");
       },
       copy() {
         editor.focus();

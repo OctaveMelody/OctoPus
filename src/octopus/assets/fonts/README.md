@@ -15,7 +15,7 @@ Source/debug reference builds also prefer matching installed Microsoft fonts.
 | KaiTi | KaiTi | Kaiti SC | LXGW WenKai v1.522 |
 | FangSong | FangSong | STFangsong | Zhuque Fangsong v0.212 |
 
-Saved HeiTi remains an alias for HeiTi-2. New documents use HeiTi-2/Bold. Existing
+Saved HeiTi remains an alias for HeiTi-2. New documents use HeiTi-1/Bold. Existing
 note presets remain Regular/Italic/Bold (a/c/b); legacy values and untouched settings
 remain readable. The five fallback families supply regular faces, without synthetic
 weights. Noto Sans/Serif regular/bold back up missing glyphs; four Liberation Sans

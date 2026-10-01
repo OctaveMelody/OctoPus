@@ -62,7 +62,7 @@ macOS 分别优先使用 PingFang SC、Heiti SC、Songti SC、Kaiti SC、STFangs
 每种系统字体缺失时分别使用内置 MiSans Regular、Neo XiHei、SimZhiSong、
 WenKai Regular、Zhuque Fangsong。Linux 生产版也优先使用已安装的上述微软字体，
 通过 fontconfig 精确匹配；缺失时使用内置替代字体。便携版遵循相同规则。
-旧 HeiTi 设置仍对应 HeiTi-2；Noto 补充缺失字符，Liberation Sans 替代 Arial 西文。
+新文档默认使用 HeiTi-1；旧 HeiTi 设置仍对应 HeiTi-2；Noto 补充缺失字符，Liberation Sans 替代 Arial 西文。
 PDF 会嵌入字体，JPEG 保存像素；外部 SVG 查看器需要相应字体。
 [字体指南](src/octopus/assets/fonts/README.md) 说明许可证、macOS 字体集合选择、
 Python PDF 的 CFF 替代及原始 IPA 字体恢复方法。关于窗口注明小米 MiSans，

@@ -44,6 +44,7 @@ import {
 } from "./document.js";
 import {
   createNewScore,
+  createNewScorePageConfig,
   normalizeJpsFileName,
 } from "./new-score.js";
 import {
@@ -557,6 +558,7 @@ export function App() {
         name: pending.name,
         source: pending.draft.jps,
         savedSource: "",
+        pageConfig: createNewScorePageConfig(),
       }));
       setTranscriptionIssues(pending.draft.issues);
       setStatus({ kind: "transcribed", issues: pending.draft.issues.length });
@@ -1031,6 +1033,7 @@ export function App() {
         name,
         source,
         savedSource: "",
+        pageConfig: createNewScorePageConfig(),
       }));
       setNewScoreDraftActive(false);
       setActiveDialog(null);
@@ -1065,7 +1068,7 @@ export function App() {
     }
   }
 
-  function editClipboard(action: "copy" | "paste") {
+  function editClipboard(action: "cut" | "copy" | "paste") {
     try {
       if (!editorController.current?.[action]()) throw new Error(copy.clipboardUnavailable);
     } catch {
@@ -1107,6 +1110,9 @@ export function App() {
             </button>
             <button disabled={!documentOpen || !editorHistory.redo} onClick={() => editorController.current?.redo()} type="button">
               {copy.redo}
+            </button>
+            <button disabled={!documentOpen} onClick={() => editClipboard("cut")} type="button">
+              {copy.cut}
             </button>
             <button disabled={!documentOpen} onClick={() => editClipboard("copy")} type="button">
               {copy.copy}

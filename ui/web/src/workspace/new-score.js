@@ -1,3 +1,5 @@
+import { createPageSettingsDraft } from "./page-settings.js";
+
 /** @typedef {{title: string, subtitle: string, lyricist: string, composer: string, otherAuthors: string, keyNote: string, keyAccidental: "" | "#" | "$", beatNumerator: number, beatDenominator: number, tempo: string}} NewScoreFields */
 
 /** @param {string} value @param {string} field */
@@ -69,4 +71,9 @@ export function normalizeJpsFileName(value) {
     throw new TypeError("JPS filename exceeds the filesystem name limit");
   }
   return normalized;
+}
+
+export function createNewScorePageConfig() {
+  const { biaoti_font, geci_font, shuzi_font } = createPageSettingsDraft({});
+  return { biaoti_font, geci_font, shuzi_font };
 }

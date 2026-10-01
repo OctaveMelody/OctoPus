@@ -313,8 +313,8 @@ def save_working_copy(
 #: style (string-encoded, compact, like every corpus wrapper).
 DEFAULT_PAGE_CONFIG_JSON = (
     '{"page":"A4","margin_top":"40","margin_bottom":"40","margin_left":"60",'
-    '"margin_right":"60","biaoti_font":"HeiTi-2","shuzi_font":"Bold",'
-    '"geci_font":"HeiTi-2","height_quci":"13","height_cici":"10",'
+    '"margin_right":"60","biaoti_font":"HeiTi-1","shuzi_font":"Bold",'
+    '"geci_font":"HeiTi-1","height_quci":"13","height_cici":"10",'
     '"height_ciqu":"40","height_shengbu":"0","biaoti_size":"36",'
     '"fubiaoti_size":"20","geci_size":"18","body_margin_top":"40",'
     '"lianyinxian_type":"0"}'

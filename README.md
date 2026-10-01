@@ -65,7 +65,7 @@ Heiti SC, Songti SC, Kaiti SC and STFangsong. Each missing family falls back to
 MiSans Regular, Neo XiHei, SimZhiSong, WenKai Regular or Zhuque Fangsong, respectively.
 Linux production also prefers those Microsoft families when installed, using exact
 fontconfig matches; otherwise it uses the bundled fallbacks. This applies to portable
-builds as well. Saved HeiTi still means HeiTi-2.
+builds as well. New documents default to HeiTi-1; saved HeiTi still means HeiTi-2.
 Noto provides missing glyph coverage and Liberation Sans covers Latin Arial requests.
 PDF embeds fonts; JPEG stores pixels. External SVG viewers need the named fonts.
 [Font guide](src/octopus/assets/fonts/README.md) explains licenses, macOS collection
