@@ -1102,16 +1102,6 @@ export function App() {
         <div className="panel-heading">
           <div className="editor-heading-title">
             <h2>{copy.source}</h2>
-            {documentOpen && (
-              <span className="editor-file-name" title={score.name}>
-                {score.name}
-              </span>
-            )}
-            {documentOpen && isDocumentDirty(score) && (
-              <span aria-label={copy.unsaved} className="editor-unsaved-flag" title={copy.unsaved}>
-                {copy.unsavedFlag}
-              </span>
-            )}
           </div>
           <div aria-label={copy.editorTools} className="editor-heading-tools" role="toolbar" onScroll={() => positionFindMenu(findMenuRef.current)}>
             <button disabled={!documentOpen || !editorHistory.undo} onClick={() => editorController.current?.undo()} type="button">
@@ -1154,6 +1144,18 @@ export function App() {
             <button disabled={!documentOpen} onClick={() => editorController.current?.selectAll()} type="button">
               {copy.selectAll}
             </button>
+          </div>
+          <div className="editor-heading-file">
+            {documentOpen && (
+              <span className="editor-file-name" title={score.name}>
+                {score.name}
+              </span>
+            )}
+            {documentOpen && isDocumentDirty(score) && (
+              <span aria-label={copy.unsaved} className="editor-unsaved-flag" title={copy.unsaved}>
+                {copy.unsavedFlag}
+              </span>
+            )}
           </div>
           <button className="heading-action editor-format-action" disabled={!documentOpen} onClick={() => editorController.current?.formatSource()} type="button">
             {copy.formatSource}

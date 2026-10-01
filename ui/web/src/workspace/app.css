@@ -144,14 +144,14 @@ h2 { margin: 0; font-size: 14px; }
 
 .source-editor { display: flex; min-height: 0; flex: 1; flex-direction: column; overflow: hidden; }
 .editor-panel > .panel-heading, .preview-panel > .panel-heading { flex-wrap: wrap; padding-block: 6px; }
-.editor-panel > .panel-heading { flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr) auto; align-items: center; column-gap: 8px; }
+.editor-panel > .panel-heading { flex-shrink: 0; display: grid; grid-template-columns: auto minmax(80px, 1fr) minmax(0, auto) auto; align-items: center; column-gap: 8px; }
 .preview-panel .preview-tools { max-width: 100%; flex-wrap: wrap; overflow: visible; }
-.editor-heading-title { display: flex; min-width: 0; flex: none; flex-wrap: wrap; align-items: baseline; gap: 2px 7px; overflow: hidden; }
+.editor-heading-title { display: flex; align-items: center; white-space: nowrap; }
 .editor-heading-title h2 { flex: none; }
 .editor-format-action { justify-self: end; white-space: nowrap; }
-.editor-heading-title:has(.editor-unsaved-flag) .editor-file-name { max-width: calc(100% - 65px); }
+.editor-heading-file { display: flex; min-width: 0; max-width: clamp(60px, 12vw, 180px); align-items: center; gap: 7px; overflow: hidden; }
 .editor-file-name { min-width: 0; overflow: hidden; color: #697385; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.editor-heading-tools { position: relative; display: flex; min-width: 0; max-width: 100%; flex-wrap: nowrap; justify-content: safe center; align-items: center; gap: 4px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+.editor-heading-tools { position: relative; display: flex; min-width: 0; max-width: 100%; flex-wrap: nowrap; justify-content: flex-start; align-items: center; gap: 4px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
 .editor-heading-tools > * { flex: none; }
 .editor-heading-tools button { white-space: nowrap; }
 .editor-heading-tools button, .editor-format-action, .transcribe-menu > summary, .find-menu > summary { min-height: 30px; border: 1px solid #d1d7e0; border-radius: 5px; padding: 0 9px; color: #344258; background: white; font-size: 12px; }
