@@ -12,11 +12,20 @@ from pathlib import Path
 from statistics import median
 
 from . import text
+from .decorations import text_decorations
 from .headers import extract_headers, printed_key_span, stacked_meter_span
-from .image import MusicRow, PageObservation, recognize_image
+from .image import MusicRow, PageObservation, _read_page, recognize_image
 from .lyrics import extract_lyrics
 from .marks import row_sustains
-from .text import TextSpan, image_lyric_text, image_text, merge_text, pdf_text, scale_pdf_text
+from .text import (
+    TextSpan,
+    image_annotation_text,
+    image_lyric_text,
+    image_text,
+    merge_text,
+    pdf_text,
+    scale_pdf_text,
+)
 
 MAX_PDF_BYTES = 100_000_000
 MAX_PDF_PAGES = 200
@@ -130,6 +139,7 @@ def _row_marks(
             + ("'" * note.octave if note.octave > 0 else "," * -note.octave)
             + "/" * note.duration_slashes + "." * note.duration_dots
             + "".join("&" + token for token in note.decorations)
+            + "".join(note.annotations)
             + graces.get(index, ""),
         )
         for index, note in enumerate(row.notes)
@@ -138,6 +148,12 @@ def _row_marks(
         tuple(note.box for note in row.notes), row.unresolved_marks,
     ))
     marks.sort()
+    for pin in row.hairpins:
+        if 0 <= pin.start <= pin.end < len(marks):
+            x, body = marks[pin.start]
+            marks[pin.start] = (x, body + pin.code)
+            x, body = marks[pin.end]
+            marks[pin.end] = (x, body + "!")
     for index, token in row.parentheses:
         x, body = marks[index]
         marks[index] = (x, body + token)
@@ -336,6 +352,46 @@ def _lyric_baseline_text(
     )
 
 
+def _performance_text(
+    path: Path, page: PageObservation, original: tuple[TextSpan, ...],
+) -> PageObservation:
+    """Preserve instructions omitted by whole-page or lyric-focused OCR."""
+    if not page.rows:
+        return page
+    gray = _read_page(path)
+    all_rows = (*page.rows, *(bz.row for bz in page.bz_overlays))
+    cropped = image_annotation_text(path, tuple(row.box for row in all_rows)) or ()
+    candidates = tuple(dict.fromkeys((*page.text_spans, *original, *cropped)))
+    candidates = _score_text(replace(page, text_spans=candidates)).text_spans
+    consumed: set[TextSpan] = set()
+
+    def decorate(row: MusicRow) -> MusicRow:
+        found = text_decorations(
+            tuple(note.box for note in row.notes), candidates, gray=gray,
+            other_rows=tuple(other.box for other in all_rows if other is not row),
+        )
+        notes = []
+        for index, note in enumerate(row.notes):
+            tokens = [item.token for item in found if item.note_index == index]
+            notes.append(replace(
+                note,
+                decorations=tuple(dict.fromkeys((*note.decorations,
+                                                 *(t for t in tokens if not t.startswith('"'))))),
+                annotations=tuple(dict.fromkeys((*note.annotations,
+                                                *(t for t in tokens if t.startswith('"'))))),
+            ))
+        consumed.update(span for item in found for span in item.source_spans)
+        return replace(row, notes=tuple(notes), decoration_regions=(
+            *row.decoration_regions, *(item.box for item in found),
+        ))
+
+    rows = tuple(decorate(row) for row in page.rows)
+    overlays = tuple(replace(bz, row=decorate(bz.row)) for bz in page.bz_overlays)
+    return replace(page, rows=rows, bz_overlays=overlays, text_spans=tuple(
+        span for span in page.text_spans if span not in consumed
+    ))
+
+
 def _score_text(page: PageObservation) -> PageObservation:
     """Keep QR-adjacent publishing text out of title, credits and lyric ownership."""
     excluded = []
@@ -479,6 +535,12 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
             if voice is None or voice == 1:
                 source.append("")
             source.append(f"Q{voice or ''}: {music}")
+            if row.decoration_regions:
+                issues.append(Issue(
+                    "decoration_attachment_review", page_number,
+                    "Performance instructions and wedge/fermata ownership are provisional; "
+                    "confirm each recovered mark against the source.", row.decoration_regions,
+                ))
             if row.graces:
                 issues.append(Issue(
                     "grace_attachment_review", page_number,
@@ -554,6 +616,7 @@ def _pdf_pages(path: Path) -> tuple[PageObservation, ...]:
             native_spans = scale_pdf_text(words, observation.width, observation.height)
             ocr_spans = image_text(image_path)
             text_spans = merge_text(native_spans, ocr_spans or ())
+            original_spans = text_spans
             if not native_spans and ocr_spans is not None:
                 text_spans = _lyric_baseline_text(image_path, observation, text_spans)
             if page_number == 1:
@@ -564,7 +627,9 @@ def _pdf_pages(path: Path) -> tuple[PageObservation, ...]:
                 else "unavailable"
             )
             observations.append(
-                _score_text(replace(observation, text_spans=text_spans, text_source=text_source))
+                _performance_text(image_path, _score_text(replace(
+                    observation, text_spans=text_spans, text_source=text_source,
+                )), original_spans)
             )
             image_path.unlink()
     return tuple(observations)
@@ -576,14 +641,15 @@ def transcribe(path: Path) -> Draft:
     if suffix in {".png", ".jpg", ".jpeg"}:
         observation = recognize_image(path)
         text_spans = image_text(path)
+        original_spans = text_spans or ()
         if text_spans is not None:
             text_spans = _lyric_baseline_text(path, observation, text_spans)
             text_spans = _header_spans(path, observation, text_spans)
-        return _compile((_score_text(replace(
+        return _compile((_performance_text(path, _score_text(replace(
             observation,
             text_spans=text_spans or (),
             text_source="ocr" if text_spans is not None else "unavailable",
-        )),))
+        )), original_spans),))
     if suffix == ".pdf":
         return _compile(_pdf_pages(path))
     raise ValueError("transcription input must be PNG, JPG, JPEG or PDF")

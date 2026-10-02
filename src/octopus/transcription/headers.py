@@ -90,10 +90,33 @@ def printed_key_span(
 
 
 def _fraction_components(gray: Image.Image, components: list[Component]) -> list[Component]:
-    """Split a fraction rule joined to the bottom of its numerator in a small scan."""
+    """Separate fraction digits from a rule joined by low-resolution printing ink."""
     found = list(components)
     for component in components:
         left, top, right, bottom = component.box
+        if 10 <= component.height <= 40 and 4 <= component.width <= component.height:
+            # In a tiny scan the rule can connect both digits, leaving a single
+            # component. Require a wider internal rule and visible ink on both sides.
+            rule_rows = [
+                y for y in range(top + 4, bottom - 4)
+                if sum(cast(int, gray.getpixel((x, y))) < 160 for x in range(left, right))
+                >= component.width * 0.8
+            ]
+            if rule_rows and rule_rows[-1] - rule_rows[0] <= 2:
+                upper_bottom, lower_top = rule_rows[0], rule_rows[-1] + 1
+                upper = connected_components(gray.crop((left, top, right, upper_bottom)))
+                lower = connected_components(gray.crop((left, lower_top, right, bottom)))
+                if (len(upper) == len(lower) == 1
+                        and min(upper[0].height, lower[0].height) >= 4
+                        and component.width > max(upper[0].width, lower[0].width)):
+                    # Keep the rule's horizontal extent as OCR breathing room.
+                    found.extend((
+                        Component((left, top + upper[0].box[1], right, upper_bottom),
+                                  upper[0].area),
+                        Component((left, lower_top, right, bottom), lower[0].area),
+                        Component((left, upper_bottom, right, lower_top),
+                                  (lower_top - upper_bottom) * component.width),
+                    ))
         if not (6 <= component.height <= 40 and component.width >= component.height * 0.65):
             continue
         rows = [y for y in range(bottom - max(2, round(component.height * 0.25)), bottom)
@@ -117,6 +140,18 @@ def _fraction_components(gray: Image.Image, components: list[Component]) -> list
     return found
 
 
+def _meter_digit(gray: Image.Image, box: Box) -> tuple[str, float] | None:
+    """Read small fraction ink at usable resolution without lowering OCR confidence."""
+    digit = image_digit(gray, box, "0123456789")
+    height = box[3] - box[1]
+    if digit is not None or height >= 12:
+        return digit
+    crop = gray.crop(box)
+    scale = min(4, max(2, (24 + height - 1) // height))
+    enlarged = crop.resize((crop.width * scale, crop.height * scale), Image.Resampling.LANCZOS)
+    return image_digit(enlarged, (0, 0, enlarged.width, enlarged.height), "0123456789")
+
+
 def stacked_meter_span(
     path: Path, spans: tuple[TextSpan, ...], first_music_top: int
 ) -> TextSpan | None:
@@ -134,7 +169,7 @@ def stacked_meter_span(
     components = _fraction_components(gray, components)
     digits = [
         component for component in components
-        if 6 <= component.height <= key.height * 0.8
+        if 4 <= component.height <= key.height * 0.8
         and component.height * 0.45 <= component.width <= component.height * 1.5
     ]
     for top in digits:
@@ -156,8 +191,8 @@ def stacked_meter_span(
             )
             if not separator:
                 continue
-            numerator = image_digit(gray, top.box, "0123456789")
-            denominator = image_digit(gray, bottom.box, "0123456789")
+            numerator = _meter_digit(gray, top.box)
+            denominator = _meter_digit(gray, bottom.box)
             if numerator and denominator and numerator[0] != "0" and denominator[0] != "0":
                 return TextSpan(
                     f"{numerator[0]}/{denominator[0]}",

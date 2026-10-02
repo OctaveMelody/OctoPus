@@ -9,7 +9,7 @@ from .components import Box
 from .image import MusicRow, PageObservation
 from .text import TextSpan
 
-_DYNAMICS = {"pp", "p", "mp", "mf", "f", "ff", "rit", "dim", "cresc", "d.s.", "d.c."}
+_DYNAMICS = {"pp", "p", "mp", "mf", "f", "ff", "rit", "dim", "cresc", "d.s", "d.c"}
 _PERFORMER = re.compile(r"[（(]\s*([女男合])\s*[）)]")
 _ANNOTATION = re.compile(r"[（(]\s*[女男合]\s*[）)]|[①-⑳]|(?<!\d)\d+[.．](?!\d)")
 _RETURN = re.compile(r"\s*D\s*[.]\s*[SC]\s*[.:]?\s*$", re.I)
@@ -27,7 +27,7 @@ class LyricDraft:
 
 def _is_lyric_text(value: str) -> bool:
     text = value.strip()
-    return text.lower() not in _DYNAMICS and (
+    return text.lower().rstrip(".．") not in _DYNAMICS and (
         any("\u3400" <= character <= "\u9fff" for character in text)
         or _ANNOTATION.fullmatch(text) is not None
         or sum(character.isalpha() for character in text) >= 2

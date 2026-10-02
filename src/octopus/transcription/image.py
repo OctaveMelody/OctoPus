@@ -8,12 +8,13 @@ from functools import cache
 from itertools import product
 from math import ceil, floor
 from pathlib import Path
-from statistics import median
+from statistics import linear_regression, median
 from typing import cast
 
 from PIL import Image, ImageOps
 
 from .components import Box, Component, connected_components
+from .decorations import Hairpin, row_hairpins, symbol_decorations
 from .glyphs import (
     DigitMatch,
     classify_accidental,
@@ -49,6 +50,7 @@ class Note:
     duration_dots: int = 0
     accidental: str = ""
     decorations: tuple[str, ...] = ()
+    annotations: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +64,8 @@ class MusicRow:
     graces: tuple[GraceGroup, ...] = ()
     endings: tuple[EndingSegment, ...] = ()
     parentheses: tuple[tuple[int, str], ...] = ()
+    hairpins: tuple[Hairpin, ...] = ()
+    decoration_regions: tuple[Box, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -299,7 +303,40 @@ def _groups(
             groups[-1].append(candidate)
         else:
             groups.append([candidate])
-    return groups
+    # A tilted scan may split one baseline into disjoint left/right fragments.
+    # Merge only fragments explained by one shallow line, never stacked voices.
+    merged: list[list[tuple[Component, DigitMatch]]] = []
+    for group in groups:
+        if merged:
+            previous = merged[-1]
+            left = max(min(item.box[0] for item, _ in previous),
+                       min(item.box[0] for item, _ in group))
+            right = min(max(item.box[2] for item, _ in previous),
+                        max(item.box[2] for item, _ in group))
+            combined = [*previous, *group]
+            xs = [(item.box[0] + item.box[2]) / 2 for item, _ in combined]
+            ys = [float(item.box[3]) for item, _ in combined]
+            if (right <= left + height * 0.2 and left - right <= height * 8
+                    and max(xs) - min(xs) >= height * 5):
+                fit = linear_regression(xs, ys)
+                residuals = [abs(y - (fit.slope * x + fit.intercept))
+                             for x, y in zip(xs, ys, strict=True)]
+                local_slopes = []
+                for fragment in (previous, group):
+                    local_xs = [(item.box[0] + item.box[2]) / 2 for item, _ in fragment]
+                    if len(fragment) >= 3 and max(local_xs) - min(local_xs) >= height * 3:
+                        local_slopes.append(linear_regression(
+                            local_xs, [float(item.box[3]) for item, _ in fragment],
+                        ).slope)
+                tilted = any(abs(slope) >= 0.008 and slope * fit.slope > 0
+                             and abs(slope - fit.slope) <= 0.012 for slope in local_slopes)
+                if (tilted and abs(fit.slope) <= 0.055 and median(residuals) <= height * 0.2
+                        and max(residuals) <= height * 0.5
+                        and max(ys) - min(ys) <= height * 1.6):
+                    previous.extend(group)
+                    continue
+        merged.append(group)
+    return merged
 
 
 def _split_digit_cluster(
@@ -686,17 +723,49 @@ def recognize_image(path: Path) -> PageObservation:
 
     def with_slurs(row: MusicRow) -> MusicRow:
         notes = tuple(note.box for note in row.notes)
-        music = tuple(sorted((*notes, *row_sustains(notes, row.unresolved_marks))))
         height = median(box[3] - box[1] for box in notes)
-        parts, core = curve_core_parts(source_components, source_gray, row.box[1], height)
-        recovered_notes = tuple(replace(note, octave=note.octave or note_modifiers(
-            note.box, parts, round(height), duration_gray=core,
-        )[0]) for note in row.notes)
+        others = tuple(other.box for other in (*page.rows, *(bz.row for bz in page.bz_overlays))
+                       if other is not row)
+        symbols = symbol_decorations(source_gray, notes, source_components, other_rows=others)
+        symbol_regions = tuple(symbol.box for symbol in symbols)
+        marks = [component for component in source_components if not any(
+            left <= (component.box[0] + component.box[2]) / 2 <= right
+            and top <= component.center_y <= bottom
+            for left, top, right, bottom in symbol_regions
+        )]
+        parts, core = curve_core_parts(marks, source_gray, row.box[1], height)
+        working_marks = [component for component in components if not any(
+            left <= (component.box[0] + component.box[2]) / (2 * scale) <= right
+            and top <= component.center_y / scale <= bottom
+            for left, top, right, bottom in symbol_regions
+        )] if symbols else []
+        recovered_notes = []
+        for index, note in enumerate(row.notes):
+            owned = tuple(symbol.token for symbol in symbols if symbol.note_index == index)
+            # Tiny dots were read in the enlarged working image. Keep that scale when
+            # excluding a fermata's dot, or a genuine two-pixel octave disappears.
+            working_box = cast(Box, tuple(coordinate * scale for coordinate in note.box))
+            octave = (note_modifiers(working_box, working_marks, round(height * scale))[0]
+                      if owned
+                      else note.octave or note_modifiers(
+                          note.box, parts, round(height), duration_gray=core,
+                      )[0])
+            recovered_notes.append(replace(
+                note, octave=octave, decorations=tuple(dict.fromkeys((*note.decorations, *owned))),
+            ))
+        unresolved = tuple(box for box in row.unresolved_marks if not any(
+            left <= (box[0] + box[2]) / 2 <= right
+            and top <= (box[1] + box[3]) / 2 <= bottom
+            for left, top, right, bottom in symbol_regions
+        ))
+        music = tuple(sorted((*notes, *row_sustains(notes, unresolved))))
+        hairpins = row_hairpins(source_gray, notes, marks, other_rows=others, music_boxes=music)
         return replace(
             row,
-            notes=recovered_notes,
-            slurs=row_slurs(music, row.box[1], height, source_components, source_gray),
-            parentheses=row_parentheses(music, height, source_components, source_gray),
+            notes=tuple(recovered_notes), unresolved_marks=unresolved,
+            slurs=row_slurs(music, row.box[1], height, marks, source_gray),
+            parentheses=row_parentheses(music, height, marks, source_gray),
+            hairpins=hairpins, decoration_regions=(*symbol_regions, *(pin.box for pin in hairpins)),
         )
 
     return replace(

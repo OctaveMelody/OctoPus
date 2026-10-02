@@ -16,6 +16,18 @@ OctoPus-dev, which holds tests, audits, reference output and development tools.
   Original Image/PDF panel; transcribe them into JPS drafts for review.
 - Export rendered scores as SVG, JPEG or PDF.
 
+## Transcription drafts
+
+Recognition supports small stacked time signatures and mildly skewed note rows. Visible
+`p`, `pp`, `mp`, `mf`, `f`, `ff`, `rit` and `dim` marks near note rows can become JPS decorations;
+fermatas use `&yc`. Text such as `cres`, `cresc`, `crescendo` and `decrescendo` is preserved as
+quoted JPS annotations. Graphic crescendo/decrescendo hairpins can attach to notes or sustain
+dashes.
+
+Every transcription remains provisional. Compare the draft with its source and review lyrics,
+rhythm, octave dots, voice grouping, and which note or sustain dash owns each decoration.
+Small, blurred or crowded marks can still be missed or misread.
+
 ## Planned improvements
 
 - Improve transcription accuracy.

@@ -95,6 +95,66 @@ def image_text(path: Path) -> tuple[TextSpan, ...] | None:
     return tuple(spans)
 
 
+def image_annotation_text(path: Path, rows: tuple[Box, ...]) -> tuple[TextSpan, ...] | None:
+    """Read small above-note words in local crops without whole-page OCR downscaling.
+
+    These are candidates only. The decoration recognizer must corroborate vocabulary,
+    confidence and note/row ownership before any candidate becomes JPS notation.
+    """
+    engine = _ocr_engine()
+    if engine is None:
+        return None
+    with Image.open(path) as source:
+        rgba = ImageOps.exif_transpose(source).convert("RGBA")
+    white = Image.new("RGBA", rgba.size, "white")
+    white.alpha_composite(rgba)
+    rgb = white.convert("RGB")
+    gray = rgb.convert("L")
+    spans: list[TextSpan] = []
+    seen: set[Box] = set()
+    for row in rows:
+        height = row[3] - row[1]
+        top = max(0, round(row[1] - height * 2.3))
+        bottom = max(top, round(row[1] - height * 0.15))
+        if bottom <= top:
+            continue
+        left = max(0, round(row[0] - height * 1.4))
+        right = min(rgb.width, round(row[2] + height))
+        components = sorted(connected_components(gray.crop((left, top, right, bottom))),
+                            key=lambda item: item.box[0])
+        groups: list[list[Component]] = []
+        for component in components:
+            if component.height < max(3, height * 0.24) or component.height > height * 1.4:
+                continue
+            if groups and component.box[0] - max(item.box[2] for item in groups[-1]) < height * 0.6:
+                groups[-1].append(component)
+            else:
+                groups.append([component])
+        for group in groups:
+            box = (left + min(item.box[0] for item in group),
+                   top + min(item.box[1] for item in group),
+                   left + max(item.box[2] for item in group),
+                   top + max(item.box[3] for item in group))
+            center_y = (box[1] + box[3]) / 2
+            if (box in seen or box[2] - box[0] > height * 12 or any(
+                other != row and other[1] <= center_y <= other[3] + height * 1.25
+                and box[2] > other[0] and box[0] < other[2] for other in rows
+            )):
+                continue
+            seen.add(box)
+            padding = max(3, round(height * 0.2))
+            crop = ImageOps.expand(rgb.crop(box), border=padding, fill="white")
+            factor = max(1, min(4, round(40 / max(1, box[3] - box[1]))))
+            crop = crop.resize((crop.width * factor, crop.height * factor),
+                               Image.Resampling.LANCZOS)
+            result, _ = engine(crop, use_det=False, use_cls=False)  # type: ignore[operator]
+            for value, confidence, *_ in result or []:
+                word = str(value).strip()
+                if word:
+                    spans.append(TextSpan(word, box, float(confidence)))
+    return tuple(spans)
+
+
 def image_lyric_text(
     path: Path, rows: tuple[Box, ...], *, small_page: bool,
 ) -> tuple[TextSpan, ...] | None:
