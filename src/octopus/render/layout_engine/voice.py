@@ -18,6 +18,7 @@ from octopus.render.core.layout_widths import (
     _is_zero_space_barline,
     compute_event_width,
 )
+from octopus.render.layout_engine.hidden.bz_layout import bz_target_source_lines
 from octopus.render.layout_engine.hidden.hidden_stream_layout import (
     _tail_layout_event,
 )
@@ -94,6 +95,7 @@ def _layout_system_voices(
         slot = 0
         voice_event_start = len(layout.events)
         visible_events = visible_events_by_voice[voice_index]
+        bz_source_lines = bz_target_source_lines(visible_events, voice.events, voice.constructs)
         tail_identity = _block_tail_identity(
             visible_events,
             voice.events,
@@ -117,7 +119,10 @@ def _layout_system_voices(
             hidden_bz_offset = (
                 40.0
                 if len(system.voices) == 1
-                and _source_line_has_hidden_bz(voice.constructs, source_line)
+                and (
+                    source_line in bz_source_lines
+                    or _source_line_has_hidden_bz(voice.constructs, source_line)
+                )
                 else 0.0
             )
             row_input = RowLayoutInput(

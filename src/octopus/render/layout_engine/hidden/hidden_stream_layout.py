@@ -26,18 +26,14 @@ from octopus.render.layout_engine.streams import (
 )
 from octopus.render.layout_engine.visibility import is_visible_event as _is_visible_event
 
+from .bz_layout import layout_bz_events
 from .hidden_streams import (
     event_duration_fraction as _event_duration_fraction,
 )
 from .hidden_streams import (
     measure_aligned_hidden_dsb_events as _measure_aligned_hidden_dsb_events_impl,
 )
-from .hidden_streams import (
-    target_slot_at_or_after_onset as _target_slot_at_or_after_onset,
-)
-from .hidden_streams import (
-    target_slots_by_onset as _target_slots_by_onset,
-)
+from .hidden_streams import outer_bz_constructs
 
 
 def hidden_dsb_events_for_layout(
@@ -53,8 +49,11 @@ def hidden_dsb_events_for_layout(
     source_by_index = {event.index: event for event in events}
     visible_by_index = {item.event.index: item for item in laid_out}
     hidden_events: list[LayoutEvent] = []
+    bz_blocks = outer_bz_constructs(constructs)
     for construct in constructs:
         if construct.kind != "block" or construct.value not in {None, "bz", "dsb"}:
+            continue
+        if construct.value == "bz" and construct not in bz_blocks:
             continue
         hidden_block_events = [
             event
@@ -70,61 +69,10 @@ def hidden_dsb_events_for_layout(
             continue
 
         if construct.value == "bz":
-            tail = _first_barline_after(construct.end_event_index, laid_out)
-            placement_events = [
-                item
-                for item in laid_out
-                if item.event.span.start.line == construct.source_span.end.line
-                and item.event.span.start.offset >= construct.source_span.end.offset
-                and (tail is None or item.x < tail.x)
-                and item.event.kind != MusicTokenKind.BARLINE
-            ]
-            bz_events: list[LayoutEvent] = []
-            for block_index, (event, placement) in enumerate(
-                zip(construct_events, placement_events, strict=False),
-                start=1,
-            ):
-                bz_events.append(
-                    LayoutEvent(
-                        event=event,
-                        x=placement.x,
-                        y=placement.y - 40.0,
-                        page_index=page_index,
-                        voice=voice,
-                        line=placement.line,
-                        slot=placement.slot,
-                        block="bz-hidden",
-                        block_index=block_index,
-                    )
-            )
-            if tail is not None:
-                hidden_barline = next(
-                    (
-                        event
-                        for event in hidden_block_events
-                        if event.kind == MusicTokenKind.BARLINE
-                    ),
-                    None,
-                )
-                if hidden_barline is not None:
-                    bz_events.append(
-                        LayoutEvent(
-                            event=hidden_barline,
-                            x=tail.x,
-                            y=tail.y - 40.0,
-                            page_index=page_index,
-                            voice=voice,
-                            line=tail.line,
-                            slot=tail.slot,
-                            block="bz-hidden",
-                            block_index=len(construct_events) + 1,
-                        )
-                    )
-            _assign_hidden_bz_stream_slots(
-                bz_events,
-                [*placement_events, *([tail] if tail is not None else [])],
-            )
-            hidden_events.extend(bz_events)
+            hidden_events.extend(layout_bz_events(
+                construct, hidden_block_events, laid_out,
+                page_index=page_index, voice=voice, metrics=metrics,
+            ))
             continue
 
         measure_aligned_events = _measure_aligned_hidden_dsb_events(
@@ -339,55 +287,6 @@ def _has_suppressed_leading_sentinel(items: list[LayoutEvent]) -> bool:
             or "(" in second.event.code
         )
     )
-
-
-def _assign_hidden_bz_stream_slots(
-    hidden_events: list[LayoutEvent],
-    target_measure: list[LayoutEvent],
-) -> None:
-    # Notes sharing one beat bucket form a single stream group: the whole
-    # group flushes ahead of the first visible event at or after its onset.
-    # Per-note bucket lookup instead interleaved a beamed pair with its
-    # visible twins (corpus census 2026-08-28: Azalea's second bz beam pair
-    # must sit before the slot-13 extension, not between it and the next
-    # placeholder).
-    target_slots = _target_slots_by_onset(target_measure)
-    target_barline = next(
-        (item for item in target_measure if item.event.kind == MusicTokenKind.BARLINE),
-        None,
-    )
-    onset = Fraction(0, 1)
-    group: list[LayoutEvent] = []
-    group_onset = Fraction(0, 1)
-    group_bucket: int | None = None
-
-    def flush_group() -> None:
-        nonlocal group, group_bucket
-        if not group:
-            return
-        slot = _target_slot_at_or_after_onset(
-            target_slots, group_onset, default=group[0].slot
-        )
-        for item in group:
-            item.stream_slot = slot
-        group = []
-        group_bucket = None
-
-    for item in hidden_events:
-        if item.event.kind == MusicTokenKind.BARLINE:
-            flush_group()
-            item.stream_slot = target_barline.slot if target_barline is not None else item.slot
-            onset += _event_duration_fraction(item.event)
-            continue
-        bucket = _duration_bucket(onset, Fraction(1, 1))
-        if group_bucket is not None and bucket != group_bucket:
-            flush_group()
-        if group_bucket is None:
-            group_onset = onset
-            group_bucket = bucket
-        group.append(item)
-        onset += _event_duration_fraction(item.event)
-    flush_group()
 
 
 def _target_slot_by_beat_bucket(

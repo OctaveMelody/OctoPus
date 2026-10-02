@@ -10,6 +10,7 @@ from octopus.render.core.layout_types import (
 from octopus.render.layout_engine.event_selection import (
     visible_events_for_layout as _visible_events_for_layout,
 )
+from octopus.render.layout_engine.hidden.bz_layout import bz_target_source_lines
 from octopus.render.layout_engine.lyrics.lyric_selection import (
     source_line_groups as _source_line_groups,
 )
@@ -166,6 +167,18 @@ def _prepare_system_layout(
                 strict=True,
             )
         )
+        bz_lines = frozenset(
+            line
+            for voice_index, voice in enumerate(system.voices)
+            for line in bz_target_source_lines(
+                visible_events_by_voice[voice_index], voice.events, voice.constructs,
+            )
+        )
+        bz_clearance = 0.0
+        for line in system_source_lines:
+            if line in bz_lines:
+                bz_clearance += 40.0
+            source_line_y_offsets[line] += bz_clearance
         system_rows = max(system_rows, spacing_profile.physical_row_count)
     return _SystemLayoutState(
         current_y=current_y,

@@ -12,6 +12,8 @@ OctoPus-dev, which holds tests, audits, reference output and development tools.
 ## Features
 
 - Edit Jianpu scores in JPS (Jianpu Script), with live SVG preview.
+- Group short notes automatically by dotted-quarter beats in 6/8, 9/8 and 12/8;
+  use JPS `~` and `^` for custom joins and splits.
 - Import JPG/PNG/PDF references through the file picker or by dropping a file into the
   Original Image/PDF panel; transcribe them into JPS drafts for review.
 - Export rendered scores as SVG, JPEG or PDF.

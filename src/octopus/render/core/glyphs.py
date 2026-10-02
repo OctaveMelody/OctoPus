@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ from ...parser.ast import MusicTokenKind
 _GLYPH_DIR = Path(__file__).parent.parent.parent / "assets" / "glyphs"
 _REGISTRY: dict[str, str] | None = None
 _GLYPH_CACHE: dict[str, str] | None = None
+_SMALL_NOTE_GLYPH = re.compile(r"shuzi_([abc])_bian_([0-9x])")
 
 
 def _load_registry() -> dict[str, str]:
@@ -41,7 +43,10 @@ def load_glyph(glyph_id: str) -> str | None:
         return _GLYPH_CACHE[glyph_id]
     registry = _load_registry()
     if glyph_id not in registry:
-        return None
+        generated = _missing_note_glyph(glyph_id)
+        if generated is not None:
+            _GLYPH_CACHE[glyph_id] = generated
+        return generated
     svg_path = _GLYPH_DIR / f"{glyph_id}.svg"
     if not svg_path.exists():
         return None
@@ -59,6 +64,46 @@ def load_glyph(glyph_id: str) -> str | None:
     return xml
 
 
+def _missing_note_glyph(glyph_id: str) -> str | None:
+    """Complete digit families from packaged outlines without changing existing assets."""
+    if re.fullmatch(r"shuzi_[abc]_x", glyph_id):
+        # JPS 9 is the rhythm cross, distinct from a numeric meter digit 9.
+        style = glyph_id.split("_")[1]
+        slant = ' transform="skewX(-12)"' if style == "c" else ""
+        weight = "3" if style == "b" else "2"
+        return (
+            f'<g id="{glyph_id}"><path d="M-5,-8 L5,8 M5,-8 L-5,8" '
+            f'fill="none" stroke="#1b1b1b" stroke-width="{weight}"{slant}/></g>'
+        )
+    if glyph_id in {"shuzi_a_0", "shuzi_c_0"}:
+        # Use the catalog's regular rest when a style has no separate rest
+        # outline. It also supplies that style's reduced BZ rest.
+        source = load_glyph("shuzi_b_0")
+        if source is None:
+            return None
+        return source.replace('id="shuzi_b_0"', f'id="{glyph_id}"', 1)
+    match = _SMALL_NOTE_GLYPH.fullmatch(glyph_id)
+    if match is None:
+        return None
+    style, digit = match.groups()
+    source = load_glyph(f"shuzi_{style}_{digit}") or load_glyph(f"shuzi_b_{digit}")
+    if source is None:
+        # 8 and 9 are meter digits, with only reduced outlines in the catalog.
+        if style != "b" and (source := load_glyph(f"shuzi_b_bian_{digit}")) is not None:
+            return source.replace(f'id="shuzi_b_bian_{digit}"', f'id="{glyph_id}"', 1)
+        return None
+    outline = ET.fromstring(source)
+    outline.attrib.pop("id", None)
+    for child in list(outline):
+        if child.tag == "rect" and child.attrib.get("fill") in {"#ffffff", "white"}:
+            # Ordinary notes have an opaque erasing box; small BZ notes must
+            # leave neighboring accompaniment symbols and underlines visible.
+            outline.remove(child)
+    reduced = ET.Element("g", {"id": glyph_id, "transform": "scale(0.8)"})
+    reduced.append(outline)
+    return re.sub(r"\s+/>", "/>", ET.tostring(reduced, encoding="unicode"))
+
+
 def load_all_glyphs() -> dict[str, str]:
     registry = _load_registry()
     result: dict[str, str] = {}
@@ -66,11 +111,19 @@ def load_all_glyphs() -> dict[str, str]:
         xml = load_glyph(gid)
         if xml is not None:
             result[gid] = xml
+    for style in "abc":
+        for digit in range(10):
+            for gid in (f"shuzi_{style}_{digit}", f"shuzi_{style}_bian_{digit}"):
+                if gid not in result and (xml := load_glyph(gid)) is not None:
+                    result[gid] = xml
+        for gid in (f"shuzi_{style}_x", f"shuzi_{style}_bian_x"):
+            if (xml := load_glyph(gid)) is not None:
+                result[gid] = xml
     return result
 
 
 def note_glyph_id(pitch: int, font_style: str = "b") -> str:
-    return f"shuzi_{font_style}_{pitch}"
+    return f"shuzi_{font_style}_{'x' if pitch == 9 else pitch}"
 
 
 def barline_glyph_id(code: str) -> str:
@@ -193,14 +246,18 @@ def get_time_signature_glyphs(time_sig: str, font_style: str = "b") -> list[dict
         items.append({"glyph": "paihao_xian", "offset_x": offset_base})
         num = parts[0]
         den = parts[1]
-        for digit in num:
+        for index, digit in enumerate(num):
             d = digit.strip()
             if d.isdigit():
                 gid = f"shuzi_{font_style}_bian_{d}"
-                items.append({"glyph": gid, "offset_x": offset_base + 10, "is_numerator": True})
-        for digit in den:
+                offset = offset_base + 10 + (index - (len(num) - 1) / 2) * 9
+                offset = int(offset) if offset.is_integer() else offset
+                items.append({"glyph": gid, "offset_x": offset, "is_numerator": True})
+        for index, digit in enumerate(den):
             d = digit.strip()
             if d.isdigit():
                 gid = f"shuzi_{font_style}_bian_{d}"
-                items.append({"glyph": gid, "offset_x": offset_base + 10, "is_denominator": True})
+                offset = offset_base + 10 + (index - (len(den) - 1) / 2) * 9
+                offset = int(offset) if offset.is_integer() else offset
+                items.append({"glyph": gid, "offset_x": offset, "is_denominator": True})
     return items

@@ -3,11 +3,11 @@
 </header>
 <main><article id="manual-zh-CN" lang="zh-CN"><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
 <h1>用户手册</h1>
-<p>Version 0.1.0 · 2026-10-01</p>
+<p>Version 0.1.0 · 2026-10-02</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
-</div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
+</div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自动与自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
 <section id="zh-CN-introduction"><h2>1. 简介</h2>
-<p>OctoPus（Octave + Jianpu）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。本手册适用于 0.1.0 版本，更新于 2026 年 10 月 1 日。</p>
+<p>OctoPus（Octave + Jianpu）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。本手册适用于 0.1.0 版本，更新于 2026 年 10 月 2 日。</p>
 <p>安装完成后，编辑、渲染和受支持的转录功能可在本地运行。帮助链接及更新检查需要浏览器或网络连接。手册本身支持离线阅读；中英文版本具有相同主题和示例。可切换语言标签页，也可下载对应 PDF。</p>
 </section>
 <section id="zh-CN-capabilities"><h2>2. 功能、限制与计划</h2>
@@ -73,6 +73,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 </section>
 <section id="zh-CN-source"><h2>6. 编辑 JPS 源码</h2>
 <p>从标题行或折叠的编辑菜单使用撤销/重做、剪切/复制/粘贴、查找、替换及全选。查找打开搜索界面；替换显示替换控制。标准编辑器快捷键仍可用。剪贴板能力取决于操作系统。<b>格式化源码</b>调整音乐标记间距并保留记谱内容，不能纠正音乐错误或确认转录正确。修改后应仔细检查带引号的注释及紧附音符的倚音组。</p>
+<p>手动选择 JPS 文本时，选区显示为蓝色；编辑器失去焦点时，颜色变淡。点击预览中的音符时，仍使用绿色标记显示对应的源码音符。</p>
 <p>语法标点请使用半角 ASCII：冒号 :、双引号 "、逗号 ,、单引号 '、斜线 /。整行 # 注释可说明源码。不要将弯引号或全角冒号当作语法符号粘贴。附属记号应紧跟所属音符。大量替换前先备份，必要时使用撤销。</p>
 </section>
 <section id="zh-CN-preview"><h2>7. 预览、光标与导航</h2>
@@ -228,15 +229,15 @@ C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,
 </div>
 <!-- sample:short-values:end -->
 </section>
-<section id="zh-CN-beaming"><h2>16. 自定义节拍分组</h2>
-<p>参考记谱按四分音符单位自动分组，6/8 等复拍子或特殊分组可能需要手动处理。<code>~</code> 将相邻音符串接为一组，<code>^</code> 强制切开。这些记号控制减时线的视觉分组，不是新的音高或歌词音节。应对照实际节拍检查，不能只依赖 P 字段。</p>
+<section id="zh-CN-beaming"><h2>16. 自动与自定义节拍分组</h2>
+<p>OctoPus 在以八分音符为单位的复拍子中，按附点四分音符拍自动连接短音符的减时线：6/8 分成两个三音组，9/8 分成三个，12/8 分成四个，每组相当于三个八分音符。分母为 8、分子大于 3 且能被 3 整除的拍号均适用此规则。其他拍号，包括 3/8 和 2/2，保留四分音符单位的自动分组。音符本身的时值不变。</p>
 <pre><code>P: 6/8
-Q: 1/~2/~3/^4/~5/~6/ |</code></pre>
+Q: 1/ 2/ 3/ 4/ 5/ 6/ |</code></pre>
 <h3>~ 与 ^ 的作用位置</h3>
-<p>在曲中，短音符后的 ~ 将其与后音连为一组，^ 强制在后音前断开。1/~2/~3/^4/~5/~6/ 把六个八分音符分为前后三音组，适用于沿用的四分拍自动分组与复合拍不符时。十六分音符串还需检查两层减时线。在歌词中 ~ 则用于合并一个唱词位置。曲中的 ~、^ 都不会增加音符。</p>
+<p>上例无需额外标记便可分成两个三音组。只有需要覆盖自动分组时，才使用 <code>~</code> 和 <code>^</code>：~ 将所在音符与后音连为一组，^ 在所在音符后结束该组。例如，<code>1/~2/^3/~4/^5/~6/</code> 将六个八分音符明确分成三个双音组。这些标记改变减时线的视觉连接，不改变音高或时值。十六分音符串还需检查两层减时线。在歌词中，~ 用于合并一个唱词位置。曲中的 ~、^ 都不会增加音符。</p>
 <!-- sample:beam-control:start -->
 <div class="sample-example" id="zh-CN-example-beam-control">
-<h3>复合拍中的连接与拆分</h3><p>描述头列出 6/8 与 9/8。第一行的 6/^ 强制断开，5/~ 4/~ 1/ 连成一组；第二行展示以 ~ 连接的长音群。这些符号改变分组，不改变时值。</p>
+<h3>复合拍中的连接与拆分</h3><p>描述头列出 6/8 与 9/8，第一个拍号决定初始的附点四分音符分组。显式标记可自定义分组：第一行的 6/^ 在该音后结束分组，5/~ 4/~ 1/ 连成一组；第二行以 ~ 连接较长音群。这些符号改变分组，不改变时值。</p>
 <p class="sample-provenance">示例库：Autumn-Cicada - Fei-Yuqing.jps · 源码行 11-12。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/beam-control.jps">下载此 JPS 摘录</a></p>
 <p class="example-label">JPS 源码</p><pre><code>Q: 6/&amp;sby&amp;zkh | 5 6/^ 5/~ 4/~ 1/ | (3&#x27;. 3&#x27;) 3&#x27;/ | 2 3/ 2 1/ | (7,. 7,.) |
 Q: 5,//~ 6,//~ 7,//~ 1//~ 2//~ 3// 1//~ 2//~ 3//~ 4//~ 5//~ 6// | 4//~ 5//~ 6//~ 7//~ 1&#x27;//~ 2&#x27;// 7//~ 6//~ 5//~ 6//~ 4//~ 2// | (1. 1.) 8&amp;ykh |</code></pre>
@@ -437,12 +438,12 @@ C: 凄雨冷风中 @多少繁华如梦  曾经万紫千红   @随风吹落</code
 <p>跳房子 [ 和 ] 附在小节线上；标号用双引号小节线注释。行首起点使用隐藏 |/。[ 后加 / 可使右端开放，加 +（或多个 +）可上移，避免与连音线重叠。跳房子可跨行，应在正确声部设置端点。同样方括号紧附音符时表示倚音，位置很重要。</p>
 <pre><code>Q: |/[&quot;1&quot; 1 2 3 4 :|] |/[&quot;2&quot; 5 6 7 1&#x27; ||]
 Q: |/[+/&quot;1,2&quot; 1 2 3 4 | 5 6 7 1&#x27; |]</code></pre>
-<p>临时拍号在小节线后写 <code>"p:3/4"</code>。它显示局部拍号；仍需检查分组，必要时使用 ~ 或 ^。</p>
+<p>临时拍号在小节线后写 <code>"p:3/4"</code>。它显示局部拍号，并更新该声部后续音符的自动分组。改为 6/8、9/8、12/8 时采用附点四分音符分组；改为 3/4、4/4 时恢复四分音符分组。需要特定分组时，仍可用 ~ 或 ^ 覆盖。</p>
 <pre><code>Q: 1 2 3 4 |&quot;p:3/4&quot; 5 6 7 |</code></pre>
 <h3>在小节线上放置结尾线</h3>
 <p>结尾线以小节线后的 [ 开启，以后续小节线后的 ] 闭合，引号标签属于小节线而非音符。行首可写 |/[&quot;1&quot;。用 [+、[++ 等把线抬到相邻连音线上方。方括号语法中的 / 可表示开放端；示例也用闭合处 |]/ 省略右侧竖角。复制时应带上完整起止配对，不能只移动孤立括号。</p>
 <h3>跨行结尾与局部换拍</h3>
-<p>同页结尾线可以延续到下一曲行；标签、终点、反复线及歌词结尾应相互一致。局部换拍写 |&quot;p:3/4&quot;，引号内 p 小写；行首可用 |/&quot;p:3/4&quot;。这不同于描述头 P: 3/4，后者设定初始拍号。每次换拍都应核对时值与自定义分组；单写拍号不会重新分配源码音符。</p>
+<p>同页结尾线可以延续到下一曲行；标签、终点、反复线及歌词结尾应相互一致。局部换拍写 |&quot;p:3/4&quot;，引号内 p 小写；行首可用 |/&quot;p:3/4&quot;。描述头 P: 3/4 设定初始拍号；列出多个拍号时，先使用第一个，直到局部换拍。同一页中，同声部后续曲行保留局部拍号；复拍子的分组进度也跨行延续。其他声部使用各自拍号；减时线本身在每个曲行边界结束。恢复原拍号时应明确写出，例如 |&quot;p:4/4&quot;。手动分页后，如需继续局部拍号，应重新写出。每次换拍都应核对时值与自定义分组；拍号不会重新分配源码音符。</p>
 <!-- sample:first-second-ending:start -->
 <div class="sample-example" id="zh-CN-example-first-second-ending">
 <h3>同一行中的第一、第二结尾</h3><p>[&quot;1&quot; 在小节线上开始，并以 :|] 结束；同一边界紧接 [&quot;2&quot;，以 ||] 结束。比较两个结尾分支及各自歌词。</p>
@@ -469,6 +470,7 @@ C1: 春 风 吹 来
 Q2&quot;低声部&quot;: 3, 4, 5, 6, |
 C2: 花 儿 开 了</code></pre>
 <p>临时伴奏使用 <code>{bz ...}</code>，临时多声部使用 <code>{dsb ...}</code>。关键字紧跟 {，且小写。这些行内组与主旋律定位。建议参考相近内置示例并核对时值、对齐，不要假设任意块都能自动正确排列。</p>
+<p>临时伴奏块可包含多个小节，音符数也可多于其对应主旋律；音符、可见休止符及后续小节都会保留。行末的块可与同声部下一曲行对齐。没有后续旋律时，包括独立或末尾的伴奏块，块内内容仍会显示。嵌套 {bz ...} 中的音符各显示一次。节奏或小节数不同时，请检查对齐。</p>
 <pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
 Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
 <p>行中声部括弧的简化示例（请在预览中检查对齐）：</p>
@@ -644,5 +646,5 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 </section>
 </article>
 </main>
-<footer>OctoPus · OctaveMelody · 2026-10-01</footer>
+<footer>OctoPus · OctaveMelody · 2026-10-02</footer>
 </body></html>

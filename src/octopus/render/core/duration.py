@@ -7,6 +7,7 @@ from fractions import Fraction
 
 from ...model.model_normalize import MusicEvent
 from ...parser.ast import MusicTokenKind
+from ..layout_engine.streams import meter_beat_duration
 from .elements import SvgElement, _format_reference_number
 from .layout_types import LayoutEvent, LayoutMark, LayoutPage
 
@@ -85,22 +86,48 @@ def duration_source_groups(
         for mark in layout.marks
         if (signature := _inline_time_signature(mark)) is not None
     }
+    stream_states: dict[tuple[object, ...], _DurationGroupState] = {}
+    hidden_ids = {id(item) for item in layout.hidden_events}
     for row in by_row.values():
-        beat = _duration_group_limit(layout.header.time_sig)
         sorted_row = sorted(row, key=lambda event: (event.slot, event.x, event.event.index))
-        state = _DurationGroupState(beat)
+        first = sorted_row[0]
+        source_voice = layout.source_voice_by_line.get(first.event.span.start.line, first.voice)
+        stream_key = (
+            ("hidden", source_voice, first.voice, first.block,
+             _hidden_block_identity(first))
+            if id(first) in hidden_ids else ("visible", source_voice)
+        )
+        state = stream_states.get(stream_key)
+        if state is None:
+            state = _DurationGroupState(_duration_group_limit(layout.header.time_sig))
+            stream_states[stream_key] = state
+        elif state.beat == 1:
+            # Preserve established simple-meter row behavior. Compound streams keep
+            # their exact phase when a physical row ends in the middle of a beat.
+            state.onset = Fraction(0, 1)
+            state.measure_primed = False
+            state.tied_rest_isolation = False
         for item in sorted_row:
             event = item.event
             if event.kind == MusicTokenKind.BARLINE:
+                if event.index < 0 and event.source_code is None and event.render_code is None:
+                    # Layout-only row-tail bars close the physical beam; they do not
+                    # supply a measure boundary in the source rhythm.
+                    state.close_group(groups)
+                    continue
                 state.on_barline(groups)
                 signature = inline_signatures.get((item.voice, item.line, item.slot))
                 if signature is not None:
                     state.beat = _duration_group_limit("/".join(signature))
                 continue
             raw_duration = event.duration
+            # Sustain dashes carry normalized time without a DurationValue.
+            # Compound grouping must count that time to retain the beat phase.
             duration = (
                 Fraction(raw_duration.numerator, raw_duration.denominator)
                 if raw_duration is not None
+                else Fraction(event.time or "0")
+                if state.beat != 1 and event.kind == MusicTokenKind.EXTENSION
                 else Fraction(0, 1)
             )
             if event.kind == MusicTokenKind.HIDDEN_REST:
@@ -141,13 +168,14 @@ def _is_tied_hidden_rest(event: MusicEvent) -> bool:
 class _DurationGroupState:
     """Beam-grouping state for one row of a duration line.
 
-    Zhipu beaming policy (proven against the corpus and oracle probes):
+    Duration-line grouping with explicit JPS overrides:
 
     * A beam group is a run of consecutive short notes (one or more slashes).
       Long notes, rests without slashes, hidden rests, and barlines break the
       run. Hidden rests render as null glyphs and never carry beams.
     * Within a run, notes join one group while they end inside the same beat
-      window ``[k, k + 1)`` in quarter-beat units (meter-independent); a note
+      window of one quarter note, or one dotted quarter in compound eighth-note
+      meters such as 6/8, 9/8 and 12/8; a note
       ending exactly on a window edge belongs to the earlier window.
     * A tied note (``~``) pulls the following short note into its group even
       across a window edge or a hidden-rest break; the pull chains through
@@ -155,8 +183,9 @@ class _DurationGroupState:
     * A tied note may also join the current group across one beat edge while
       it still ends within the first beat of the group (for example an
       eighth-note run starting on a half-beat offset).
-    * A note carrying a ``^`` mark is always rendered as an isolated stub.
-    * When a long note whose duration is not a whole number of beats or that
+    * A ``^`` mark closes the group after its note; the following note starts
+      a new group even within the same beat window.
+    * In simple meters, when a long note whose duration is not a whole number of beats or that
       carries a tie mark appears in a measure, the first short note of every
       following run in that measure is isolated as a stub when its duration
       is at least half a beat and it is not tied. The priming is consumed by
@@ -199,9 +228,12 @@ class _DurationGroupState:
         # A tied rest isolates its following run only when no preceding tie
         # pulls across it; a pending pull takes precedence.
         self.tied_rest_isolation = tied_rest and not last_tied
-        # A long note primes the measure when its duration is not a whole
-        # number of beats or when it carries a tie mark (oracle probes).
-        if duration > 0 and (duration % self.beat != 0 or self.tied_long_note):
+        # The legacy quarter-beat isolation rule belongs to simple meters.
+        # Compound beats use their exact phase: two quarters followed by two
+        # eighths must leave those eighths together in the final compound beat.
+        if self.beat == 1 and duration > 0 and (
+            duration % self.beat != 0 or self.tied_long_note
+        ):
             self.measure_primed = True
         self.onset += duration
 
@@ -229,7 +261,7 @@ class _DurationGroupState:
             self._start_group(item, duration, groups)
         else:
             end = self.onset + duration
-            window = (end - 1) // self.beat if end % self.beat == 0 else end // self.beat
+            window = end // self.beat - int(end % self.beat == 0)
             crosses_window = (
                 window != self.group_window
                 and _duration_marker_in_event(event, "~")
@@ -267,7 +299,7 @@ class _DurationGroupState:
             groups.append((item,))
             return
         end = self.onset + duration
-        window = (end - 1) // self.beat if end % self.beat == 0 else end // self.beat
+        window = end // self.beat - int(end % self.beat == 0)
         self.group.append(item)
         self.group_start = self.onset
         self.group_window = window
@@ -315,10 +347,8 @@ def _duration_marker_in_event(event: MusicEvent, marker: str) -> bool:
 
 
 def _duration_group_limit(time_sig: str) -> Fraction:
-    # Oracle probes (4/4, 2/2, 6/8, 9/8): the beat window is always one
-    # quarter-note beat, independent of the meter. Notes ending exactly on a
-    # window edge belong to the earlier window.
-    return Fraction(1, 1)
+    """Use the shared meter rule, expressed in quarter-note duration units."""
+    return meter_beat_duration(time_sig)
 
 
 def _duration_line(items: list[LayoutEvent], level: int) -> SvgElement:

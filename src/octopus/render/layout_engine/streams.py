@@ -32,7 +32,7 @@ def first_meter(time_sig: str) -> tuple[int, int] | None:
 
 
 def meter_beat_duration(time_sig: str) -> Fraction:
-    """Return the beat duration in whole-note units for a time signature.
+    """Return the beat duration in quarter-note units for a time signature.
 
     Compound eighth-note meters (6/8, 9/8, ...) use a dotted-quarter beat;
     every other meter uses a quarter-note beat.

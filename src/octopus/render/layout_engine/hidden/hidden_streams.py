@@ -8,6 +8,7 @@ from fractions import Fraction
 
 from octopus.normalization.types import MusicEvent, SemanticConstruct
 from octopus.parser.ast import MusicTokenKind
+from octopus.parser.source import SourceSpan
 from octopus.render.core.layout_types import LayoutEvent, _SyntheticIndexAllocator
 from octopus.render.layout_engine.visibility import (
     is_bz_placeholder_event,
@@ -16,6 +17,26 @@ from octopus.render.layout_engine.visibility import (
 )
 
 BZ_PLACEHOLDER_INDEX_START = -100000
+
+
+def outer_bz_constructs(
+    constructs: tuple[SemanticConstruct, ...],
+) -> tuple[SemanticConstruct, ...]:
+    """Return each BZ source stream once, including any nested BZ contents."""
+    blocks = tuple(
+        construct
+        for construct in constructs
+        if construct.kind == "block" and construct.value == "bz"
+    )
+    return tuple(
+        block
+        for block in blocks
+        if not any(
+            parent.source_span.start.offset < block.source_span.start.offset
+            and parent.source_span.end.offset >= block.source_span.end.offset
+            for parent in blocks
+        )
+    )
 
 
 @dataclass(frozen=True)
@@ -92,7 +113,8 @@ def with_bz_placeholders(
 ) -> list[MusicEvent]:
     placeholders_after: dict[int, int] = {}
     source_by_index = {event.index: event for event in events}
-    for construct in constructs:
+    blocks = outer_bz_constructs(constructs)
+    for construct in blocks:
         if (
             construct.kind != "block"
             or construct.value != "bz"
@@ -119,15 +141,71 @@ def with_bz_placeholders(
         for event in following_events[:placeholder_count]:
             placeholders_after[event.index] = placeholders_after.get(event.index, 0) + 1
 
-    if not placeholders_after:
-        return visible_events
-
     result: list[MusicEvent] = []
     placeholder_indices = _SyntheticIndexAllocator(BZ_PLACEHOLDER_INDEX_START)
     for event in visible_events:
         result.append(event)
         for _ in range(placeholders_after.get(event.index, 0)):
             result.append(bz_placeholder_event(event, placeholder_indices.take()))
+
+    # Let ordinary voice layout allocate a row even without a following melody.
+    # Empty anchors carry no source note or audio; the whole BZ still renders.
+    hosts: list[MusicEvent] = []
+    for construct in blocks:
+        following = [
+            event
+            for event in visible_events
+            if event.span.start.offset >= construct.source_span.end.offset
+        ]
+        hidden = [
+            event
+            for index in construct.event_indices
+            if (event := source_by_index.get(index)) is not None and is_visible_event(event)
+        ]
+        if not any(event.kind != MusicTokenKind.BARLINE for event in hidden):
+            continue
+        measure_count = sum(event.kind == MusicTokenKind.BARLINE for event in hidden)
+        measure_count += int(hidden[-1].kind != MusicTokenKind.BARLINE)
+        positions = []
+        has_music = False
+        measure_index = 0
+        for event in following:
+            if measure_index >= measure_count:
+                break
+            if event.kind != MusicTokenKind.BARLINE:
+                has_music = True
+                continue
+            if not has_music:
+                positions.append(event.span.start)
+            measure_index += 1
+            has_music = False
+        if not following:
+            positions.append(construct.source_span.end)
+        for position in positions:
+            hosts.append(
+                MusicEvent(
+                    index=placeholder_indices.take(),
+                    kind=MusicTokenKind.HIDDEN_REST,
+                    raw="{bz-host-placeholder}",
+                    span=SourceSpan(position, position),
+                    code="",
+                    source_code="",
+                    render_code="",
+                    pitch=None,
+                    time="0",
+                    audio="",
+                )
+            )
+    for host in reversed(hosts):
+        insertion = next(
+            (
+                index
+                for index, event in enumerate(result)
+                if event.span.start.offset >= host.span.start.offset
+            ),
+            len(result),
+        )
+        result.insert(insertion, host)
     return result
 
 

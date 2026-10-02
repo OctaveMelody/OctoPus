@@ -328,10 +328,10 @@ def event_glyph_id(layout: LayoutPage, item: LayoutEvent) -> str | None:
             MusicTokenKind.NOTE,
             MusicTokenKind.REST,
             MusicTokenKind.RHYTHM_NOTE,
-            MusicTokenKind.HIDDEN_REST,
         }:
             pitch = event.pitch if event.pitch is not None else 0
-            return f"shuzi_{layout.metrics.note_font}_bian_{pitch}"
+            digit = "x" if event.kind == MusicTokenKind.RHYTHM_NOTE else str(pitch)
+            return f"shuzi_{layout.metrics.note_font}_bian_{digit}"
         if event.kind == MusicTokenKind.BARLINE:
             return "xiaojiexian"
     if item.block == "dsb-hidden-tail" and event.kind == MusicTokenKind.BARLINE:

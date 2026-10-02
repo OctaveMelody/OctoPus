@@ -19,7 +19,7 @@ def is_visible_event(event: MusicEvent) -> bool:
 
 
 def is_bz_placeholder_event(event: MusicEvent) -> bool:
-    return event.raw == "{bz-placeholder}"
+    return event.raw in {"{bz-placeholder}", "{bz-host-placeholder}"}
 
 
 def is_dsb_placeholder_event(event: MusicEvent) -> bool:

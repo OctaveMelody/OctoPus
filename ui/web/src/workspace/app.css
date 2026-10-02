@@ -172,7 +172,10 @@ h2 { margin: 0; font-size: 14px; }
 .code-editor .cm-editor.cm-focused { outline: 3px solid #7ba6ff; outline-offset: -3px; }
 .code-editor .cm-scroller { overflow: auto; overscroll-behavior: contain; }
 .code-editor .cm-gutters { border-right: 1px solid #e6e9ef; color: #8a94a3; background: #f5f7fa; }
-.code-editor .cm-activeLine, .code-editor .cm-activeLineGutter { background: #eaf0f8; }
+.code-editor .cm-activeLine { background: rgba(217, 228, 242, .5); }
+.code-editor .cm-activeLineGutter { background: #eaf0f8; }
+.code-editor .cm-editor .cm-selectionBackground { background: #c7d8ec; }
+.code-editor .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground { background: #8ab8f5; }
 .code-editor.find-only .cm-search input[name="replace"], .code-editor.find-only .cm-search button[name="replace"], .code-editor.find-only .cm-search button[name="replaceAll"], .code-editor.find-only .cm-search br { display: none; }
 
 .preview-canvas { display: flex; min-height: 0; flex: 1; justify-content: flex-start; overflow: auto; overscroll-behavior: contain; padding: 12px; background: #e9edf3; }

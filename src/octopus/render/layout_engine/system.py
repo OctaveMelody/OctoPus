@@ -13,6 +13,7 @@ from octopus.render.layout_engine.group_projection import (
     _justify_shared_intrinsic_voice_rows,
     _register_shared_projection_plan,
 )
+from octopus.render.layout_engine.hidden.bz_layout import reproject_bz_events
 from octopus.render.layout_engine.legacy_cell_projection import (
     reproject_legacy_cell_rows,
 )
@@ -208,6 +209,10 @@ def _layout_system(
         system_layout_events,
         left=system_note_start_x,
         right=state.right,
+    )
+    reproject_bz_events(
+        system, system_layout_events, layout.hidden_events[hidden_event_start:],
+        page_index=page_index, metrics=metrics,
     )
     visual_system_rows = system_rows
     _collect_voice_braces(
