@@ -206,7 +206,7 @@ def _layout_system_voices(
                         else system_line_start + row
                     )
                     prev_was_barline = event.kind == MusicTokenKind.BARLINE
-                    if tail_identity.advances_slot(event):
+                    if tail_identity.advances_slot(event, bz_reserve_slots=len(system.voices) == 1):
                         slot += 1
                     layout.events.append(
                         LayoutEvent(

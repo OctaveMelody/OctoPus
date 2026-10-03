@@ -209,6 +209,7 @@ def _finalize_layout_voice(
         voice=voice_index,
         beat_unit=_dsb_stream_beat_unit(layout.header.time_sig),
         metrics=metrics,
+        bz_legacy_slots=len(system.voices) == 1,
     )
     lower_aligned_visible_dsb_targets(
         voice.events,

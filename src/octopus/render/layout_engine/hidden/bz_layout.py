@@ -46,6 +46,7 @@ def layout_bz_events(
     page_index: int,
     voice: int,
     metrics: PageMetrics,
+    preserve_legacy_slots: bool = True,
 ) -> list[LayoutEvent]:
     """Retain every BZ event, preserving established complete-slot placement."""
     following = sorted(
@@ -79,7 +80,8 @@ def layout_bz_events(
         )
         tail = next((item for item in target if item.event.kind == MusicTokenKind.BARLINE), None)
         legacy = (
-            len(hidden_measures) == 1
+            preserve_legacy_slots
+            and len(hidden_measures) == 1
             and bool(slots)
             and len(notes) <= len(slots)
             and all(item.line == slots[0].line for item in slots)
@@ -131,6 +133,7 @@ def reproject_bz_events(
             projected = layout_bz_events(
                 block, events, [item for item in laid_out if item.voice == voice_index],
                 page_index=page_index, voice=voice_index, metrics=metrics,
+                preserve_legacy_slots=len(system.voices) == 1,
             )
             for replacement in projected:
                 item = existing[replacement.event.index]

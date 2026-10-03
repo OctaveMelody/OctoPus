@@ -313,10 +313,39 @@ def note_modifiers(
     joined_lines = 0
     joined_dot_boxes: set[Box] = set()
     used_joined: set[Box] = set()
+    bridged: set[Box] = set()
+    if gray is not None:
+        # A faint two-pixel break near a beam's end can isolate a short fragment
+        # that resembles a low octave dot. Corroborate it against the collinear
+        # long stroke, using the original pixels and preserving every owned box.
+        for line in components:
+            if line.box in bridged or not (line.width >= digit_height * 1.3
+                    and line.height <= max(4, digit_height * 0.17)):
+                continue
+            for stub in components:
+                if (stub.box == line.box or stub.box in bridged
+                        or not 3 <= stub.width <= digit_height * 0.6
+                        or stub.height > max(4, digit_height * 0.17)
+                        or not 0 <= stub.box[0] - line.box[2] <= digit_height * 0.15
+                        or abs(stub.center_y - line.center_y) > digit_height * 0.12):
+                    continue
+                box = (line.box[0], min(line.box[1], stub.box[1]), stub.box[2],
+                       max(line.box[3], stub.box[3]))
+                if any(box[0] < bar < box[2] for bar in barlines):
+                    continue
+                fused = Component(box, line.area + stub.area)
+                count, has_dot = _joined_underline_and_dot(note, fused, gray, digit_height)
+                if count and not has_dot:
+                    joined_lines += count
+                    bridged.update((line.box, stub.box))
+                    used_joined.update((line.box, stub.box))
+                    break
     dot_reach = digit_height * (0.55 if gray is not None else 0.8)
     line_reach = digit_height * (0.55 if gray is not None else 0.72)
     for component in components:
         if component.box == note:
+            continue
+        if component.box in bridged:
             continue
         c_left, c_top, c_right, c_bottom = component.box
         round_dot = (
@@ -385,6 +414,39 @@ def note_modifiers(
         lines.clear()
     if len(duration_dots) > 2:
         duration_dots.clear()
+    existing_duration_boxes = [component.box for component in lines]
+    existing_duration_boxes.extend(box for box in used_joined)
+    faint_bands: list[tuple[int, int, int]] = []
+    if gray is not None:
+        for component in components:
+            if not (component.width >= max(10, round((right - left) * 0.8))
+                    and component.height <= max(4, digit_height * 0.17)
+                    and 0 < component.box[1] - bottom <= digit_height * 0.55
+                    and (0 < component.box[0] - right <= digit_height * 1.2
+                         or 0 < left - component.box[2] <= digit_height * 1.2)):
+                continue
+            # Recover only a faint continuation of an independently dark beam,
+            # never an unsupported grey rule under a quarter note.
+            box = (min(left, component.box[0]), component.box[1],
+                   max(right, component.box[2]), component.box[3])
+            count = _joined_duration_lines(
+                note, Component(box, component.area), gray, digit_height, barlines, 210,
+            )
+            if count:
+                used_joined.add(component.box)
+                if any(max(top, component.box[1]) < min(bottom, component.box[3])
+                       for _, top, _, bottom in existing_duration_boxes):
+                    continue
+                overlap = next((index for index, (top, bottom, _) in enumerate(faint_bands)
+                                if max(top, component.box[1]) < min(bottom, component.box[3])),
+                               None)
+                if overlap is None:
+                    faint_bands.append((component.box[1], component.box[3], count))
+                else:
+                    band_top, band_bottom, previous_count = faint_bands[overlap]
+                    faint_bands[overlap] = (min(band_top, component.box[1]),
+                                            max(band_bottom, component.box[3]),
+                                            max(previous_count, count))
     # Global pixels inside a joined beam's bounds can include an already detached dot.
     # Count that physical mark once, while retaining a second dot outside those bounds.
     joined_dot = any(not any(
@@ -397,4 +459,5 @@ def note_modifiers(
         component.box for component in (*dots_above, *dots_below, *duration_dots, *lines)
     }
     used.update(used_joined)
-    return octave, len(lines) + joined_lines, len(duration_dots), used
+    return (octave, len(lines) + joined_lines + sum(count for _, _, count in faint_bands),
+            len(duration_dots), used)

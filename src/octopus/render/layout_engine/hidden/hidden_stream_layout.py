@@ -45,6 +45,7 @@ def hidden_dsb_events_for_layout(
     voice: int,
     beat_unit: Fraction,
     metrics: PageMetrics,
+    bz_legacy_slots: bool = True,
 ) -> list[LayoutEvent]:
     source_by_index = {event.index: event for event in events}
     visible_by_index = {item.event.index: item for item in laid_out}
@@ -72,6 +73,7 @@ def hidden_dsb_events_for_layout(
             hidden_events.extend(layout_bz_events(
                 construct, hidden_block_events, laid_out,
                 page_index=page_index, voice=voice, metrics=metrics,
+                preserve_legacy_slots=bz_legacy_slots,
             ))
             continue
 

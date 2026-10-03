@@ -595,7 +595,9 @@ def _eligible_for_grid_owned_projection(
     }
     if len(bar_counts) != 1 or min(bar_counts) < 2:
         return False
-    if any(item.block is not None for row in rows for item in row):
+    # BZ is an overlay above the existing melody; its closing barline remains
+    # an ordinary grid boundary. DSB placeholders retain separate topology.
+    if any(item.block not in {None, "bz-tail"} for row in rows for item in row):
         return False
     # Cross-barline parenthesized spans and rest-only (pickup) measures were
     # once proven catastrophically outside the grid width model (Night-In-The-

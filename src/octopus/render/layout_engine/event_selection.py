@@ -14,6 +14,8 @@ from .visibility import is_visible_event
 def visible_events_for_layout(
     events: tuple[MusicEvent, ...],
     constructs: tuple[SemanticConstruct, ...],
+    *,
+    bz_reserve_slots: bool = True,
 ) -> list[MusicEvent]:
     visible_events = [event for event in events if is_visible_event(event)]
     suppressed_event_indices = {
@@ -26,15 +28,21 @@ def visible_events_for_layout(
         visible_events = [
             event for event in visible_events if event.index not in suppressed_event_indices
         ]
-    return with_alignment_placeholders(visible_events, events, constructs)
+    return with_alignment_placeholders(
+        visible_events, events, constructs, bz_reserve_slots=bz_reserve_slots,
+    )
 
 
 def with_alignment_placeholders(
     visible_events: list[MusicEvent],
     events: tuple[MusicEvent, ...],
     constructs: tuple[SemanticConstruct, ...],
+    *,
+    bz_reserve_slots: bool = True,
 ) -> list[MusicEvent]:
-    visible_events = with_bz_placeholders(visible_events, events, constructs)
+    visible_events = with_bz_placeholders(
+        visible_events, events, constructs, reserve_slots=bz_reserve_slots,
+    )
     return with_dsb_placeholders(visible_events, events, constructs)
 
 

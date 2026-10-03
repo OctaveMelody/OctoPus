@@ -26,6 +26,11 @@ fermatas use `&yc`. Text such as `cres`, `cresc`, `crescendo` and `decrescendo` 
 quoted JPS annotations. Graphic crescendo/decrescendo hairpins can attach to notes or sustain
 dashes.
 
+Compact bracketed accompaniment above a braced multi-voice system can become a `{bz ...}`
+overlay even when its printed digits are close to the melody's size. Faint duration strokes
+require supporting dark ink. In the rendered score, BZ overlays preserve the melody's shared
+beat grid and alignment with the other voices.
+
 Every transcription remains provisional. Compare the draft with its source and review lyrics,
 rhythm, octave dots, voice grouping, and which note or sustain dash owns each decoration.
 Small, blurred or crowded marks can still be missed or misread.

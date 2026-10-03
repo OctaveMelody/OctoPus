@@ -470,7 +470,7 @@ C1: 春 风 吹 来
 Q2&quot;Alto&quot;: 3, 4, 5, 6, |
 C2: 花 儿 开 了</code></pre>
 <p>Temporary accompaniment uses <code>{bz ...}</code>; temporary multiple voices use <code>{dsb ...}</code>. The keyword must immediately follow { and be lowercase. These inline groups are positioned against the main music. Copy an appropriate bundled example and check duration/alignment instead of assuming arbitrary blocks will align automatically.</p>
-<p>A temporary accompaniment block may contain several measures and more notes than its host melody; its notes, visible rests and later measures are retained. A block at a row end can align with the following row of the same voice. When no following melody is available, including a standalone or terminal block, its contents are still displayed. Nested {bz ...} notes render once. Review alignment whenever the rhythms or measure counts differ.</p>
+<p>A temporary accompaniment block may contain several measures and more notes than its host melody; its notes, visible rests and later measures are retained. In a score with multiple voices, the host melody keeps its shared duration grid with the other parts; the accompaniment does not add beats to that melody. A block at a row end can align with the following row of the same voice. When no following melody is available, including a standalone or terminal block, its contents are still displayed. Nested {bz ...} notes render once. Review alignment whenever the rhythms or measure counts differ.</p>
 <pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
 Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
 <p>A minimal mid-row brace pattern (inspect alignment in the preview):</p>

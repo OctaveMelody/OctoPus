@@ -13,6 +13,7 @@ from typing import cast
 
 from PIL import Image, ImageOps
 
+from .accompaniment import bracketed_row_centers, compact_accompaniment_owner
 from .components import Box, Component, connected_components
 from .decorations import Hairpin, row_hairpins, symbol_decorations
 from .glyphs import (
@@ -206,11 +207,19 @@ def _read_page(path: Path) -> Image.Image:
 
 def _barline(
     component: Component, row_y: float, digit_height: int, gray: Image.Image,
+    *, shared: bool = False,
 ) -> bool:
     if not (
-        component.width <= max(3, component.height * 0.16)
-        and digit_height * 1.25 <= component.height <= digit_height * 3
-        and abs(component.center_y - row_y) <= digit_height * 0.5
+        component.width <= max(3, component.height * 0.22)
+        and digit_height * 1.25 <= component.height <= digit_height * 5.2
+        and (
+            abs(component.center_y - row_y) <= digit_height * 0.8
+            or component.height > digit_height * 3
+            and component.box[1] < row_y < component.box[3]
+            and component.box[3] - row_y <= digit_height * 1.4
+            or shared and component.box[1] < row_y < component.box[3]
+            and row_y - component.box[1] <= digit_height * 1.7
+        )
     ):
         return False
     bend = vertical_bend(component, gray)
@@ -221,19 +230,31 @@ def _music_row(
     group: list[tuple[Component, DigitMatch]],
     components: list[Component], digit_height: int, gray: Image.Image,
     *, joined_underlines: bool = False,
+    accompaniment: bool = False,
 ) -> MusicRow:
     group.sort(key=lambda pair: pair[0].box[0])
     row_y = sum(component.center_y for component, _ in group) / len(group)
+    bar_height = max(digit_height, round(median(component.height for component, _ in group)))
+
+    def is_bar(component: Component) -> bool:
+        # A system brace can be as tall as an extended accompaniment bar, but
+        # stands to the left of every note. Ordinary leading measure bars remain.
+        if component.height > bar_height * 3 and component.box[2] < group[0][0].box[0]:
+            return False
+        return _barline(component, row_y, bar_height, gray, shared=accompaniment)
+
     nearby = [
         component for component in components
         if abs(component.center_y - row_y) <= digit_height * 1.2
+        or is_bar(component)
     ]
     modifier_components = [
         component for component in components
         if abs(component.center_y - row_y) <= digit_height * 1.6
     ]
     bars = sorted(
-        component.box[0] for component in nearby if _barline(component, row_y, digit_height, gray)
+        component.box[0] for component in nearby
+        if is_bar(component)
     )
     notes = []
     used_marks: set[Box] = set()
@@ -477,6 +498,20 @@ def _by_local_brace(
     )
 
 
+def _compact_bracketed_group(
+    group: list[tuple[Component, DigitMatch]], components: list[Component], gray: Image.Image,
+) -> bool:
+    if len(group) < 3:
+        return False
+    boxes = tuple(component.box for component, _ in sorted(group, key=lambda pair: pair[0].box[0]))
+    height = median(box[3] - box[1] for box in boxes)
+    centers = [(box[0] + box[2]) / 2 for box in boxes]
+    return (
+        median(b - a for a, b in zip(centers, centers[1:], strict=False)) <= height * 1.7
+        and bool(row_parentheses(boxes, height, components, gray))
+    )
+
+
 def recognize_image(path: Path) -> PageObservation:
     source_gray = _read_page(path)
     excluded = _qr_regions(source_gray)
@@ -508,10 +543,14 @@ def recognize_image(path: Path) -> PageObservation:
     trusted_rows = [
         sum(component.center_y for component, _ in group) / len(group)
         for group in _groups(trusted_main, trusted_height)
-        if len(group) >= 3
-        and max(component.box[2] for component, _ in group)
-        - min(component.box[0] for component, _ in group) >= gray.width * 0.12
+        if len(group) >= 3 and (
+            max(component.box[2] for component, _ in group)
+            - min(component.box[0] for component, _ in group) >= gray.width * 0.12
+            or _compact_bracketed_group(group, components, gray)
+        )
     ] if trusted_height else []
+    if trusted_height:
+        trusted_rows.extend(bracketed_row_centers(components, trusted_height, gray))
     possible_bars = [
         component for component in components
         if component.width <= max(8, component.height * 0.2)
@@ -592,10 +631,13 @@ def recognize_image(path: Path) -> PageObservation:
             main.extend(recovered)
             candidates.extend(recovered)
     rows = []
-    for group in _groups(main, digit_height):
+    main_groups = _groups(main, digit_height)
+    candidate_rows = []
+    for group in main_groups:
         group.sort(key=lambda pair: pair[0].box[0])
         local_branch = _by_local_brace(group, components, gray.width, digit_height)
         row = _music_row(group, components, digit_height, gray, joined_underlines=scale > 1)
+        candidate_rows.append(row)
         sustained_row = len(row.barlines) >= 2 and len(row_sustains(
             tuple(note.box for note in row.notes), row.unresolved_marks,
         )) >= 3
@@ -608,6 +650,37 @@ def recognize_image(path: Path) -> PageObservation:
         if all(match[2] for _, match in group) and not row.barlines:
             continue
         rows.append(row)
+    row_boxes = tuple(row.box for row in rows)
+    initial_groups = recognize_voice_groups(
+        voice_components(components, row_boxes, digit_height, gray),
+        row_boxes, gray.width, digit_height, set(),
+    )
+    compact_overlays = []
+    converted_rows: set[int] = set()
+    for candidate in candidate_rows:
+        if sum(note.duration_slashes > 0 for note in candidate.notes) < len(candidate.notes) * 0.6:
+            continue
+        owner = compact_accompaniment_owner(
+            tuple(note.box for note in candidate.notes),
+            tuple(tuple(note.box for note in row.notes) for row in rows),
+            initial_groups, components, gray,
+        )
+        if owner is not None:
+            converted_rows.add(id(candidate))
+            group = next(group for group, row in zip(main_groups, candidate_rows, strict=True)
+                         if row is candidate)
+            recovered = _recover_row_digits(
+                group, components, digit_height, gray, known_boxes, templates,
+            )
+            if recovered:
+                group.extend(recovered)
+                candidates.extend(recovered)
+            candidate = _music_row(
+                group, components, digit_height, gray, joined_underlines=scale > 1,
+                accompaniment=True,
+            )
+            compact_overlays.append((rows[owner], candidate))
+    rows = [row for row in rows if id(row) not in converted_rows]
     row_boxes = tuple(row.box for row in rows)
     overlays = recognize_dsb_overlays(components, row_boxes, gray.width, digit_height)
     voice_groups = recognize_voice_groups(
@@ -630,8 +703,10 @@ def recognize_image(path: Path) -> PageObservation:
         and any(component.box[1] < (box[1] + box[3]) / 2 < component.box[3]
                 for box in row_boxes)
     )
-    bz_rows = []
+    bz_rows = [BzOverlay(rows.index(host), accompaniment)
+               for host, accompaniment in compact_overlays]
     main_boxes = {note.box for row in rows for note in row.notes}
+    main_boxes.update(note.box for overlay in bz_rows for note in overlay.row.notes)
     smaller = [
         (component, match)
         for component in components
@@ -715,7 +790,9 @@ def recognize_image(path: Path) -> PageObservation:
         page,
         rows=tuple(with_ornaments(row, digit_height) for row in page.rows),
         bz_overlays=tuple(
-            replace(overlay, row=with_ornaments(overlay.row, round(digit_height * 0.78)))
+            replace(overlay, row=with_ornaments(overlay.row, round(median(
+                note.box[3] - note.box[1] for note in overlay.row.notes
+            ))))
             for overlay in page.bz_overlays
         ),
     )

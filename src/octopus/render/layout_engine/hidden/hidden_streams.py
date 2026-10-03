@@ -56,8 +56,8 @@ class BlockTailIdentity:
             return "dsb-tail"
         return None
 
-    def advances_slot(self, event: MusicEvent) -> bool:
-        if event.index in self.bz_tail_barline_indices:
+    def advances_slot(self, event: MusicEvent, *, bz_reserve_slots: bool = True) -> bool:
+        if bz_reserve_slots and event.index in self.bz_tail_barline_indices:
             return False
         return (
             event.index not in self.dsb_tail_barline_indices
@@ -110,7 +110,14 @@ def with_bz_placeholders(
     visible_events: list[MusicEvent],
     events: tuple[MusicEvent, ...],
     constructs: tuple[SemanticConstruct, ...],
+    *,
+    reserve_slots: bool = True,
 ) -> list[MusicEvent]:
+    """Reserve legacy single-row gaps and retain zero-time empty host anchors.
+
+    In a multi-voice system, ordinary melody durations own the shared grid.
+    The legacy one-quarter BZ gaps must not be counted as musical beats there.
+    """
     placeholders_after: dict[int, int] = {}
     source_by_index = {event.index: event for event in events}
     blocks = outer_bz_constructs(constructs)
@@ -129,7 +136,7 @@ def with_bz_placeholders(
             and event.kind != MusicTokenKind.BARLINE
         )
         placeholder_count = hidden_count // 2
-        if placeholder_count == 0:
+        if placeholder_count == 0 or not reserve_slots:
             continue
         following_events = [
             event
@@ -152,6 +159,8 @@ def with_bz_placeholders(
     # Empty anchors carry no source note or audio; the whole BZ still renders.
     hosts: list[MusicEvent] = []
     for construct in blocks:
+        if construct.end_event_index is None:
+            continue
         following = [
             event
             for event in visible_events

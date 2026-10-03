@@ -476,7 +476,7 @@ C1: 春 风 吹 来
 Q2&quot;Alto&quot;: 3, 4, 5, 6, |
 C2: 花 儿 开 了</code></pre>
 <p>Temporary accompaniment uses <code>{bz ...}</code>; temporary multiple voices use <code>{dsb ...}</code>. The keyword must immediately follow { and be lowercase. These inline groups are positioned against the main music. Copy an appropriate bundled example and check duration/alignment instead of assuming arbitrary blocks will align automatically.</p>
-<p>A temporary accompaniment block may contain several measures and more notes than its host melody; its notes, visible rests and later measures are retained. A block at a row end can align with the following row of the same voice. When no following melody is available, including a standalone or terminal block, its contents are still displayed. Nested {bz ...} notes render once. Review alignment whenever the rhythms or measure counts differ.</p>
+<p>A temporary accompaniment block may contain several measures and more notes than its host melody; its notes, visible rests and later measures are retained. In a score with multiple voices, the host melody keeps its shared duration grid with the other parts; the accompaniment does not add beats to that melody. A block at a row end can align with the following row of the same voice. When no following melody is available, including a standalone or terminal block, its contents are still displayed. Nested {bz ...} notes render once. Review alignment whenever the rhythms or measure counts differ.</p>
 <pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
 Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
 <p>A minimal mid-row brace pattern (inspect alignment in the preview):</p>
@@ -1120,7 +1120,7 @@ C1: 春 风 吹 来
 Q2&quot;低声部&quot;: 3, 4, 5, 6, |
 C2: 花 儿 开 了</code></pre>
 <p>临时伴奏使用 <code>{bz ...}</code>，临时多声部使用 <code>{dsb ...}</code>。关键字紧跟 {，且小写。这些行内组与主旋律定位。建议参考相近内置示例并核对时值、对齐，不要假设任意块都能自动正确排列。</p>
-<p>临时伴奏块可包含多个小节，音符数也可多于其对应主旋律；音符、可见休止符及后续小节都会保留。行末的块可与同声部下一曲行对齐。没有后续旋律时，包括独立或末尾的伴奏块，块内内容仍会显示。嵌套 {bz ...} 中的音符各显示一次。节奏或小节数不同时，请检查对齐。</p>
+<p>临时伴奏块可包含多个小节，音符数也可多于其对应主旋律；音符、可见休止符及后续小节都会保留。多声部乐谱中，主旋律与其他声部仍使用共同的时值网格；临时伴奏不会给主旋律增加拍数。行末的块可与同声部下一曲行对齐。没有后续旋律时，包括独立或末尾的伴奏块，块内内容仍会显示。嵌套 {bz ...} 中的音符各显示一次。节奏或小节数不同时，请检查对齐。</p>
 <pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
 Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
 <p>行中声部括弧的简化示例（请在预览中检查对齐）：</p>

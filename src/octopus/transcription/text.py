@@ -126,6 +126,12 @@ def image_annotation_text(path: Path, rows: tuple[Box, ...]) -> tuple[TextSpan, 
         for component in components:
             if component.height < max(3, height * 0.24) or component.height > height * 1.4:
                 continue
+            # Slurs/hairpins can touch the word's crop margin. Their long slender
+            # ink must not merge with an adjacent mf/ff into an unreadable text crop.
+            if (component.width >= height * 3.5
+                    and component.height <= height * 0.9
+                    and component.area <= component.width * max(4, height * 0.25)):
+                continue
             if groups and component.box[0] - max(item.box[2] for item in groups[-1]) < height * 0.6:
                 groups[-1].append(component)
             else:

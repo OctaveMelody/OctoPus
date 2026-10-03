@@ -121,6 +121,7 @@ def _prepare_system_layout(
         voice_index: _visible_events_for_layout(
             voice.events,
             voice.constructs,
+            bz_reserve_slots=len(system.voices) == 1,
         )
         for voice_index, voice in enumerate(system.voices)
     }

@@ -79,8 +79,9 @@ def _above_row(
 ) -> bool:
     top = median(note[1] for note in notes)
     center_y = (box[1] + box[3]) / 2
+    reach = max(height * 2.6, height + (box[3] - box[1]) * 2)
     if not (
-        top - height * 2.6 <= box[1]
+        top - reach <= box[1]
         and box[3] <= top + height * 0.08
         and center_y <= top - height * 0.12
         and box[2] >= notes[0][0] - height
@@ -140,7 +141,7 @@ def text_decorations(
     height = median(box[3] - box[1] for box in note_boxes)
     candidates = sorted((span for span in spans if (
         span.confidence >= (0.55 if gray is not None else 0.8)
-        and height * 0.2 <= span.height <= height * 1.25
+        and height * 0.2 <= span.height <= height * 1.4
         and _above_row(span.box, note_boxes, height, other_rows)
         and not _lyric_character(span, spans, height, other_rows)
     )), key=lambda span: (span.box[0], span.box[1]))
@@ -172,6 +173,9 @@ def text_decorations(
                 continue
             glyph = _glyph_reading(gray, box) if gray is not None and token in _GLYPH_WORDS \
                 else None
+            if (gray is not None and token in {"f", "ff"}
+                    and _double_f_stems(gray, box)):
+                glyph = "ff"
             if token in _DYNAMIC_WORDS and glyph in _DYNAMIC_WORDS:
                 # Italic double f/p often receives a confident one-letter OCR reading.
                 token = glyph
@@ -254,6 +258,40 @@ def _glyph_reading(gray: Image.Image, box: Box) -> str | None:
     ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
     return ranked[0][0] if ranked[0][1] >= 0.78 \
         and ranked[0][1] - ranked[1][1] >= 0.12 else None
+
+
+def _double_f_stems(gray: Image.Image, box: Box) -> bool:
+    """Corroborate OCR's f-family reading against two joined italic f stems."""
+    crop = gray.crop(box)
+    ink_box = crop.point(lambda value: 255 if value < 160 else 0).getbbox()
+    if ink_box is None:
+        return False
+    crop = crop.crop(ink_box)
+    width, height = crop.size
+    if height < 8 or not height * 0.82 <= width <= height * 1.35:
+        return False
+    rows = []
+    for y in range(height):
+        runs: list[list[int]] = []
+        for x in range(width):
+            if cast(int, crop.getpixel((x, y))) >= 160:
+                continue
+            if not runs or x > runs[-1][-1] + 1:
+                runs.append([])
+            runs[-1].append(x)
+        rows.append(runs)
+    middle = rows[round(height * 0.35):round(height * 0.78)]
+    stems = [runs for runs in middle if len(runs) == 2
+             and all(height * 0.08 <= len(run) <= height * 0.35 for run in runs)
+             and runs[1][0] - runs[0][-1] >= max(2, height * 0.1)]
+    if len(stems) < len(middle) * 0.7 or len(stems) < 3:
+        return False
+    drift = [median(sum(runs[index]) / len(runs[index]) for runs in stems[-3:])
+             - median(sum(runs[index]) / len(runs[index]) for runs in stems[:3])
+             for index in range(2)]
+    return (max(drift) <= -0.25 and min(drift) <= -0.5
+            and any(any(len(run) >= width * 0.55 for run in runs)
+                    for runs in rows[round(height * 0.15):round(height * 0.4)]))
 
 
 @lru_cache(maxsize=1)
