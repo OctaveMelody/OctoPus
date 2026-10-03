@@ -358,6 +358,8 @@ def _endpoint_slur_elements(
         - _endpoint_slur_lift(construct.start.event),
         construct.start.event.octave,
     )
+    start_barline = construct.start.event.kind == MusicTokenKind.BARLINE
+    end_barline = construct.end.event.kind == MusicTokenKind.BARLINE
     if construct.start.line == construct.end.line:
         end_y = _endpoint_slur_anchor_y(
             construct.end.y
@@ -368,8 +370,6 @@ def _endpoint_slur_elements(
         shared_y = min(start_y, end_y)
         y_use = shared_y + 0.05
         connector_y = shared_y + 0.8
-        start_barline = construct.start.event.kind == MusicTokenKind.BARLINE
-        end_barline = construct.end.event.kind == MusicTokenKind.BARLINE
         elements: list[SvgElement] = []
         if not start_barline:
             elements.append(
@@ -393,9 +393,13 @@ def _endpoint_slur_elements(
             )
         line_x1 = x1 + 6.8 if start_barline else left_x + 0.8
         line_x2 = x2 - 5.0 if end_barline else right_x + 1.0
-        elements.append(
-            _plain_construct_line(line_x1, connector_y, line_x2, connector_y, construct)
-        )
+        # A zero-width hidden barline may share the first note's center.
+        # The endpoint curve is the entire visible continuation fragment;
+        # drawing a connector back through it creates a spurious hook.
+        if line_x2 > line_x1 or not (start_barline or end_barline):
+            elements.append(
+                _plain_construct_line(line_x1, connector_y, line_x2, connector_y, construct)
+            )
         return elements
 
     y_use = start_y + 0.05
@@ -412,24 +416,36 @@ def _endpoint_slur_elements(
     )
     end_y_use = end_y + 0.05
     end_y_line = end_y + 0.8
-    return [
-        _use_element(
-            "lianyinxian_zuo",
-            x=_format_reference_number(left_x),
-            y=_format_reference_number(y_use),
-            layer="construct",
-            source_event_index=construct.start.event.index,
-        ),
-        _plain_construct_line(left_x + 0.8, y_line, right_edge, y_line, construct),
-        _use_element(
-            "lianyinxian_you",
-            x=_format_reference_number(right_x),
-            y=_format_reference_number(end_y_use),
-            layer="construct",
-            source_event_index=construct.start.event.index,
-        ),
-        _plain_construct_line(left_edge, end_y_line, right_x + 1.0, end_y_line, construct),
-    ]
+    elements = []
+    if not start_barline:
+        elements.append(
+            _use_element(
+                "lianyinxian_zuo",
+                x=_format_reference_number(left_x),
+                y=_format_reference_number(y_use),
+                layer="construct",
+                source_event_index=construct.start.event.index,
+            )
+        )
+    line_x1 = x1 + 6.8 if start_barline else left_x + 0.8
+    if right_edge > line_x1:
+        elements.append(_plain_construct_line(line_x1, y_line, right_edge, y_line, construct))
+    if not end_barline:
+        elements.append(
+            _use_element(
+                "lianyinxian_you",
+                x=_format_reference_number(right_x),
+                y=_format_reference_number(end_y_use),
+                layer="construct",
+                source_event_index=construct.start.event.index,
+            )
+        )
+    line_x2 = x2 - 5.0 if end_barline else right_x + 1.0
+    if line_x2 > left_edge:
+        elements.append(
+            _plain_construct_line(left_edge, end_y_line, line_x2, end_y_line, construct)
+        )
+    return elements
 
 
 def _endpoint_slur_anchor_y(note_y: float, octave: int) -> float:

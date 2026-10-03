@@ -9,7 +9,7 @@ from .components import Box
 from .image import MusicRow, PageObservation
 from .text import TextSpan
 
-_DYNAMICS = {"pp", "p", "mp", "mf", "f", "ff", "rit", "dim", "cresc", "d.s", "d.c"}
+_DYNAMICS = {"ppp", "pp", "p", "mp", "mf", "f", "ff", "fff", "rit", "dim", "cresc", "d.s", "d.c"}
 _PERFORMER = re.compile(r"[（(]\s*([女男合])\s*[）)]")
 _ANNOTATION = re.compile(r"[（(]\s*[女男合]\s*[）)]|[①-⑳]|(?<!\d)\d+[.．](?!\d)")
 _RETURN = re.compile(r"\s*D\s*[.]\s*[SC]\s*[.:]?\s*$", re.I)

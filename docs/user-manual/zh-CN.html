@@ -3,7 +3,7 @@
 </header>
 <main><article id="manual-zh-CN" lang="zh-CN"><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
 <h1>用户手册</h1>
-<p>Version 0.1.0 · 2026-10-02</p>
+<p>Version 0.1.0 · 2026-10-03</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自动与自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
 <section id="zh-CN-introduction"><h2>1. 简介</h2>
@@ -279,11 +279,12 @@ Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; -
 <!-- sample:grace-groups:end -->
 </section>
 <section id="zh-CN-dynamics"><h2>18. 力度与渐强渐弱</h2>
-<p>在音符后附加 &amp; 编码，例如 <code>3&amp;mp</code>。参考术语包括 pp、p、mp、mf、f、ff、fff、cresc、dim、sf、fp、sfp、a tempo 和 rit；双词术语写作 <code>&amp;a tempo</code>。渐强以 &lt; 开始，渐弱以 &gt; 开始，以 ! 结束；开头记号后加 + 可上移以避免重叠。这些是印刷演奏提示，桌面程序不会将其转换为音频播放控制。</p>
+<p>在音符后附加 &amp; 编码，例如 <code>3&amp;mp</code>。参考术语包括 ppp、pp、p、mp、mf、f、ff、fff、cresc、dim、sf、fp、sfp、a tempo 和 rit；双词术语写作 <code>&amp;a tempo</code>。渐强以 &lt; 开始，渐弱以 &gt; 开始，以 ! 结束；开头记号后加 + 可上移以避免重叠。这些是印刷演奏提示，桌面程序不会将其转换为音频播放控制。</p>
 <pre><code>Q: 1&amp;p&lt; 2 3 4! | 5&gt;+ 4 3 2! | 1&amp;a tempo - - - ||</code></pre>
 <table><thead><tr><th>编码</th><th>演奏提示</th></tr>
 </thead>
-<tbody><tr><td><code>&amp;pp</code></td><td>很弱</td></tr>
+<tbody><tr><td><code>&amp;ppp</code></td><td>极弱</td></tr>
+<tr><td><code>&amp;pp</code></td><td>很弱</td></tr>
 <tr><td><code>&amp;p</code></td><td>弱</td></tr>
 <tr><td><code>&amp;mp</code></td><td>稍弱</td></tr>
 <tr><td><code>&amp;mf</code></td><td>稍强</td></tr>
@@ -302,7 +303,8 @@ Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; -
 <h3>渐强弱的起点、终点与高度</h3>
 <p>在起点主音上写 &lt; 或 &gt;，在终点写 !。单独开启的线没有可靠终点，应在分页前明确闭合。&lt;+、&gt;++ 比默认位置更高，+ 越多请求的抬高越大。先使用能避开连音线或结尾线的最小偏移，再检查相邻系统及导出。页面间距移动整行，+ 移动指定记号，两者是不同调整。</p>
 <h3>力度术语是谱面指示</h3>
-<p>把 &amp;mp、&amp;mf、&amp;f 等表中术语写在指示开始的音后，保留多词 &amp;a tempo 的完整写法。pp 至 fff 表示强弱，cresc/dim 表示渐变，rit、a tempo 表示速度。&amp;yc 延长记号不是力度，但同样使用 &amp; 机制。这些印刷术语不会提供播放或 MIDI 输出。</p>
+<p><code>&amp;ppp</code> 和 <code>&amp;fff</code> 与 <code>&amp;pp</code>、<code>&amp;ff</code> 一样使用随程序提供的矢量字形。它们采用相同的音符附着及高音、连音线避让规则，不改变音符时值或间距。例如：<code>Q: 1&amp;ppp - - - | 1&amp;fff - - - |</code>。</p>
+<p>把 &amp;mp、&amp;mf、&amp;f 等表中术语写在指示开始的音后，保留多词 &amp;a tempo 的完整写法。ppp 至 fff 表示强弱，cresc/dim 表示渐变，rit、a tempo 表示速度。&amp;yc 延长记号不是力度，但同样使用 &amp; 机制。这些印刷术语不会提供播放或 MIDI 输出。</p>
 <!-- sample:hairpin-height:start -->
 <div class="sample-example" id="zh-CN-example-hairpin-height">
 <h3>合唱中的力度与抬高渐强线</h3><p>Q1 与 Q3 以 &amp;mp 开始。&lt;+ 开启抬高的渐强线，! 结束；随后 &gt; 开启渐弱线。对照其端点及其他声部的音符、休止符，并检查同一系统中的歌词。</p>
@@ -412,6 +414,7 @@ C: 秋去冬来美景不在，莫教好@春逝@匆匆，</code></pre>
 <pre><code>Q: (1 (2 3) 4 | 5 6
 Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
 <h3>嵌套、跨小节与跨行连线</h3>
+<p>若延续连线从首音之前开始，可把隐藏小节线放在括号内，例如 <code>Q: (( |/ 6)) - - - |</code>。各层括号保留独立曲线，包括行首短小的延续端。跨曲行连线会在各行绘制开放的片段，即使选用了曲线路径样式也如此。原谱中的每条内部延音线仍须在 JPS 中写出相应括号。</p>
 <p>在包含的首音前写 (，末音后写 )。嵌套括号形成独立跨度，编辑时逐层计数；括号内的小节线不会结束连线。同页跨行时，可在一个 Q 行末保持开启，在同声部后续行闭合。中间 C 行仍是歌词，不会终止音乐连线。手动分页处须有意切分、重新开启；结尾分支也需明确边界，不能只为消除警告而在另一声部随意闭合。</p>
 <h3>连音线与多连音的区别</h3>
 <p>(1/ 2/ 3/) 是普通三音连线；(y1/ 2/ 3/) 是连音组。程序从组内音符推算数量，增删音符会改变显示数字。不要把猜测的数字接在 y 后，当作比例字段。限定组内范围，并对照原谱的数字和括号；显示连音数字不表示整小节时值已自动验证。</p>
@@ -470,6 +473,7 @@ C1: 春 风 吹 来
 Q2&quot;低声部&quot;: 3, 4, 5, 6, |
 C2: 花 儿 开 了</code></pre>
 <p>临时伴奏使用 <code>{bz ...}</code>，临时多声部使用 <code>{dsb ...}</code>。关键字紧跟 {，且小写。这些行内组与主旋律定位。建议参考相近内置示例并核对时值、对齐，不要假设任意块都能自动正确排列。</p>
+<p>临时声部可从行首开始，例如 <code>Q: {dsb ( |/ 3 - - - | 3) } ( |/ 1 - - - | 1) 0 0 0 |</code>。上方声部沿主声部写出的时间轴定位；开头隐藏小节线不增加拍数，末尾单个音符也会保留。上方声部结束后，后续音符回到主曲行。在编号多声部系统中，系统括弧提供左侧开口。共享列要求主声部的小节时值和分隔一致；程序不会自动补写缺失的小节线。</p>
 <p>临时伴奏块可包含多个小节，音符数也可多于其对应主旋律；音符、可见休止符及后续小节都会保留。多声部乐谱中，主旋律与其他声部仍使用共同的时值网格；临时伴奏不会给主旋律增加拍数。行末的块可与同声部下一曲行对齐。没有后续旋律时，包括独立或末尾的伴奏块，块内内容仍会显示。嵌套 {bz ...} 中的音符各显示一次。节奏或小节数不同时，请检查对齐。</p>
 <pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
 Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
@@ -646,5 +650,5 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 </section>
 </article>
 </main>
-<footer>OctoPus · OctaveMelody · 2026-10-02</footer>
+<footer>OctoPus · OctaveMelody · 2026-10-03</footer>
 </body></html>

@@ -17,6 +17,7 @@ from octopus.render.core.layout_types import (
 
 from ...parser.ast import MusicTokenKind
 from ..svg_engine.slur_style import slur_uses_path as _slur_uses_path
+from .hidden.leading_dsb import is_leading_dsb_construct
 from .parenthesis_chains import project_parenthesis_chains
 
 
@@ -33,7 +34,7 @@ def collect_constructs(
         constructs = project_parenthesis_chains(constructs, source_events, by_index)
     brackets = tuple(construct for construct in constructs if construct.kind == "bracket")
     for block in (construct for construct in constructs if construct.kind == "block"):
-        _collect_block(layout, block, by_index, laid_out)
+        _collect_block(layout, block, by_index, laid_out, constructs)
 
     for construct in constructs:
         if construct.render_suppressed:
@@ -64,6 +65,7 @@ def _collect_block(
     block: SemanticConstruct,
     by_index: dict[int, LayoutEvent],
     laid_out: list[LayoutEvent],
+    constructs: tuple[SemanticConstruct, ...],
 ) -> None:
     block_name = block.value or "dsb"
     block_count = 0
@@ -77,7 +79,9 @@ def _collect_block(
             item.block = block_name
             item.block_index = block_count
     tail = first_barline_after(block.end_event_index, laid_out)
-    if tail is not None:
+    if tail is not None and not is_leading_dsb_construct(
+        block, (item.event for item in laid_out), constructs
+    ):
         tail.block = f"{block_name}-tail"
     start = by_index.get(block.start_event_index) if block.start_event_index is not None else None
     end = (

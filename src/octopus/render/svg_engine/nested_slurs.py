@@ -13,6 +13,7 @@ from collections.abc import Callable
 from dataclasses import replace
 
 from octopus.normalization.types import MusicEvent
+from octopus.parser.ast import MusicTokenKind
 from octopus.render.core.layout_types import LayoutConstruct, LayoutEvent, LayoutPage
 from octopus.render.layout_engine.first_tie_lift import first_tie_lift_amount
 
@@ -255,14 +256,46 @@ def _rendered_intervals(
             (construct.end.line, (left, construct.end.x)),
         )
     )
-    return tuple((line, _inset_interval(interval, construct)) for line, interval in intervals)
+    result: list[tuple[int, tuple[float, float]]] = []
+    for line, interval in intervals:
+        closing_fragment = (
+            _short_closing_fragment_interval(construct, interval[0])
+            if line == construct.end.line
+            else None
+        )
+        result.append((line, closing_fragment or _inset_interval(interval, construct)))
+    return tuple(result)
 
 
 def _rendered_interval(construct: LayoutConstruct) -> tuple[float, float]:
+    # A cut before the first note can have a zero-width invisible barline.
+    # Its right-hand curve still occupies twelve pixels to the note's left;
+    # insetting the source interval used to erase that visible fragment and
+    # leave two nested continuation curves on exactly the same lane.
+    if (
+        not slur_uses_path(construct)
+        and construct.start.event.kind == MusicTokenKind.BARLINE
+    ):
+        closing_fragment = _short_closing_fragment_interval(construct, construct.start.x)
+        if closing_fragment is not None:
+            return closing_fragment
     return _inset_interval(
         (min(construct.start.x, construct.end.x), max(construct.start.x, construct.end.x)),
         construct,
     )
+
+
+def _short_closing_fragment_interval(
+    construct: LayoutConstruct, left_edge: float
+) -> tuple[float, float] | None:
+    """Retain a closing cap when its row has no room for a connector."""
+
+    if (
+        construct.end.event.kind != MusicTokenKind.BARLINE
+        and construct.end.x - left_edge < 24.0
+    ):
+        return construct.end.x - 12.0, construct.end.x
+    return None
 
 
 def _inset_interval(

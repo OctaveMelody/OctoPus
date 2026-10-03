@@ -34,6 +34,11 @@ from .hidden_streams import (
     measure_aligned_hidden_dsb_events as _measure_aligned_hidden_dsb_events_impl,
 )
 from .hidden_streams import outer_bz_constructs
+from .leading_dsb import (
+    is_leading_dsb_construct,
+    layout_leading_dsb_events,
+    lower_leading_dsb_targets,
+)
 
 
 def hidden_dsb_events_for_layout(
@@ -74,6 +79,12 @@ def hidden_dsb_events_for_layout(
                 construct, hidden_block_events, laid_out,
                 page_index=page_index, voice=voice, metrics=metrics,
                 preserve_legacy_slots=bz_legacy_slots,
+            ))
+            continue
+
+        if is_leading_dsb_construct(construct, (item.event for item in laid_out), constructs):
+            hidden_events.extend(layout_leading_dsb_events(
+                construct, hidden_block_events, laid_out, page_index=page_index, voice=voice,
             ))
             continue
 
@@ -157,6 +168,9 @@ def lower_aligned_visible_dsb_targets(
         if not any(
             event.kind != MusicTokenKind.BARLINE for event in hidden_block_events
         ):
+            continue
+        if is_leading_dsb_construct(construct, (item.event for item in laid_out), constructs):
+            lower_leading_dsb_targets(construct, hidden_block_events, laid_out, shifted_items)
             continue
         hidden_measures = _split_events_into_measures(hidden_block_events)
         target_measures = _following_visible_measures_after_construct(construct, laid_out)

@@ -28,10 +28,12 @@ _OVERLAY_DECORATIONS = frozenset(
     {
         "f",
         "ff",
+        "fff",
         "mf",
         "mp",
         "p",
         "pp",
+        "ppp",
         "sby",
         "shy",
         "xhy",

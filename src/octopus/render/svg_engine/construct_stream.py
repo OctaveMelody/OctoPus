@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from fractions import Fraction
 
 from octopus.render.core.elements import SvgElement, _format_reference_number
 from octopus.render.core.layout_types import (
@@ -14,6 +15,9 @@ from octopus.render.core.layout_types import (
 )
 
 from ...parser.ast import MusicTokenKind
+from ..core.layout_widths import NOTE_WIDTH
+from ..layout_engine.beat_grid_engine.spacing import duration_fraction
+from ..layout_engine.hidden.leading_dsb import project_source_onset, source_onsets
 from .construct_emission import late_construct_emission_plan
 from .constructs import _construct_element, _ending_label_element, _line_element
 from .event_policy import dsb_close_barline as _dsb_close_barline
@@ -413,6 +417,8 @@ def _construct_elements_are_endpoint_slurs(elements: list[SvgElement]) -> bool:
         return False
     if len(elements) == 1:
         attributes = dict(elements[0].attrs)
+        if elements[0].tag == "use":
+            return glyphs[0] in {"lianyinxian_zuo", "lianyinxian_you"}
         return elements[0].tag == "line" and attributes.get("stroke-width") == "1.2"
     if len(elements) == 2:
         return len(glyphs) == 1 and glyphs[0] in {"lianyinxian_zuo", "lianyinxian_you"}
@@ -501,6 +507,10 @@ def _block_construct_elements_by_event(
             # Closing braces are emitted with their close barline in the
             # "after" pass; nothing is placed before events.
             continue
+        if _is_leading_hidden_dsb_block(layout, construct):
+            for host, element in _leading_dsb_brace_elements(layout, construct):
+                grouped.setdefault(id(host), []).append(element)
+            continue
         host = _block_start_anchor(layout, construct)
         is_dsb = construct.start.block in {"dsb", "dsb-hidden"}
         inset = 0.0
@@ -551,6 +561,86 @@ def _block_construct_elements_by_event(
                     )
                 )
     return {event_id: tuple(items) for event_id, items in grouped.items()}
+
+
+def _is_leading_hidden_dsb_block(layout: LayoutPage, construct: LayoutConstruct) -> bool:
+    start = construct.start
+    block_ids = {item.construct_id for item in layout.constructs if item.kind == "block"}
+    has_nested_owner = any(
+        construct.construct_id in item.event.construct_ids
+        and len(block_ids.intersection(item.event.construct_ids)) > 1
+        for item in layout.hidden_events
+    )
+    return start.block == "dsb-hidden" and not has_nested_owner and not any(
+        item.event.span.start.line == start.event.span.start.line
+        and item.event.span.end.offset <= start.event.span.start.offset
+        for item in layout.events
+    )
+
+
+def _leading_dsb_brace_elements(
+    layout: LayoutPage, construct: LayoutConstruct
+) -> list[tuple[LayoutEvent, SvgElement]]:
+    """Frame the actual overlap, with the system brace owning a leading opening."""
+    hidden = sorted(
+        (item for item in layout.hidden_events
+         if construct.construct_id in item.event.construct_ids
+         and item.voice == construct.start.voice and item.line == construct.start.line),
+        key=lambda item: item.event.span.start.offset,
+    )
+    if not hidden:
+        return []
+    end_offset = max(item.event.span.end.offset for item in hidden)
+    targets = sorted(
+        (item for item in layout.events
+         if item.voice == construct.start.voice
+         and item.event.span.start.line == construct.start.event.span.start.line
+         and item.event.index >= 0 and item.event.span.start.offset > end_offset),
+        key=lambda item: item.event.span.start.offset,
+    )
+    if not targets:
+        return []
+    timeline = source_onsets(targets)
+    duration = sum((duration_fraction(item.event) for item in hidden), Fraction())
+    y = (hidden[0].y + targets[0].y) / 2
+    result: list[tuple[LayoutEvent, SvgElement]] = []
+    has_system_opening = any(
+        brace.line_start <= construct.start.line <= brace.line_end
+        for brace in layout.voice_braces
+    )
+    if not has_system_opening:
+        result.append((hidden[0], _use_element(
+            "dakuohu_zuo_2",
+            x=_format_reference_number(hidden[0].x - NOTE_WIDTH),
+            y=_format_reference_number(y),
+            layer="construct",
+            source_event_index=construct.start.event.index,
+            extra_attrs=(("data-construct", "block"),),
+        )))
+    following = next(
+        (item for onset, item in timeline
+         if onset >= duration and item.event.kind != MusicTokenKind.BARLINE),
+        None,
+    )
+    if following is None:
+        return result
+    if hidden[-1].event.kind == MusicTokenKind.BARLINE:
+        x, host, _ = project_source_onset(duration, MusicTokenKind.BARLINE, timeline)
+        x -= NOTE_WIDTH / 2
+    else:
+        covered = [item for onset, item in timeline
+                   if onset < duration and item.event.kind != MusicTokenKind.BARLINE]
+        host = following
+        x = (covered[-1].x + following.x) / 2 if covered else following.x - NOTE_WIDTH / 2
+    result.append((host, _use_element(
+        "dakuohu_you_2",
+        x=_format_reference_number(x),
+        y=_format_reference_number(y),
+        layer="construct",
+        source_event_index=construct.start.event.index,
+        extra_attrs=(("data-construct", "block"),),
+    )))
+    return result
 
 
 

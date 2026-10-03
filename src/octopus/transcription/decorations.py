@@ -23,11 +23,11 @@ from .glyphs import (
 )
 from .text import TextSpan
 
-_GLYPH_WORDS = frozenset({"p", "pp", "mp", "mf", "f", "ff", "rit", "dim", "yc"})
-_DYNAMIC_WORDS = frozenset({"p", "pp", "mp", "mf", "f", "ff"})
+_GLYPH_WORDS = frozenset({"p", "pp", "ppp", "mp", "mf", "f", "ff", "fff", "rit", "dim", "yc"})
+_DYNAMIC_WORDS = frozenset({"p", "pp", "ppp", "mp", "mf", "f", "ff", "fff"})
 _ANNOTATION_WORDS = frozenset({
     "cres", "cresc", "crescendo", "decres", "decresc", "decrescendo", "rall",
-    "rallentando", "ritardando", "accelerando", "accel", "a tempo", "fff", "sf", "fp", "sfp",
+    "rallentando", "ritardando", "accelerando", "accel", "a tempo", "sf", "fp", "sfp",
     "慢", "渐慢", "渐快", "渐强", "渐弱", "稍慢", "稍快", "延长",
 })
 _ABBREVIATION_FAMILIES = (

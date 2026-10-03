@@ -152,11 +152,13 @@ def recognize_voice_groups(
             and component.area >= component.height * 2
         ):
             continue
+        # Printed tips can overlap the end row's digit band while missing its center.
         members = tuple(
             index
             for index, box in enumerate(rows)
             if index not in excluded
-            and top < (box[1] + box[3]) / 2 < bottom and right < box[2]
+            and box[1] < bottom and top < box[3]
+            and right < box[2]
         )
         if len(members) < 2:
             continue

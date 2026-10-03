@@ -87,7 +87,7 @@ _MAX_SCALE = 1.0
 
 # Dynamics are the only decorations observed to be width-neutral in the
 # decoded systems; anything else declines the pass.
-_NEUTRAL_DECORATIONS = frozenset({"p", "mp", "mf", "f", "ff"})
+_NEUTRAL_DECORATIONS = frozenset({"p", "mp", "mf", "f", "ff", "fff"})
 
 
 def _event_code(event: MusicEvent) -> str:

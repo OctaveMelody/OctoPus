@@ -3,7 +3,7 @@
 </header>
 <main><article id="manual-en" lang="en"><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
 <h1>User Manual</h1>
-<p>Version 0.1.0 · 2026-10-02</p>
+<p>Version 0.1.0 · 2026-10-03</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-en.pdf">Download PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#en-introduction">1. Introduction</a><a href="#en-capabilities">2. Capabilities, limits and roadmap</a><a href="#en-quickstart">3. Your first score</a><a href="#en-workspace">4. The workspace and UI</a><a href="#en-files">5. Files, saving and recovery</a><a href="#en-source">6. Editing JPS source</a><a href="#en-preview">7. Preview, cursor and navigation</a><a href="#en-reference">8. Original images/PDFs and transcription</a><a href="#en-layout">9. Modes, layouts and focus</a><a href="#en-settings">10. Page settings and fonts</a><a href="#en-export">11. Export and portable use</a><a href="#en-shortcuts">12. Keyboard and Help</a><a href="#en-jps-structure">13. JPS structure and conventions</a><a href="#en-headers">14. Descriptive header</a><a href="#en-notes">15. Notes, register and duration</a><a href="#en-beaming">16. Automatic and custom grouping</a><a href="#en-accidentals">17. Accidentals and grace notes</a><a href="#en-dynamics">18. Dynamics and hairpins</a><a href="#en-ornaments">19. Ornaments, parentheses and annotations</a><a href="#en-barlines">20. Barlines and repeat instructions</a><a href="#en-slurs">21. Slurs and tuplets</a><a href="#en-endings">22. Endings and temporary meter</a><a href="#en-voices">23. Voices and temporary accompaniment</a><a href="#en-lyrics">24. Lyrics: Chinese, English and mixed text</a><a href="#en-pagination">25. Manual page breaks</a><a href="#en-practice">26. Practical editing and review checklist</a><a href="#en-troubleshooting">27. Troubleshooting and feedback</a><a href="#en-sources">28. Reference basis and compatibility</a></nav>
 <section id="en-introduction"><h2>1. Introduction</h2>
@@ -279,11 +279,12 @@ Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; -
 <!-- sample:grace-groups:end -->
 </section>
 <section id="en-dynamics"><h2>18. Dynamics and hairpins</h2>
-<p>Attach an ampersand code to a note, such as <code>3&mp</code>. The reference terms are pp, p, mp, mf, f, ff, fff, cresc, dim, sf, fp, sfp, a tempo and rit. Use <code>&amp;a tempo</code> for the two-word term. Hairpins start with &lt; (crescendo) or &gt; (decrescendo) and end with !. Add + after the opening marker to move it upward when it overlaps another span. These are printed instructions; the desktop app does not interpret them as audio playback controls.</p>
+<p>Attach an ampersand code to a note, such as <code>3&amp;mp</code>. The reference terms are ppp, pp, p, mp, mf, f, ff, fff, cresc, dim, sf, fp, sfp, a tempo and rit. Use <code>&amp;a tempo</code> for the two-word term. Hairpins start with &lt; (crescendo) or &gt; (decrescendo) and end with !. Add + after the opening marker to move it upward when it overlaps another span. These are printed instructions; the desktop app does not interpret them as audio playback controls.</p>
 <pre><code>Q: 1&amp;p&lt; 2 3 4! | 5&gt;+ 4 3 2! | 1&amp;a tempo - - - ||</code></pre>
 <table><thead><tr><th>Code</th><th>Instruction</th></tr>
 </thead>
-<tbody><tr><td><code>&amp;pp</code></td><td>Very soft</td></tr>
+<tbody><tr><td><code>&amp;ppp</code></td><td>Extremely soft</td></tr>
+<tr><td><code>&amp;pp</code></td><td>Very soft</td></tr>
 <tr><td><code>&amp;p</code></td><td>Soft</td></tr>
 <tr><td><code>&amp;mp</code></td><td>Moderately soft</td></tr>
 <tr><td><code>&amp;mf</code></td><td>Moderately loud</td></tr>
@@ -302,7 +303,8 @@ Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; -
 <h3>Start, end and height of a hairpin</h3>
 <p>Place &lt; or &gt; on the starting host and ! on the ending host. A lone opening marker has no dependable endpoint; close it deliberately before the page boundary. &lt;+ or &gt;++ raises that span above the default height, with more + requesting a greater adjustment. Use the smallest offset that avoids a slur/ending collision, then inspect nearby systems and exports. Page spacing controls move whole rows; a + offset moves the selected mark. These are different corrections.</p>
 <h3>Dynamics are printed instructions</h3>
-<p>Attach &amp;mp, &amp;mf, &amp;f and the other table entries to the note where the instruction begins. Keep multiword &amp;a tempo intact. Printed pp through fff describe loudness; cresc/dim describe change; rit and a tempo describe speed. An &amp;yc fermata is an ornament, not a loudness instruction, although it uses the same ampersand mechanism. Printed tempo/dynamics do not provide playback or MIDI output.</p>
+<p><code>&amp;ppp</code> and <code>&amp;fff</code> use packaged vector outlines, like <code>&amp;pp</code> and <code>&amp;ff</code>. They share the same note attachment and octave/slur clearance without changing the note's duration or spacing. For example: <code>Q: 1&amp;ppp - - - | 1&amp;fff - - - |</code>.</p>
+<p>Attach &amp;mp, &amp;mf, &amp;f and the other table entries to the note where the instruction begins. Keep multiword &amp;a tempo intact. Printed ppp through fff describe loudness; cresc/dim describe change; rit and a tempo describe speed. An &amp;yc fermata is an ornament, not a loudness instruction, although it uses the same ampersand mechanism. Printed tempo/dynamics do not provide playback or MIDI output.</p>
 <!-- sample:hairpin-height:start -->
 <div class="sample-example" id="en-example-hairpin-height">
 <h3>Dynamics and raised hairpins in a choir</h3><p>Q1 and Q3 start with &amp;mp. &lt;+ begins a raised crescendo, ! ends it, then &gt; begins a decrescendo. Compare the span endpoints with the notes and rests in the other parts; lyric rows remain attached to their source system.</p>
@@ -413,6 +415,7 @@ C: 秋去冬来美景不在，莫教好@春逝@匆匆，</code></pre>
 Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
 <h3>Nested, cross-bar and cross-row spans</h3>
 <p>Open ( on the first included note and close ) on the last. Nested pairs form separate spans; keep a count while editing. A barline inside the pair does not end the slur. On the same page, leave it open at the end of a Q row and close it on a later row of that voice. If a lyric line intervenes, it remains a lyric, not a slur terminator. At a manual page break, split/reopen the span deliberately. Ending branches also need intentional span boundaries; do not place a close on an unrelated voice merely to silence a warning.</p>
+<p>For a continuation that begins before the first note, use a hidden barline inside the parentheses, for example <code>Q: (( |/ 6)) - - - |</code>. Each nested pair keeps a separate curve, including a short continuation cap at the row start. A span that crosses music rows draws an open fragment on each row, including when the curved-path style is selected. Every printed inner tie still needs its own parentheses in JPS.</p>
 <h3>A slur is not a tuplet</h3>
 <p>(1/ 2/ 3/) is an ordinary three-note slur; (y1/ 2/ 3/) is a tuplet. The renderer infers the count from the group, so changing its notes changes the printed number. Do not type a guessed number after y as though it were a ratio field. Keep the group limited to the intended notes and compare its bracket/number with the reference. A printed tuplet is not proof that every surrounding bar has been rhythmically validated.</p>
 <!-- sample:slur-bar:start -->
@@ -470,6 +473,7 @@ C1: 春 风 吹 来
 Q2&quot;Alto&quot;: 3, 4, 5, 6, |
 C2: 花 儿 开 了</code></pre>
 <p>Temporary accompaniment uses <code>{bz ...}</code>; temporary multiple voices use <code>{dsb ...}</code>. The keyword must immediately follow { and be lowercase. These inline groups are positioned against the main music. Copy an appropriate bundled example and check duration/alignment instead of assuming arbitrary blocks will align automatically.</p>
+<p>A temporary voice may begin a row, for example <code>Q: {dsb ( |/ 3 - - - | 3) } ( |/ 1 - - - | 1) 0 0 0 |</code>. The upper voice follows the written main-voice timeline; an initial hidden barline adds no beats, and a final singleton note remains visible. Following notes return to the main row when the upper voice ends. In a numbered system, the system brace supplies the opening. Keep the main voices' measure durations and separators consistent for shared columns; a missing written barline is not supplied automatically.</p>
 <p>A temporary accompaniment block may contain several measures and more notes than its host melody; its notes, visible rests and later measures are retained. In a score with multiple voices, the host melody keeps its shared duration grid with the other parts; the accompaniment does not add beats to that melody. A block at a row end can align with the following row of the same voice. When no following melody is available, including a standalone or terminal block, its contents are still displayed. Nested {bz ...} notes render once. Review alignment whenever the rhythms or measure counts differ.</p>
 <pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
 Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
@@ -646,5 +650,5 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 </section>
 </article>
 </main>
-<footer>OctoPus · OctaveMelody · 2026-10-02</footer>
+<footer>OctoPus · OctaveMelody · 2026-10-03</footer>
 </body></html>

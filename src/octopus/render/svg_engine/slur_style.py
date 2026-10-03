@@ -15,12 +15,20 @@ def slur_uses_path(construct: LayoutConstruct) -> bool:
     is an intermediate layout aid and is intentionally ignored here.
     """
 
+    # One closed path cannot span distinct row baselines.  Both row fragments
+    # need the open endpoint form even when the caller prefers path curves.
+    if construct.start.line != construct.end.line:
+        return False
+    if (
+        construct.start.x == construct.end.x
+        and MusicTokenKind.BARLINE in {construct.start.event.kind, construct.end.event.kind}
+    ):
+        # A collapsed open fragment has one visible cap, not two path anchors.
+        return False
     if construct.lianyinxian_type == "2":
         return False
     if construct.lianyinxian_type == "1":
         return True
-    if construct.start.line != construct.end.line:
-        return False
     # Ties that open or close on a barline keep the endpoint form: a
     # barline-closing tie drops its right glyph and runs to the barline,
     # so the path band would have no right anchor to bend from.

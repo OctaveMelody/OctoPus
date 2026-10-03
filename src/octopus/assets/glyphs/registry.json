@@ -233,6 +233,9 @@
   "lidu_ff": {
     "source": "lidu_ff.svg"
   },
+  "lidu_fff": {
+    "source": "lidu_fff.svg"
+  },
   "lidu_mf": {
     "source": "lidu_mf.svg"
   },
@@ -244,6 +247,9 @@
   },
   "lidu_pp": {
     "source": "lidu_pp.svg"
+  },
+  "lidu_ppp": {
+    "source": "lidu_ppp.svg"
   },
   "lidu_rit": {
     "source": "lidu_rit.svg"

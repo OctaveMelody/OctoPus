@@ -16,6 +16,8 @@ from octopus.render.layout_engine.visibility import (
     is_visible_event,
 )
 
+from .leading_dsb import is_leading_dsb_construct
+
 BZ_PLACEHOLDER_INDEX_START = -100000
 
 
@@ -236,6 +238,10 @@ def block_tail_identity(
             or construct.value not in {None, "dsb"}
             or construct.end_event_index is None
         ):
+            continue
+        if is_leading_dsb_construct(construct, visible_events, constructs):
+            # Its main stream owns the written timing; mid-row cursor gaps
+            # and suppressed-barline tail identities do not belong to it.
             continue
         suppressed_barline_count = suppressed_barline_count_for(construct, source_by_index)
         following_barlines = following_barlines_after_construct(visible_events, construct)
