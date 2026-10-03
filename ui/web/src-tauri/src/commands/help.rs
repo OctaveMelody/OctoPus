@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
+use std::future::Future;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::sync::OnceLock;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use tauri::async_runtime::Mutex;
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
 use tauri::AppHandle;
@@ -9,6 +12,11 @@ use tauri::Manager;
 use tauri_plugin_opener::OpenerExt;
 
 const PROJECT: &str = "https://github.com/OctaveMelody/OctoPus";
+const UPDATE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
+const UPDATE_RETRY_COOLDOWN: Duration = Duration::from_secs(60);
+const MAX_UPDATE_RETRY_COOLDOWN: Duration = Duration::from_secs(60 * 60);
+
+static UPDATE_CHECK_CACHE: OnceLock<UpdateCheckCache> = OnceLock::new();
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -72,11 +80,99 @@ pub(crate) fn open_help_destination(
         .map_err(|error| format!("could not open browser: {error}"))
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub(crate) struct UpdateStatus {
     pub(crate) status: &'static str,
     pub(crate) current_version: String,
     pub(crate) latest_version: Option<String>,
+}
+
+pub(crate) struct UpdateCheckOutcome {
+    pub(crate) result: Result<UpdateStatus, String>,
+    pub(crate) ttl: Duration,
+}
+
+impl UpdateCheckOutcome {
+    pub(crate) fn new(result: Result<UpdateStatus, String>) -> Self {
+        let ttl = if result.is_ok() {
+            UPDATE_CACHE_TTL
+        } else {
+            UPDATE_RETRY_COOLDOWN
+        };
+        Self { result, ttl }
+    }
+}
+
+struct CachedUpdateCheck {
+    current_version: String,
+    expires_at: Instant,
+    result: Result<UpdateStatus, String>,
+}
+
+#[derive(Default)]
+pub(crate) struct UpdateCheckCache {
+    entry: Mutex<Option<CachedUpdateCheck>>,
+}
+
+impl UpdateCheckCache {
+    pub(crate) async fn check<F, Fut, Clock>(
+        &self,
+        current: &str,
+        now: Clock,
+        fetch: F,
+    ) -> Result<UpdateStatus, String>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = UpdateCheckOutcome>,
+        Clock: Fn() -> Instant,
+    {
+        // Keep the lock while fetching so concurrent commands share one completed outcome.
+        let mut entry = self.entry.lock().await;
+        if let Some(cached) = entry.as_ref() {
+            if cached.current_version == current && now() < cached.expires_at {
+                return cached.result.clone();
+            }
+        }
+        let outcome = fetch().await;
+        *entry = Some(CachedUpdateCheck {
+            current_version: current.into(),
+            expires_at: now() + outcome.ttl.min(MAX_UPDATE_RETRY_COOLDOWN),
+            result: outcome.result.clone(),
+        });
+        outcome.result
+    }
+}
+
+pub(crate) fn retry_cooldown(
+    status: reqwest::StatusCode,
+    headers: &reqwest::header::HeaderMap,
+    now: SystemTime,
+) -> Duration {
+    // GitHub documents Retry-After as seconds and primary reset as Unix seconds.
+    let retry_after = headers
+        .get(reqwest::header::RETRY_AFTER)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(0);
+    let reset = if matches!(status.as_u16(), 403 | 429)
+        && headers
+            .get("x-ratelimit-remaining")
+            .is_some_and(|value| value == "0")
+    {
+        headers
+            .get("x-ratelimit-reset")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok())
+            .map(|reset| {
+                reset.saturating_sub(now.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs())
+            })
+            .unwrap_or(0)
+    } else {
+        0
+    };
+    Duration::from_secs(retry_after.max(reset))
+        .max(UPDATE_RETRY_COOLDOWN)
+        .min(MAX_UPDATE_RETRY_COOLDOWN)
 }
 
 #[derive(Deserialize)]
@@ -113,6 +209,26 @@ pub(crate) fn release_status(bytes: &[u8], current: &str) -> Result<UpdateStatus
 #[tauri::command]
 pub(crate) async fn check_for_update(app: AppHandle) -> Result<UpdateStatus, String> {
     let current = app.package_info().version.to_string();
+    UPDATE_CHECK_CACHE
+        .get_or_init(UpdateCheckCache::default)
+        .check(&current, Instant::now, || fetch_update(&current))
+        .await
+}
+
+async fn fetch_update(current: &str) -> UpdateCheckOutcome {
+    let mut retry_ttl = None;
+    let result = fetch_release(current, &mut retry_ttl).await;
+    let mut outcome = UpdateCheckOutcome::new(result);
+    if let Some(ttl) = retry_ttl {
+        outcome.ttl = ttl;
+    }
+    outcome
+}
+
+async fn fetch_release(
+    current: &str,
+    retry_ttl: &mut Option<Duration>,
+) -> Result<UpdateStatus, String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .redirect(reqwest::redirect::Policy::none())
@@ -128,11 +244,16 @@ pub(crate) async fn check_for_update(app: AppHandle) -> Result<UpdateStatus, Str
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Ok(UpdateStatus {
             status: "unavailable",
-            current_version: current,
+            current_version: current.into(),
             latest_version: None,
         });
     }
     if !response.status().is_success() {
+        *retry_ttl = Some(retry_cooldown(
+            response.status(),
+            response.headers(),
+            SystemTime::now(),
+        ));
         return Err(format!(
             "update server returned HTTP {}",
             response.status().as_u16()
@@ -149,5 +270,5 @@ pub(crate) async fn check_for_update(app: AppHandle) -> Result<UpdateStatus, Str
         }
         bytes.extend_from_slice(&chunk);
     }
-    release_status(&bytes, &current)
+    release_status(&bytes, current)
 }

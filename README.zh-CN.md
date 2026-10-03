@@ -136,5 +136,6 @@ ReportLab 无法嵌入的 CFF 轮廓，该 Python PDF 导出路径会使用对�
 - `src/octopus/` 和 `ui/`：应用源码及离线 Python 引擎。
 - `docs/user-manual/index.html`：随软件附带、可切换中英文标签页的用户手册。
 - `samples/jps_files/`：65 个打包乐谱示例。
-- `samples/jps_files_pretty/`：额外的源文件。
 - `OctoPus-dev`（独立仓库）：测试、审计、参考输出和开发工具。
+
+项目采用 GPL-3.0-or-later 许可证；完整文本见 [LICENSE](LICENSE)，并随 Python 发行包和原生程序资源一起分发。

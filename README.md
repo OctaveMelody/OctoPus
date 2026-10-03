@@ -146,5 +146,7 @@ license; Zhuque v0.212 is an upstream technical preview. All bundled font notice
 - `src/octopus/` and `ui/`: application source and the offline Python worker.
 - `docs/user-manual/index.html`: the packaged, tab-switchable English/Chinese user manual.
 - `samples/jps_files/`: 65 bundled score examples.
-- `samples/jps_files_pretty/`: additional source material.
 - `OctoPus-dev` (separate repository): tests, audits, reference output and development tools.
+
+The project is licensed under GPL-3.0-or-later; the full text is in [LICENSE](LICENSE) and
+travels with Python distributions and native resources.

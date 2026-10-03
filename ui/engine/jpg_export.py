@@ -21,9 +21,9 @@ Output shape: one JPEG per page (the website's JPG export shape), zoom 2.0
 composited onto white (the page background rect is already white; the
 composite only guards against any alpha).
 
-The resvg-py/Pillow imports are deliberately LAZY (inside
-:func:`build_jpgs`): importing ``ui.engine.ops`` must stay stdlib-only in
-minimal environments.
+The resvg-py/Pillow imports are deliberately lazy (inside :func:`build_jpgs`),
+so non-export operations do not load these export libraries. They remain required
+installation dependencies in ``pyproject.toml`` and are included in release workers.
 """
 
 from __future__ import annotations

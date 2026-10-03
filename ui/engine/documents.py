@@ -2,7 +2,7 @@
 
 The dev file adapter never writes to ``samples/`` (the sha-guarded immutable
 corpus): the first load of a corpus file materializes a **working copy** under
-the UI workspace (system temp by default), and all subsequent reads, saves,
+the UI workspace (private per-user app data by default), and all subsequent reads, saves,
 and recovery snapshots operate on that copy. Native save through Rust file
 commands replaces this in R4/R5; the semantics here are what that
 implementation must match:
@@ -25,12 +25,10 @@ Recovery snapshots persist the *whole* document (settings and custom SVG
 included, not just CodeMirror text) per DOCUMENT_IDENTITY.md schema v1, so an
 app restart can offer to restore unsaved work.
 
-Both transports share these functions: the dev HTTP server exposes them as
-REST endpoints, and protocol 1.2.0 routes the same operations through
-``ops.dispatch`` (``files.list`` / ``file.read`` / ``file.save`` / ``file.new``
-/ ``file.save_as`` / ``recovery.*``) so the stdio sidecar — and therefore the
-packaged app — owns document persistence without duplicating this policy in
-Rust.
+The development HTTP server and legacy protocol 1.2.0 ``ops.dispatch`` share
+these functions (``files.list`` / ``file.read`` / ``file.save`` / ``file.new`` /
+``file.save_as`` / ``recovery.*``). The current packaged app uses the separate
+desktop protocol and Rust native persistence in its per-user app-data directory.
 """
 
 from __future__ import annotations
@@ -38,6 +36,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -76,9 +76,7 @@ def _jps_names(directory: Path) -> set[str]:
     for path in entries:
         if path.name.lower().endswith(".jps") and path.is_file():
             names.add(
-                path.name[:-len(".jps")]
-                if path.name.lower().endswith(".jps.jps")
-                else path.name
+                path.name[: -len(".jps")] if path.name.lower().endswith(".jps.jps") else path.name
             )
     return names
 
@@ -92,7 +90,7 @@ def list_documents() -> tuple[str, ...]:
     after an app restart because the open dialog lists ``files.list``.
     """
     names = _jps_names(corpus_dir())
-    names.update(_jps_names(ui_home() / "workspace"))
+    names.update(_jps_names(workspace_dir()))
     return tuple(sorted(names))
 
 
@@ -104,22 +102,90 @@ class ConflictError(Exception):
     """The file changed on disk since the client last read it."""
 
 
+def _default_ui_home() -> Path:
+    """Persistent state belongs to this user, never a shared temporary path."""
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        return (Path(base) if base else Path.home() / "AppData" / "Local") / "OctoPus" / "ui"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "OctoPus" / "ui"
+    base = os.environ.get("XDG_DATA_HOME")
+    directory = (
+        Path(base) if base and Path(base).is_absolute() else Path.home() / ".local" / "share"
+    )
+    return directory / "OctoPus" / "ui"
+
+
+def _private_path(path: Path, *, directory: bool) -> bool:
+    """Reject redirected/foreign state and restrict existing owned POSIX state."""
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    expected = stat.S_ISDIR if directory else stat.S_ISREG
+    if getattr(info, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+        raise PermissionError(f"UI state cannot be a reparse point: {path}")
+    if not expected(info.st_mode):
+        raise PermissionError(
+            f"UI state must be a regular {'directory' if directory else 'file'}: {path}"
+        )
+    if os.name == "posix":
+        if info.st_uid != os.geteuid():
+            raise PermissionError(f"UI state belongs to another user: {path}")
+        path.chmod(0o700 if directory else 0o600)
+    return True
+
+
+def _trusted_parent(path: Path) -> None:
+    """Other local users must not be able to replace any managed-state ancestor."""
+    if os.name != "posix":
+        return
+    # Container/sandbox filesystems can map the system root owner to another UID.
+    system_owner = Path("/").stat().st_uid
+    # Resolve legitimate /tmp, /var and home symlinks; validate their actual directories.
+    for parent in (path.parent.resolve(), *path.parent.resolve().parents):
+        try:
+            info = parent.stat()
+        except FileNotFoundError:
+            continue
+        if info.st_uid not in (0, system_owner, os.geteuid()):
+            raise PermissionError(f"UI state parent belongs to another user: {parent}")
+        writable = info.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+        sticky_system_directory = info.st_uid in (0, system_owner) and info.st_mode & stat.S_ISVTX
+        if writable and not sticky_system_directory:
+            raise PermissionError(f"UI state parent is writable by other users: {parent}")
+
+
+def _private_directory(path: Path) -> Path:
+    _trusted_parent(path)
+    try:
+        path.mkdir(mode=0o700)
+    except FileNotFoundError:
+        # Path.mkdir(parents=True) would create these ancestors using the default umask.
+        _private_directory(path.parent)
+        path.mkdir(mode=0o700, exist_ok=True)
+    except FileExistsError:
+        pass
+    _private_path(path, directory=True)
+    return path
+
+
 def ui_home() -> Path:
-    root = Path(os.environ.get(UI_HOME_ENV) or (Path(tempfile.gettempdir()) / "octopus-ui"))
-    root.mkdir(parents=True, exist_ok=True)
-    return root
+    """Use an explicit trusted override or this user's private app-data directory."""
+    override = os.environ.get(UI_HOME_ENV)
+    return _private_directory(Path(override) if override else _default_ui_home())
 
 
 def workspace_dir() -> Path:
-    path = ui_home() / "workspace"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+    return _private_directory(ui_home() / "workspace")
 
 
 def recovery_dir() -> Path:
-    path = ui_home() / "recovery"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+    return _private_directory(ui_home() / "recovery")
+
+
+def exports_dir() -> Path:
+    return _private_directory(ui_home() / "exports")
 
 
 def validate_filename(name: str) -> str:
@@ -134,7 +200,9 @@ def sha256_of(path: Path) -> str:
 
 
 def working_copy_path(name: str) -> Path:
-    return workspace_dir() / validate_filename(name)
+    path = workspace_dir() / validate_filename(name)
+    _private_path(path, directory=False)
+    return path
 
 
 def _corpus_path(directory: Path, name: str) -> Path:
@@ -157,8 +225,31 @@ def ensure_working_copy(corpus_path: Path, name: str) -> tuple[Path, str]:
         corpus_path = _corpus_path(corpus_path.parent, corpus_path.name)
         if not corpus_path.is_file():
             raise UnknownFileError(f"unknown file: {name!r}")
-        target.write_bytes(corpus_path.read_bytes())
+        try:
+            _publish_new(target, corpus_path.read_bytes())
+        except FileExistsError:
+            # A concurrent first load or edit won; never replace its complete bytes.
+            pass
+    _private_path(target, directory=False)
     return target, sha256_of(target)
+
+
+def _publish_new(path: Path, data: bytes) -> None:
+    """Publish complete private bytes atomically, refusing an existing destination."""
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+        if os.name == "nt":
+            # Windows rename refuses an existing target; POSIX rename overwrites it.
+            os.rename(tmp_name, path)
+        else:
+            os.link(tmp_name, path)
+    finally:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
 
 
 def _write_atomic(path: Path, data: bytes) -> None:
@@ -249,10 +340,11 @@ def import_external_file(path: str) -> tuple[dict[str, Any], str]:
     except (UnicodeDecodeError, json.JSONDecodeError) as e:
         raise UnknownFileError(f"{name!r} is not a valid JPS file: {e}") from e
     if not isinstance(record, dict) or not isinstance(record.get("code"), str):
-        raise UnknownFileError(
-            f"{name!r} is not a valid JPS file (missing the 'code' field)"
-        )
-    _write_atomic(target, data)
+        raise UnknownFileError(f"{name!r} is not a valid JPS file (missing the 'code' field)")
+    try:
+        _publish_new(target, data)
+    except FileExistsError as exc:
+        raise ConflictError(f"{name!r} is already loaded as a working copy") from exc
     return record, sha256_of(target)
 
 
@@ -358,7 +450,10 @@ def new_working_copy(name: str, *, corpus_dir: Path, code: str | None = None) ->
         "create_time": str(now_ms // 1000),
         "last_time": str(now_ms // 1000),
     }
-    _write_atomic(target, serialize_wrapper(record))
+    try:
+        _publish_new(target, serialize_wrapper(record))
+    except FileExistsError as exc:
+        raise ConflictError(f"{name!r} already exists — new never overwrites") from exc
     return sha256_of(target)
 
 
@@ -407,7 +502,7 @@ def save_as(
     if mirror is not None:
         mirror.parent.mkdir(parents=True, exist_ok=True)
         _write_atomic(mirror, data)
-    os.replace(old_path, new_path)  # same directory: atomic rename
+    os.replace(old_path, new_path)  # preserve the current source inode in one atomic rename
     clear_recovery(old_name)
     return sha256_of(new_path)
 
@@ -415,11 +510,13 @@ def save_as(
 def save_recovery(name: str, payload: dict[str, Any]) -> None:
     """Persist a whole-document recovery snapshot (schema v1, see the doc)."""
     path = recovery_dir() / f"{validate_filename(name)}.json"
+    _private_path(path, directory=False)
     _write_atomic(path, json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"))
 
 
 def load_recovery(name: str) -> dict[str, Any] | None:
     path = recovery_dir() / f"{validate_filename(name)}.json"
+    _private_path(path, directory=False)
     if not path.is_file():
         return None
     payload: Any = json.loads(path.read_text(encoding="utf-8"))
@@ -429,6 +526,7 @@ def load_recovery(name: str) -> dict[str, Any] | None:
 def clear_recovery(name: str) -> bool:
     """Drop the recovery snapshot (e.g. after a clean save); True if removed."""
     path = recovery_dir() / f"{validate_filename(name)}.json"
+    _private_path(path, directory=False)
     if path.is_file():
         path.unlink()
         return True

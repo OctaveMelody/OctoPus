@@ -16,9 +16,10 @@ DEB, AppImage, and Windows .exe bundles without vendoring libcairo; it also
 tolerates the one upstream reference page whose ``code`` attribute carries
 raw ``"`` bytes (strict-XML cairosvg rejects that page).
 
-The svglib/reportlab imports are deliberately LAZY (inside the functions):
-importing ``ui.engine.ops`` must stay stdlib-only so a minimal environment
-can still run every non-export op. :func:`render_all_pages` is the shared
+The svglib/reportlab imports are deliberately lazy (inside the functions), so
+non-export operations do not load these export libraries. They remain required
+installation dependencies in ``pyproject.toml`` and are included in release
+workers. :func:`render_all_pages` is the shared
 identity + render setup used by BOTH export formats (this module's PDF and
 :mod:`ui.engine.jpg_export`'s JPG), so the two ops cannot drift from
 ``render`` or from each other.

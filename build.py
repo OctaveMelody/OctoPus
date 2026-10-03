@@ -19,7 +19,13 @@ PACKAGE_SUFFIXES = {".appimage", ".deb", ".dmg", ".exe", ".msi"}
 
 def publish_portable(destination: Path, release: Path, packages: list[Path], system: str) -> Path:
     """Stage executable/resources together and preserve the last successful portable build."""
-    from build_desktop_engine import _check_font_assets, _check_glyph_assets, _request, _smoke_test
+    from build_desktop_engine import (
+        _check_font_assets,
+        _check_glyph_assets,
+        _check_project_license,
+        _request,
+        _smoke_test,
+    )
 
     config = json.loads((WEB / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
     portable = destination / "portable"
@@ -38,6 +44,7 @@ def publish_portable(destination: Path, release: Path, packages: list[Path], sys
             shutil.copy2(release / executable.name, executable)
             resources = staged / "lib/OctoPus"
             resources.mkdir(parents=True)
+            shutil.copy2(ROOT / "LICENSE", resources / "LICENSE")
             shutil.copytree(ROOT / "build/desktop-engine/octopus-engine", resources / "engine")
             shutil.copytree(ROOT / "samples/jps_files", resources / "examples")
             shutil.copytree(ROOT / "docs", resources / "docs")
@@ -66,6 +73,7 @@ def publish_portable(destination: Path, release: Path, packages: list[Path], sys
             copied_manual = resources / "docs" / manual.relative_to(ROOT / "docs")
             if not copied_manual.is_file() or copied_manual.read_bytes() != manual.read_bytes():
                 raise RuntimeError(f"portable user manual missing/corrupt: {manual.name}")
+        _check_project_license(resources)
         # Retain the predecessor until a later build replaces it with the then-current tree.
         previous = destination / "portable.previous"
         if previous.exists():

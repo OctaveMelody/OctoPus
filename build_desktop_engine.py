@@ -101,6 +101,12 @@ def _check_font_assets(bundle: Path) -> None:
             )
 
 
+def _check_project_license(bundle: Path, source: Path = ROOT / "LICENSE") -> None:
+    copied = bundle / "LICENSE"
+    if not copied.is_file() or copied.read_bytes() != source.read_bytes():
+        raise RuntimeError("project license missing/corrupt")
+
+
 def _smoke_test(bundle: Path, render_request: dict[str, object]) -> None:
     executable_name = "octopus-engine"
     if platform.system() == "Windows":
@@ -282,6 +288,8 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             )
         bundle = dist_dir / "octopus-engine"
         _check_glyph_assets(bundle, glyph_dir)
+        shutil.copy2(repository_root / "LICENSE", bundle / "LICENSE")
+        _check_project_license(bundle, repository_root / "LICENSE")
         font_dir = dist_dir / "fonts"
         shutil.copytree(repository_root / "src/octopus/assets/fonts", font_dir)
         _check_font_assets(font_dir)

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,12 +9,14 @@ description = "Evidence-driven Jianpu JPS parser and SVG renderer"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 # 1.13.0 (export.pdf): svglib + reportlab convert rendered SVG pages into a
 # multi-page vector PDF; 1.14.0 (export.jpg): resvg-py rasterizes the same
 # pages (pure wheel wrapping the Rust resvg renderer) and Pillow encodes the
 # JPEGs. All ship pure wheels for every pinned sidecar target (linux/windows/
-# macos, x86_64+arm64); the engine imports them LAZLY (ui/engine/pdf_export.py
-# + jpg_export.py) so non-export ops stay dependency-free at import.
+# macos, x86_64+arm64). These are required installation dependencies so release
+# workers always support exports. Lazy imports in ui/engine/pdf_export.py and
+# jpg_export.py defer loading the export libraries until an export is requested.
 dependencies = [
     "fonttools==4.60.2",
     "pillow>=10",

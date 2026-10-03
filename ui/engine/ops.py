@@ -294,7 +294,7 @@ def _handle_doc(
     """Handle one 1.2.0 document operation (PROTOCOL.md §5).
 
     Every transport reaches the same ``documents`` functions, so the dev HTTP
-    server and the stdio sidecar (packaged app) cannot drift: working-copy
+    server and legacy stdio transport cannot drift: working-copy
     materialization, corpus-exact serialization, atomic writes, conflict via
     ``expected_sha256``, and whole-document recovery snapshots all live in
     one place. Documented failures (unknown file, conflict, invalid name)
@@ -408,7 +408,7 @@ def _handle_export_pdf(request: ExportPdfRequest) -> DocResponse:
     escape to dispatch's ``internal`` net.
     """
     if request.path is None:
-        exports_dir = docs.ui_home() / "exports"
+        exports_dir = docs.exports_dir()
         target = exports_dir / f"{_safe_export_stem(request.name)}-{time.time_ns()}.pdf"
     else:
         try:
@@ -484,7 +484,7 @@ def _handle_export_jpg(request: ExportJpgRequest) -> DocResponse:
     page_count = len(jpegs)
     if request.path is None:
         stem_dir = f"{_safe_export_stem(request.name)}-{time.time_ns()}"
-        base_dir = docs.ui_home() / "exports" / stem_dir
+        base_dir = docs._private_directory(docs.exports_dir() / stem_dir)
         names = _jpg_page_names(_safe_export_stem(request.name), page_count)
         targets = [base_dir / n for n in names]
     else:
