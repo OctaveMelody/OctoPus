@@ -8,14 +8,21 @@ import { checkForUpdate, openHelpDestination } from "./help-actions.js";
 import type { HelpDestination, UpdateResult } from "./help-actions.js";
 
 import { JpsEditor, type JpsEditorHandle } from "../editor/JpsEditor";
-import { PreferencesForm } from "./PreferencesForm";
+import { LifecycleDialogs } from "./LifecycleDialogs";
+import { InformationDialog } from "./InformationDialog";
 import { PageSettings } from "./PageSettings";
 import { ReferencePanel } from "../reference/ReferencePanel";
 import { messages } from "./i18n";
 import brandMark from "./octopus.svg";
+import {useDocumentLifecycle, useRecoveryPersistence} from "./useDocumentLifecycle";
+import {getStorage} from "./workspace-storage.js";
 import { useScorePreview } from "./useScorePreview";
 import { ScorePreview } from "./ScorePreview";
 import { exportStatusText, useScoreExports } from "./useScoreExports";
+import {useSourceDiagnostics} from "./useSourceDiagnostics";
+import {useTranscriptionSession, type TranscriptionContext} from "./useTranscriptionSession";
+import {normalizedIssueRegions, issueSourceRange, mapFormattedIssueSpans} from "./transcription-review.js";
+import {createSourceOffsetMap} from "./source-mapping.js";
 import { useReferenceAssets } from "./useReferenceAssets";
 import type {
   WorkspacePreferences,
@@ -23,107 +30,22 @@ import type {
   LayoutId,
   PaneId,
   FocusPane,
-  LifecycleAction,
-  DialogKind,
-  CatalogDocument,
-  NewScoreFields,
-  CodecResponse,
-  LoadedJps,
-  SerializedJps,
   EngineCapabilities,
-  RecoveryDraft,
-  RecoverySnapshot,
-  DocumentSnapshot,
   TranscriptionIssue,
-  TranscriptionDraft,
   Status,
 } from "./types";
 import {
-  beginDocumentSave,
-  createDocumentSession,
-  finishDocumentSave,
-  isCurrentDocumentRevision,
   isDocumentDirty,
   isPageConfigDirty,
   updateDocumentPageConfig,
   updateDocumentSource,
 } from "./document.js";
+import { getEngineCapabilities } from "./native-files.js";
 import {
-  createNewScore,
-  createNewScorePageConfig,
-  normalizeJpsFileName,
-} from "./new-score.js";
-import {
-  destroyNativeWindow,
-  getEngineCapabilities,
-  listJpsDocuments,
-  nativeCloseDisposition,
-  openJpsDocument,
-  openJpsCatalogDocument,
-  onNativeCloseRequested,
-  pruneReferenceImages,
-  referenceImageUrl,
-  readRecoverySnapshot,
-  resolveReferenceImages,
-  saveJpsDocument,
-  transcribeReference,
-  writeRecoverySnapshot,
-} from "./native-files.js";
-import {
-  createRecoverySnapshot,
-  parseRecoverySnapshot,
-} from "./recovery.js";
-import {
-  createReferenceSet,
-  referenceAssetIds,
   selectReferenceImage,
   updateReferenceView,
 } from "./reference-set.js";
 import { defaultPreferences, readPreferences, writePreferences } from "./preferences.js";
-
-const EMPTY_NEW_SCORE: NewScoreFields = {
-  title: "",
-  subtitle: "",
-  lyricist: "",
-  composer: "",
-  otherAuthors: "",
-  keyNote: "C",
-  keyAccidental: "",
-  beatNumerator: 4,
-  beatDenominator: 4,
-  tempo: "",
-};
-
-function getStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-const LAST_OPENED_JPS_PATH_KEY = "octopus.last-opened-jps-path.v1";
-const LAST_SAVED_JPS_PATH_KEY = "octopus.last-saved-jps-path.v1";
-
-function rememberedPath(key: string): string | null {
-  try {
-    return getStorage()?.getItem(key) || null;
-  } catch {
-    return null;
-  }
-}
-
-function rememberPath(key: string, path: string): void {
-  try {
-    getStorage()?.setItem(key, path);
-  } catch {
-    // Dialog defaults are a convenience; storage failures must not block files.
-  }
-}
-
-function newScoreDraftChanged(name: string, fields: NewScoreFields) {
-  return name !== "Untitled.jps" || JSON.stringify(fields) !== JSON.stringify(EMPTY_NEW_SCORE);
-}
 
 function AppBrand({ label, onOpen }: { label: string; onOpen: () => void }) {
   return (
@@ -146,84 +68,56 @@ export function App() {
       : defaultPreferences(window.navigator.language);
   });
   const [focusPane, setFocusPane] = useState<FocusPane>(null);
-  const [score, setScore] = useState(() => createDocumentSession({
-    id: crypto.randomUUID(),
-    name: "Untitled.jps",
-    source: "Q: 1 2 3 4 |",
-  }));
-  const [documentOpen, setDocumentOpen] = useState(true);
   const [editorHistory, setEditorHistory] = useState({ undo: false, redo: false });
   const [engineCapabilities, setEngineCapabilities] = useState<EngineCapabilities>({
     ocr: false,
-    lilypond: false,
+    png_export: false,
   });
-  const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcriptionIssues, setTranscriptionIssues] = useState<TranscriptionIssue[]>([]);
-  const transcribing = useRef(false);
-  const pendingTranscription = useRef<{ draft: TranscriptionDraft; name: string } | null>(null);
-  const currentDocument = useRef(score);
+  const [reviewSource, setReviewSource] = useState<{id: string; source: string; context: TranscriptionContext} | null>(null);
+  const [reviewRegion, setReviewRegion] = useState<{id: string; boxes: number[][]; serial: number} | null>(null);
   const editorController = useRef<JpsEditorHandle | null>(null);
-  currentDocument.current = score;
   const [status, setStatus] = useState<Status>({ kind: "ready" });
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateResult, setUpdateResult] = useState<UpdateResult | null>(null);
   const [updateError, setUpdateError] = useState("");
   const [browserError, setBrowserError] = useState("");
   const [informationDialog, setInformationDialog] = useState<"about" | "update" | "browser-error" | null>(null);
-  const [activeDialog, setActiveDialog] = useState<DialogKind>(null);
-  const [pendingAction, setPendingAction] = useState<LifecycleAction | null>(null);
-  const [dialogError, setDialogError] = useState("");
-  const [newFileName, setNewFileName] = useState("Untitled.jps");
-  const [newScoreFields, setNewScoreFields] = useState(EMPTY_NEW_SCORE);
-  const [newScoreDraftActive, setNewScoreDraftActive] = useState(false);
-  const [settingsDraftReset, setSettingsDraftReset] = useState(0);
-  const [examples, setExamples] = useState<CatalogDocument[]>([]);
-  const [examplesLoaded, setExamplesLoaded] = useState(false);
-  const [exampleFilter, setExampleFilter] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const exportMenuRef = useRef<HTMLDetailsElement>(null);
   const findMenuRef = useRef<HTMLDetailsElement>(null);
   const transcriptionMenuRef = useRef<HTMLDetailsElement>(null);
-  const transitionSequence = useRef(0);
-  const saving = useRef(false);
-  const [recoveryReady, setRecoveryReady] = useState(false);
-  const [recoveryInitialized, setRecoveryInitialized] = useState(false);
-  const [recoveryCandidate, setRecoveryCandidate] = useState<RecoverySnapshot | null>(null);
-  const [recoveryError, setRecoveryError] = useState("");
-  const [isRecoveryActionRunning, setIsRecoveryActionRunning] = useState(false);
-  const recoveryActionRunning = useRef(false);
-  const recoveryReadyRef = useRef(false);
-  const recoverySequence = useRef(0);
-  const deferredNativeClose = useRef(false);
-  const closeRequestPending = useRef(false);
-  const activeDialogRef = useRef<DialogKind>(null);
-  const pendingActionRef = useRef<LifecycleAction | null>(null);
-  const resumeDialogAfterExit = useRef<{ dialog: DialogKind; action: LifecycleAction | null } | null>(null);
   const informationDialogRef = useRef<HTMLDialogElement>(null);
   const appShortcutRef = useRef<(event: KeyboardEvent) => void>(() => {});
-  const newScoreDraftRef = useRef({
-    active: false,
-    name: "Untitled.jps",
-    fields: EMPTY_NEW_SCORE,
-    dirty: false,
-  });
-  const settingsDraftRef = useRef<{
-    dirty: boolean;
-    config: Record<string, unknown> | null;
-  }>({ dirty: false, config: null });
   const copy = messages[preferences.language];
   const copyRef = useRef(copy);
   copyRef.current = copy;
-  activeDialogRef.current = activeDialog;
-  pendingActionRef.current = pendingAction;
-  recoveryReadyRef.current = recoveryReady;
-  newScoreDraftRef.current = {
-    active: newScoreDraftActive,
-    name: newFileName,
-    fields: newScoreFields,
-    dirty: newScoreDraftActive && newScoreDraftChanged(newFileName, newScoreFields),
-  };
+  const lifecycle = useDocumentLifecycle({copyRef, setStatus, setPreferences, setFocusPane,
+    editorController, getServices: () => ({referenceAssets, resetPreview, bindReview,
+      clearReview: () => {setTranscriptionIssues([]); setReviewSource(null); setReviewRegion(null);},
+      isTranscribing: () => transcribing.current})});
+  const {score, setScore, currentDocument, documentOpen, setActiveDialog, activeDialogRef,
+    setDialogError, settingsDraftRef, settingsDraftReset, isSaving, saving, recoveryReady,
+    recoveryReadyRef, recoverySequence, currentRecoveryDraft, requestAction, requestNativeClose,
+    saveDocument} = lifecycle;
+  const transcription = useTranscriptionSession({currentDocument,
+    getReferences: () => currentReferences.current, copyRef,
+    isBusy: mode => saving.current || referenceAssets.isImporting() || (mode === "append" && !documentOpen),
+    onDraft: adoptTranscription,
+    onError: message => setStatus({kind: "error", message}),
+  });
+  const {transcribing, isTranscribing, isCancelling, progress: transcriptionProgress, cancelTranscription} = transcription;
+  const sourceDiagnostics = useSourceDiagnostics({score, enabled: documentOpen && recoveryReady,
+    errorMessage: copy.sourceDiagnosticsFailed});
+  useEffect(() => {if (isTranscribing) setStatus({kind: "transcribing"});}, [isTranscribing]);
+  const reviewIsCurrent = reviewSource?.id === score.id && reviewSource.source === score.source;
+  const offsetMap = createSourceOffsetMap(score.source);
+  const noteDiagnostics = reviewIsCurrent ? transcriptionIssues.flatMap(issue => {
+    if (issue.source_start == null || issue.source_end == null) return [];
+    const start = offsetMap.codePointToPosition(issue.source_start);
+    const end = offsetMap.codePointToPosition(issue.source_end);
+    return start && end ? [{code: issue.code, message: issue.detail, severity: "warning",
+      span: {start: {...start, offset: issue.source_start}, end: {...end, offset: issue.source_end}}}] : [];
+  }) : [];
   const outputFontSources = Object.fromEntries(Object.entries(preferences.fontSources).map(
     ([role, source]) => [role, engineCapabilities.fonts?.[role]?.available ? source : "fallback"],
   ));
@@ -235,11 +129,12 @@ export function App() {
       || activeDialogRef.current !== null || Boolean(informationDialogRef.current?.open) });
   const { referenceDropActive, references, referenceSources, currentReferences, pendingReferenceImport,
     isImportingReferences, isCommittingReferences, isHandlingReferenceChoice,
-    commitReferenceSet, importReferences, chooseReferenceImport, updateReferences } = referenceAssets;
+    importReferences, updateReferences } = referenceAssets;
 
   const preview = useScorePreview({ score, currentDocument, documentOpen, recoveryReady, copy,
     setStatus, editorController, focusPane, setFocusPane, fontSources: outputFontSources });
   const { handleEditorCursor, resetPreview, sourceChanged } = preview;
+  useRecoveryPersistence(lifecycle, referenceAssets, setStatus);
 
   const layout: LayoutId = preferences.mode === "normal"
     ? preferences.normalLayout
@@ -264,66 +159,56 @@ export function App() {
     return () => document.removeEventListener("click", closeMenusOnOutsideClick);
   }, []);
 
-  async function requestTranscription(mode: "new" | "append") {
-    if (transcribing.current || saving.current || referenceAssets.isImporting()
-      || (mode === "append" && !documentOpen)) return;
-    const reference = currentReferences.current;
-    const selected = reference.images.find((page) => page.id === reference.selectedId);
-    if (!selected) return;
-    const assetId = selected.kind === "pdf-page" ? selected.pdfId : selected.id;
-    const sourceName = selected.kind === "pdf-page"
-      ? reference.pdfs.find((pdf) => pdf.id === selected.pdfId)?.name ?? selected.name
-      : selected.name;
-    const document = currentDocument.current;
-    transcribing.current = true;
-    setIsTranscribing(true);
-    setStatus({ kind: "transcribing" });
+  function requestTranscription(mode: "new" | "append") {
     if (transcriptionMenuRef.current) transcriptionMenuRef.current.open = false;
-    try {
-      const response = await transcribeReference(assetId, document.id, document.revision);
-      const draft = response.result;
-      if (response.status !== "ok" || !draft || typeof draft.jps !== "string"
-        || !Array.isArray(draft.issues)) {
-        throw new Error(response.error?.message ?? copy.transcriptionFailed);
-      }
-      if (!isCurrentDocumentRevision(currentDocument.current, {
-        documentId: document.id,
-        revision: document.revision,
-      })) {
-        throw new Error(copy.transcriptionDocumentChanged);
-      }
-      if (mode === "new") {
-        let name = "Untitled.jps";
-        try {
-          name = normalizeJpsFileName(sourceName.replace(/\.(png|jpe?g|pdf)$/i, ""));
-        } catch {
-          // A valid reference name can exceed the JPS filename byte limit.
-        }
-        pendingTranscription.current = { draft, name };
-        setStatus({ kind: "ready" });
-        requestAction("transcribe-new");
-      } else {
-        const editor = editorController.current;
-        if (!editor) throw new Error(copy.transcriptionEditorUnavailable);
-        const existing = document.source;
-        const musicStart = draft.jps.search(/^Q\d*(?:\[[^\]\r\n]*\]|"[^"\r\n]*")?:/m);
-        if (musicStart < 0) throw new Error(copy.transcriptionNoMusic);
-        const body = "\n" + draft.jps.slice(musicStart).trimEnd();
-        const prefix = !existing.trim()
-          ? ""
-          : /\[fenye\]\s*$/.test(existing)
-            ? "\n"
-            : existing.endsWith("\n") ? "\n[fenye]\n" : "\n\n[fenye]\n";
-        editor.appendSource(prefix + (existing.trim() ? body : draft.jps.trimEnd()) + "\n");
-        setTranscriptionIssues(draft.issues);
-        setStatus({ kind: "transcribed", issues: draft.issues.length });
-        setFocusPane(null);
-      }
-    } catch (error) {
-      setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-    } finally {
-      transcribing.current = false;
-      setIsTranscribing(false);
+    void transcription.requestTranscription(mode);
+  }
+
+  function bindReview(context: TranscriptionContext, issues = context.draft.issues) {
+    setTranscriptionIssues(issues);
+    setReviewSource({id: currentDocument.current.id, source: currentDocument.current.source, context});
+    setReviewRegion(null);
+  }
+
+  function adoptTranscription(mode: "new" | "append", context: TranscriptionContext) {
+    const {draft} = context;
+    if (mode === "new") {
+      lifecycle.prepareTranscription(context);
+      return;
+    }
+    const editor = editorController.current;
+    if (!editor) throw new Error(copyRef.current.transcriptionEditorUnavailable);
+    const existing = currentDocument.current.source;
+    const musicStart = draft.jps.search(/^Q\d*(?:\[[^\]\r\n]*\]|"[^"\r\n]*")?:/im);
+    if (musicStart < 0) throw new Error(copyRef.current.transcriptionNoMusic);
+    const prefix = !existing.trim() ? "" : /\[fenye\]\s*$/.test(existing)
+      ? "\n" : existing.endsWith("\n") ? "\n[fenye]\n" : "\n\n[fenye]\n";
+    const addition = prefix + (existing.trim() ? "\n" + draft.jps.slice(musicStart).trimEnd() : draft.jps.trimEnd()) + "\n";
+    const removed = existing.trim() ? Array.from(draft.jps.slice(0, musicStart)).length : 0;
+    const shift = Array.from(existing + prefix + (existing.trim() ? "\n" : "")).length - removed;
+    const issues = draft.issues.map(issue => ({...issue,
+      source_start: issue.source_start != null && issue.source_start >= removed ? issue.source_start + shift : null,
+      source_end: issue.source_end != null && issue.source_end >= removed ? issue.source_end + shift : null,
+    }));
+    editor.appendSource(addition);
+    bindReview(context, mapFormattedIssueSpans(existing + addition, currentDocument.current.source, issues));
+    setStatus({kind: "transcribed", issues: issues.length});
+    setFocusPane(null);
+  }
+
+  function reviewIssue(issue: TranscriptionIssue) {
+    if (!reviewSource) return;
+    const id = reviewSource.context.pages[issue.page - 1];
+    if (id && currentReferences.current.images.some(page => page.id === id)) {
+      updateReferences(selectReferenceImage(currentReferences.current, id));
+      const boxes = normalizedIssueRegions(issue.regions, reviewSource.context.draft.page_dimensions?.[issue.page - 1]);
+      setReviewRegion({id, boxes, serial: Date.now()});
+      setPreferences(current => ({...current, mode: "transcription"}));
+      setFocusPane(null);
+    }
+    if (reviewSource.id === score.id && reviewSource.source === score.source) {
+      const range = issueSourceRange(score.source, issue);
+      if (range) editorController.current?.selectSourceRange(range.from, range.to, false);
     }
   }
 
@@ -339,7 +224,7 @@ export function App() {
         if (
           active
           && typeof capabilities.ocr === "boolean"
-          && typeof capabilities.lilypond === "boolean"
+          && typeof capabilities.png_export === "boolean"
         ) {
           setEngineCapabilities(capabilities);
           setPreferences(current => ({ ...current, fontSources: Object.fromEntries(
@@ -353,13 +238,6 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (activeDialog && !dialog.open) dialog.showModal();
-    else if (!activeDialog && dialog.open) dialog.close();
-  }, [activeDialog]);
-
-  useEffect(() => {
     const dialog = informationDialogRef.current;
     if (!dialog) return;
     if (informationDialog && !dialog.open) dialog.showModal();
@@ -371,109 +249,6 @@ export function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!window.__TAURI__) {
-      setRecoveryReady(true);
-      setRecoveryInitialized(true);
-      return;
-    }
-    void (async () => {
-      try {
-        const text = await readRecoverySnapshot();
-        if (cancelled) return;
-        if (text === null) {
-          try {
-            await pruneReferenceImages([]);
-          } catch (error) {
-            setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-          }
-          setRecoveryReady(true);
-          setRecoveryInitialized(true);
-          return;
-        }
-        let candidate: RecoverySnapshot;
-        try {
-          candidate = parseRecoverySnapshot(text);
-        } catch (error) {
-          setRecoveryError(error instanceof Error ? error.message : String(error));
-          setActiveDialog("recovery");
-          setRecoveryReady(true);
-          return;
-        }
-        try {
-          await pruneReferenceImages(referenceAssetIds(candidate.references));
-        } catch (error) {
-          setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-        }
-        if (cancelled) return;
-        setRecoveryCandidate(candidate);
-        setActiveDialog("recovery");
-        setRecoveryReady(true);
-      } catch (error) {
-        if (cancelled) return;
-        setRecoveryError(error instanceof Error ? error.message : String(error));
-        setActiveDialog("recovery");
-        setRecoveryReady(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    if (!recoveryInitialized || !window.__TAURI__) return;
-    let timer = 0;
-    const persist = () => {
-      if (referenceAssets.isCommitting()) {
-        timer = window.setTimeout(persist, 50);
-        return;
-      }
-      let text: string | null;
-      try {
-        text = createRecoverySnapshot(
-          currentDocument.current,
-          currentRecoveryDraft(),
-          currentReferences.current,
-        );
-      } catch (error) {
-        setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-        return;
-      }
-      const sequence = ++recoverySequence.current;
-      void writeRecoverySnapshot(sequence, text).catch((error: unknown) => {
-        if (sequence === recoverySequence.current) {
-          setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-        }
-      });
-    };
-    timer = window.setTimeout(persist, 250);
-    return () => window.clearTimeout(timer);
-  }, [score, references, newScoreDraftActive, newFileName, newScoreFields, recoveryInitialized]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: (() => void) | undefined;
-    void onNativeCloseRequested((event) => {
-      event.preventDefault();
-      requestNativeClose();
-    }).then((removeListener) => {
-      if (cancelled) removeListener();
-      else unlisten = removeListener;
-    }).catch((error: unknown) => {
-      setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-    });
-    return () => {
-      cancelled = true;
-      unlisten?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!recoveryReady || !deferredNativeClose.current) return;
-    deferredNativeClose.current = false;
-    requestNativeClose();
-  }, [activeDialog, recoveryReady]);
 
   useEffect(() => {
     const storage = getStorage();
@@ -496,556 +271,6 @@ export function App() {
     setPreferences((current) => ({
       ...current, splits: { ...current.splits, [layout]: nextSplit },
     }));
-  }
-
-  function replaceDocument(nextDocument: DocumentSnapshot, notice = "") {
-    transitionSequence.current += 1;
-    pendingTranscription.current = null;
-    currentDocument.current = nextDocument;
-    resetPreview(nextDocument);
-    setScore(nextDocument);
-    setDocumentOpen(true);
-    setTranscriptionIssues([]);
-    setStatus(notice ? { kind: "notice" } : { kind: "ready" });
-  }
-
-  async function loadJpsText(
-    name: string,
-    path: string | null,
-    suggestedPath: string | null,
-    text: string,
-    sequence: number,
-  ) {
-    const tauri = window.__TAURI__;
-    if (!tauri) throw new Error(copy.needsDesktop);
-    const id = crypto.randomUUID();
-    const response = await tauri.core.invoke<CodecResponse<LoadedJps>>("load_document", {
-      args: { documentId: id, documentRevision: 0, name, text },
-    });
-    if (sequence !== transitionSequence.current) return false;
-    const loaded = response.result?.document;
-    if (response.status !== "ok" || !loaded) {
-      throw new Error(response.error?.message ?? copy.openFailed);
-    }
-    const nextDocument = createDocumentSession({
-      id,
-      name: loaded.name,
-      path,
-      suggestedPath,
-      source: loaded.code,
-      savedSource: loaded.code,
-      savedFileText: text,
-      wrapperFields: loaded.wrapper_fields,
-      customCode: loaded.custom_code,
-      pageConfig: loaded.page_config,
-      savedPageConfig: loaded.page_config,
-      jsonWrapped: loaded.json_wrapped,
-    });
-    replaceDocument(nextDocument, loaded.encoding_repaired ? copy.encodingRepaired : "");
-    return true;
-  }
-
-  async function performAction(action: LifecycleAction) {
-    const sequence = ++transitionSequence.current;
-    setDialogError("");
-    if (action === "new") {
-      setNewFileName("Untitled.jps");
-      setNewScoreFields(EMPTY_NEW_SCORE);
-      setNewScoreDraftActive(true);
-      setActiveDialog("new");
-      return;
-    }
-    if (action === "transcribe-new") {
-      const pending = pendingTranscription.current;
-      pendingTranscription.current = null;
-      if (!pending) return;
-      replaceDocument(createDocumentSession({
-        id: crypto.randomUUID(),
-        name: pending.name,
-        source: pending.draft.jps,
-        savedSource: "",
-        pageConfig: createNewScorePageConfig(),
-      }));
-      setTranscriptionIssues(pending.draft.issues);
-      setStatus({ kind: "transcribed", issues: pending.draft.issues.length });
-      setFocusPane(null);
-      return;
-    }
-    if (action === "close-document") {
-      try {
-        await commitReferenceSet(createReferenceSet(), {});
-      } catch (error) {
-        setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-        return;
-      }
-      replaceDocument(createDocumentSession({
-        id: crypto.randomUUID(),
-        name: "Untitled.jps",
-        source: "",
-        savedSource: "",
-      }));
-      setDocumentOpen(false);
-      setFocusPane(null);
-      setNewScoreDraftActive(false);
-      return;
-    }
-    if (action === "examples") {
-      setExamples([]);
-      setExamplesLoaded(false);
-      setExampleFilter("");
-      setActiveDialog("examples");
-      try {
-        const documents = await listJpsDocuments();
-        if (sequence === transitionSequence.current) {
-          setExamples(documents);
-          setExamplesLoaded(true);
-        }
-      } catch (error) {
-        if (sequence === transitionSequence.current) {
-          setExamplesLoaded(true);
-          setDialogError(error instanceof Error ? error.message : String(error));
-        }
-      }
-      return;
-    }
-    try {
-      const opened = await openJpsDocument(rememberedPath(LAST_OPENED_JPS_PATH_KEY));
-      if (!opened || sequence !== transitionSequence.current) return;
-      const loaded = await loadJpsText(
-        opened.name,
-        opened.path,
-        opened.suggestedPath,
-        opened.text,
-        sequence,
-      );
-      if (loaded) {
-        rememberPath(LAST_OPENED_JPS_PATH_KEY, opened.suggestedPath || opened.path);
-      }
-    } catch (error) {
-      if (sequence === transitionSequence.current) {
-        setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-      }
-    }
-  }
-
-  function requestAction(action: LifecycleAction) {
-    if (saving.current || isSaving || referenceAssets.isCommitting()) return;
-    if (action !== "transcribe-new") pendingTranscription.current = null;
-    if (action === "close-document" && !documentOpen) return;
-    if (settingsDraftRef.current.dirty) {
-      setPendingAction(action);
-      setDialogError("");
-      setActiveDialog("settings-dirty");
-      return;
-    }
-    if (isDocumentDirty(currentDocument.current)) {
-      setPendingAction(action);
-      setDialogError("");
-      setActiveDialog("dirty");
-      return;
-    }
-    void performAction(action);
-  }
-
-  function cancelSettingsDraftAction() {
-    const action = pendingActionRef.current;
-    if (action === "transcribe-new") pendingTranscription.current = null;
-    setDialogError("");
-    if (action === "exit") {
-      const resume = resumeDialogAfterExit.current;
-      resumeDialogAfterExit.current = null;
-      closeRequestPending.current = false;
-      setPendingAction(resume?.action ?? null);
-      setActiveDialog(resume?.dialog ?? null);
-    } else {
-      setPendingAction(null);
-      setActiveDialog(null);
-    }
-  }
-
-  function resolveSettingsDraft(choice: "apply" | "discard" | "cancel") {
-    if (choice === "cancel") {
-      cancelSettingsDraftAction();
-      return;
-    }
-    const action = pendingActionRef.current;
-    if (!action) return;
-    if (choice === "apply" && settingsDraftRef.current.config) {
-      editorController.current?.applyPageConfig(settingsDraftRef.current.config);
-    } else if (choice === "discard") {
-      setSettingsDraftReset((current) => current + 1);
-    }
-    settingsDraftRef.current = { dirty: false, config: null };
-    setDialogError("");
-    setPendingAction(null);
-    setActiveDialog(null);
-
-    if (action === "exit") {
-      if (isDocumentDirty(currentDocument.current) || newScoreDraftRef.current.dirty) {
-        setPendingAction("exit");
-        setActiveDialog("dirty");
-      } else {
-        resumeDialogAfterExit.current = null;
-        void finishNativeClose(() => createRecoverySnapshot(
-          currentDocument.current,
-          currentRecoveryDraft(),
-          currentReferences.current,
-        ));
-      }
-      return;
-    }
-    if (isDocumentDirty(currentDocument.current)) {
-      setPendingAction(action);
-      setActiveDialog("dirty");
-    } else {
-      void performAction(action);
-    }
-  }
-
-  async function saveDocument(saveAs = false): Promise<boolean> {
-    if (!documentOpen) return false;
-    if (saving.current) return false;
-    saving.current = true;
-    setIsSaving(true);
-    const original = currentDocument.current;
-    const begun = beginDocumentSave(original, { name: original.name, path: original.path });
-    currentDocument.current = begun.document;
-    setScore(begun.document);
-    try {
-      const tauri = window.__TAURI__;
-      if (!tauri) throw new Error(copy.needsDesktop);
-      const serialized = await tauri.core.invoke<CodecResponse<SerializedJps>>(
-        "serialize_document",
-        {
-          args: {
-            documentId: begun.snapshot.documentId,
-            documentRevision: begun.snapshot.revision,
-            name: begun.snapshot.name,
-            code: begun.snapshot.source,
-            wrapperFields: begun.snapshot.wrapperFields,
-            pageConfig: begun.snapshot.pageConfig,
-            pageConfigChanged: begun.snapshot.pageConfigChanged,
-            jsonWrapped: begun.snapshot.jsonWrapped,
-          },
-        },
-      );
-      if (serialized.status !== "ok" || typeof serialized.result?.text !== "string") {
-        throw new Error(serialized.error?.message ?? copy.saveFailed);
-      }
-      const fileText = serialized.result.text;
-      const isSaveAs = saveAs || original.path === null;
-      const savedPath = await saveJpsDocument({
-        path: original.path,
-        suggestedPath: original.suggestedPath ?? original.path,
-        suggestedName: original.name,
-        recentSavedPath: isSaveAs ? rememberedPath(LAST_SAVED_JPS_PATH_KEY) : null,
-        expectedText: original.savedFileText,
-        text: fileText,
-        saveAs: isSaveAs,
-      });
-      if (!savedPath || currentDocument.current.id !== original.id) return false;
-      rememberPath(LAST_SAVED_JPS_PATH_KEY, savedPath);
-      const name = savedPath.split(/[\\/]/).pop() || begun.snapshot.name;
-      const snapshot = {
-        ...begun.snapshot,
-        name,
-        path: savedPath,
-        suggestedPath: isSaveAs ? savedPath : original.suggestedPath,
-      };
-      const finished = finishDocumentSave(currentDocument.current, snapshot, fileText);
-      currentDocument.current = finished;
-      setScore(finished);
-      const recoverySequenceNumber = ++recoverySequence.current;
-      await writeRecoverySnapshot(
-        recoverySequenceNumber,
-        createRecoverySnapshot(finished, currentRecoveryDraft(), currentReferences.current),
-      );
-      const clean = !isDocumentDirty(finished);
-      setStatus(clean ? { kind: "saved" } : { kind: "changed" });
-      return clean;
-    } catch (error) {
-      setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-      return false;
-    } finally {
-      saving.current = false;
-      setIsSaving(false);
-    }
-  }
-
-  function currentRecoveryDraft(): RecoveryDraft | null {
-    const draft = newScoreDraftRef.current;
-    return draft.active && draft.dirty
-      ? { kind: "new", name: draft.name, fields: draft.fields }
-      : null;
-  }
-
-  async function finishNativeClose(
-    recovery: string | null | (() => string | null),
-    recoveryPersisted = false,
-  ) {
-    try {
-      const recoveryText = typeof recovery === "function" ? recovery() : recovery;
-      await referenceAssets.discardPendingImport();
-      if (!recoveryPersisted) {
-        const sequence = ++recoverySequence.current;
-        if (!(await writeRecoverySnapshot(sequence, recoveryText))) {
-          throw new Error("The recovery snapshot was superseded by a newer save.");
-        }
-      }
-      await destroyNativeWindow();
-    } catch (error) {
-      closeRequestPending.current = false;
-      const detail = error instanceof Error ? error.message : String(error);
-      setStatus({ kind: "error", message: `${copyRef.current.closeFailed} ${detail}` });
-      setDialogError(`${copyRef.current.closeFailed} ${detail}`);
-    }
-  }
-
-  function requestNativeClose() {
-    if (!window.__TAURI__ || closeRequestPending.current) return;
-    if (
-      referenceAssets.isImporting()
-      || referenceAssets.isChoosingImport()
-      || referenceAssets.isCommitting()
-      || transcribing.current
-    ) {
-      setStatus({ kind: "error", message: transcribing.current
-        ? copyRef.current.transcribing
-        : copyRef.current.imageImportInProgress });
-      return;
-    }
-    const disposition = nativeCloseDisposition(
-      recoveryReadyRef.current,
-      activeDialogRef.current === "recovery",
-    );
-    if (disposition === "defer") {
-      deferredNativeClose.current = true;
-      return;
-    }
-    if (disposition === "preserve") {
-      closeRequestPending.current = true;
-      void finishNativeClose(null, true);
-      return;
-    }
-    beginNativeCloseRequest();
-  }
-
-  function beginNativeCloseRequest() {
-    if (closeRequestPending.current) return;
-    closeRequestPending.current = true;
-    resumeDialogAfterExit.current = {
-      dialog: activeDialogRef.current,
-      action: pendingActionRef.current,
-    };
-    if (settingsDraftRef.current.dirty && !saving.current) {
-      setPendingAction("exit");
-      setDialogError("");
-      setActiveDialog("settings-dirty");
-      return;
-    }
-    if (
-      saving.current
-      || isDocumentDirty(currentDocument.current)
-      || newScoreDraftRef.current.dirty
-    ) {
-      setPendingAction("exit");
-      setDialogError("");
-      setActiveDialog("dirty");
-      return;
-    }
-    void finishNativeClose(() => createRecoverySnapshot(
-      currentDocument.current,
-      currentRecoveryDraft(),
-      currentReferences.current,
-    ));
-  }
-
-  function cancelDirtyAction() {
-    const action = pendingActionRef.current;
-    if (action === "transcribe-new") pendingTranscription.current = null;
-    setDialogError("");
-    if (action === "exit") {
-      const resume = resumeDialogAfterExit.current;
-      resumeDialogAfterExit.current = null;
-      closeRequestPending.current = false;
-      setPendingAction(resume?.action ?? null);
-      setActiveDialog(resume?.dialog ?? null);
-      return;
-    }
-    setPendingAction(null);
-    setActiveDialog(null);
-  }
-
-  async function resolveDirtyAction(choice: "save" | "discard" | "cancel") {
-    if (choice === "cancel") {
-      cancelDirtyAction();
-      return;
-    }
-    const action = pendingAction;
-    if (!action) return;
-    if (choice === "save") {
-      if (action === "exit") {
-        const documentWasDirty = isDocumentDirty(currentDocument.current);
-        if (documentWasDirty && !(await saveDocument())) {
-          setDialogError(copy.saveBeforeContinue);
-          return;
-        }
-        if (pendingActionRef.current !== "exit") return;
-        try {
-          if (documentWasDirty) await finishNativeClose(null, true);
-          else {
-            await finishNativeClose(
-              () => createRecoverySnapshot(
-                currentDocument.current,
-                currentRecoveryDraft(),
-                currentReferences.current,
-              ),
-            );
-          }
-        } catch (error) {
-          setDialogError(error instanceof Error ? error.message : String(error));
-        }
-        return;
-      }
-      if (!(await saveDocument())) {
-        setDialogError(copy.saveBeforeContinue);
-        return;
-      }
-      if (pendingActionRef.current !== action) return;
-    } else if (action === "exit") {
-      await finishNativeClose(null);
-      return;
-    }
-    setPendingAction(null);
-    setActiveDialog(null);
-    await performAction(action);
-  }
-
-  function beginRecoveryAction() {
-    if (recoveryActionRunning.current) return false;
-    recoveryActionRunning.current = true;
-    setIsRecoveryActionRunning(true);
-    return true;
-  }
-
-  function endRecoveryAction() {
-    recoveryActionRunning.current = false;
-    setIsRecoveryActionRunning(false);
-  }
-
-  async function restoreRecovery() {
-    const recovery = recoveryCandidate;
-    if (!recovery || !beginRecoveryAction()) return;
-    try {
-      const sourcePaths: Record<string, string> = {};
-      try {
-        const resolved = await resolveReferenceImages(referenceAssetIds(recovery.references));
-        for (const image of resolved) sourcePaths[image.id] = referenceImageUrl(image.path);
-      } catch (error) {
-        setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-      }
-      const recovered = recovery.document;
-      replaceDocument(createDocumentSession({
-        id: crypto.randomUUID(),
-        name: recovered.name,
-        source: recovered.source,
-        savedSource: recovered.savedSource,
-        savedFileText: recovered.savedFileText,
-        suggestedPath: recovered.suggestedPath,
-        wrapperFields: recovered.wrapperFields,
-        customCode: recovered.customCode,
-        pageConfig: recovered.pageConfig,
-        savedPageConfig: recovered.savedPageConfig,
-        jsonWrapped: recovered.jsonWrapped,
-        revision: recovered.revision,
-      }));
-      referenceAssets.restoreReferences(recovery.references, sourcePaths);
-      setRecoveryCandidate(null);
-      setRecoveryError("");
-      if (recovery.draft) {
-        setNewFileName(recovery.draft.name);
-        setNewScoreFields(recovery.draft.fields);
-        setNewScoreDraftActive(true);
-        setActiveDialog("new");
-      } else {
-        setNewScoreDraftActive(false);
-        setActiveDialog(null);
-      }
-      setRecoveryInitialized(true);
-    } finally {
-      endRecoveryAction();
-    }
-  }
-
-  async function discardRecovery() {
-    if (!beginRecoveryAction()) return;
-    try {
-      const sequence = ++recoverySequence.current;
-      await writeRecoverySnapshot(sequence, null);
-      try {
-        await pruneReferenceImages([]);
-      } catch (error) {
-        setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-      }
-      setRecoveryCandidate(null);
-      setRecoveryError("");
-      setRecoveryInitialized(true);
-      setActiveDialog(null);
-    } catch (error) {
-      setRecoveryError(error instanceof Error ? error.message : String(error));
-    } finally {
-      endRecoveryAction();
-    }
-  }
-
-  async function continueWithoutRecovery() {
-    if (!beginRecoveryAction()) return;
-    try {
-      try {
-        await pruneReferenceImages([]);
-      } catch (error) {
-        setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-      }
-      setRecoveryCandidate(null);
-      setRecoveryError("");
-      setRecoveryInitialized(true);
-      setActiveDialog(null);
-    } finally {
-      endRecoveryAction();
-    }
-  }
-
-  async function chooseCatalogDocument(document: CatalogDocument) {
-    const sequence = ++transitionSequence.current;
-    setActiveDialog(null);
-    try {
-      const opened = await openJpsCatalogDocument(document.kind, document.name);
-      if (sequence !== transitionSequence.current) return;
-      await loadJpsText(opened.name, opened.path, opened.suggestedPath, opened.text, sequence);
-    } catch (error) {
-      if (sequence === transitionSequence.current) {
-        setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-      }
-    }
-  }
-
-  function createScore(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
-      const name = normalizeJpsFileName(newFileName);
-      const source = createNewScore(newScoreFields);
-      replaceDocument(createDocumentSession({
-        id: crypto.randomUUID(),
-        name,
-        source,
-        savedSource: "",
-        pageConfig: createNewScorePageConfig(),
-      }));
-      setNewScoreDraftActive(false);
-      setActiveDialog(null);
-    } catch (error) {
-      setDialogError(error instanceof Error ? error.message : String(error));
-    }
   }
 
   const layoutOptions = preferences.mode === "normal"
@@ -1129,6 +354,9 @@ export function App() {
       ? referenceSources[image.pdfId] ?? null
       : referenceSources[image.id] ?? null,
   }));
+  const isMac = /Mac/i.test(navigator.platform);
+  const shortcut = (key: string) => `${isMac ? "⌘" : "Ctrl+"}${key}`;
+  const replaceShortcut = isMac ? "⌘+⌥+F" : "Ctrl+H";
   const panes: Record<PaneId, ReactNode> = {
     editor: (
       <section aria-label={copy.source} className="panel editor-panel" key="editor">
@@ -1138,10 +366,10 @@ export function App() {
           </div>
           <AdaptiveToolbar label={copy.editorTools} className="editor-heading-tools"
             expanded={<>
-            <button disabled={!documentOpen || !editorHistory.undo} onClick={() => editorController.current?.undo()} type="button">
+            <button disabled={!documentOpen || !editorHistory.undo} title={`${copy.undo} (${shortcut("Z")})`} onClick={() => editorController.current?.undo()} type="button">
               {copy.undo}
             </button>
-            <button disabled={!documentOpen || !editorHistory.redo} onClick={() => editorController.current?.redo()} type="button">
+            <button disabled={!documentOpen || !editorHistory.redo} title={`${copy.redo} (${shortcut(isMac ? "Shift+Z" : "Y")})`} onClick={() => editorController.current?.redo()} type="button">
               {copy.redo}
             </button>
             <button disabled={!documentOpen} onClick={() => editClipboard("cut")} type="button">
@@ -1159,7 +387,7 @@ export function App() {
                 event.currentTarget.querySelector("summary")?.focus();
               }
             }}>
-              <summary aria-disabled={!documentOpen} onClick={(event) => {
+              <summary aria-disabled={!documentOpen} title={`${copy.find} (${shortcut("F")})`} onClick={(event) => {
                 event.preventDefault();
                 const menu = findMenuRef.current;
                 if (!documentOpen || !menu) return;
@@ -1171,26 +399,26 @@ export function App() {
                   <button key={String(replace)} disabled={!documentOpen} onClick={() => {
                     if (findMenuRef.current) findMenuRef.current.open = false;
                     editorController.current?.find(replace);
-                  }} type="button">{replace ? copy.findReplace : copy.find}</button>
+                  }} type="button" title={`${replace ? copy.findReplace : copy.find} (${replace ? replaceShortcut : shortcut("F")})`}>{replace ? copy.findReplace : copy.find}</button>
                 ))}
               </div>
             </details>
-            <button disabled={!documentOpen} onClick={() => editorController.current?.selectAll()} type="button">
+            <button disabled={!documentOpen} title={`${copy.selectAll} (${shortcut("A")})`} onClick={() => editorController.current?.selectAll()} type="button">
               {copy.selectAll}
             </button>
             </>} compact={<>
               <ActionMenu label={copy.editMenu} actions={[
-                {label: copy.undo, disabled: !documentOpen || !editorHistory.undo,
+                {label: copy.undo, title: `${copy.undo} (${shortcut("Z")})`, disabled: !documentOpen || !editorHistory.undo,
                   run: () => { editorController.current?.undo(); }},
-                {label: copy.redo, disabled: !documentOpen || !editorHistory.redo,
+                {label: copy.redo, title: `${copy.redo} (${shortcut(isMac ? "Shift+Z" : "Y")})`, disabled: !documentOpen || !editorHistory.redo,
                   run: () => { editorController.current?.redo(); }},
                 ...(["cut", "copy", "paste"] as const).map(action => ({label: copy[action],
-                  disabled: !documentOpen, run: () => editClipboard(action)})),
-                {label: copy.find, disabled: !documentOpen,
+                  title: `${copy[action]} (${shortcut({cut:"X",copy:"C",paste:"V"}[action])})`, disabled: !documentOpen, run: () => editClipboard(action)})),
+                {label: copy.find, title: `${copy.find} (${shortcut("F")})`, disabled: !documentOpen,
                   run: () => { editorController.current?.find(false); }},
-                {label: copy.replaceMenu, disabled: !documentOpen,
+                {label: copy.replaceMenu, title: `${copy.replaceMenu} (${replaceShortcut})`, disabled: !documentOpen,
                   run: () => { editorController.current?.find(true); }},
-                {label: copy.selectAll, disabled: !documentOpen,
+                {label: copy.selectAll, title: `${copy.selectAll} (${shortcut("A")})`, disabled: !documentOpen,
                   run: () => { editorController.current?.selectAll(); }},
               ]}/>
             </>}/>
@@ -1211,6 +439,8 @@ export function App() {
           </button>
         </div>
         {documentOpen && <JpsEditor
+          diagnostics={[...sourceDiagnostics.diagnostics, ...noteDiagnostics]}
+          diagnosticsSource={noteDiagnostics.length > 0 ? score.source : sourceDiagnostics.diagnosticsSource}
           documentId={score.id}
           language={preferences.language}
           onPageConfigChange={(pageConfig) => {
@@ -1240,8 +470,9 @@ export function App() {
             <ol>
               {transcriptionIssues.map((issue, index) => (
                 <li key={`${index}-${issue.code}`}>
-                  {copy.transcriptionIssuePage(issue.page)}: {issue.detail}
-                  {issue.regions.length > 0 && ` (${issue.regions.map((box) => box.join(", ")).join("; ")})`}
+                  <button className="transcription-issue" onClick={() => reviewIssue(issue)} type="button">
+                    {copy.transcriptionIssuePage(issue.page)}: {issue.detail}
+                  </button>
                 </li>
               ))}
             </ol>
@@ -1259,6 +490,12 @@ export function App() {
         busy={referenceOperationBusy}
         importing={isImportingReferences}
         transcribing={isTranscribing}
+        cancelling={isCancelling}
+        progress={transcriptionProgress}
+        onCancel={() => { void cancelTranscription(); setStatus({kind: "ready"}); }}
+        reviewRegion={reviewRegion}
+        showHint={!preferences.referenceHintDismissed}
+        onDismissHint={() => setPreferences(current => ({...current, referenceHintDismissed: true}))}
         transcriptionControl={
           <details className="transcribe-menu" ref={transcriptionMenuRef}>
             <summary title={engineCapabilities.ocr
@@ -1303,9 +540,6 @@ export function App() {
       : layout === "T2"
       ? ["reference", "preview", "editor"]
       : ["editor", "preview"];
-  const visibleExamples = examples.filter((document) =>
-    document.name.toLowerCase().includes(exampleFilter.trim().toLowerCase())
-  );
 
   appShortcutRef.current = (event) => {
     if (event.defaultPrevented || activeDialogRef.current !== null || informationDialogRef.current?.open) {
@@ -1326,10 +560,6 @@ export function App() {
       event.preventDefault();
       if (key === "z" && !event.shiftKey) editorController.current?.undo();
       else editorController.current?.redo();
-      return;
-    }
-    if (key === "e") {
-      if (editorController.current?.insertLast()) event.preventDefault();
       return;
     }
     if (key === "n" && !event.shiftKey) {
@@ -1359,10 +589,14 @@ export function App() {
           <AppBrand label={copy.projectHome} onOpen={() => { void openHelp("home"); }} />
         </h1>
         <nav aria-label={copy.documentActions} className="document-actions">
-          <button disabled={isSaving || referenceOperationBusy} onClick={() => requestAction("new")} type="button">{copy.new}</button>
-          <button disabled={isSaving || referenceOperationBusy} onClick={() => requestAction("open")} type="button">{copy.open}</button>
-          <button disabled={!documentOpen || isSaving || referenceOperationBusy} onClick={() => { void saveDocument(); }} type="button">{copy.save}</button>
-          <button disabled={!documentOpen || isSaving || referenceOperationBusy} onClick={() => { void saveDocument(true); }} type="button">{copy.saveAs}</button>
+          <button disabled={isSaving || referenceOperationBusy} title={`${copy.new} (${shortcut("N")})`} onClick={() => requestAction("new")} type="button">{copy.new}</button>
+          <button disabled={isSaving || referenceOperationBusy} title={`${copy.open} (${shortcut("O")})`} onClick={() => requestAction("open")} type="button">{copy.open}</button>
+          <button disabled={!documentOpen || isSaving || referenceOperationBusy} title={`${copy.save} (${shortcut("S")})`} onClick={() => { void saveDocument(); }} type="button">{copy.save}</button>
+          <button disabled={!documentOpen || isSaving || referenceOperationBusy} title={`${copy.saveAs} (${shortcut("Shift+S")})`} onClick={() => { void saveDocument(true); }} type="button">{copy.saveAs}</button>
+          <ActionMenu label={copy.recentFiles} actions={preferences.recentFiles.length
+            ? preferences.recentFiles.map(path => ({label: path, disabled: isSaving || referenceOperationBusy,
+                run: () => { requestAction("open", path); }}))
+            : [{label: copy.noRecentFiles, disabled: true, run: () => {}}]} />
           <details className="export-menu" ref={exportMenuRef}>
             <summary>{copy.exportMenu}</summary>
             <div aria-label={copy.exportOptions} className="export-menu-items">
@@ -1394,26 +628,23 @@ export function App() {
               >
                 {copy.exportJpg300}
               </button>
-              <button
-                aria-describedby="lilypond-export-help"
-                disabled
-                type="button"
-              >
-                {copy.exportLilypond}
-              </button>
-              <span className="export-menu-note" id="lilypond-export-help">
-                {copy.lilypondUnavailable}
-              </span>
+              {[96, 300].map(dpi => <button key={`png-${dpi}`}
+                disabled={!documentOpen || isSaving || isExporting || referenceOperationBusy || !engineCapabilities.png_export}
+                onClick={event => startExport(event, "png", dpi as 96 | 300)} type="button">
+                {dpi === 96 ? copy.exportPng : copy.exportPng300}
+              </button>)}
             </div>
           </details>
           <button disabled={!documentOpen || isSaving || referenceOperationBusy} onClick={() => requestAction("close-document")} type="button">
             {copy.closeDocument}
           </button>
-          <ActionMenu label={copy.helpMenu} actions={[
+          <ActionMenu label={copy.helpMenu} title={`${copy.helpMenu} (${copy.fullScreen}: F11)`} actions={[
             {label: copy.userManual, run: () => { void openHelp("manual"); }},
             {label: copy.reportIssues, run: () => { void openHelp("issues"); }},
             {label: copy.submitRequests, run: () => { void openHelp("requests"); }},
-            {label: copy.checkForUpdate, disabled: checkingUpdate, run: () => { void checkUpdates(); }},
+            ...(import.meta.env.VITE_UPDATE_CHECK_ENABLED === "false" ? [] : [
+              {label: copy.checkForUpdate, disabled: checkingUpdate, run: () => { void checkUpdates(); }},
+            ]),
             {label: copy.about, run: () => setInformationDialog("about")},
           ]}/>
 
@@ -1484,18 +715,19 @@ export function App() {
               aria-pressed={focusPane === "reference"}
               disabled={!documentOpen}
               onClick={() => setFocusPane("reference")}
+              title={copy.focusOriginal}
               type="button"
             >
               {copy.focusOriginal}
             </button>
           )}
-          <button aria-pressed={focusPane === "editor"} disabled={!documentOpen} onClick={() => setFocusPane("editor")} type="button">
+          <button aria-pressed={focusPane === "editor"} disabled={!documentOpen} onClick={() => setFocusPane("editor")} title={copy.focusEditor} type="button">
             {copy.focusEditor}
           </button>
-          <button aria-pressed={focusPane === "preview"} disabled={!documentOpen} onClick={() => setFocusPane("preview")} type="button">
+          <button aria-pressed={focusPane === "preview"} disabled={!documentOpen} onClick={() => setFocusPane("preview")} title={copy.focusPreview} type="button">
             {copy.focusPreview}
           </button>
-          {focusPane && <button onClick={() => setFocusPane(null)} type="button">{copy.exitFocus}</button>}
+          {focusPane && <button onClick={() => setFocusPane(null)} title={copy.exitFocus} type="button">{copy.exitFocus}</button>}
         </div>
       </section>
       <section
@@ -1512,249 +744,12 @@ export function App() {
             label={yLabel} onChange={changeSplit} />}
 
       </section>
-      <dialog
-        aria-labelledby="lifecycle-dialog-title"
-        className="lifecycle-dialog"
-        onCancel={(event) => {
-          if (referenceAssets.isChoosingImport() || referenceAssets.isCommitting()) {
-            event.preventDefault();
-            return;
-          }
-          if (saving.current) {
-            event.preventDefault();
-            return;
-          }
-          if (activeDialogRef.current === "recovery") {
-            event.preventDefault();
-            return;
-          }
-          event.preventDefault();
-          if (activeDialogRef.current === "dirty") {
-            cancelDirtyAction();
-          } else if (activeDialogRef.current === "settings-dirty") {
-            cancelSettingsDraftAction();
-          } else if (activeDialogRef.current === "reference-import") {
-            void chooseReferenceImport("cancel");
-          } else {
-            if (activeDialogRef.current === "new") setNewScoreDraftActive(false);
-            setActiveDialog(null);
-            setDialogError("");
-          }
-        }}
-        ref={dialogRef}
-      >
-        {activeDialog === "preferences" && <PreferencesForm copy={copy}
-          preferences={preferences} fonts={engineCapabilities.fonts}
-          onChange={setPreferences} onClose={() => setActiveDialog(null)} />}
-        {activeDialog === "dirty" && (
-          <section>
-            <h2 id="lifecycle-dialog-title">{copy.unsavedTitle}</h2>
-            <p>{copy.unsavedPrompt}</p>
-            {dialogError && <p className="dialog-error" role="alert">{dialogError}</p>}
-            <div className="dialog-actions">
-              <button disabled={isSaving} onClick={() => { void resolveDirtyAction("save"); }} type="button">
-                {copy.save}
-              </button>
-              <button disabled={isSaving} onClick={() => { void resolveDirtyAction("discard"); }} type="button">
-                {copy.discard}
-              </button>
-              <button disabled={isSaving} onClick={() => { void resolveDirtyAction("cancel"); }} type="button">
-                {copy.cancel}
-              </button>
-            </div>
-          </section>
-        )}
-        {activeDialog === "settings-dirty" && (
-          <section>
-            <h2 id="lifecycle-dialog-title">{copy.settingsDraftTitle}</h2>
-            <p>{copy.settingsDraftPrompt}</p>
-            {dialogError && <p className="dialog-error" role="alert">{dialogError}</p>}
-            <div className="dialog-actions">
-              <button className="primary-button" onClick={() => resolveSettingsDraft("apply")} type="button">
-                {copy.applySettings}
-              </button>
-              <button onClick={() => resolveSettingsDraft("discard")} type="button">
-                {copy.discardSettingsDraft}
-              </button>
-              <button onClick={() => resolveSettingsDraft("cancel")} type="button">
-                {copy.cancel}
-              </button>
-            </div>
-          </section>
-        )}
-        {activeDialog === "new" && (
-          <form onSubmit={createScore}>
-            <h2 id="lifecycle-dialog-title">{copy.newScoreTitle}</h2>
-            <div className="new-score-fields">
-              <label>{copy.fileName}<input autoFocus onChange={(event) => setNewFileName(event.target.value)} value={newFileName} /></label>
-              <label>{copy.scoreTitle}<input required onChange={(event) => setNewScoreFields((current) => ({ ...current, title: event.target.value }))} value={newScoreFields.title} /></label>
-              <label>{copy.subtitle}<input onChange={(event) => setNewScoreFields((current) => ({ ...current, subtitle: event.target.value }))} value={newScoreFields.subtitle} /></label>
-              <label>{copy.lyricist}<input onChange={(event) => setNewScoreFields((current) => ({ ...current, lyricist: event.target.value }))} value={newScoreFields.lyricist} /></label>
-              <label>{copy.composer}<input onChange={(event) => setNewScoreFields((current) => ({ ...current, composer: event.target.value }))} value={newScoreFields.composer} /></label>
-              <label>{copy.otherAuthors}<input onChange={(event) => setNewScoreFields((current) => ({ ...current, otherAuthors: event.target.value }))} value={newScoreFields.otherAuthors} /></label>
-              <label>{copy.keySignature}<span className="field-pair">
-                <select onChange={(event) => setNewScoreFields((current) => ({ ...current, keyNote: event.target.value }))} value={newScoreFields.keyNote}>
-                  {"CDEFGAB".split("").map((note) => <option key={note} value={note}>{note}</option>)}
-                </select>
-                <select aria-label={copy.accidental} onChange={(event) => setNewScoreFields((current) => ({ ...current, keyAccidental: event.target.value as NewScoreFields["keyAccidental"] }))} value={newScoreFields.keyAccidental}>
-                  <option value="">{copy.natural}</option><option value="#">{copy.sharp}</option><option value="$">{copy.flat}</option>
-                </select>
-              </span></label>
-              <label>{copy.timeSignature}<span className="field-pair">
-                <select aria-label={copy.timeNumerator} onChange={(event) => setNewScoreFields((current) => ({ ...current, beatNumerator: Number(event.target.value) }))} value={newScoreFields.beatNumerator}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((value) => <option key={value}>{value}</option>)}
-                </select>
-                <span aria-hidden="true">/</span>
-                <select aria-label={copy.timeDenominator} onChange={(event) => setNewScoreFields((current) => ({ ...current, beatDenominator: Number(event.target.value) }))} value={newScoreFields.beatDenominator}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((value) => <option key={value}>{value}</option>)}
-                </select>
-              </span></label>
-              <label>{copy.tempo}<input onChange={(event) => setNewScoreFields((current) => ({ ...current, tempo: event.target.value }))} value={newScoreFields.tempo} /></label>
-            </div>
-            {dialogError && <p className="dialog-error" role="alert">{dialogError}</p>}
-            <div className="dialog-actions">
-              <button className="primary-button" type="submit">{copy.create}</button>
-              <button onClick={() => {
-                setNewScoreDraftActive(false);
-                setActiveDialog(null);
-                setDialogError("");
-              }} type="button">{copy.cancel}</button>
-            </div>
-          </form>
-        )}
-        {activeDialog === "examples" && (
-          <section>
-            <h2 id="lifecycle-dialog-title">{copy.examples}</h2>
-            <label className="example-search">{copy.filterExamples}
-              <input autoFocus onChange={(event) => setExampleFilter(event.target.value)} type="search" value={exampleFilter} />
-            </label>
-            {dialogError && <p className="dialog-error" role="alert">{dialogError}</p>}
-            <ul className="example-list">
-              {visibleExamples.map((document) => (
-                <li key={`${document.kind}:${document.name}`}>
-                  <button onClick={() => { void chooseCatalogDocument(document); }} type="button">
-                    <span>{document.kind === "example" ? copy.example : copy.workingCopy}</span>
-                    {" · "}{document.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {!examplesLoaded && !dialogError && <p>{copy.loadingExamples}</p>}
-            {examplesLoaded && examples.length === 0 && !dialogError && <p>{copy.noExamples}</p>}
-            {examples.length > 0 && visibleExamples.length === 0 && <p>{copy.noExamples}</p>}
-            <div className="dialog-actions">
-              <button onClick={() => { setActiveDialog(null); }} type="button">{copy.cancel}</button>
-            </div>
-          </section>
-        )}
-        {activeDialog === "reference-import" && pendingReferenceImport && (
-          <section>
-            <h2 id="lifecycle-dialog-title">{copy.referenceImportChoiceTitle}</h2>
-            <p>{copy.referenceImportChoicePrompt(pendingReferenceImport.pages.length)}</p>
-            <p>{copy.referenceImageBatch(pendingReferenceImport.pages.length)}</p>
-            {dialogError && <p className="dialog-error" role="alert">{dialogError}</p>}
-            <div className="dialog-actions">
-              <button className="primary-button" disabled={isHandlingReferenceChoice} onClick={() => { void chooseReferenceImport("replace"); }} type="button">
-                {copy.replaceReferences}
-              </button>
-              <button disabled={isHandlingReferenceChoice} onClick={() => { void chooseReferenceImport("cancel"); }} type="button">
-                {copy.cancel}
-              </button>
-            </div>
-          </section>
-        )}
-        {activeDialog === "recovery" && (
-          <section>
-            <h2 id="lifecycle-dialog-title">{copy.recoveryTitle}</h2>
-            <p>{copy.recoveryPrompt}</p>
-            {recoveryCandidate && (
-              <p>{recoveryCandidate.document.name} · {copy.revision(recoveryCandidate.document.revision)}</p>
-            )}
-            {recoveryError && <p className="dialog-error" role="alert">{recoveryError}</p>}
-            <div className="dialog-actions">
-              {recoveryCandidate && (
-                <button
-                  className="primary-button"
-                  disabled={isRecoveryActionRunning}
-                  onClick={restoreRecovery}
-                  type="button"
-                >
-                  {copy.restoreRecovery}
-                </button>
-              )}
-              <button
-                disabled={isRecoveryActionRunning}
-                onClick={() => { void discardRecovery(); }}
-                type="button"
-              >
-                {copy.discardRecovery}
-              </button>
-              {recoveryError && (
-                <button
-                  disabled={isRecoveryActionRunning}
-                  onClick={continueWithoutRecovery}
-                  type="button"
-                >
-                  {copy.continueWithoutRecovery}
-                </button>
-              )}
-            </div>
-          </section>
-        )}
-      </dialog>
-      <dialog
-        aria-labelledby="information-dialog-title"
-        className="lifecycle-dialog information-dialog"
-        onCancel={(event) => {
-          event.preventDefault();
-          setInformationDialog(null);
-        }}
-        ref={informationDialogRef}
-      >
-        {informationDialog === "update" && (
-          <section>
-            <h2 id="information-dialog-title">{copy.checkForUpdate}</h2>
-            {checkingUpdate && <p role="status">{copy.checkingUpdate}</p>}
-            {updateError && <p role="alert">{copy.updateFailed} {updateError}</p>}
-            {updateResult && <>
-              <p>{updateResult.status === "available" ? copy.updateAvailable
-                : updateResult.status === "up_to_date" ? copy.updateCurrent
-                : updateResult.status === "unknown_version" ? copy.updateUnknown : copy.updateUnavailable}</p>
-              <p>{copy.installedVersion}: {updateResult.current_version}</p>
-              {updateResult.latest_version && <p>{copy.latestVersion}: {updateResult.latest_version}</p>}
-            </>}
-            <p><a href="https://github.com/OctaveMelody/OctoPus/releases" onClick={event => {
-              event.preventDefault(); void openHelp("releases");
-            }}>{copy.releases}</a></p>
-            <div className="dialog-actions"><button autoFocus className="primary-button"
-              onClick={() => setInformationDialog(null)} type="button">{copy.done}</button></div>
-          </section>
-        )}
-        {informationDialog === "browser-error" && (
-          <section>
-            <h2 id="information-dialog-title">{copy.browserErrorTitle}</h2>
-            <p role="alert">{browserError}</p>
-            <div className="dialog-actions"><button autoFocus className="primary-button"
-              onClick={() => setInformationDialog(null)} type="button">{copy.done}</button></div>
-          </section>
-        )}
-        {informationDialog === "about" && (
-          <section>
-            <h2 id="information-dialog-title">{copy.aboutTitle}</h2>
-            <AppBrand label={copy.projectHome} onOpen={() => { void openHelp("home"); }} />
-            <p>{copy.aboutDescription}</p>
-            <p><a href="https://github.com/OctaveMelody/OctoPus" onClick={event => {
-              event.preventDefault(); void openHelp("home");
-            }}>{copy.projectHome}</a></p>
-            <p>{copy.fontCredits}</p>
-            <div className="dialog-actions">
-              <button autoFocus className="primary-button" onClick={() => setInformationDialog(null)} type="button">
-                {copy.done}
-              </button>
-            </div>
-          </section>
-        )}
-      </dialog>
+      <LifecycleDialogs lifecycle={lifecycle} referenceAssets={referenceAssets} copy={copy}
+        preferences={preferences} setPreferences={setPreferences} fonts={engineCapabilities.fonts} />
+      <InformationDialog kind={informationDialog} dialogRef={informationDialogRef} copy={copy}
+        checkingUpdate={checkingUpdate} updateResult={updateResult} updateError={updateError}
+        browserError={browserError} onClose={() => setInformationDialog(null)} openHelp={openHelp}
+        brand={<AppBrand label={copy.projectHome} onOpen={() => {void openHelp("home");}} />} />
     </main>
   );
 }

@@ -1,4 +1,3 @@
-use crate::DesktopState;
 use jps_document_io::reference_assets::stage_reference_assets as stage_reference_asset_files;
 use jps_document_io::reference_images::{
     prune_reference_images as prune_managed_reference_images, remove_reference_images,
@@ -6,14 +5,12 @@ use jps_document_io::reference_images::{
     MAX_REFERENCE_IMAGE_FILES,
 };
 use jps_document_io::reference_pdfs::StagedReferencePdf;
-use jps_engine_bridge::TranscribeArgs;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tauri::{AppHandle, Manager, State, WebviewWindow};
+use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
-fn reference_images_directory(app: &AppHandle) -> Result<PathBuf, String> {
+pub(super) fn reference_images_directory(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_cache_dir()
         .map(|directory| directory.join("reference-images"))
@@ -151,40 +148,4 @@ pub(crate) async fn resolve_reference_images(
     })
     .await
     .map_err(|error| format!("image restore task failed: {error}"))?
-}
-
-#[tauri::command]
-pub(crate) async fn transcribe_reference(
-    app: AppHandle,
-    state: State<'_, DesktopState>,
-    asset_id: String,
-    document_id: String,
-    document_revision: u64,
-) -> Result<Value, String> {
-    let directory = reference_images_directory(&app)?;
-    let supervisor = Arc::clone(&state.transcription);
-    tauri::async_runtime::spawn_blocking(move || {
-        let paths = resolve_managed_reference_paths(&directory, &[asset_id])
-            .map_err(|error| error.to_string())?;
-        let path = paths
-            .into_iter()
-            .next()
-            .ok_or("selected reference file is unavailable")?
-            .1;
-        let path = path
-            .to_str()
-            .ok_or("managed reference path is not UTF-8")?
-            .to_owned();
-        let args = TranscribeArgs {
-            document_id,
-            document_revision,
-            path,
-        };
-        supervisor
-            .lock()
-            .map_err(|_| "engine lock poisoned".to_owned())?
-            .transcribe(args)
-    })
-    .await
-    .map_err(|error| format!("transcription task failed: {error}"))?
 }

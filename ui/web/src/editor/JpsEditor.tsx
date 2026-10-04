@@ -51,11 +51,14 @@ import {
 } from "@codemirror/view";
 
 import type { Language } from "../workspace/i18n";
+import type { RenderDiagnostic } from "../workspace/types";
 import { editorPhrases, messages } from "../workspace/i18n";
 import { autoFormatApplied, jpsAutoFormatFilter, selectionFromPoints } from "./auto-format.js";
 import { formatJpsSource } from "./jp-format.js";
 import { jpsLanguage } from "./jps-language";
 import { pageConfigField, pageConfigHistory, setPageConfig } from "./page-config-history.js";
+import { setSourceDiagnostics, sourceDiagnosticsExtension, sourceWrappingGutter } from "./diagnostics.js";
+import { sourceDiagnosticRanges } from "./source-diagnostics.js";
 
 const setNoteHighlight = StateEffect.define<{ from: number; to: number } | null>();
 const noteHighlightField = StateField.define<DecorationSet>({
@@ -82,6 +85,8 @@ type JpsEditorProps = {
   source: string;
   language: Language;
   pageConfig: Record<string, unknown>;
+  diagnostics?: RenderDiagnostic[];
+  diagnosticsSource?: string | null;
   onChange(source: string): void;
   onCursorChange(offset: number, focused: boolean): void;
   onPageConfigChange(pageConfig: Record<string, unknown>): void;
@@ -98,7 +103,6 @@ export type JpsEditorHandle = {
   paste(): boolean;
   find(replace?: boolean): boolean;
   selectAll(): boolean;
-  insertLast(): boolean;
   formatSource(): void;
   selectSourceRange(from: number, to: number, highlight?: boolean): boolean;
   appendSource(source: string): void;
@@ -109,6 +113,8 @@ export function JpsEditor({
   source,
   language,
   pageConfig,
+  diagnostics = [],
+  diagnosticsSource = null,
   onChange,
   onCursorChange,
   onPageConfigChange,
@@ -123,10 +129,12 @@ export function JpsEditor({
   const onPageConfigChangeRef = useRef(onPageConfigChange);
   const onHistoryChangeRef = useRef(onHistoryChange);
   const onReadyRef = useRef(onReady);
-  const lastInsertion = useRef<string | null>(null);
   const locale = useRef(new Compartment());
   const lineSeparator = useRef(new Compartment());
+  const wrappingGutter = useRef(new Compartment());
   const extensions = useRef<Extension[]>([]);
+  const diagnosticRanges = diagnosticsSource === source
+    ? sourceDiagnosticRanges(source, diagnostics) : [];
 
   onChangeRef.current = onChange;
   onCursorChangeRef.current = onCursorChange;
@@ -143,14 +151,18 @@ export function JpsEditor({
       lineSeparator.current.of(EditorState.lineSeparator.of(lineSeparatorFor(doc))),
       locale.current.of(localeExtensions(editorLanguage)),
       keymap.of([{
-        key: "Mod-e",
-        run: (editor) => insertLast(editor),
-      }, {
         key: "Mod-f",
         run: (editor) => showSearch(editor),
         scope: "editor search-panel",
+      }, {
+        key: "Mod-h",
+        mac: "Mod-Alt-f",
+        run: (editor) => showSearch(editor, true),
+        scope: "editor search-panel",
       }]),
       lineNumbers(),
+      sourceDiagnosticsExtension,
+      wrappingGutter.current.of(sourceWrappingGutter(() => messages[editorLanguage].wrappedLineContinuation)),
       highlightActiveLineGutter(),
       highlightSpecialChars(),
       history(),
@@ -244,9 +256,6 @@ export function JpsEditor({
         editor.focus();
         return selectAll(editor);
       },
-      insertLast() {
-        return insertLast(editor);
-      },
       formatSource() {
         applySourceFormatting();
       },
@@ -322,25 +331,22 @@ export function JpsEditor({
     });
   }, [language]);
 
-  function insertLast(editor: EditorView) {
-    const insertion = lastInsertion.current;
-    if (insertion === null) return false;
-    insertSnippet(editor, insertion);
-    return true;
-  }
+  useEffect(() => {
+    const editor = view.current;
+    if (!editor) return;
+    editor.dispatch({effects: wrappingGutter.current.reconfigure(
+      sourceWrappingGutter(() => messages[language].wrappedLineContinuation)),
+      annotations: Transaction.addToHistory.of(false)});
+  }, [language]);
 
-  function insertSnippet(editor: EditorView, snippet: string) {
-    const range = editor.state.selection.main;
-    const cursorOffset = snippet === '""' ? 1 : snippet.length;
-    editor.dispatch({
-      changes: { from: range.from, to: range.to, insert: snippet },
-      selection: EditorSelection.cursor(range.from + cursorOffset),
-      userEvent: "input.type",
-      scrollIntoView: true,
-    });
-    editor.focus();
-    lastInsertion.current = snippet;
-  }
+  useEffect(() => {
+    const editor = view.current;
+    if (!editor) return;
+    const current = diagnosticsSource === editor.state.sliceDoc();
+    editor.dispatch({effects: setSourceDiagnostics.of(current
+      ? sourceDiagnosticRanges(diagnosticsSource, diagnostics) : []),
+      annotations: Transaction.addToHistory.of(false)});
+  }, [diagnostics, diagnosticsSource, documentId, source]);
 
   function applySourceFormatting() {
     const editor = view.current;
@@ -367,6 +373,20 @@ export function JpsEditor({
   return (
     <div className="source-editor">
       <div className="code-editor" ref={host} />
+      {diagnosticRanges.length > 0 && <details className="source-diagnostics-details">
+        <summary>{messages[language].sourceDiagnostics} ({diagnosticRanges.length})</summary>
+        <ul aria-label={messages[language].sourceDiagnostics}>
+          {diagnosticRanges.map((range, index) => <li key={`${range.from}-${range.to}-${index}`}>
+            <button type="button" onClick={() => {
+              const editor = view.current;
+              if (!editor || editor.state.sliceDoc() !== diagnosticsSource) return;
+              editor.dispatch({selection: EditorSelection.range(range.from, range.to),
+                scrollIntoView: true, annotations: Transaction.userEvent.of("select.diagnostic")});
+              editor.focus();
+            }}>{range.message}</button>
+          </li>)}
+        </ul>
+      </details>}
     </div>
   );
 }

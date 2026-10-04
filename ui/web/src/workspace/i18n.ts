@@ -4,6 +4,25 @@ type LocalizedMessage = string | ((...values: never[]) => string);
 
 export const messages = {
   en: {
+    pdfParserUnavailable: "PDF parser is unavailable.",
+    recoverySaveSuperseded: "The recovery snapshot was superseded by a newer save.",
+    wrappedLineContinuation: "Continuation of the same source line",
+    sourceDiagnosticsFailed: "Unable to check source syntax.",
+    sourceDiagnostics: "Source diagnostics",
+    exportPng: "PNG (96 DPI)…",
+    exportPng300: "PNG (300 DPI)…",
+    formatPng: (dpi: number) => `PNG (${dpi} DPI)`,
+    recentFiles: "Recent files",
+    noRecentFiles: "No recent files",
+    plannedFeatures: "Planned features",
+    plannedFeatureList: "Audio preview, MIDI and LilyPond export, and MusicXML/MIDI import.",
+    cancelTranscription: "Cancel transcription",
+    cancellingTranscription: "Cancelling…",
+    transcriptionPageProgress: (completed: number, total: number) => `Recognized ${completed} / ${total} pages`,
+    compilingTranscription: "Preparing the draft…",
+    referenceHint: "Drop a scan or PDF here, then choose Transcribe to create a draft for review.",
+    dismissHint: "Dismiss hint",
+    renderProgress: (completed: number, pages: number) => `Rendering ${completed} / ${pages} pages…`,
     title: "OctoPus by OctaveMelody",
     documentActions: "Document actions",
     new: "New",
@@ -37,11 +56,11 @@ export const messages = {
     helpMatching: "Move the editor cursor to highlight its score position. "
       + "Click a score item to select its matching source text.",
     helpShortcuts: "Keyboard: Ctrl/Cmd+Z undo, Ctrl/Cmd+Y or Shift+Ctrl/Cmd+Z redo, "
-      + "Ctrl/Cmd+E repeat the last insertion, Ctrl/Cmd+N new, Ctrl/Cmd+O open, "
+      + "Ctrl/Cmd+N new, Ctrl/Cmd+O open, "
       + "Ctrl/Cmd+S save, Ctrl/Cmd+Shift+S Save As, Ctrl/Cmd+F find or replace, "
       + "and F11 maximize the window.",
     helpPageSettings: "Use Page settings to change page size, fonts, spacing and other layout options. "
-      + "Export creates SVG, PDF or JPG files.",
+      + "Export creates SVG, PDF, PNG or JPG files.",
     fontCredits: "This application uses MiSans fonts by Xiaomi. Font licenses are included with the application.",
     aboutTitle: "About OctoPus",
     aboutDescription: "A desktop workspace for editing Jianpu numbered notation "
@@ -207,7 +226,7 @@ export const messages = {
     ready: "Ready",
     rendering: "Rendering…",
     previewNotReady: "The preview renderer is not ready yet. Try again shortly.",
-    rendered: (pages: number) => `Rendered ${pages} page(s)`,
+    rendered: (pages: number, elapsed?: number) => `Rendered ${pages} page(s)${elapsed === undefined ? "" : ` in ${(elapsed / 1000).toFixed(2)} s`}`,
     transcribing: "Transcribing the selected reference…",
     transcribed: (issues: number) => `Draft added to the JPS editor. Review ${issues} issue(s) against the image.`,
     changed: "Changes are queued for the live preview.",
@@ -268,6 +287,25 @@ export const messages = {
     preferenceWarning: "Workspace preferences could not be saved on this device.",
   },
   "zh-CN": {
+    pdfParserUnavailable: "PDF 解析器不可用。",
+    recoverySaveSuperseded: "恢复快照已被更新的保存取代。",
+    wrappedLineContinuation: "同一源代码行的折行续行",
+    sourceDiagnosticsFailed: "无法检查源代码语法。",
+    sourceDiagnostics: "源码诊断",
+    exportPng: "PNG（96 DPI）…",
+    exportPng300: "PNG（300 DPI）…",
+    formatPng: (dpi: number) => `PNG（${dpi} DPI）`,
+    recentFiles: "最近文件",
+    noRecentFiles: "暂无最近文件",
+    plannedFeatures: "规划中的功能",
+    plannedFeatureList: "音频试听、MIDI 和 LilyPond 导出，以及 MusicXML/MIDI 导入。",
+    cancelTranscription: "取消转录",
+    cancellingTranscription: "正在取消…",
+    transcriptionPageProgress: (completed: number, total: number) => `已识别 ${completed} / ${total} 页`,
+    compilingTranscription: "正在整理草稿…",
+    referenceHint: "将扫描图片或 PDF 拖入此处，然后选择“转录”来创建供检查的草稿。",
+    dismissHint: "关闭提示",
+    renderProgress: (completed: number, pages: number) => `正在渲染 ${completed} / ${pages} 页…`,
     title: "OctoPus by OctaveMelody",
     documentActions: "文档操作",
     new: "新建",
@@ -301,7 +339,7 @@ export const messages = {
     helpMatching: "移动编辑器光标可高亮对应乐谱位置；"
       + "点击乐谱项目可选中对应的源码。",
     helpShortcuts: "快捷键：Ctrl/Cmd+Z 撤销，Ctrl/Cmd+Y 或 Shift+Ctrl/Cmd+Z 重做，"
-      + "Ctrl/Cmd+E 重复上次插入，Ctrl/Cmd+N 新建，Ctrl/Cmd+O 打开，Ctrl/Cmd+S 保存，"
+      + "Ctrl/Cmd+N 新建，Ctrl/Cmd+O 打开，Ctrl/Cmd+S 保存，"
       + "Ctrl/Cmd+Shift+S 另存为，Ctrl/Cmd+F 查找或替换，F11 最大化窗口。",
     helpPageSettings: "使用页面设置调整纸张、字体、间距和其他版面选项。"
       + "可导出 SVG、PDF 或 JPG。",
@@ -470,7 +508,7 @@ export const messages = {
     ready: "就绪",
     rendering: "正在渲染…",
     previewNotReady: "预览渲染器尚未就绪，请稍后重试。",
-    rendered: (pages: number) => `已渲染 ${pages} 页`,
+    rendered: (pages: number, elapsed?: number) => `已渲染 ${pages} 页${elapsed === undefined ? "" : `，用时 ${(elapsed / 1000).toFixed(2)} 秒`}`,
     transcribing: "正在转录所选参考文件…",
     transcribed: (issues: number) => `转录草稿已加入简谱编辑器；请对照原图检查 ${issues} 项问题。`,
     changed: "更改已加入实时预览队列。",

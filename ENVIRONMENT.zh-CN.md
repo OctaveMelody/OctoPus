@@ -86,6 +86,23 @@ uv run --locked --extra transcription python -m ui.engine
 需要执行 `uv run --extra pixel playwright install chromium`；该功能不打包进离线引擎。
 本仓库的 Python 可选依赖组不包含 Pytest、Ruff、mypy 或开发验证资料。
 
+## 批量导出与桌面引擎能力
+
+生产 Python 命令行提供文件夹导出，不会覆盖已有文件：
+
+```sh
+uv run --locked octopus batch-export scores --out combined.pdf
+uv run --locked octopus batch-export scores --out-dir exported --format pdf --recursive
+uv run --locked octopus batch-export scores --out-dir images --format png --dpi 300
+```
+
+`ui.engine` 桌面握手提供仅检查语法的 `parse` 操作及 PNG 能力。转录先返回带请求标识、
+大小受限的进度帧，最后返回一份结果。原生取消会停止独立转录进程树，并使待插入草稿失效；
+预览进程独立。旧 HTTP/文件/恢复协议及审计入口仅保留在 OctoPus-dev，不进入生产分发包。
+
+构建前设置 `VITE_UPDATE_CHECK_ENABLED=false` 可隐藏“帮助 → 检查更新”。默认仍显示此项；
+该开关只改变菜单，不移除更新代码，也不改变版本号。
+
 ## 构建安装包
 
 未明确指定类型的构建请求仅构建生产版，包括便携版可执行程序。只有明确要求时才构建

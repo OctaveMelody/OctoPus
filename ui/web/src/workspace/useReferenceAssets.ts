@@ -173,7 +173,7 @@ export function useReferenceAssets({ currentDocument, recoverySequence,
         inspectPdf = (await import("../reference/pdf-runtime")).inspectPdfDocument;
       }
       for (const pdf of staged.pdfs) {
-        if (!inspectPdf) throw new Error("PDF parser is unavailable");
+        if (!inspectPdf) throw new Error(copyRef.current.pdfParserUnavailable);
         const source = referenceImageUrl(pdf.path);
         sources[pdf.id] = source;
         const inspected = await inspectPdf(

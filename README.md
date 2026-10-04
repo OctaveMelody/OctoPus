@@ -3,7 +3,7 @@
 **English** | [简体中文](README.zh-CN.md)
 
 OctoPus is a desktop Jianpu score editor with live SVG preview, image/PDF transcription into
-reviewable drafts, and SVG, PDF and JPEG export.
+reviewable drafts, and SVG, PDF, PNG and JPEG export.
 
 This production repository contains the application source, packaging configuration, offline
 Python worker and JPS examples. It builds independently of the development repository,
@@ -16,12 +16,14 @@ OctoPus-dev, which holds tests, audits, reference output and development tools.
   use JPS `~` and `^` for custom joins and splits.
 - Import JPG/PNG/PDF references through the file picker or by dropping a file into the
   Original Image/PDF panel; transcribe them into JPS drafts for review.
-- Export rendered scores as SVG, JPEG or PDF.
+- Export rendered scores as SVG, PDF, PNG or JPEG (96/300 DPI raster output).
+- Review clickable scan regions and source warnings; cancel transcription and follow PDF page progress.
+- Reopen recent scores, use keyboard shortcuts, and export folders through the Python CLI.
 
 ## Transcription drafts
 
 Recognition supports small stacked time signatures and mildly skewed note rows. Visible
-`p`, `pp`, `mp`, `mf`, `f`, `ff`, `rit` and `dim` marks near note rows can become JPS decorations;
+`p`, `pp`, `ppp`, `mp`, `mf`, `f`, `ff`, `fff`, `rit` and `dim` marks near note rows can become JPS decorations;
 fermatas use `&yc`. Text such as `cres`, `cresc`, `crescendo` and `decrescendo` is preserved as
 quoted JPS annotations. Graphic crescendo/decrescendo hairpins can attach to notes or sustain
 dashes.
@@ -35,10 +37,16 @@ Every transcription remains provisional. Compare the draft with its source and r
 rhythm, octave dots, voice grouping, and which note or sustain dash owns each decoration.
 Small, blurred or crowded marks can still be missed or misread.
 
+
+Repeated headers/footers and isolated pagination are filtered conservatively outside score bands.
+Low digit agreement and severe render-back mismatches produce review findings with scan regions;
+they do not establish complete accuracy. Open a finding to inspect its page and any uniquely
+mapped source note. Changing the source removes obsolete range marks.
+
 ## Planned improvements
 
 - Improve transcription accuracy.
-- Export LilyPond source and MusicXML.
+- Audio preview, MIDI export, and LilyPond/MusicXML export.
 - Import MusicXML and convert it to JPS.
 - Import and recognize staff-notation sheet music as JPS.
 
@@ -133,7 +141,7 @@ in metrics and pixels. Microsoft font files are not bundled, installed or redist
 
 Open **Preferences** to change the interface language and select OS or bundled fonts for each
 role. Missing OS fonts are disabled and use the bundled fallback. Choices are stored locally
-and apply to preview and SVG/PDF/JPG export without changing the saved score.
+and apply to preview and SVG/PDF/PNG/JPG export without changing the saved score.
 
 PDF exports embed fonts; JPEG stores pixels. External SVG viewers need the named fonts.
 The Python ReportLab PDF path uses the bundled role fallback when an installed font has

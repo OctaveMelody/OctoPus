@@ -178,6 +178,24 @@ h2 { margin: 0; font-size: 14px; }
 .code-editor .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground { background: #8ab8f5; }
 .code-editor.find-only .cm-search input[name="replace"], .code-editor.find-only .cm-search button[name="replace"], .code-editor.find-only .cm-search button[name="replaceAll"], .code-editor.find-only .cm-search br { display: none; }
 
+/* Parser diagnostics and soft-wrap continuation markers belong to the source editor. */
+.code-editor .source-diagnostic { text-decoration-line: underline; text-decoration-style: wavy; text-underline-offset: 3px; }
+.code-editor .source-diagnostic-error { text-decoration-color: #bf3345; }
+.code-editor .source-diagnostic-warning { text-decoration-color: #a57618; }
+.code-editor .source-diagnostic-info { text-decoration-color: #4c74a0; }
+.code-editor .source-diagnostic-gutter .cm-gutterElement { padding: 0 3px; }
+.code-editor .source-diagnostic-button { display: inline-block; min-width: 15px; width: 15px; height: 18px; padding: 0; border: 0; border-radius: 4px; font: bold 12px/18px system-ui, sans-serif; vertical-align: middle; cursor: pointer; background: transparent; }
+.code-editor .source-diagnostic-button.source-diagnostic-error { color: #a82f40; background: #fae5e8; }
+.code-editor .source-diagnostic-button.source-diagnostic-warning { color: #8c6513; background: #fff1cf; }
+.code-editor .source-diagnostic-button.source-diagnostic-info { color: #486f9d; }
+.code-editor .source-diagnostic-button:focus-visible { outline: 2px solid #5b88cf; outline-offset: 1px; }
+.code-editor .source-wrap-gutter .cm-gutterElement { padding: 0 3px; }
+.code-editor .source-wrap-marker { box-sizing: content-box; color: #8193a9; font-size: 11px; text-align: center; }
+.source-diagnostics-details { flex: none; max-height: 120px; overflow: auto; padding: 4px 10px; color: #8a5a16; border-top: 1px solid #e6e9ef; background: #fffaf0; font-size: 12px; }
+.source-diagnostics-details summary { cursor: pointer; }
+.source-diagnostics-details ul { margin: 4px 0; padding-left: 20px; }
+.source-diagnostics-details button { padding: 3px 4px; border: 0; background: transparent; color: inherit; text-align: left; font-size: inherit; }
+
 .preview-canvas { display: flex; min-height: 0; flex: 1; justify-content: flex-start; overflow: auto; overscroll-behavior: contain; padding: 12px; background: #e9edf3; }
 
 .preview-image-stage { position: relative; flex: none; align-self: flex-start; margin: 0 auto; background: white; box-shadow: 0 3px 14px #17233b24; }
@@ -343,3 +361,11 @@ h2 { margin: 0; font-size: 14px; }
 
 .preferences-actions button { border-color: #b8cce3; color: #305477; background: #edf5ff; }
 .preferences-actions button:hover { background: #dfecfb; }
+
+/* Scan-review geometry uses the same stage transform as the source page. */
+.reference-review-overlay { position: absolute; left: 50%; top: 50%; z-index: 2; pointer-events: none; }
+.reference-review-overlay > span { position: absolute; border: 2px solid #bd7200; background: #ffbf4738; box-sizing: border-box; }
+.reference-onboarding { display: flex; gap: 12px; padding: 8px 12px; background: #edf6ff; color: #284c6b; }
+.reference-onboarding p { margin: 0; flex: 1; }
+.transcription-issue { text-align: left; width: 100%; margin: 2px 0; }
+.preview-canvas:focus-visible { outline: 2px solid #5682ad; outline-offset: -2px; }

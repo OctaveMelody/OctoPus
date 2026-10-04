@@ -89,6 +89,26 @@ browser-DOM SVG export and requires `uv run --extra pixel playwright install chr
 not bundled into the offline worker. Pytest, Ruff, mypy and development evidence are excluded
 from this repository's Python dependency extras.
 
+## Batch export and desktop capabilities
+
+The production Python CLI provides safe folder export (existing files are retained):
+
+```sh
+uv run --locked octopus batch-export scores --out combined.pdf
+uv run --locked octopus batch-export scores --out-dir exported --format pdf --recursive
+uv run --locked octopus batch-export scores --out-dir images --format png --dpi 300
+```
+
+`ui.engine` exposes diagnostics-only `parse` and PNG capability in its desktop handshake.
+Transcription emits correlated bounded progress frames followed by one final result; native
+cancellation stops the dedicated process tree and invalidates the pending draft. The preview
+worker is independent. Legacy HTTP/file/recovery protocol and audit entry points live only in
+OctoPus-dev and are excluded from production Python/native distributions.
+
+`VITE_UPDATE_CHECK_ENABLED=false` hides Help → Check for Update when building the frontend.
+Default builds keep it visible; this flag does not disable installed update checking code or
+change the version. Use it only when a distribution intentionally omits that menu item.
+
 ## Build packages
 
 An unspecified build request means production only, including the portable executable.
@@ -108,7 +128,7 @@ update them intentionally with `uv lock`/npm/Cargo and validate the resulting ch
 ## Release fonts
 
 Pinned font assets and their OFL, IPA and Xiaomi MiSans licenses are in src/octopus/assets/fonts/. Packaging verifies their
-hashes and includes them in the worker, preview and native exporter. Builds need no font download
+hashes and stages them beside the worker for preview and native/Python export. Builds need no font download
 or system font installation. See [font asset guide](src/octopus/assets/fonts/README.md).
 The source engine defaults to reference fonts; use `OCTOPUS_FONT_PROFILE=release` for release-policy
 checks. Packaged workers/native exports prefer the configured installed OS families independently

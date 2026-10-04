@@ -5,6 +5,22 @@ use std::sync::Arc;
 use tauri::State;
 
 #[tauri::command]
+pub(crate) async fn parse_score(
+    state: State<'_, DesktopState>,
+    args: RenderArgs,
+) -> Result<Value, String> {
+    let supervisor = Arc::clone(&state.engine);
+    tauri::async_runtime::spawn_blocking(move || {
+        supervisor
+            .lock()
+            .map_err(|_| "engine lock poisoned")?
+            .parse(args)
+    })
+    .await
+    .map_err(|error| format!("parse task failed: {error}"))?
+}
+
+#[tauri::command]
 pub(crate) async fn render_score(
     state: State<'_, DesktopState>,
     args: RenderArgs,
@@ -72,7 +88,7 @@ pub(crate) async fn get_engine_capabilities(
             .capabilities()?;
         Ok(serde_json::json!({
             "ocr": capabilities["ocr"].as_bool().unwrap_or(false),
-            "lilypond": capabilities["lilypond"].as_bool().unwrap_or(false),
+            "png_export": capabilities["png_export"].as_bool().unwrap_or(false),
             "fonts": capabilities["fonts"]
         }))
     })

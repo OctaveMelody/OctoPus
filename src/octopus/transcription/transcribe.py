@@ -7,6 +7,7 @@ import math
 import re
 import subprocess
 import tempfile
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from statistics import median
@@ -16,7 +17,9 @@ from .decorations import text_decorations
 from .headers import extract_headers, printed_key_span, stacked_meter_span
 from .image import MusicRow, PageObservation, _read_page, recognize_image
 from .lyrics import extract_lyrics
+from .margins import filter_document_margins
 from .marks import row_sustains
+from .review import RowBinding, finite_confidence, note_confidence_findings, render_back_findings
 from .text import (
     TextSpan,
     image_annotation_text,
@@ -37,6 +40,11 @@ class Issue:
     page: int
     detail: str
     regions: tuple[tuple[int, int, int, int], ...] = ()
+    # Unicode codepoint offsets into Draft.jps; end is exclusive. Classifier
+    # agreement is evidence for review, not a calibrated probability.
+    confidence: float | None = None
+    source_start: int | None = None
+    source_end: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +57,7 @@ class Draft:
         return json.dumps(
             {
                 "status": "review_required",
+                "note_confidence_kind": "uncalibrated_classifier_agreement",
                 "pages": [
                     {
                         "width": page.width,
@@ -65,6 +74,14 @@ class Draft:
                         ],
                         "unresolved_braces": list(page.unresolved_braces),
                         "excluded_regions": list(page.excluded_regions),
+                        "note_confidence": [
+                            {"row": row_index, "note": note_index, "digit": note.digit,
+                             "box": note.box, "confidence": finite_confidence(note.confidence),
+                             "stream": "main" if row_index < len(page.rows) else "bz"}
+                            for row_index, row in enumerate(
+                                (*page.rows, *(bz.row for bz in page.bz_overlays))
+                            ) for note_index, note in enumerate(row.notes)
+                        ],
                     }
                     for page in self.pages
                 ],
@@ -415,7 +432,13 @@ def _score_text(page: PageObservation) -> PageObservation:
 
 def _compile(pages: tuple[PageObservation, ...]) -> Draft:
     source = ["# Image transcription draft; review the adjacent .issues.json before use."]
+    pages, ignored_margins = filter_document_margins(pages)
     pages, issues = _slur_continuations(pages)
+    issues.extend(Issue(
+        "margin_text_ignored", page_number,
+        "Excluded isolated margin pagination or a recurring document header/footer.", regions,
+    ) for page_number, regions in ignored_margins)
+    bindings: list[RowBinding] = []
     ending_marks, ending_issues = _ending_marks(pages)
     issues.extend(ending_issues)
     for page_number, page in enumerate(pages, start=1):
@@ -535,6 +558,10 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
             if voice is None or voice == 1:
                 source.append("")
             source.append(f"Q{voice or ''}: {music}")
+            bindings.append(RowBinding(
+                page_number, row_index, len(source),
+                overlay is None and not bz_by_anchor.get(row_index),
+            ))
             if row.decoration_regions:
                 issues.append(Issue(
                     "decoration_attachment_review", page_number,
@@ -566,14 +593,33 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
                     "Check lyric characters, skips and ownership against the image.",
                     lyric.regions,
                 ))
+                if lyric.slot_constrained:
+                    issues.append(Issue(
+                        "lyric_slots_constrained", page_number,
+                        "An adjacent lyric collision was assigned to the measure's note "
+                        "slots using matching syllable counts and bounded movement. "
+                        "Verify these inferred character positions against the scan.",
+                        lyric.regions,
+                    ))
         issues.append(Issue(
             "lyrics_coverage_unverified", page_number,
             "Confirm every printed lyric row and its voice ownership."
         ))
-    return Draft("\n".join(source) + "\n", pages, tuple(issues))
+    code = "\n".join(source) + "\n"
+    findings = (
+        *note_confidence_findings(code, pages, tuple(bindings)),
+        *render_back_findings(code, pages, tuple(bindings)),
+    )
+    issues.extend(Issue(
+        item.code, item.page, item.detail, item.regions, item.confidence,
+        item.source_start, item.source_end,
+    ) for item in findings)
+    return Draft(code, pages, tuple(issues))
 
 
-def _pdf_pages(path: Path) -> tuple[PageObservation, ...]:
+def _pdf_pages(
+    path: Path, progress: Callable[[int, int, str], None] | None = None,
+) -> tuple[PageObservation, ...]:
     if path.stat().st_size > MAX_PDF_BYTES:
         raise ValueError("PDF exceeds the 100 MB input limit")
     metadata = subprocess.run(
@@ -592,6 +638,8 @@ def _pdf_pages(path: Path) -> tuple[PageObservation, ...]:
             r"Page\s+(\d+)\s+size:\s+([\d.]+) x ([\d.]+) pts", metadata
         )
     }
+    if progress:
+        progress(0, count, "recognizing")
     observations = []
     native_text = pdf_text(path)
     with tempfile.TemporaryDirectory(prefix="jianpu-transcribe-") as temporary:
@@ -632,24 +680,35 @@ def _pdf_pages(path: Path) -> tuple[PageObservation, ...]:
                 )), original_spans)
             )
             image_path.unlink()
+            if progress:
+                progress(page_number, count, "recognizing")
     return tuple(observations)
 
 
-def transcribe(path: Path) -> Draft:
+def transcribe(
+    path: Path, *, progress: Callable[[int, int, str], None] | None = None,
+) -> Draft:
     """Use only the supplied image/PDF, never a paired source or reference file."""
     suffix = path.suffix.lower()
     if suffix in {".png", ".jpg", ".jpeg"}:
+        if progress:
+            progress(0, 1, "recognizing")
         observation = recognize_image(path)
         text_spans = image_text(path)
         original_spans = text_spans or ()
         if text_spans is not None:
             text_spans = _lyric_baseline_text(path, observation, text_spans)
             text_spans = _header_spans(path, observation, text_spans)
+        if progress:
+            progress(1, 1, "compiling")
         return _compile((_performance_text(path, _score_text(replace(
             observation,
             text_spans=text_spans or (),
             text_source="ocr" if text_spans is not None else "unavailable",
         )), original_spans),))
     if suffix == ".pdf":
-        return _compile(_pdf_pages(path))
+        pages = _pdf_pages(path, progress)
+        if progress:
+            progress(len(pages), len(pages), "compiling")
+        return _compile(pages)
     raise ValueError("transcription input must be PNG, JPG, JPEG or PDF")

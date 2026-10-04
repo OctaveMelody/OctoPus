@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-export type MenuAction = { label: string; disabled?: boolean; run(): void };
+export type MenuAction = { label: string; title?: string; disabled?: boolean; run(): void };
 
 /** Portal menus remain visible outside narrow, scrolling panel headings. */
-export function ActionMenu({ label, actions }: { label: string; actions: MenuAction[] }) {
+export function ActionMenu({ label, title, actions }: {
+  label: string; title?: string; actions: MenuAction[];
+}) {
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -42,7 +44,7 @@ export function ActionMenu({ label, actions }: { label: string; actions: MenuAct
     };
   }, [open]);
   return <>
-    <button ref={trigger} type="button" aria-haspopup="menu" aria-expanded={open}
+    <button ref={trigger} title={title} type="button" aria-haspopup="menu" aria-expanded={open}
       onClick={() => { firstFromEnd.current = false; setOpen(!open); }}
       onKeyDown={(event) => {
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -69,7 +71,7 @@ export function ActionMenu({ label, actions }: { label: string; actions: MenuAct
         }
       }}>
       {actions.map((action) => <button key={action.label} role="menuitem" type="button"
-        disabled={action.disabled} onClick={() => {
+        title={action.title} disabled={action.disabled} onClick={() => {
           setOpen(false);
           trigger.current?.focus();
           action.run();

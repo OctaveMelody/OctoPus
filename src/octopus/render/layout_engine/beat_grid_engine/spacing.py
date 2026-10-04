@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from fractions import Fraction
-
 from octopus.normalization.types import MusicEvent
 from octopus.parser.ast import MusicTokenKind
+from octopus.render.core.source_timing import duration_fraction
 from octopus.render.layout_engine.beat_grid_engine.types import (
     PLAIN_NOTE_STEP,
     SYLLABLE_KINDS,
@@ -22,18 +21,6 @@ def duration_beats(event: MusicEvent) -> float:
     follows its slashes (HIDDEN_REST).
     """
     return float(duration_fraction(event))
-
-
-def duration_fraction(event: MusicEvent) -> Fraction:
-    """Return an event duration without converting through binary floats."""
-    if event.kind == MusicTokenKind.EXTENSION:
-        return Fraction(1, 1)
-    if event.kind == MusicTokenKind.HIDDEN_REST:
-        return Fraction(1, 2**event.duration_slashes)
-    duration = event.duration
-    if duration is None:
-        return Fraction(0, 1)
-    return Fraction(duration.numerator, duration.denominator)
 
 
 def is_note(event: MusicEvent) -> bool:

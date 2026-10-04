@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use image::codecs::jpeg::JpegEncoder;
+use image::codecs::png::PngEncoder;
 use image::ExtendedColorType;
+use image::ImageEncoder;
 use krilla::geom::Size as PdfSize;
 use krilla::page::PageSettings;
 use krilla::Document;
@@ -66,6 +68,18 @@ fn export_pdf_with_options(
 }
 
 pub fn export_jpg_pages(svg_pages: &[String], dpi: u16) -> Result<Vec<Vec<u8>>, DocumentIoError> {
+    export_raster_pages(svg_pages, dpi, false)
+}
+
+pub fn export_png_pages(svg_pages: &[String], dpi: u16) -> Result<Vec<Vec<u8>>, DocumentIoError> {
+    export_raster_pages(svg_pages, dpi, true)
+}
+
+fn export_raster_pages(
+    svg_pages: &[String],
+    dpi: u16,
+    png: bool,
+) -> Result<Vec<Vec<u8>>, DocumentIoError> {
     validate_svg_pages(svg_pages)?;
     if !matches!(dpi, 96 | 300) {
         return Err(DocumentIoError::InvalidExportDpi);
@@ -84,7 +98,15 @@ pub fn export_jpg_pages(svg_pages: &[String], dpi: u16) -> Result<Vec<Vec<u8>>, 
             .filter(|pixels| *pixels <= MAX_EXPORT_BATCH_PIXELS)
             .ok_or(DocumentIoError::ExportPageTooLarge)?;
         let pixmap = render_jpg_page(&tree, width, height, dpi)?;
-        let bytes = encode_jpeg(pixmap, width, height)?;
+        let bytes = if png {
+            let mut encoded = Vec::new();
+            PngEncoder::new(&mut encoded)
+                .write_image(pixmap.data(), width, height, ExtendedColorType::Rgba8)
+                .map_err(|_| DocumentIoError::ExportConversionFailed)?;
+            encoded
+        } else {
+            encode_jpeg(pixmap, width, height)?
+        };
         total_bytes = total_bytes
             .checked_add(bytes.len())
             .filter(|size| *size <= MAX_EXPORT_BYTES)
@@ -256,7 +278,7 @@ mod tests {
     use image::codecs::jpeg::JpegDecoder;
     use image::ImageDecoder;
 
-    use super::{export_jpg_pages, export_pdf};
+    use super::{export_jpg_pages, export_pdf, export_png_pages};
     use crate::DocumentIoError;
 
     const SVG_PAGE: &str = r##"
@@ -377,6 +399,25 @@ mod tests {
             );
             assert!(images[0].starts_with(&[0xff, 0xd8]));
         }
+    }
+
+    #[test]
+    fn exports_lossless_png_at_screen_and_print_sizes() {
+        for (dpi, expected) in [(96, (100, 60)), (300, (313, 188))] {
+            let pages = export_png_pages(&page(), dpi).unwrap();
+            assert!(pages[0].starts_with(b"\x89PNG\r\n\x1a\n"));
+            let image = image::load_from_memory_with_format(&pages[0], image::ImageFormat::Png)
+                .unwrap()
+                .to_rgba8();
+            assert_eq!(image.dimensions(), expected);
+            assert_eq!(image.get_pixel(0, 0).0, [255, 255, 255, 255]);
+            assert!(image.pixels().any(|pixel| pixel.0 == [0, 0, 0, 255]));
+            assert!(image.pixels().all(|pixel| pixel.0[3] == 255));
+        }
+        assert!(matches!(
+            export_png_pages(&page(), 150),
+            Err(DocumentIoError::InvalidExportDpi)
+        ));
     }
 
     #[test]

@@ -14,10 +14,6 @@ from .render.export import DEFAULT_EXPORT_MODE, EXPORT_MODES
 from .render.output import write_utf8_text
 from .render.svg import render_jps, render_score_model
 
-_AUDIT_COMMANDS = frozenset(
-    {"inspect-corpus", "compare-svg", "compare-svg-body", "audit-corpus"}
-)
-
 
 def add_runtime_parsers(subparsers: argparse._SubParsersAction) -> None:
     parse_parser = subparsers.add_parser(
@@ -54,6 +50,16 @@ def add_runtime_parsers(subparsers: argparse._SubParsersAction) -> None:
     render_parser.add_argument(
         "--out-dir", type=Path, default=None, help="output directory for multi-page HTML files"
     )
+    batch_parser = subparsers.add_parser(
+        "batch-export", help="export a folder of JPS files (continues after individual failures)"
+    )
+    batch_parser.add_argument("input", type=Path, help="folder containing JPS files")
+    batch_parser.add_argument("--out", type=Path, help="one combined multi-page PDF")
+    batch_parser.add_argument("--out-dir", type=Path, help="per-score exports directory")
+    batch_parser.add_argument("--format", choices=("pdf", "svg", "png", "jpg"), default="pdf")
+    batch_parser.add_argument("--dpi", type=int, choices=(96, 300), default=96)
+    batch_parser.add_argument("--recursive", action="store_true", help="include nested folders")
+
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,6 +69,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_runtime_command(args: argparse.Namespace) -> int:
+    if args.command == "batch-export":
+        from .batch_export import run_batch_export
+
+        return run_batch_export(args)
     if args.command == "parse":
         output = json.dumps(
             document_to_dict(parse_jps(args.input), include_diagnostics=args.diagnostics),
@@ -115,19 +125,6 @@ def run_runtime_command(args: argparse.Namespace) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = tuple(sys.argv[1:] if argv is None else argv)
-    if arguments and arguments[0] in _AUDIT_COMMANDS:
-        try:
-            from audit.cli import main as audit_main
-        except ModuleNotFoundError as exc:
-            if exc.name != "audit":
-                raise
-            print(
-                "Audit commands require a repository checkout or the separate audit package.",
-                file=sys.stderr,
-            )
-            return 2
-        return audit_main(arguments)
-
     args = build_parser().parse_args(arguments)
     return run_runtime_command(args)
 

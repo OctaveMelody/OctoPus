@@ -2,7 +2,7 @@
 
 mod commands;
 
-use commands::{documents, engine, exports, help, references};
+use commands::{documents, engine, exports, help, references, transcription};
 use jps_document_io::{RecoverySnapshotSequence, SelectedJpsFiles};
 use jps_engine_bridge::EngineSupervisor;
 use std::sync::{Arc, Mutex};
@@ -13,6 +13,7 @@ use tauri::{AppHandle, Manager, WebviewWindow};
 struct DesktopState {
     engine: Arc<Mutex<EngineSupervisor>>,
     transcription: Arc<Mutex<EngineSupervisor>>,
+    transcription_jobs: Arc<transcription::TranscriptionJobs>,
 }
 
 #[cfg(debug_assertions)]
@@ -34,6 +35,7 @@ fn engine_supervisor(app: &AppHandle) -> Result<EngineSupervisor, String> {
     Ok(EngineSupervisor::packaged(path))
 }
 
+#[cfg(not(debug_assertions))]
 fn resource_relative(path: &str) -> String {
     if cfg!(target_os = "linux") {
         path.to_owned()
@@ -78,6 +80,7 @@ fn main() {
             app.manage(DesktopState {
                 engine: Arc::new(Mutex::new(engine)),
                 transcription: Arc::new(Mutex::new(transcription)),
+                transcription_jobs: Arc::default(),
             });
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
                 .enable_clipboard_access()
@@ -95,16 +98,19 @@ fn main() {
             documents::list_jps_documents,
             engine::load_document,
             documents::open_jps_file,
+            documents::open_recent_jps_file,
             documents::open_jps_catalog_document,
             documents::read_recovery_snapshot,
             references::prune_reference_images,
             references::resolve_reference_images,
+            engine::parse_score,
             engine::render_score,
             engine::render_score_page,
             engine::serialize_document,
             documents::save_jps_file,
             references::stage_reference_assets,
-            references::transcribe_reference,
+            transcription::transcribe_reference,
+            transcription::cancel_transcription,
             toggle_window_maximize,
             help::open_help_destination,
             help::check_for_update,

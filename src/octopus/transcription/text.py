@@ -13,6 +13,7 @@ from PIL import Image, ImageOps
 
 from .components import Box, Component, connected_components
 from .marks import vertical_bend
+from .session_artifacts import track_session_artifact
 
 _XHTML = "{http://www.w3.org/1999/xhtml}"
 
@@ -44,7 +45,8 @@ def _ocr_engine() -> object | None:
         from rapidocr_onnxruntime import RapidOCR  # type: ignore[import-not-found,import-untyped]
     except ImportError:
         return None
-    return cast(object, RapidOCR())
+    with track_session_artifact():
+        return cast(object, RapidOCR())
 
 
 def _character_centers(

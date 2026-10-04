@@ -35,6 +35,8 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
   const copyRef = useRef(copy);
   copyRef.current = copy;
   const revision = score.revision;
+  const renderStarted = useRef(0);
+  const renderElapsed = useRef<number | undefined>(undefined);
   const previewQueue = useRef<PreviewQueue | null>(null);
   const cursorMarkerRef = useRef<HTMLSpanElement>(null);
   const previewImageRef = useRef<HTMLImageElement>(null);
@@ -129,7 +131,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
   useEffect(() => {
     pageCacheRef.current = null;
     setPageCache(null);
-    const queue = createLatestPreviewQueue(
+    const queue = createLatestPreviewQueue<PreviewRequest, RenderedPage>(
       (request: PreviewRequest, report, isLatest) => {
         const invokePage = (requestedDocument: DocumentSnapshot, pageIndex: number) => {
           const tauri = window.__TAURI__;
@@ -153,8 +155,15 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
           currentDocument.current.id === document.id
           && currentDocument.current.revision === document.revision
         ),
-        onStart: () => setStatus({ kind: "rendering" }),
-        onProgress: acceptRenderedPage,
+        onStart: () => {renderStarted.current = performance.now(); renderElapsed.current = undefined; setStatus({kind: "rendering"});},
+        onProgress: (request, page) => {
+          acceptRenderedPage(request, page);
+          setStatus({kind: "rendering", completed: pageCacheRef.current?.pages.size ?? 0, pages: page.page_count});
+        },
+        onResult: (_request, page) => {
+          renderElapsed.current = performance.now() - renderStarted.current;
+          setStatus({kind: "rendered", pages: page.page_count, elapsed: renderElapsed.current});
+        },
         onError: (_request, error) => {
           if (error instanceof PageOutOfRangeError) {
             if (error.pageCount > 0) {
@@ -347,9 +356,10 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
       && currentDocument.current.id === displayedPreview.documentId
       && currentDocument.current.revision === displayedPreview.revision
       && selectedPageRef.current === displayedPreview.page) {
-      setStatus(failed
-        ? { kind: "error", message: copyRef.current.previewDisplayFailed }
-        : { kind: "rendered", pages: displayedPreview.rendered.page_count });
+      if (failed) setStatus({kind: "error", message: copyRef.current.previewDisplayFailed});
+      else if (pageCacheRef.current?.pages.size === displayedPreview.rendered.page_count) {
+        setStatus({kind: "rendered", pages: displayedPreview.rendered.page_count, elapsed: renderElapsed.current});
+      }
     }
   }
 

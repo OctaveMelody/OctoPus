@@ -7,12 +7,13 @@ use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::{ChildStdin, ChildStdout, Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 mod process;
+pub mod transcription_jobs;
 use process::WorkerProcess;
 
 const PROTOCOL_VERSION: &str = "1.6.0";
@@ -155,12 +156,15 @@ struct EngineProcess {
     capabilities: Value,
 }
 
+type ProgressHandler = Box<dyn Fn(Value) + Send>;
+
 struct WorkerMessage {
     request: Vec<u8>,
     request_id: String,
     document_id: String,
     revision: u64,
     reply: mpsc::SyncSender<Result<Value, String>>,
+    progress: Option<ProgressHandler>,
 }
 
 enum WorkerCommand {
@@ -213,7 +217,11 @@ impl EngineSupervisor {
 
     pub fn capabilities(&mut self) -> Result<Value, String> {
         if self.process.is_none() {
-            self.process = Some(EngineProcess::spawn(&self.launch, self.request_timeout)?);
+            self.process = Some(EngineProcess::spawn(
+                &self.launch,
+                self.request_timeout,
+                None,
+            )?);
         }
         Ok(self
             .process
@@ -225,6 +233,10 @@ impl EngineSupervisor {
 
     pub fn render(&mut self, args: RenderArgs) -> Result<Value, String> {
         self.render_with_operation(args, "render")
+    }
+
+    pub fn parse(&mut self, args: RenderArgs) -> Result<Value, String> {
+        self.render_with_operation(args, "parse")
     }
 
     pub fn export_svg(&mut self, args: RenderArgs) -> Result<Value, String> {
@@ -293,12 +305,23 @@ impl EngineSupervisor {
     }
 
     pub fn transcribe(&mut self, args: TranscribeArgs) -> Result<Value, String> {
-        self.call_with_timeout(
+        self.transcribe_with_progress(args, Arc::new(AtomicBool::new(false)), |_| {})
+    }
+
+    pub fn transcribe_with_progress(
+        &mut self,
+        args: TranscribeArgs,
+        cancelled: Arc<AtomicBool>,
+        progress: impl Fn(Value) + Send + 'static,
+    ) -> Result<Value, String> {
+        self.call_controlled(
             args.document_id,
             args.document_revision,
             "transcribe",
             json!({ "path": args.path }),
             Duration::from_secs(900),
+            Some(cancelled),
+            Some(Box::new(progress)),
         )
     }
 
@@ -326,6 +349,34 @@ impl EngineSupervisor {
         payload: Value,
         timeout: Duration,
     ) -> Result<Value, String> {
+        self.call_controlled(
+            document_id,
+            revision,
+            operation,
+            payload,
+            timeout,
+            None,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn call_controlled(
+        &mut self,
+        document_id: String,
+        revision: u64,
+        operation: &str,
+        payload: Value,
+        timeout: Duration,
+        cancelled: Option<Arc<AtomicBool>>,
+        progress: Option<ProgressHandler>,
+    ) -> Result<Value, String> {
+        if cancelled
+            .as_deref()
+            .is_some_and(|flag| flag.load(Ordering::Acquire))
+        {
+            return Err("transcription cancelled".into());
+        }
         if document_id.is_empty() || document_id.len() > 128 {
             return Err("document ID must be 1–128 bytes".into());
         }
@@ -346,10 +397,22 @@ impl EngineSupervisor {
             return Err("request exceeds the protocol byte limit".into());
         }
         if self.process.is_none() {
-            self.process = Some(EngineProcess::spawn(&self.launch, self.request_timeout)?);
+            self.process = Some(EngineProcess::spawn(
+                &self.launch,
+                self.request_timeout,
+                cancelled.as_deref(),
+            )?);
         }
         let process = self.process.as_mut().expect("engine was spawned");
-        let result = process.request(request, request_id, document_id, revision, timeout);
+        let result = process.request(
+            request,
+            request_id,
+            document_id,
+            revision,
+            timeout,
+            cancelled.as_deref(),
+            progress,
+        );
         if result.is_err() {
             self.process.take();
         }
@@ -358,7 +421,11 @@ impl EngineSupervisor {
 }
 
 impl EngineProcess {
-    fn spawn(launch: &EngineLaunch, request_timeout: Duration) -> Result<Self, String> {
+    fn spawn(
+        launch: &EngineLaunch,
+        request_timeout: Duration,
+        cancelled: Option<&AtomicBool>,
+    ) -> Result<Self, String> {
         let mut command = launch.command()?;
         command
             .stdin(Stdio::piped())
@@ -386,7 +453,7 @@ impl EngineProcess {
                 return Err(format!("could not start render supervisor: {error}"));
             }
         };
-        let capabilities = match startup_receiver.recv_timeout(request_timeout) {
+        let capabilities = match receive_controlled(&startup_receiver, request_timeout, cancelled) {
             Ok(Ok(capabilities)) => capabilities,
             Ok(Err(error)) => {
                 stop_child(&child);
@@ -409,6 +476,7 @@ impl EngineProcess {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn request(
         &mut self,
         request: Vec<u8>,
@@ -416,6 +484,8 @@ impl EngineProcess {
         document_id: String,
         revision: u64,
         timeout: Duration,
+        cancelled: Option<&AtomicBool>,
+        progress: Option<ProgressHandler>,
     ) -> Result<Value, String> {
         let (reply, receiver) = mpsc::sync_channel(1);
         self.sender
@@ -425,9 +495,10 @@ impl EngineProcess {
                 document_id,
                 revision,
                 reply,
+                progress,
             }))
             .map_err(|_| "Python worker stopped".to_owned())?;
-        match receiver.recv_timeout(timeout) {
+        match receive_controlled(&receiver, timeout, cancelled) {
             Ok(result) => result,
             Err(error) => {
                 self.terminate();
@@ -448,6 +519,33 @@ impl EngineProcess {
 impl Drop for EngineProcess {
     fn drop(&mut self) {
         self.terminate();
+    }
+}
+
+fn receive_controlled<T>(
+    receiver: &mpsc::Receiver<T>,
+    timeout: Duration,
+    cancelled: Option<&AtomicBool>,
+) -> Result<T, String> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if cancelled.is_some_and(|flag| flag.load(Ordering::Acquire)) {
+            return Err("transcription cancelled".into());
+        }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err("request timeout".into());
+        }
+        match receiver.recv_timeout(remaining.min(Duration::from_millis(50))) {
+            Ok(value) => {
+                if cancelled.is_some_and(|flag| flag.load(Ordering::Acquire)) {
+                    return Err("transcription cancelled".into());
+                }
+                return Ok(value);
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(error) => return Err(error.to_string()),
+        }
     }
 }
 
@@ -494,16 +592,69 @@ fn engine_worker(
             writer.write_all(&message.request).map_err(io_message)?;
             writer.write_all(b"\n").map_err(io_message)?;
             writer.flush().map_err(io_message)?;
-            let value = read_response(&mut reader)?;
-            validate_response(
-                &value,
-                &message.request_id,
-                &message.document_id,
-                message.revision,
-                Some(&generation),
-                false,
-            )?;
-            Ok(value)
+            let mut completed = 0;
+            let mut total = None;
+            let mut compiling = false;
+            let mut progress_frames = 0_u64;
+            loop {
+                let value = read_response(&mut reader)?;
+                if value["status"] == "progress" {
+                    let handler = message
+                        .progress
+                        .as_ref()
+                        .ok_or("unexpected progress frame")?;
+                    // Validate the same correlation fields as the final response.
+                    let mut envelope = value.clone();
+                    envelope["status"] = json!("ok");
+                    validate_response(
+                        &envelope,
+                        &message.request_id,
+                        &message.document_id,
+                        message.revision,
+                        Some(&generation),
+                        false,
+                    )?;
+                    let page = value["result"]["completed"]
+                        .as_u64()
+                        .ok_or("invalid progress count")?;
+                    let count = value["result"]["total"]
+                        .as_u64()
+                        .ok_or("invalid progress total")?;
+                    progress_frames += 1;
+                    let stage = value["result"]["stage"].as_str();
+                    if !(1..=200).contains(&count)
+                        || page > count
+                        || page < completed
+                        || total.is_some_and(|old| old != count)
+                        || progress_frames > count * 2 + 2
+                        || !matches!(stage, Some("recognizing" | "compiling"))
+                        || (compiling && stage != Some("compiling"))
+                        || (stage == Some("compiling") && page != count)
+                    {
+                        return Err("invalid transcription progress".into());
+                    }
+                    completed = page;
+                    total = Some(count);
+                    compiling |= stage == Some("compiling");
+                    handler(value["result"].clone());
+                    continue;
+                }
+                validate_response(
+                    &value,
+                    &message.request_id,
+                    &message.document_id,
+                    message.revision,
+                    Some(&generation),
+                    false,
+                )?;
+                if value["status"] == "ok"
+                    && total
+                        .is_some_and(|count| value["result"]["page_count"].as_u64() != Some(count))
+                {
+                    return Err("transcription result disagrees with progress page total".into());
+                }
+                return Ok(value);
+            }
         })();
         let failed = response.is_err();
         let _ = message.reply.send(response);
@@ -589,6 +740,7 @@ fn validate_response(
                     "handshake",
                     "load_document",
                     "render",
+                    "parse",
                     "export_svg",
                     "render_page",
                     "serialize_document",
@@ -598,7 +750,7 @@ fn validate_response(
                 .all(|expected| operations.iter().any(|operation| operation == expected))
             }) || !result["custom_svg_display"].is_boolean()
                 || !result["ocr"].is_boolean()
-                || !result["lilypond"].is_boolean())
+                || !result["png_export"].is_boolean())
         {
             return Err("engine handshake has invalid operations or capabilities".into());
         }
@@ -622,18 +774,24 @@ fn stop_child(child: &Arc<Mutex<WorkerProcess>>) {
 #[cfg(test)]
 mod tests {
     use super::process::WorkerProcess;
-    use super::{read_bounded_line, validate_response, EngineSupervisor, RenderArgs};
+    use super::{
+        read_bounded_line, validate_response, EngineSupervisor, RenderArgs, TranscribeArgs,
+    };
     use serde_json::json;
     use std::io::{BufReader, Cursor, ErrorKind};
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
 
     const FAKE_ENGINE: &str = r#"
-import json, subprocess, sys, time
+import json, os, subprocess, sys, time
 mode = sys.argv[1]
 descendant = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"]) if mode.startswith("child-") else None
 mode = mode.removeprefix("child-")
-operations = ["handshake", "load_document", "render", "export_svg", "render_page", "serialize_document", "transcribe"]
+if len(sys.argv) > 2:
+    with open(sys.argv[2], "w") as output:
+        json.dump([os.getpid(), descendant.pid if descendant else None], output)
+operations = ["handshake", "load_document", "render", "parse", "export_svg", "render_page", "serialize_document", "transcribe"]
 for line in sys.stdin:
     request = json.loads(line)
     operation = request["operation"]
@@ -654,10 +812,34 @@ for line in sys.stdin:
             "operations": operations,
             "custom_svg_display": True,
             "ocr": False,
-            "lilypond": False,
+            "png_export": True,
             "descendant_pid": descendant.pid if descendant else None
         } if operation == "handshake" else {}
     }
+    if operation == "handshake":
+        if mode == "no-parse": response["result"]["operations"] = [op for op in operations if op != "parse"]
+        if mode == "bad-png": response["result"]["png_export"] = "yes"
+    elif operation == "parse":
+        response["result"] = {"operation": "parse", "diagnostics": [], "source_offset_unit": "codepoint"}
+    if mode.startswith("progress") and operation == "transcribe" or mode == "progress-on-render" and operation == "render":
+        frames = [(0, 2, "recognizing"), (1, 2, "recognizing"), (2, 2, "compiling")]
+        if mode == "progress-regression": frames = [(1, 2, "recognizing"), (0, 2, "recognizing")]
+        if mode == "progress-total": frames = [(0, 2, "recognizing"), (1, 3, "recognizing")]
+        if mode == "progress-stage": frames = [(0, 2, "unknown")]
+        if mode == "progress-early-compile": frames = [(0, 2, "compiling")]
+        if mode == "progress-after-compile": frames = [(2, 2, "compiling"), (2, 2, "recognizing")]
+        if mode == "progress-bool": frames = [(True, 2, "recognizing")]
+        if mode == "progress-flood": frames = [(0, 1, "recognizing")] * 20
+        for completed, total, stage in frames:
+            frame = {**response, "status": "progress", "result": {"completed": completed, "total": total, "stage": stage}}
+            if mode == "progress-id": frame["request_id"] = "stale"
+            if mode == "progress-revision": frame["document_revision"] += 1
+            if mode == "progress-generation": frame["engine_generation"] = "old-worker"
+            print(json.dumps(frame), flush=True)
+        response["result"] = {"jps": "Q: 1 |", "issues": [], "page_count": 3 if mode == "progress-final-total" else 2}
+        if mode == "progress-error":
+            response.pop("result")
+            response.update(status="error", error={"code":"ocr_failed","message":"recognition failed"})
     print(json.dumps(response), flush=True)
     if mode == "exit-after-handshake" and operation == "handshake":
         sys.exit(0)
@@ -788,12 +970,12 @@ for line in sys.stdin:
             "status": "ok",
             "result": {
                 "operations": [
-                    "handshake", "load_document", "render", "export_svg",
+                    "handshake", "load_document", "render", "parse", "export_svg",
                     "render_page", "serialize_document", "transcribe"
                 ],
                 "custom_svg_display": true,
                 "ocr": false,
-                "lilypond": false
+                "png_export": true
             }
         });
         assert!(validate_response(&response, "handshake-0", "desktop", 0, None, true).is_ok());
@@ -801,6 +983,169 @@ for line in sys.stdin:
         let mut invalid = response;
         invalid["result"]["ocr"] = json!("unknown");
         assert!(validate_response(&invalid, "handshake-0", "desktop", 0, None, true).is_err());
+    }
+
+    fn transcription_args() -> TranscribeArgs {
+        TranscribeArgs {
+            document_id: "transcription-doc".into(),
+            document_revision: 7,
+            path: "/managed/reference.pdf".into(),
+        }
+    }
+
+    #[test]
+    fn parse_routes_the_snapshot_and_handshake_rejects_missing_parse_or_bad_png() {
+        let mut engine = fake_engine("normal");
+        let result = engine.parse(render_args()).unwrap();
+        assert_eq!(result["result"]["operation"], "parse");
+        assert_eq!(result["document_id"], "lifecycle-test");
+        assert_eq!(result["document_revision"], 1);
+        for mode in ["no-parse", "bad-png"] {
+            let mut invalid = fake_engine(mode);
+            assert!(invalid.capabilities().is_err());
+            assert!(invalid.process.is_none());
+        }
+    }
+
+    #[test]
+    fn valid_transcription_progress_is_correlated_monotonic_and_retains_business_errors() {
+        for mode in ["progress", "progress-error"] {
+            let mut engine = fake_engine(mode);
+            let received = Arc::new(Mutex::new(Vec::new()));
+            let frames = Arc::clone(&received);
+            let result = engine
+                .transcribe_with_progress(
+                    transcription_args(),
+                    Arc::new(AtomicBool::new(false)),
+                    move |frame| frames.lock().unwrap().push(frame),
+                )
+                .unwrap();
+            assert_eq!(result["document_id"], "transcription-doc");
+            assert_eq!(result["document_revision"], 7);
+            let frames = received.lock().unwrap();
+            assert_eq!(frames.len(), 3);
+            assert_eq!(frames[0]["completed"], 0);
+            assert_eq!(frames[1]["completed"], 1);
+            assert_eq!(frames[2]["stage"], "compiling");
+            if mode == "progress-error" {
+                assert_eq!(result["status"], "error");
+                assert_eq!(result["error"]["code"], "ocr_failed");
+            } else {
+                assert_eq!(result["status"], "ok");
+            }
+            assert!(engine.parse(render_args()).is_ok());
+        }
+    }
+
+    #[test]
+    fn invalid_progress_stops_the_worker_and_cannot_leak_to_another_request() {
+        for mode in [
+            "progress-id",
+            "progress-revision",
+            "progress-generation",
+            "progress-regression",
+            "progress-total",
+            "progress-stage",
+            "progress-early-compile",
+            "progress-after-compile",
+            "progress-bool",
+            "progress-flood",
+            "progress-final-total",
+            "progress-on-render",
+        ] {
+            let mut engine = fake_engine(mode);
+            engine.capabilities().unwrap();
+            let child = Arc::clone(&engine.process.as_ref().unwrap().child);
+            let result = if mode == "progress-on-render" {
+                engine.render(render_args())
+            } else {
+                engine.transcribe_with_progress(
+                    transcription_args(),
+                    Arc::new(AtomicBool::new(false)),
+                    |_| {},
+                )
+            };
+            assert!(result.is_err(), "accepted {mode}");
+            assert_reaped(&child);
+            assert!(engine.process.is_none());
+            assert!(
+                engine.parse(render_args()).is_ok(),
+                "cannot restart after {mode}"
+            );
+        }
+    }
+
+    #[test]
+    fn pre_cancelled_transcription_never_starts_a_worker() {
+        let mut engine = fake_engine("normal");
+        let result = engine.transcribe_with_progress(
+            transcription_args(),
+            Arc::new(AtomicBool::new(true)),
+            |_| {},
+        );
+        assert!(result.unwrap_err().contains("cancelled"));
+        assert!(engine.process.is_none());
+        assert!(engine.parse(render_args()).is_ok());
+    }
+
+    #[test]
+    fn running_cancellation_kills_worker_descendants_promptly_and_restarts() {
+        let mut engine = fake_engine("child-hang-request");
+        let pid = engine.capabilities().unwrap()["descendant_pid"]
+            .as_u64()
+            .unwrap() as u32;
+        let child = Arc::clone(&engine.process.as_ref().unwrap().child);
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let flag = Arc::clone(&cancelled);
+        let cancel = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(100));
+            flag.store(true, Ordering::Release);
+        });
+        let started = Instant::now();
+        let result = engine.transcribe_with_progress(transcription_args(), cancelled, |_| {});
+        cancel.join().unwrap();
+        assert!(result.unwrap_err().contains("cancelled"));
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_reaped(&child);
+        assert!(!descendant_running(pid));
+        assert!(engine.capabilities().is_ok());
+    }
+
+    #[test]
+    fn cancellation_during_handshake_kills_the_started_process_tree() {
+        let path = std::env::temp_dir().join(format!(
+            "octopus-startup-cancel-{}-{}",
+            std::process::id(),
+            super::NEXT_REQUEST_ID.fetch_add(1, Ordering::Relaxed)
+        ));
+        let path_text = path.to_str().unwrap();
+        let interpreter = if cfg!(windows) { "python" } else { "python3" };
+        let mut engine = EngineSupervisor::test_command(
+            interpreter,
+            &["-u", "-c", FAKE_ENGINE, "child-hang-handshake", path_text],
+            Duration::from_secs(5),
+        );
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let flag = Arc::clone(&cancelled);
+        let created = path.clone();
+        let cancel = std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while !created.exists() && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            // Publication can precede json.dump by a moment; wait for its close.
+            std::thread::sleep(Duration::from_millis(30));
+            flag.store(true, Ordering::Release);
+        });
+        let started = Instant::now();
+        let result = engine.transcribe_with_progress(transcription_args(), cancelled, |_| {});
+        cancel.join().unwrap();
+        assert!(result.unwrap_err().contains("cancelled"));
+        assert!(started.elapsed() < Duration::from_secs(3));
+        assert!(engine.process.is_none());
+        let pids: Vec<u32> = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        std::fs::remove_file(path).unwrap();
+        assert!(pids.iter().all(|pid| !descendant_running(*pid)));
     }
 
     #[test]

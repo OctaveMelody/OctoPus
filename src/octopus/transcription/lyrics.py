@@ -23,6 +23,7 @@ _PAGINATION = re.compile(
 class LyricDraft:
     body: str
     regions: tuple[Box, ...]
+    slot_constrained: bool = False
 
 
 def _is_lyric_text(value: str) -> bool:
@@ -84,11 +85,24 @@ def _assemble(spans: list[TextSpan], notes: MusicRow) -> str:
         unit for span in sorted(spans, key=lambda item: item.box[0])
         for unit in _lyric_units(span)
     ]
+    # OCR without character boxes estimates evenly spaced character centers. When
+    # this creates an adjacent collision and an empty note in a closed measure,
+    # the measure's one-syllable-per-note slot count is a conservative prior.
+    # Exact character evidence, rests, genuine extra syllables and large movement
+    # remain on the ordinary nearest-column path (including legitimate ~ joins).
+    constrained = _measure_slot_priors(spans, units, notes, centers)
     for position, (word, x) in enumerate(units):
+        target_position = position
         if word.startswith('"'):
-            x = next((later_x for later_word, later_x in units[position + 1:]
-                      if not later_word.startswith('"')), x)
-        index = min(range(len(centers)), key=lambda position: abs(centers[position] - x))
+            target_position, x = next(
+                ((later_position, later_x)
+                 for later_position, (later_word, later_x) in enumerate(
+                     units[position + 1:], start=position + 1,
+                 ) if not later_word.startswith('"')), (position, x),
+            )
+        index = constrained.get(target_position, min(
+            range(len(centers)), key=lambda position: abs(centers[position] - x),
+        ))
         assigned.setdefault(index, []).append(word)
     if not assigned:
         return ""
@@ -104,6 +118,46 @@ def _assemble(spans: list[TextSpan], notes: MusicRow) -> str:
                 for index, word in enumerate(words)
             ))
     return "".join(body)
+
+
+def _measure_slot_priors(
+    spans: list[TextSpan], units: list[tuple[str, float]], row: MusicRow, centers: list[float],
+) -> dict[int, int]:
+    """Repair only bounded adjacent collisions with a corroborated syllable count."""
+    if any(span.character_centers for span in spans) or any(
+        span.confidence < 0.9 for span in spans
+    ):
+        return {}
+    result: dict[int, int] = {}
+    bars = sorted(set(row.barlines))
+    for left, right in zip(bars, bars[1:], strict=False):
+        slots = [index for index, x in enumerate(centers) if left < x < right]
+        words = [index for index, (word, x) in enumerate(units)
+                 if left < x < right and not word.startswith('"')]
+        if len(slots) < 2 or len(slots) != len(words) or any(
+            row.notes[index].digit == "0" for index in slots
+        ):
+            continue
+        # The prior is for single Chinese syllables, with attached punctuation.
+        # Latin words have no reliable syllable count without linguistic analysis.
+        if any(not re.fullmatch(r"[\u3400-\u9fff][，。！？、,.!?；;：:]*", units[index][0])
+               for index in words):
+            continue
+        nearest = [min(slots, key=lambda slot: abs(centers[slot] - units[index][1]))
+                   for index in words]
+        if len(set(nearest)) == len(slots):
+            continue
+        if any(
+            abs(centers[slot] - units[word][1]) >
+            (row.notes[slot].box[3] - row.notes[slot].box[1]) * 0.75
+            or abs(nearest[index] - slot) > 1
+            or abs(centers[nearest[index]] - centers[slot]) >
+            (row.notes[slot].box[3] - row.notes[slot].box[1]) * 1.5
+            for index, (word, slot) in enumerate(zip(words, slots, strict=True))
+        ):
+            continue
+        result.update(zip(words, slots, strict=True))
+    return result
 
 
 def extract_lyrics(
@@ -151,5 +205,10 @@ def extract_lyrics(
         ))
         body = _assemble(band, row)
         if body:
-            drafts.append(LyricDraft(body, tuple(span.box for span in band)))
+            units = [unit for span in sorted(band, key=lambda item: item.box[0])
+                     for unit in _lyric_units(span)]
+            constrained = bool(_measure_slot_priors(
+                band, units, row, [(note.box[0] + note.box[2]) / 2 for note in row.notes],
+            ))
+            drafts.append(LyricDraft(body, tuple(span.box for span in band), constrained))
     return tuple(drafts)

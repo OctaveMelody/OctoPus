@@ -13,7 +13,7 @@
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-en.pdf">Download PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#en-introduction">1. Introduction</a><a href="#en-capabilities">2. Capabilities, limits and roadmap</a><a href="#en-quickstart">3. Your first score</a><a href="#en-workspace">4. The workspace and UI</a><a href="#en-files">5. Files, saving and recovery</a><a href="#en-source">6. Editing JPS source</a><a href="#en-preview">7. Preview, cursor and navigation</a><a href="#en-reference">8. Original images/PDFs and transcription</a><a href="#en-layout">9. Modes, layouts and focus</a><a href="#en-settings">10. Page settings and fonts</a><a href="#en-export">11. Export and portable use</a><a href="#en-shortcuts">12. Keyboard and Help</a><a href="#en-jps-structure">13. JPS structure and conventions</a><a href="#en-headers">14. Descriptive header</a><a href="#en-notes">15. Notes, register and duration</a><a href="#en-beaming">16. Automatic and custom grouping</a><a href="#en-accidentals">17. Accidentals and grace notes</a><a href="#en-dynamics">18. Dynamics and hairpins</a><a href="#en-ornaments">19. Ornaments, parentheses and annotations</a><a href="#en-barlines">20. Barlines and repeat instructions</a><a href="#en-slurs">21. Slurs and tuplets</a><a href="#en-endings">22. Endings and temporary meter</a><a href="#en-voices">23. Voices and temporary accompaniment</a><a href="#en-lyrics">24. Lyrics: Chinese, English and mixed text</a><a href="#en-pagination">25. Manual page breaks</a><a href="#en-practice">26. Practical editing and review checklist</a><a href="#en-troubleshooting">27. Troubleshooting and feedback</a><a href="#en-sources">28. Reference basis and compatibility</a></nav>
 <section id="en-introduction"><h2>1. Introduction</h2>
-<p>OctoPus (Octave + Jianpu) is a desktop editor for numbered music notation. Write a score as JPS (Jianpu Script) text, review a live SVG score, compare it with an original image or PDF, and export finished pages. A .jps file describes musical content; page settings control its presentation. This guide describes version 0.1.0, updated 2 October 2026.</p>
+<p>OctoPus (Octave + Jianpu) is a desktop editor for numbered music notation. Write a score as JPS (Jianpu Script) text, review a live SVG score, compare it with an original image or PDF, and export finished pages. A .jps file describes musical content; page settings control its presentation. This guide describes version 0.1.0, updated 3 October 2026.</p>
 <p>The program works locally for editing, rendering and supported transcription once installed. Help links and update checks need a browser or network connection. This manual works offline; its English and Chinese versions share the same topics and examples. Use the language tabs, or download the matching PDF.</p>
 </section>
 <section id="en-capabilities"><h2>2. Capabilities, limits and roadmap</h2>
@@ -22,11 +22,11 @@
 <tbody><tr><td>JPS editing</td><td>New/open/save, undo/redo, clipboard, find/replace, source formatting and bundled samples.</td></tr>
 <tr><td>Live SVG preview</td><td>Source/score correspondence, page navigation, zoom and page layout controls.</td></tr>
 <tr><td>Reference transcription</td><td>PNG/JPG/JPEG/PDF input, original display and provisional JPS drafts for review.</td></tr>
-<tr><td>Export</td><td>SVG, PDF and JPEG; locally packaged worker and bundled font substitutions.</td></tr>
+<tr><td>Export</td><td>SVG, PDF, PNG and JPEG; locally packaged worker and bundled font substitutions.</td></tr>
 <tr><td>Languages</td><td>English/Chinese interface and user manual.</td></tr>
 </tbody>
 </table>
-<p><b>Current limits.</b> Transcription is not guaranteed to recover a complete score. Check notes, accidentals, octave dots, durations, lyrics, slurs, grace notes, endings and page order. General running-header/footer/page-number filtering is still incomplete. Complex layout and cross-page spans need manual review. There is no desktop playback/MIDI workflow, LilyPond exporter or MusicXML import/export UI. Staff-notation recognition is planned, not a supported replacement for Jianpu input. Automatic update installation is not provided. Native macOS packaging is deferred; Windows/macOS host acceptance is separate from Linux testing.</p>
+<p><b>Current limits.</b> Transcription is not guaranteed to recover a complete score. Check notes, accidentals, octave dots, durations, lyrics, slurs, grace notes, endings and page order. Running-header/footer/page-number filtering is conservative; unusual layouts still need review. Complex layout and cross-page spans need manual review. There is no desktop playback/MIDI workflow, LilyPond exporter or MusicXML import/export UI. Staff-notation recognition is planned, not a supported replacement for Jianpu input. Automatic update installation is not provided. Native macOS packaging is deferred; Windows/macOS host acceptance is separate from Linux testing.</p>
 <ul><li>Planned: improve transcription quality, including difficult marks and repeated page furniture.</li>
 <li>Planned: LilyPond source export and MusicXML export/import.</li>
 <li>Planned: import and recognize staff-notation sheet music as JPS.</li>
@@ -63,7 +63,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <!-- sample:first-score:end -->
 </section>
 <section id="en-workspace"><h2>4. The workspace and UI</h2>
-<p>The top row provides New, Open, Save, Save As, Export, Close, Help, Import PNG/JPG/PDF, Samples Library, Page Settings, Preferences and Exit. The logo icon and text open the project home. The second row selects Mode/Layout and focuses a pane; drag the borders between panels to resize them.</p>
+<p>The top row provides New, Open, Recent files, Save, Save As, Export, Close, Help, Import PNG/JPG/PDF, Samples Library, Page Settings, Preferences and Exit. The logo icon and text open the project home. The second row selects Mode/Layout and focuses a pane; drag the borders between panels to resize them.</p>
 <table><thead><tr><th>Pane</th><th>Purpose</th></tr>
 </thead>
 <tbody><tr><td>JPS source</td><td>Edit text. Filename and Unsaved status sit immediately before the right-aligned Format Source button. Editing actions follow the JPS source heading.</td></tr>
@@ -76,15 +76,18 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <section id="en-files"><h2>5. Files, saving and recovery</h2>
 <p><b>Open</b> loads a .jps score. Both plain JPS text and compatible JSON-wrapped JPS documents are supported. The wrapper may contain source, page settings and existing metadata. <b>Save</b> writes the current document; a new document first needs a destination. <b>Save As</b> changes the destination. Changing page settings for plain text may require a wrapper to preserve them; heed the dialog notice.</p>
 <p><b>Close</b> closes the score; <b>Exit</b> closes the application. If changes are unsaved, choose Save, Discard or Cancel. Recovery can restore the last recoverable draft and managed references after interruption; it does not replace ordinary saved backups. Reference images/PDFs are separate from score source: retain their original files. Opening a sample creates a working document; choose your own save location before overwriting anything.</p>
+<p><b>Recent files</b> lists the ten most recently opened or saved score paths on this computer. Choose an entry to reopen it; unsaved changes still prompt before replacement. A missing or moved file reports an error and keeps the current score. Use Open to find its new location.</p>
 </section>
 <section id="en-source"><h2>6. Editing JPS source</h2>
 <p>Use Undo/Redo, Cut/Copy/Paste, Find, Replace and Select All from the heading or compact Edit menu. Find opens the search UI; Replace exposes replacement controls. Standard editor keyboard shortcuts remain available. Clipboard availability depends on the operating system. <b>Format Source</b> spaces musical tokens while retaining notation content; it cannot repair musical mistakes or validate a transcription. Quoted annotations and attached grace groups need careful review after edits.</p>
 <p>Manually selecting JPS text shows a blue selection, which becomes muted when the editor loses focus. Clicking a preview note marks its corresponding source note in green.</p>
 <p>Prefer ASCII punctuation for syntax: colon :, quote ", comma , apostrophe ' and slash /. Use full-line # comments to explain the source. Do not paste curly quotes or a full-width colon as syntax. Keep attached modifiers next to their note. Preserve a copy before a large replacement and use Undo when needed.</p>
+<p>Syntax checks appear while you type: gutter symbols and underlined source ranges mark errors or warnings. Select a gutter marker to jump to its range. A small <b>↳</b> marks a wrapped continuation of the same source line, not a new music row. Formatting applies only to valid music prefixes with a colon; descriptive text such as “Queen: some value” keeps its spaces.</p>
 </section>
 <section id="en-preview"><h2>7. Preview, cursor and navigation</h2>
 <p>The preview updates as source changes. Clicking or moving the source cursor highlights the matching score position and brings that row toward the preview center. Clicking a preview note or lyric selects its source without automatically moving the preview. Direct source clicks/keyboard movement resume following. Only uniquely mapped elements are selectable; some decorative or temporary-voice elements may not have a precise source target.</p>
 <p>Use -/+ to zoom, Fit Page for the whole page and Fit Width for width-based reading. Page arrows or View menu items navigate rendered pages. Refresh requests a new render. Click diagnostics below the preview to jump to the related source. A previous preview can remain visible during rendering; wait for completion and resolve relevant warnings before exporting.</p>
+<p>Focus the preview with Tab to use <b>Page Up / Page Down</b> for navigation and <b>Ctrl+wheel</b> for zoom. The status line reports completed pages and elapsed rendering time; during a multipage render it shows progress.</p>
 </section>
 <section id="en-reference"><h2>8. Original images/PDFs and transcription</h2>
 <p>Choose Import PNG/JPG/PDF or drop <b>one</b> PNG, JPG/JPEG or PDF into Original Image/PDF. An existing reference prompts Replace Reference or Cancel. Import is blocked while another import, replacement decision, recovery, save, transcription or conflicting dialog is active. Unsupported/multiple dropped files are rejected without import.</p>
@@ -94,6 +97,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <li>A PDF is transcribed as a document, not only its displayed page. Review the warnings and each page against the original; collapse warnings when you need editing space.</li>
 <li>Correct uncertain recognition manually. Check octave dots, beams, dotted durations, accidentals, grace notes, slurs, endings and lyrics before saving/exporting.</li>
 </ul>
+<h3>Review an uncertain draft</h3><p>Transcription shows recognized-page progress for a PDF and a <b>Cancel transcription</b> button. Cancel stops the running task and keeps your existing score; an unfinished draft is not inserted. After transcription, expand the review list and choose a finding. The original pane selects its page, zooms toward the reported region and draws amber boxes. Findings with a unique source mapping also select that note in the editor. Low digit agreement adds warning marks to the draft. The agreement score is a classifier comparison, not a calibrated probability or a guarantee of correctness.</p><p>Changing the source clears obsolete note-range marks; scan regions remain useful for manual review. Renamed, removed or replaced references cannot be selected through an old finding. A one-time hint explains dropping a scan/PDF and creating a draft; dismiss it to keep the workspace clear.</p><p>Repeated document headers/footers and isolated page numbers are filtered conservatively outside the music and lyric bands. Render-back checks flag severe note-count, row or spacing mismatches without rewriting uncertain notes. Check all notation manually: these checks do not prove the draft is complete or musically correct.</p>
 </section>
 <section id="en-layout"><h2>9. Modes, layouts and focus</h2>
 <table><thead><tr><th>Mode/layout</th><th>Use</th></tr>
@@ -117,11 +121,14 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <tr><td>FangSong</td><td>FangSong</td><td>STFangsong</td><td>Zhuque Fangsong Regular</td></tr>
 </tbody>
 </table>
-<p>Open <b>Preferences</b> in the top bar to select English or Chinese and choose the font source for each role. Select <b>OS Preference</b> to use the matching installed family or <b>Free Fallback</b> to use the bundled replacement even when the OS font is installed. Unavailable OS choices are greyed out and the bundled fallback is selected automatically. Choices are saved on this computer, apply to SVG preview and SVG/PDF/JPG exports, and do not change the saved JPS. Each installed family is preferred by default, including in production portable builds. Linux needs an exact fontconfig match. Missing families use bundled substitutions. Bundled text with missing characters tries Noto Sans SC, then Noto Serif SC for coverage; neither guarantees every Unicode character. Latin Arial requests use Liberation Sans (Regular/Italic/Bold/Bold Italic). Note styles are Regular, Italic and Bold. Saved HeiTi maps to HeiTi-2. Font substitutions can change spacing. Microsoft fonts are not redistributed. MiSans has its own Xiaomi license; other bundled notices include OFL and IPA licenses.</p>
+<p>Open <b>Preferences</b> in the top bar to select English or Chinese and choose the font source for each role. Select <b>OS Preference</b> to use the matching installed family or <b>Free Fallback</b> to use the bundled replacement even when the OS font is installed. Unavailable OS choices are greyed out and the bundled fallback is selected automatically. Choices are saved on this computer, apply to SVG preview and SVG/PDF/PNG/JPG exports, and do not change the saved JPS. Each installed family is preferred by default, including in production portable builds. Linux needs an exact fontconfig match. Missing families use bundled substitutions. Bundled text with missing characters tries Noto Sans SC, then Noto Serif SC for coverage; neither guarantees every Unicode character. Latin Arial requests use Liberation Sans (Regular/Italic/Bold/Bold Italic). Note styles are Regular, Italic and Bold. Saved HeiTi maps to HeiTi-2. Font substitutions can change spacing. Microsoft fonts are not redistributed. MiSans has its own Xiaomi license; other bundled notices include OFL and IPA licenses.</p>
 </section>
 <section id="en-export"><h2>11. Export and portable use</h2>
-<p>Choose Export and select SVG, PDF, JPG (96 DPI) or JPG (300 DPI), then choose the output destination. PDF produces one multipage document; SVG/JPG produce page files. 300 DPI is useful for print-quality raster output. The disabled LilyPond item is a planned feature. Save the JPS as the editable master before sharing rendered files. PDF embeds fonts, JPEG stores pixels and SVG preserves vector content, but external SVG viewers need matching text fonts. Inspect the result in its destination viewer. The separate Python ReportLab PDF path cannot embed CFF-outline system fonts and uses the role fallback there; this is not a blanket limitation of native desktop export.</p>
+<p>Choose Export and select SVG, PDF, PNG or JPG (96 or 300 DPI), then choose the output destination. PDF produces one multipage document; SVG/PNG/JPG produce page files. 300 DPI is useful for print-quality raster output. LilyPond export appears with planned features in Help → About OctoPus. Save the JPS as the editable master before sharing rendered files. PDF embeds fonts, PNG stores lossless pixels and JPEG stores compressed pixels and SVG preserves vector content, but external SVG viewers need matching text fonts. Inspect the result in its destination viewer. The separate Python ReportLab PDF path cannot embed CFF-outline system fonts and uses the role fallback there; this is not a blanket limitation of native desktop export.</p>
 <p>Keep the entire portable folder together, including engine, examples and docs. On Linux run <code>dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus</code>; Windows uses <code>portable/octopus.exe</code>. The worker is bundled, so no separate Python is required. Linux still requires GTK/WebKit runtime libraries and Poppler; Windows requires WebView2. Portable does not mean every host dependency is embedded.</p>
+<h3>Batch export from the Python command line</h3><p>For a folder of JPS sources, the Python command line can produce one combined PDF or separate files per score. Files are processed in sorted path order; recursive output keeps subfolders. Existing output files are never overwritten. A failed source is reported while other valid sources continue; review the exit status and printed summary.</p><pre><code>uv run --locked octopus batch-export /path/to/scores --out combined.pdf
+uv run --locked octopus batch-export /path/to/scores --out-dir exported --format pdf --recursive
+uv run --locked octopus batch-export /path/to/scores --out-dir images --format png --dpi 300</code></pre><p>These commands use the Python installation described in ENVIRONMENT.md. They are not arguments to the portable desktop launcher.</p>
 </section>
 <section id="en-shortcuts"><h2>12. Keyboard and Help</h2>
 <table><thead><tr><th>Shortcut</th><th>Action</th></tr>
@@ -131,9 +138,10 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <tr><td>Ctrl/Cmd+S / Shift+S</td><td>Save / Save As</td></tr>
 <tr><td>Ctrl/Cmd+Z</td><td>Undo</td></tr>
 <tr><td>Ctrl/Cmd+Y or Shift+Z</td><td>Redo</td></tr>
-<tr><td>Ctrl/Cmd+E</td><td>Insert the editor’s last inserted content when available</td></tr>
 <tr><td>Ctrl/Cmd+X / C / V / A</td><td>Cut / Copy / Paste / Select All in the editor</td></tr>
 <tr><td>Ctrl/Cmd+F</td><td>Editor search</td></tr>
+<tr><td>Ctrl+H (Windows/Linux), Cmd+Option+F (macOS)</td><td>Replace in editor</td></tr>
+<tr><td>Page Up / Page Down; Ctrl+wheel</td><td>Navigate / zoom the focused preview</td></tr>
 <tr><td>F11</td><td>Toggle window maximization</td></tr>
 <tr><td>Arrow / Home / End / Escape</td><td>Navigate menus; Escape dismisses. Language tabs also support arrow/Home/End.</td></tr>
 </tbody>
@@ -661,7 +669,7 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自动与自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
 <section id="zh-CN-introduction"><h2>1. 简介</h2>
-<p>OctoPus（Octave + Jianpu）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。本手册适用于 0.1.0 版本，更新于 2026 年 10 月 2 日。</p>
+<p>OctoPus（Octave + Jianpu）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。本手册适用于 0.1.0 版本，更新于 2026 年 10 月 3 日。</p>
 <p>安装完成后，编辑、渲染和受支持的转录功能可在本地运行。帮助链接及更新检查需要浏览器或网络连接。手册本身支持离线阅读；中英文版本具有相同主题和示例。可切换语言标签页，也可下载对应 PDF。</p>
 </section>
 <section id="zh-CN-capabilities"><h2>2. 功能、限制与计划</h2>
@@ -670,11 +678,11 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 <tbody><tr><td>JPS 编辑</td><td>新建、打开、保存、撤销/重做、剪贴板、查找替换、源码格式化及内置示例。</td></tr>
 <tr><td>实时 SVG 预览</td><td>源码与谱面对应、翻页、缩放及页面排版控制。</td></tr>
 <tr><td>原稿转录</td><td>导入 PNG/JPG/JPEG/PDF，显示原稿并生成待校对的 JPS 草稿。</td></tr>
-<tr><td>导出</td><td>SVG、PDF、JPEG；内置本地引擎与替代字体。</td></tr>
+<tr><td>导出</td><td>SVG、PDF、PNG、JPEG；内置本地引擎与替代字体。</td></tr>
 <tr><td>语言</td><td>中英文界面及用户手册。</td></tr>
 </tbody>
 </table>
-<p><b>当前限制。</b>转录不能保证完整还原乐谱。请核对音符、变音、八度点、时值、歌词、连音线、倚音、跳房子及页序。通用的页眉、页脚和页码过滤仍不完善。复杂排版及跨页连线需要人工检查。桌面界面目前没有播放/MIDI 工作流、LilyPond 导出或 MusicXML 导入导出。五线谱识别属于计划功能，不能作为当前简谱输入的替代。没有自动安装更新功能。macOS 原生打包暂缓；Windows/macOS 主机验收与 Linux 测试分别进行。</p>
+<p><b>当前限制。</b>转录不能保证完整还原乐谱。请核对音符、变音、八度点、时值、歌词、连音线、倚音、跳房子及页序。页眉、页脚和页码过滤采取保守规则，特殊排版仍需校对。复杂排版及跨页连线需要人工检查。桌面界面目前没有播放/MIDI 工作流、LilyPond 导出或 MusicXML 导入导出。五线谱识别属于计划功能，不能作为当前简谱输入的替代。没有自动安装更新功能。macOS 原生打包暂缓；Windows/macOS 主机验收与 Linux 测试分别进行。</p>
 <ul><li>计划：提升转录质量，包括复杂记号及重复的页面附属文字。</li>
 <li>计划：导出 LilyPond 源码及导入、导出 MusicXML。</li>
 <li>计划：导入五线谱资料并识别为 JPS。</li>
@@ -724,15 +732,18 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <section id="zh-CN-files"><h2>5. 文件、保存与恢复</h2>
 <p><b>打开</b>加载 .jps 乐谱。支持纯 JPS 文本及兼容的 JSON 包装文档；包装可包含源码、页面设置和原有元数据。<b>保存</b>写入当前文档，新文档首次保存需选择位置。<b>另存为</b>更换保存位置。对纯文本文档修改页面设置时，为保存设置可能需要转为包装格式，请留意对话框提示。</p>
 <p><b>关闭</b>关闭乐谱，<b>退出</b>关闭程序。有未保存修改时，可选择保存、放弃或取消。中断后的恢复功能可还原最后可恢复的草稿及托管原稿，但不能替代常规文件备份。参考图片/PDF 与乐谱源码分别管理，请保留原始文件。打开示例后得到工作文档；覆盖文件前应选择自己的保存位置。</p>
+<p><b>最近文件</b>列出本机最近打开或保存的十个乐谱路径。选择条目可重新打开；替换前仍会处理未保存提示。文件被移动或删除时会报告错误，并保留当前乐谱。可通过“打开”查找新位置。</p>
 </section>
 <section id="zh-CN-source"><h2>6. 编辑 JPS 源码</h2>
 <p>从标题行或折叠的编辑菜单使用撤销/重做、剪切/复制/粘贴、查找、替换及全选。查找打开搜索界面；替换显示替换控制。标准编辑器快捷键仍可用。剪贴板能力取决于操作系统。<b>格式化源码</b>调整音乐标记间距并保留记谱内容，不能纠正音乐错误或确认转录正确。修改后应仔细检查带引号的注释及紧附音符的倚音组。</p>
 <p>手动选择 JPS 文本时，选区显示为蓝色；编辑器失去焦点时，颜色变淡。点击预览中的音符时，仍使用绿色标记显示对应的源码音符。</p>
 <p>语法标点请使用半角 ASCII：冒号 :、双引号 "、逗号 ,、单引号 '、斜线 /。整行 # 注释可说明源码。不要将弯引号或全角冒号当作语法符号粘贴。附属记号应紧跟所属音符。大量替换前先备份，必要时使用撤销。</p>
+<p>输入时会检查语法：行号栏符号和源码下划线提示错误或警告。选择行号栏标记可跳到对应范围。<b>↳</b> 表示同一源代码行的折行续行，并非新的乐谱行。格式整理只作用于带冒号的有效音乐前缀；“Queen: some value”等描述文本保留原有空格。</p>
 </section>
 <section id="zh-CN-preview"><h2>7. 预览、光标与导航</h2>
 <p>源码变化时预览自动更新。点击或移动源码光标会突出对应谱面位置，并将该行移向预览中央。点击预览音符或歌词只选择对应源码，不会自动移动预览；直接点击源码或用键盘移动会恢复跟随。仅具有唯一映射的元素可以定位；部分装饰或临时声部元素可能没有精确源码目标。</p>
 <p>用 -/+ 缩放，适合页面显示整页，适合宽度按面板宽度阅读。翻页按钮或视图菜单用于切换渲染页面；刷新重新渲染。点击预览下方诊断可跳到相关源码。渲染期间可能仍显示旧预览；导出前应等待完成并处理相关提示。</p>
+<p>用 Tab 聚焦预览后，可通过 <b>Page Up / Page Down</b> 翻页，通过 <b>Ctrl+鼠标滚轮</b> 缩放。状态栏在完成后显示页数及渲染用时；多页渲染时显示进度。</p>
 </section>
 <section id="zh-CN-reference"><h2>8. 原稿图片/PDF 与转录</h2>
 <p>选择导入 PNG/JPG/PDF，或将<b>单个</b> PNG、JPG/JPEG、PDF 拖入原始图片/PDF 面板。已有原稿时会询问替换原稿或取消。另一次导入、替换选择、恢复、保存、转录或冲突对话框正在进行时不能导入。拖入不支持的文件或多个文件会被拒绝。</p>
@@ -742,6 +753,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <li>PDF 按整份文档转录，不只处理当前显示页。阅读提示并逐页对照原稿；需要编辑空间时可折叠提示。</li>
 <li>手动修正不确定结果。保存/导出前核对八度点、减时线、附点、变音、倚音、连音线、跳房子和歌词。</li>
 </ul>
+<h3>校对不确定的草稿</h3><p>PDF 转录显示已识别页数，并提供<b>取消转录</b>按钮。取消会停止当前任务，保留已有乐谱，不插入尚未完成的草稿。转录后展开检查列表并选择一项：原稿面板会选择对应页、放大相关区域并显示琥珀色矩形框。能唯一映射到源码的提示还会选中编辑器中的对应音符。数字匹配度较低时，草稿中显示警告标记。匹配度是分类器的比较分数，并非校准后的概率，也不保证识别正确。</p><p>修改源码后，失效的音符范围标记会清除；原稿区域仍可用于人工校对。旧提示不能选择已被移除或替换的参考资料。首次使用的提示说明如何拖入扫描稿/PDF 并生成草稿，可关闭以减少干扰。</p><p>程序保守地过滤乐谱和歌词区域之外的重复页眉页脚及孤立页码。草稿回渲染检查会提示明显的音符数量、行或间距异常，不会据此改写不确定的音符。仍需人工核对所有记号；这些检查不能证明草稿完整或音乐内容正确。</p>
 </section>
 <section id="zh-CN-layout"><h2>9. 模式、布局与聚焦</h2>
 <table><thead><tr><th>模式/布局</th><th>用途</th></tr>
@@ -765,11 +777,14 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <tr><td>FangSong</td><td>FangSong</td><td>STFangsong</td><td>Zhuque Fangsong Regular</td></tr>
 </tbody>
 </table>
-<p>点击顶栏<b>偏好设置</b>，可选择英语或中文，并分别设置各类字体的来源。选择<b>系统优先字体</b>使用对应已安装字体；选择<b>免费替代字体</b>则即使系统字体已安装，也使用内置替代字体。系统字体缺失时，该选项变灰，自动选中内置替代字体。设置保存在本机，适用于 SVG 预览和 SVG/PDF/JPG 导出，不会修改保存的 JPS。默认分别优先使用已安装的对应系统字体，生产便携版同样如此；Linux 需要 fontconfig 精确匹配。缺失时使用内置替代字体。内置文本出现缺字时，先尝试 Noto Sans SC，再检查 Noto Serif SC 的覆盖；不能保证所有 Unicode 字符都有字形。西文 Arial 请求使用 Liberation Sans（常规/斜体/粗体/粗斜体）。音符样式为常规、斜体及粗体。旧 HeiTi 对应 HeiTi-2。替代字体可能改变间距。微软字体不随软件分发。MiSans 使用小米独立许可；其他内置说明包含 OFL 和 IPA 许可。</p>
+<p>点击顶栏<b>偏好设置</b>，可选择英语或中文，并分别设置各类字体的来源。选择<b>系统优先字体</b>使用对应已安装字体；选择<b>免费替代字体</b>则即使系统字体已安装，也使用内置替代字体。系统字体缺失时，该选项变灰，自动选中内置替代字体。设置保存在本机，适用于 SVG 预览和 SVG/PDF/PNG/JPG 导出，不会修改保存的 JPS。默认分别优先使用已安装的对应系统字体，生产便携版同样如此；Linux 需要 fontconfig 精确匹配。缺失时使用内置替代字体。内置文本出现缺字时，先尝试 Noto Sans SC，再检查 Noto Serif SC 的覆盖；不能保证所有 Unicode 字符都有字形。西文 Arial 请求使用 Liberation Sans（常规/斜体/粗体/粗斜体）。音符样式为常规、斜体及粗体。旧 HeiTi 对应 HeiTi-2。替代字体可能改变间距。微软字体不随软件分发。MiSans 使用小米独立许可；其他内置说明包含 OFL 和 IPA 许可。</p>
 </section>
 <section id="zh-CN-export"><h2>11. 导出与便携版使用</h2>
-<p>通过导出选择 SVG、PDF、JPG（96 DPI）或 JPG（300 DPI），再选择输出位置。PDF 生成一份多页文档；SVG/JPG 按页生成文件。300 DPI 适合印刷质量的像素输出。禁用的 LilyPond 项属于计划功能。分享渲染文件前先保存 JPS 作为可编辑原稿。PDF 嵌入字体，JPEG 保存像素，SVG 保留矢量内容，但外部 SVG 查看器需要相应文本字体。请在目标查看器检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，此时使用对应替代字体；这不是原生桌面导出的统一限制。</p>
+<p>通过导出选择 SVG、PDF、PNG 或 JPG（96 或 300 DPI），再选择输出位置。PDF 生成一份多页文档；SVG/PNG/JPG 按页生成文件。300 DPI 适合印刷质量的像素输出。LilyPond 导出列在“帮助 → 关于 OctoPus”的规划功能中。分享渲染文件前先保存 JPS 作为可编辑原稿。PDF 嵌入字体，PNG 无损保存像素，JPEG 保存压缩像素，SVG 保留矢量内容，但外部 SVG 查看器需要相应文本字体。请在目标查看器检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，此时使用对应替代字体；这不是原生桌面导出的统一限制。</p>
 <p>请保持便携目录完整，包括 engine、examples 和 docs。Linux 运行 <code>dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus</code>，Windows 运行 <code>portable/octopus.exe</code>。已内置引擎，无需另装 Python。Linux 仍需 GTK/WebKit 运行库及 Poppler，Windows 需 WebView2。便携并不表示包含全部主机依赖。</p>
+<h3>通过 Python 命令行批量导出</h3><p>Python 命令行可将一组 JPS 合并为一份 PDF，或按乐谱分别导出。文件按路径排序处理；递归导出保留子目录。已有输出不会被覆盖。某个源文件失败时会报告错误，并继续处理其他有效源文件；请检查退出状态和输出摘要。</p><pre><code>uv run --locked octopus batch-export /path/to/scores --out combined.pdf
+uv run --locked octopus batch-export /path/to/scores --out-dir exported --format pdf --recursive
+uv run --locked octopus batch-export /path/to/scores --out-dir images --format png --dpi 300</code></pre><p>这些命令使用 ENVIRONMENT.md 所述的 Python 安装环境，不能作为便携版桌面启动程序的参数使用。</p>
 </section>
 <section id="zh-CN-shortcuts"><h2>12. 快捷键与帮助</h2>
 <table><thead><tr><th>快捷键</th><th>操作</th></tr>
@@ -779,9 +794,10 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <tr><td>Ctrl/Cmd+S / Shift+S</td><td>保存 / 另存为</td></tr>
 <tr><td>Ctrl/Cmd+Z</td><td>撤销</td></tr>
 <tr><td>Ctrl/Cmd+Y 或 Shift+Z</td><td>重做</td></tr>
-<tr><td>Ctrl/Cmd+E</td><td>可用时插入编辑器上次插入的内容</td></tr>
 <tr><td>Ctrl/Cmd+X / C / V / A</td><td>在编辑器中剪切 / 复制 / 粘贴 / 全选</td></tr>
 <tr><td>Ctrl/Cmd+F</td><td>编辑器查找</td></tr>
+<tr><td>Ctrl+H（Windows/Linux）、Cmd+Option+F（macOS）</td><td>编辑器替换</td></tr>
+<tr><td>Page Up / Page Down；Ctrl+滚轮</td><td>已聚焦预览的翻页 / 缩放</td></tr>
 <tr><td>F11</td><td>切换窗口最大化</td></tr>
 <tr><td>方向键 / Home / End / Escape</td><td>导航菜单，Escape 关闭；语言标签页也支持方向键/Home/End。</td></tr>
 </tbody>

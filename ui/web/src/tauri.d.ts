@@ -4,6 +4,7 @@ interface Window {
       invoke<T>(command: string, args?: Record<string, unknown>): Promise<T>;
       convertFileSrc(filePath: string): string;
     };
+    event?: { listen(name: string, handler: (event: {payload: unknown}) => void): Promise<() => void>; };
     window: {
       getCurrentWindow(): {
         onCloseRequested(handler: (event: { preventDefault(): void }) => void): Promise<() => void>;

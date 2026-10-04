@@ -1,6 +1,6 @@
 use crate::DesktopState;
 use jps_document_io::file_exports::{publish_export_pages, ExportFormat};
-use jps_document_io::score_exports::{export_jpg_pages, export_pdf};
+use jps_document_io::score_exports::{export_jpg_pages, export_pdf, export_png_pages};
 use jps_document_io::svg_exports::publish_svg_pages;
 use jps_engine_bridge::RenderArgs;
 use serde_json::Value;
@@ -55,6 +55,7 @@ fn export_extension(format: ExportFormat) -> &'static str {
         ExportFormat::Svg => "svg",
         ExportFormat::Pdf => "pdf",
         ExportFormat::Jpg => "jpg",
+        ExportFormat::Png => "png",
     }
 }
 
@@ -63,6 +64,7 @@ fn export_filter(format: ExportFormat) -> &'static str {
         ExportFormat::Svg => "SVG image",
         ExportFormat::Pdf => "PDF document",
         ExportFormat::Jpg => "JPG image",
+        ExportFormat::Png => "PNG image",
     }
 }
 
@@ -220,15 +222,22 @@ pub(crate) async fn export_score(
 ) -> Result<Option<Value>, String> {
     let (format, dpi) = match format.as_str() {
         "pdf" if dpi.is_none() => (ExportFormat::Pdf, None),
-        "jpg" => {
+        "jpg" | "png" => {
             let dpi = dpi.unwrap_or(96);
             if !matches!(dpi, 96 | 300) {
-                return Err("JPG resolution must be 96 or 300 DPI".into());
+                return Err("Image resolution must be 96 or 300 DPI".into());
             }
-            (ExportFormat::Jpg, Some(dpi))
+            (
+                if format == "png" {
+                    ExportFormat::Png
+                } else {
+                    ExportFormat::Jpg
+                },
+                Some(dpi),
+            )
         }
-        "pdf" => return Err("PDF export does not accept a JPG resolution".into()),
-        _ => return Err("export format must be PDF or JPG".into()),
+        "pdf" => return Err("PDF export does not accept a raster resolution".into()),
+        _ => return Err("export format must be PDF, JPG or PNG".into()),
     };
     let Some((selected_path, replace_existing)) =
         choose_export_path(app, window, suggested_path, suggested_name, format).await?
@@ -250,6 +259,8 @@ pub(crate) async fn export_score(
             ExportFormat::Pdf => vec![export_pdf(&svg_pages).map_err(|error| error.to_string())?],
             ExportFormat::Jpg => export_jpg_pages(&svg_pages, dpi.unwrap_or(96))
                 .map_err(|error| error.to_string())?,
+            ExportFormat::Png => export_png_pages(&svg_pages, dpi.unwrap_or(96))
+                .map_err(|error| error.to_string())?,
             ExportFormat::Svg => return Err("SVG uses the SVG export command".into()),
         };
         let output_bytes = output_pages.iter().map(Vec::as_slice).collect::<Vec<_>>();
@@ -269,6 +280,7 @@ pub(crate) async fn export_score(
             "format": match format {
                 ExportFormat::Pdf => "pdf",
                 ExportFormat::Jpg => "jpg",
+                ExportFormat::Png => "png",
                 ExportFormat::Svg => "svg",
             },
             "dpi": dpi,

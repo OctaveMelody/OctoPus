@@ -15,6 +15,7 @@ pub enum ExportFormat {
     Svg,
     Pdf,
     Jpg,
+    Png,
 }
 
 impl ExportFormat {
@@ -23,6 +24,7 @@ impl ExportFormat {
             Self::Svg => "svg",
             Self::Pdf => "pdf",
             Self::Jpg => "jpg",
+            Self::Png => "png",
         }
     }
 }

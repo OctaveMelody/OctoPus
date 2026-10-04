@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.92"
 
 [dependencies]
-image = { version = "=0.25.10", default-features = false, features = ["jpeg"] }
+image = { version = "=0.25.10", default-features = false, features = ["jpeg", "png"] }
 krilla = { version = "=0.8.2", default-features = false }
 krilla-svg = "=0.8.1"
 resvg = { version = "=0.47.0", default-features = false }

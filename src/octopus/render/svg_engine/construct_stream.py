@@ -16,8 +16,7 @@ from octopus.render.core.layout_types import (
 
 from ...parser.ast import MusicTokenKind
 from ..core.layout_widths import NOTE_WIDTH
-from ..layout_engine.beat_grid_engine.spacing import duration_fraction
-from ..layout_engine.hidden.leading_dsb import project_source_onset, source_onsets
+from ..core.source_timing import duration_fraction, project_source_onset, source_onsets
 from .construct_emission import late_construct_emission_plan
 from .constructs import _construct_element, _ending_label_element, _line_element
 from .event_policy import dsb_close_barline as _dsb_close_barline

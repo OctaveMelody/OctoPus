@@ -1,12 +1,16 @@
 /** @typedef {{text: string, positions: number[]}} FormattedJpsText */
 
-const AUTO_FORMAT_TRIGGERS = "0123456789|:";
+const AUTO_FORMAT_TRIGGERS = "0123456789|:.-";
+// Mirror parser/grammar.py: split at the first colon, then match the trimmed prefix.
+const MUSIC_PREFIX = /^Q\d*(?:\[[^\]]*\]|"[^"]*")?$/i;
 
 /** @param {string} line @param {{position: number, index: number}[]} positions */
 function formatMusicLine(line, positions) {
-  if (line.charAt(0) !== "Q") {
+  const colon = line.indexOf(":");
+  if (colon < 0 || !MUSIC_PREFIX.test(line.slice(0, colon).trim())) {
     return { text: line, positions: positions.map(({ position }) => position) };
   }
+  const prefixEnd = colon + 1;
 
   let sourceCursor = 0;
   let quoted = false;
@@ -19,6 +23,11 @@ function formatMusicLine(line, positions) {
   const appendThrough = (end) => {
     while (sourceCursor < end) {
       const character = line.charAt(sourceCursor);
+      if (sourceCursor < prefixEnd) {
+        compact += character;
+        sourceCursor++;
+        continue;
+      }
       const wasQuoted = quoted;
       const wasBracketed = bracketDepth > 0;
       if (character === '"' && !escaped) quoted = !quoted;
@@ -39,7 +48,6 @@ function formatMusicLine(line, positions) {
     compactPositions.push(compact.length);
   }
   appendThrough(line.length);
-  const colon = compact.indexOf(":");
   if (colon >= 0) {
     compact = `${compact.slice(0, colon + 1)} ${compact.slice(colon + 1)}`;
     for (let index = 0; index < compactPositions.length; index++) {
@@ -62,6 +70,10 @@ function formatMusicLine(line, positions) {
     if (index === compact.length) break;
 
     const character = compact.charAt(index);
+    if (index < prefixEnd) {
+      output += character;
+      continue;
+    }
     const previous = compact.charAt(index - 1);
     const next = compact.charAt(index + 1);
     if (character === '"' && !escaped) quoted = !quoted;

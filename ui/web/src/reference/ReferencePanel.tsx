@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
 
 import { AdaptiveToolbar } from "../workspace/AdaptiveToolbar";
@@ -53,6 +53,12 @@ type Props = {
   busy: boolean;
   importing: boolean;
   transcribing: boolean;
+  cancelling?: boolean;
+  progress?: {completed:number; total:number; stage:string} | null;
+  onCancel?(): void;
+  reviewRegion?: {id:string; boxes:number[][]; serial:number} | null;
+  showHint?: boolean;
+  onDismissHint?(): void;
   transcriptionControl: ReactNode;
   visible: boolean;
   renderErrorLabel: string;
@@ -70,7 +76,8 @@ export function ReferencePanel({
   views,
   busy,
   importing,
-  transcribing,
+  transcribing, cancelling = false, progress = null, onCancel, reviewRegion = null,
+  showHint = false, onDismissHint,
   transcriptionControl,
   visible,
   renderErrorLabel,
@@ -80,6 +87,9 @@ export function ReferencePanel({
   onViewChange,
 }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const pendingReviewCenter = useRef<{
+    id: string; serial: number; zoom: number; panX: number; panY: number;
+  } | null>(null);
   const hasPdfPages = useRef(false);
   const containsPdfPages = images.some((page) => page.kind === "pdf-page");
   hasPdfPages.current = containsPdfPages;
@@ -119,6 +129,28 @@ export function ReferencePanel({
       .then(({ closeAllPdfDocuments }) => closeAllPdfDocuments())
       .catch(() => {});
   }, [containsPdfPages, visible]);
+
+  useLayoutEffect(() => {
+    if (!image || !reviewRegion || reviewRegion.id !== image.id || !reviewRegion.boxes.length) return;
+    const element = viewportRef.current;
+    if (!element || element.clientWidth <= 0 || element.clientHeight <= 0) return;
+    const size = orientedImageSize(image);
+    const boxes = reviewRegion.boxes;
+    const left = Math.min(...boxes.map(box => box[0]));
+    const top = Math.min(...boxes.map(box => box[1]));
+    const right = Math.max(...boxes.map(box => box[2]));
+    const bottom = Math.max(...boxes.map(box => box[3]));
+    const baseScale = Math.min(element.clientWidth / size.width, element.clientHeight / size.height);
+    const scale = Math.min(element.clientWidth / (Math.max(0.08, right-left) * size.width * 1.4),
+      element.clientHeight / (Math.max(0.08, bottom-top) * size.height * 1.4));
+    const zoom = Math.max(1, Math.min(4, scale / baseScale));
+    const width = size.width * baseScale * zoom;
+    const height = size.height * baseScale * zoom;
+    const panX = -(left + right - 1) / 2 * width;
+    const panY = -(top + bottom - 1) / 2 * height;
+    pendingReviewCenter.current = { id: image.id, serial: reviewRegion.serial, zoom, panX, panY };
+    onViewChange(image.id, {fit: "page", zoom, rotation: 0, panX, panY});
+  }, [reviewRegion?.serial, image?.id]);
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (
@@ -184,6 +216,27 @@ export function ReferencePanel({
   const stageSize = view
     ? referenceStageSize(viewport, scaledWidth, scaledHeight, view.rotation)
     : viewport;
+
+  useLayoutEffect(() => {
+    const pending = pendingReviewCenter.current;
+    const element = viewportRef.current;
+    if (!pending || !element || !view || pending.id !== image?.id
+      || pending.serial !== reviewRegion?.serial || view.fit !== "page" || view.rotation !== 0
+      || view.zoom !== pending.zoom || view.panX !== pending.panX || view.panY !== pending.panY) return;
+    // Measure after the zoomed stage commits; scrolling earlier clamps to the previous stage.
+    const boxes = [...element.querySelectorAll(".reference-review-overlay span")]
+      .map(box => box.getBoundingClientRect());
+    if (!boxes.length) return;
+    const bounds = element.getBoundingClientRect();
+    const centerX = (Math.min(...boxes.map(box => box.left))
+      + Math.max(...boxes.map(box => box.right))) / 2;
+    const centerY = (Math.min(...boxes.map(box => box.top))
+      + Math.max(...boxes.map(box => box.bottom))) / 2;
+    element.scrollLeft += centerX - bounds.left - element.clientLeft - element.clientWidth / 2;
+    element.scrollTop += centerY - bounds.top - element.clientTop - element.clientHeight / 2;
+    pendingReviewCenter.current = null;
+  }, [image?.id, reviewRegion?.serial, view?.fit, view?.rotation, view?.zoom, view?.panX,
+    view?.panY, stageSize.width, stageSize.height]);
 
   return (
     <section aria-label={copy.reference} className={`panel reference-panel${dropActive ? " reference-drop-active" : ""}`}
@@ -279,10 +332,14 @@ export function ReferencePanel({
         <div className="reference-heading-transcribe">{transcriptionControl}</div>
         <button aria-label={copy.closeReference} onClick={onClose} type="button">×</button>
       </div>
+      {showHint && <aside className="reference-onboarding"><p>{copy.referenceHint}</p>
+        <button type="button" aria-label={copy.dismissHint} onClick={onDismissHint}>×</button></aside>}
       {transcribing && (
         <div className="reference-transcription-progress" role="status">
-          <span>{copy.transcribing}</span>
-          <progress aria-label={copy.transcribing} />
+          <span>{cancelling ? copy.cancellingTranscription : progress?.stage === "compiling"
+            ? copy.compilingTranscription : progress ? copy.transcriptionPageProgress(progress.completed, progress.total) : copy.transcribing}</span>
+          <progress aria-label={copy.transcribing} max={progress?.total} value={progress?.completed} />
+          <button type="button" disabled={cancelling} onClick={onCancel}>{copy.cancelTranscription}</button>
         </div>
       )}
       {images.length === 0 ? (
@@ -313,6 +370,14 @@ export function ReferencePanel({
                 className="reference-image-stage"
                 style={{ height: `${stageSize.height}px`, width: `${stageSize.width}px` }}
               >
+                {reviewRegion?.id === image.id && reviewRegion.boxes.length > 0 && <div
+                  className="reference-review-overlay" aria-hidden="true" style={{
+                    width: `${scaledWidth}px`, height: `${scaledHeight}px`,
+                    transform: `translate(-50%, -50%) translate(${view?.panX ?? 0}px, ${view?.panY ?? 0}px) rotate(${view?.rotation ?? 0}deg)`,
+                  }}>{reviewRegion.boxes.map((box, index) => <span key={index} style={{
+                    left: `${box[0]*100}%`, top: `${box[1]*100}%`,
+                    width: `${(box[2]-box[0])*100}%`, height: `${(box[3]-box[1])*100}%`,
+                  }}/>)}</div>}
                 {image.kind === "pdf-page" && image.src ? (
                   <>
                     <PdfPageCanvas

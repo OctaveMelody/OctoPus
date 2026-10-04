@@ -1,3 +1,5 @@
+import {normalizeRecentFiles} from "./recent-files.js";
+
 /** @typedef {"en" | "zh-CN"} Language */
 /** @typedef {"normal" | "transcription"} WorkspaceMode */
 /** @typedef {"N1" | "N2" | "T1" | "T2"} LayoutId */
@@ -5,7 +7,7 @@
 /** @typedef {"N1" | "N2"} NormalLayout */
 /** @typedef {"T1" | "T2"} TranscriptionLayout */
 /** @typedef {Record<string, "system" | "fallback">} FontSources */
-/** @typedef {{fontSources: FontSources, language: Language, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
+/** @typedef {{recentFiles: string[], referenceHintDismissed: boolean, fontSources: FontSources, language: Language, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
 
 export const PREFERENCES_KEY = "octopus.workspace.v1";
 
@@ -32,6 +34,8 @@ function bounded(value, fallback, minimum, maximum) {
 /** @param {string} [osLanguage] @returns {WorkspacePreferences} */
 export function defaultPreferences(osLanguage = "en") {
   return {
+    recentFiles: [],
+    referenceHintDismissed: false,
     fontSources: Object.fromEntries(["heiti-1", "heiti-2", "songti", "kaiti", "fangsong"].map(role => [role, "system"])),
     language: osLanguage.toLowerCase().startsWith("zh") ? "zh-CN" : "en",
     mode: "normal",
@@ -69,6 +73,8 @@ export function readPreferences(storage, osLanguage = "en") {
       t1.y = 80 - t1.x;
     }
     return {
+      recentFiles: normalizeRecentFiles(candidate.recentFiles),
+      referenceHintDismissed: candidate.referenceHintDismissed === true,
       fontSources: Object.fromEntries(Object.keys(defaults.fontSources).map(role =>
         [role, isRecord(candidate.fontSources) && candidate.fontSources[role] === "fallback" ? "fallback" : "system"])),
       language: candidate.language === "zh-CN" || candidate.language === "en"

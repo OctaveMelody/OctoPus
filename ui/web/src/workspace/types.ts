@@ -107,13 +107,13 @@ export type LoadedJps = {
 
 export type SerializedJps = { text: string };
 
-export type ExportFormat = "svg" | "pdf" | "jpg";
+export type ExportFormat = "svg" | "pdf" | "jpg" | "png";
 
 export type ExportDpi = 96 | 300 | null;
 
 export type FontAvailability = Record<string, { family: string; fallback: string; available: boolean }>;
 export type FontSources = WorkspacePreferences["fontSources"];
-export type EngineCapabilities = { ocr: boolean; lilypond: boolean; fonts?: FontAvailability };
+export type EngineCapabilities = { ocr: boolean; png_export: boolean; fonts?: FontAvailability };
 
 export type ExportReceipt = {
   documentId: string;
@@ -164,9 +164,9 @@ export type RenderDiagnostics = NonNullable<PageRenderResponse["result"]>["diagn
 
 export type DocumentSnapshot = ReturnType<typeof createDocumentSession>;
 
-export type TranscriptionIssue = { code: string; page: number; detail: string; regions: number[][] };
+export type TranscriptionIssue = { code: string; page: number; detail: string; regions: number[][]; confidence?: number | null; source_start?: number | null; source_end?: number | null };
 
-export type TranscriptionDraft = { jps: string; page_count: number; issues: TranscriptionIssue[] };
+export type TranscriptionDraft = { jps: string; page_count: number; page_dimensions?: {width:number; height:number}[]; issues: TranscriptionIssue[] };
 
 export type PreviewRequest = { document: DocumentSnapshot; pageIndex: number };
 
@@ -229,7 +229,8 @@ export type PendingReferenceImport = {
 };
 
 export type Status =
-  | { kind: "ready" | "rendering" | "changed" | "preferences" | "saved" | "notice" | "transcribing" }
-  | { kind: "rendered"; pages: number }
+  | { kind: "ready" | "changed" | "preferences" | "saved" | "notice" | "transcribing" }
+  | {kind: "rendering"; completed?: number; pages?: number}
+  | { kind: "rendered"; pages: number; elapsed?: number }
   | { kind: "transcribed"; issues: number }
   | { kind: "error"; message: string };

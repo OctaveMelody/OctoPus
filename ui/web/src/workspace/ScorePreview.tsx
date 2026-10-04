@@ -1,3 +1,4 @@
+import {useEffect} from "react";
 import { AdaptiveToolbar } from "./AdaptiveToolbar";
 import { ActionMenu } from "./ActionMenu";
 import type { useScorePreview } from "./useScorePreview";
@@ -6,12 +7,12 @@ import type { Status, WorkspaceCopy } from "./types";
 function statusText(status: Status, copy: WorkspaceCopy): string {
   switch (status.kind) {
     case "ready": return copy.ready;
-    case "rendering": return copy.rendering;
+    case "rendering": return status.pages !== undefined ? copy.renderProgress(status.completed ?? 0, status.pages) : copy.rendering;
     case "changed": return copy.changed;
     case "preferences": return copy.preferenceWarning;
     case "saved": return copy.saved;
     case "notice": return copy.encodingRepaired;
-    case "rendered": return copy.rendered(status.pages);
+    case "rendered": return copy.rendered(status.pages, status.elapsed);
     case "transcribing": return copy.transcribing;
     case "transcribed": return copy.transcribed(status.issues);
     case "error": return status.message;
@@ -29,6 +30,17 @@ export function ScorePreview({ preview, copy, documentOpen, status }: {
     cursorMarkerRef,
     highlightPage, cursorAnchor, cursorRowBounds, diagnostics, jumpToDiagnostic,
     selectPage, renderSelectedPage, selectPreviewAnchor, previewImageSettled } = preview;
+  useEffect(() => {
+    const element = previewCanvasRef.current;
+    if (!element) return;
+    const zoom = (event: WheelEvent) => {
+      if (!event.ctrlKey || !element.contains(document.activeElement) || !documentOpen) return;
+      event.preventDefault();
+      setPreviewZoom(value => Math.max(0.5, Math.min(4, value + (event.deltaY < 0 ? 0.25 : -0.25))));
+    };
+    element.addEventListener("wheel", zoom, {passive: false});
+    return () => element.removeEventListener("wheel", zoom);
+  }, [documentOpen, previewCanvasRef, setPreviewZoom]);
   return (
     <section aria-label={copy.preview} className="panel preview-panel" key="preview">
       <div className="panel-heading">
@@ -111,7 +123,12 @@ export function ScorePreview({ preview, copy, documentOpen, status }: {
               onClick={renderSelectedPage} type="button">{copy.render}</button>
           </>}/>
       </div>
-      <div className="preview-canvas" onClick={selectPreviewAnchor} ref={previewCanvasRef}>
+      <div className="preview-canvas" onClick={selectPreviewAnchor} ref={previewCanvasRef}
+        tabIndex={0} role="region" aria-label={copy.preview} onKeyDown={event => {
+          if (!currentPageCache || !documentOpen || !["PageUp", "PageDown"].includes(event.key)) return;
+          event.preventDefault();
+          selectPage(Math.max(0, Math.min(currentPageCache.pageCount - 1, selectedPage + (event.key === "PageDown" ? 1 : -1))));
+        }}>
         {previewUrl && displayedPreview
           ? (
             <div

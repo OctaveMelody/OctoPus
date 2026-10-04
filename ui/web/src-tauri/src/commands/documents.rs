@@ -116,6 +116,23 @@ pub(crate) async fn open_jps_file(
     let source_path = selected
         .into_path()
         .map_err(|_| "native dialog did not return a local file path".to_owned())?;
+    read_selected_jps(source_path, &selected_files)
+        .await
+        .map(Some)
+}
+
+#[tauri::command]
+pub(crate) async fn open_recent_jps_file(
+    selected_files: State<'_, SelectedJpsFiles>,
+    path: String,
+) -> Result<Value, String> {
+    read_selected_jps(PathBuf::from(path), &selected_files).await
+}
+
+async fn read_selected_jps(
+    source_path: PathBuf,
+    selected_files: &SelectedJpsFiles,
+) -> Result<Value, String> {
     let source_path = validate_jps_path(&source_path).map_err(|error| error.to_string())?;
     let read_path = source_path.clone();
     let text = tauri::async_runtime::spawn_blocking(move || {
@@ -128,12 +145,12 @@ pub(crate) async fn open_jps_file(
         .map(|name| name.to_string_lossy().into_owned())
         .ok_or_else(|| "file path must name a file".to_owned())?;
     selected_files.remember(source_path.clone())?;
-    Ok(Some(serde_json::json!({
+    Ok(serde_json::json!({
         "name": name,
         "path": source_path.to_string_lossy(),
         "suggestedPath": source_path.to_string_lossy(),
         "text": text
-    })))
+    }))
 }
 
 #[tauri::command]

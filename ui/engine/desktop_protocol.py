@@ -5,9 +5,9 @@ from __future__ import annotations
 import html
 import importlib.util
 import json
-import math
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -24,11 +24,19 @@ from octopus.transcription import transcribe
 from ui.engine.font_profile import apply_svg_fonts, system_font_availability
 
 from .svg_preview import add_safe_custom_markup, add_safe_custom_page_markup
+from .validation import (
+    MAX_SAFE_INTEGER,
+    WireValidationError,
+    decode_json,
+    envelope,
+    is_identifier,
+    is_integer,
+)
 
 PROTOCOL_VERSION = "1.6.0"
 MAX_REQUEST_BYTES = 10 * 1024 * 1024
 MAX_RESPONSE_BYTES = 64 * 1024 * 1024
-MAX_REVISION = 2**53 - 1
+MAX_REVISION = MAX_SAFE_INTEGER
 STATUS_OK = "ok"
 STATUS_ERROR = "error"
 STATUS_INTERNAL = "internal"
@@ -80,45 +88,6 @@ def _sanitize_export_svg_xml(svg: str) -> str:
     return _XML_AMPERSAND_RE.sub(escape, svg)
 
 
-def _reject_constant(value: str) -> None:
-    raise ProtocolError(f"non-finite JSON number: {value}")
-
-
-def _finite_float(value: str) -> float:
-    number = float(value)
-    if not math.isfinite(number):
-        raise ProtocolError("non-finite JSON number")
-    return number
-
-
-def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    record: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in record:
-            raise ProtocolError(f"duplicate JSON field: {key}")
-        record[key] = value
-    return record
-
-
-def _validate_unicode(value: object) -> None:
-    if isinstance(value, str):
-        try:
-            value.encode("utf-8")
-        except UnicodeEncodeError as exc:
-            raise ProtocolError("strings must contain valid Unicode scalar values") from exc
-    elif isinstance(value, list):
-        for item in value:
-            _validate_unicode(item)
-    elif isinstance(value, dict):
-        for key, item in value.items():
-            _validate_unicode(key)
-            _validate_unicode(item)
-
-
-def _identifier(value: object) -> bool:
-    return isinstance(value, str) and 0 < len(value) <= 128
-
-
 def _validate_request(request: object) -> dict[str, Any]:
     if not isinstance(request, dict):
         raise ProtocolError("request must be a JSON object")
@@ -134,16 +103,17 @@ def _validate_request(request: object) -> dict[str, Any]:
         raise ProtocolError(f"request fields do not match protocol {PROTOCOL_VERSION}")
     if request["protocol_version"] != PROTOCOL_VERSION:
         raise ProtocolError("unsupported protocol version")
-    if not _identifier(request["request_id"]) or not _identifier(request["document_id"]):
+    if not is_identifier(request["request_id"]) or not is_identifier(request["document_id"]):
         raise ProtocolError(
             "request_id and document_id must be nonempty strings of <=128 characters"
         )
     revision = request["document_revision"]
-    if type(revision) is not int or not 0 <= revision <= MAX_REVISION:
+    if not is_integer(revision, minimum=0, maximum=MAX_REVISION):
         raise ProtocolError("document_revision must be a nonnegative safe integer")
     if request["operation"] not in (
         "handshake",
         "render",
+        "parse",
         "export_svg",
         "render_page",
         "load_document",
@@ -188,17 +158,20 @@ def _export_svg(payload: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _transcribe(payload: dict[str, Any]) -> dict[str, Any]:
+def _transcribe(
+    payload: dict[str, Any], progress: Callable[[int, int, str], None] | None = None,
+) -> dict[str, Any]:
     if set(payload) != {"path"} or not isinstance(payload["path"], str):
         raise ProtocolError("transcribe requires only a managed reference path")
     path = Path(payload["path"])
     if not path.is_absolute() or path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".pdf"}:
         raise ProtocolError("transcribe requires an absolute PNG, JPEG, or PDF path")
-    draft = transcribe(path)
+    draft = transcribe(path, progress=progress) if progress else transcribe(path)
     return {
         "jps": draft.jps,
         "issues": [asdict(issue) for issue in draft.issues],
         "page_count": len(draft.pages),
+        "page_dimensions": [{"width": page.width, "height": page.height} for page in draft.pages],
     }
 
 
@@ -259,7 +232,7 @@ def _render_page(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _score_model(payload: dict[str, Any]) -> ScoreModel:
+def _snapshot(payload: dict[str, Any]) -> JpsDocument:
     code = payload["code"]
     custom_code = payload.get("custom_code", "")
     name = _filename(payload.get("name", "Untitled.jps"))
@@ -280,8 +253,24 @@ def _score_model(payload: dict[str, Any]) -> ScoreModel:
         json_wrapped=False,
         encoding_repaired=False,
     )
+    return source
+
+
+
+def _score_model(payload: dict[str, Any]) -> ScoreModel:
+    source = _snapshot(payload)
     return normalize_document(parse_document(source), source=source)
 
+def _parse(payload: dict[str, Any]) -> dict[str, Any]:
+    if set(payload) - {"name", "code", "custom_code", "page_config"} or "code" not in payload:
+        raise ProtocolError("parse requires code; allowed options: name, custom_code, page_config")
+    source = _snapshot(payload)
+    document = parse_document(source)
+    return {
+        "diagnostics": [asdict(item) for item in document.diagnostics],
+        "source_offset_unit": "codepoint",
+        "encoding_repaired": source.encoding_repaired,
+    }
 
 def _filename(value: object) -> str:
     if (
@@ -376,37 +365,29 @@ def _serialize_document(payload: dict[str, Any]) -> dict[str, str]:
 
 
 def error_response(generation: str, code: str, message: str) -> dict[str, Any]:
-    return {
-        "protocol_version": PROTOCOL_VERSION,
-        "engine_generation": generation,
-        "request_id": None,
-        "document_id": None,
-        "document_revision": None,
-        "status": "error",
-        "error": {"code": code, "message": message},
-    }
+    return envelope(
+        status="error", protocol_version=PROTOCOL_VERSION, engine_generation=generation,
+        request_id=None, document_id=None, document_revision=None,
+        error={"code": code, "message": message},
+    )
 
 
-def dispatch(line: bytes, generation: str) -> dict[str, Any]:
+def dispatch(
+    line: bytes, generation: str, *, progress: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
     """One full snapshot per request; no retained document state or filesystem operations."""
     response = error_response(generation, "invalid_request", "invalid request")
     try:
         if len(line) > MAX_REQUEST_BYTES:
             raise ProtocolError("request exceeds byte limit")
-        request = json.loads(
-            line.decode("utf-8"),
-            parse_constant=_reject_constant,
-            parse_float=_finite_float,
-            object_pairs_hook=_unique_object,
-        )
-        _validate_unicode(request)
+        request = decode_json(line)
         # Echo only bounded, independently valid identity fields, including on rejected requests.
         if isinstance(request, dict):
             for key in ("request_id", "document_id"):
-                if _identifier(request.get(key)):
+                if is_identifier(request.get(key)):
                     response[key] = request[key]
             revision = request.get("document_revision")
-            if type(revision) is int and 0 <= revision <= MAX_REVISION:
+            if is_integer(revision, minimum=0, maximum=MAX_REVISION):
                 response["document_revision"] = revision
         request = _validate_request(request)
         result: dict[str, Any]
@@ -418,6 +399,7 @@ def dispatch(line: bytes, generation: str) -> dict[str, Any]:
                     "handshake",
                     "load_document",
                     "render",
+                    "parse",
                     "export_svg",
                     "render_page",
                     "serialize_document",
@@ -427,13 +409,15 @@ def dispatch(line: bytes, generation: str) -> dict[str, Any]:
                 "max_response_bytes": MAX_RESPONSE_BYTES,
                 "custom_svg_display": True,
                 "ocr": importlib.util.find_spec("rapidocr_onnxruntime") is not None,
-                "lilypond": False,
+                "png_export": True,
                 "fonts": system_font_availability(),
             }
         else:
             operation = request["operation"]
             if operation == "render":
                 result = _render(request["payload"])
+            elif operation == "parse":
+                result = _parse(request["payload"])
             elif operation == "export_svg":
                 result = _export_svg(request["payload"])
             elif operation == "render_page":
@@ -441,10 +425,18 @@ def dispatch(line: bytes, generation: str) -> dict[str, Any]:
             elif operation == "load_document":
                 result = _load_document(request["payload"])
             elif operation == "transcribe":
-                result = _transcribe(request["payload"])
+                def report(completed: int, total: int, stage: str) -> None:
+                    if progress:
+                        frame = {**response, "status": "progress", "result": {
+                            "completed": completed, "total": total, "stage": stage,
+                        }}
+                        frame.pop("error", None)
+                        progress(frame)
+                result = _transcribe(request["payload"], report if progress else None)
             else:
                 result = _serialize_document(request["payload"])
-    except (ProtocolError, UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
+    except (ProtocolError, WireValidationError, UnicodeDecodeError,
+            json.JSONDecodeError, RecursionError) as exc:
         if isinstance(exc, PageOutOfRangeError):
             response["error"] = {
                 "code": "page_out_of_range",

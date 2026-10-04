@@ -137,23 +137,20 @@ def render_all_pages(
     map it to a descriptive error.
     """
     # Lazy: keep ui.engine.ops importable without the export dependencies.
+    from octopus.jps import JpsDocument, jps_key, repair_mojibake
     from octopus.model.model_normalize import normalize_document
     from octopus.parser.grammar import parse_document
     from octopus.render.svg import render_score_model_pages
-    from ui.engine.ops import _source_document  # noqa: PLC0415 - lazy cycle guard
-    from ui.engine.protocol import RenderRequest
 
-    adapter = RenderRequest(
-        name=name,
-        source_key=source_key,
-        display_name=display_name,
-        code=code,
-        custom_code=custom_code,
+    path = Path(name if name.lower().endswith(".jps") else f"{name}.jps")
+    repaired_code, repaired = repair_mojibake(code)
+    source = JpsDocument(
+        path=path, key=source_key if source_key is not None else jps_key(path.name),
+        code=repaired_code, original_code=code, custom_code=custom_code,
         page_config=dict(page_config),
-        page_index=0,
-        hitmap_kinds=(),
+        record={"name": display_name if display_name is not None else name},
+        json_wrapped=True, encoding_repaired=repaired,
     )
-    source = _source_document(adapter)
     model = normalize_document(parse_document(source), source=source)
     pages = render_score_model_pages(model, list(range(len(model.pages))))
     if not pages:
@@ -175,11 +172,19 @@ def build_pdf(
     parses to zero pages (nothing to export); any pipeline exception
     propagates so the op handler can map it to a descriptive error.
     """
-    # Lazy: keep ui.engine.ops importable without the PDF dependencies.
+    pages = render_all_pages(code, custom_code, page_config, name, source_key, display_name)
+    return build_pdf_pages(pages)
+
+
+def build_pdf_pages(pages: tuple[str, ...]) -> tuple[bytes, int]:
+    """Assemble rendered pages into one vector PDF (also used by batch export)."""
     from reportlab.pdfgen import canvas as pdf_canvas  # type: ignore[import-untyped]
     from svglib.svglib import svg2rlg  # type: ignore[import-untyped]
 
-    pages = render_all_pages(code, custom_code, page_config, name, source_key, display_name)
+    if not pages or len(pages) > 200:
+        raise ValueError("PDF export requires between 1 and 200 pages")
+    from .desktop_protocol import _sanitize_export_svg_xml
+
     pages = tuple(apply_pdf_font_fallbacks(page) for page in pages)
     register_pdf_fonts()
     _register_cjk_fallbacks(_families_used(pages))
@@ -187,7 +192,7 @@ def build_pdf(
     out = io.BytesIO()
     canvas = pdf_canvas.Canvas(out)
     for svg in pages:
-        drawing = svg2rlg(io.BytesIO(_escape_bare_ampersands(svg).encode("utf-8")))
+        drawing = svg2rlg(io.BytesIO(_sanitize_export_svg_xml(svg).encode("utf-8")))
         if drawing is None:  # pragma: no cover - defensive; svglib signals via exceptions
             raise ValueError("SVG conversion failed for a page")
         canvas.setPageSize((float(drawing.width), float(drawing.height)))
