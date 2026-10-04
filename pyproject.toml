@@ -15,8 +15,8 @@ license-files = ["LICENSE"]
 # pages (pure wheel wrapping the Rust resvg renderer) and Pillow encodes the
 # JPEGs. All ship pure wheels for every pinned sidecar target (linux/windows/
 # macos, x86_64+arm64). These are required installation dependencies so release
-# workers always support exports. Lazy imports in ui/engine/pdf_export.py and
-# jpg_export.py defer loading the export libraries until an export is requested.
+# workers always support exports. Lazy imports in octopus/export defer loading
+# the export libraries until an export is requested.
 dependencies = [
     "fonttools==4.60.2",
     "pillow>=10",

@@ -2,28 +2,29 @@
 
 from __future__ import annotations
 
-import html
 import importlib.util
 import json
-import re
-import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from octopus.export.svg import (
+    normalize_source,
+    render_score_pages,
+    sanitize_export_pages,
+    sanitize_export_svg_xml,
+)
+from octopus.font_profile import apply_svg_fonts, system_font_availability
 from octopus.jps import JpsDocument, jps_key, load_jps_text, serialize_jps
-from octopus.normalization.pipeline import normalize_document
 from octopus.normalization.types import ScoreModel
 from octopus.parser.grammar import parse_document
 from octopus.render.svg import (
-    render_score_model,
     render_score_model_page_with_layout,
 )
+from octopus.render.svg_preview import add_safe_custom_page_markup
 from octopus.transcription import transcribe
-from ui.engine.font_profile import apply_svg_fonts, system_font_availability
 
-from .svg_preview import add_safe_custom_markup, add_safe_custom_page_markup
 from .validation import (
     MAX_SAFE_INTEGER,
     WireValidationError,
@@ -42,13 +43,6 @@ STATUS_ERROR = "error"
 STATUS_INTERNAL = "internal"
 STATUS_PARSE_ERROR = "parse_error"
 STATUS_RENDER_ERROR = "render_error"
-SVG_NAMESPACE = "http://www.w3.org/2000/svg"
-_XML_AMPERSAND_RE = re.compile(r"&(?:(?:amp|lt|gt|quot|apos);|#(?:[0-9]+|x[0-9A-Fa-f]+);)?")
-# Legacy <use> code attributes are raw for render parity; xmlns:xlink follows as their delimiter.
-_RAW_CODE_ATTRIBUTE_RE = re.compile(
-    r'(<use\b[^>]*?\bcode=")(.*)(?=" '
-    r'(?:data-diaohao="true" )?xmlns:xlink="http://www\.w3\.org/1999/xlink")'
-)
 
 
 class ProtocolError(ValueError):
@@ -59,33 +53,6 @@ class PageOutOfRangeError(ProtocolError):
     def __init__(self, page_count: int) -> None:
         super().__init__("page_index is outside the document")
         self.page_count = page_count
-
-
-def _sanitize_export_svg_xml(svg: str) -> str:
-    svg = _RAW_CODE_ATTRIBUTE_RE.sub(
-        lambda match: match.group(1) + html.escape(match.group(2), quote=True),
-        svg,
-    )
-
-    def escape(match: re.Match[str]) -> str:
-        entity = match.group()
-        if entity == "&":
-            return "&amp;"
-        if entity.startswith("&#"):
-            digits = entity[3:-1] if entity.startswith("&#x") else entity[2:-1]
-            try:
-                codepoint = int(digits, 16 if entity.startswith("&#x") else 10)
-            except ValueError:
-                return "&amp;" + entity[1:]
-            if codepoint not in {0x9, 0xA, 0xD} and not (
-                0x20 <= codepoint <= 0xD7FF
-                or 0xE000 <= codepoint <= 0xFFFD
-                or 0x10000 <= codepoint <= 0x10FFFF
-            ):
-                return "&amp;" + entity[1:]
-        return entity
-
-    return _XML_AMPERSAND_RE.sub(escape, svg)
 
 
 def _validate_request(request: object) -> dict[str, Any]:
@@ -130,10 +97,7 @@ def _render(payload: dict[str, Any]) -> dict[str, Any]:
     if set(payload) - {"name", "code", "custom_code", "page_config"} or "code" not in payload:
         raise ProtocolError("render requires code; allowed options: name, custom_code, page_config")
     model = _score_model(payload)
-    pages = render_score_model(model, export_mode="safe-source")
-    pages, custom_markup_omitted = add_safe_custom_markup(model, pages)
-    sources = payload.get("page_config", {}).get("_font_sources")
-    pages = [apply_svg_fonts(page, sources) for page in pages]
+    pages, custom_markup_omitted = render_score_pages(model, payload.get("page_config", {}))
     return {
         "pages": pages,
         "page_count": len(pages),
@@ -144,22 +108,21 @@ def _render(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _export_svg(payload: dict[str, Any]) -> dict[str, Any]:
     result = _render(payload)
-    pages: list[str] = []
-    for page_index, source_svg in enumerate(result["pages"], start=1):
-        svg = _sanitize_export_svg_xml(source_svg)
-        try:
-            root = ET.fromstring(svg)
-        except ET.ParseError as exc:
-            raise ProtocolError(f"export page {page_index} is not well-formed XML") from exc
-        if root.tag != f"{{{SVG_NAMESPACE}}}svg":
-            raise ProtocolError(f"export page {page_index} has no SVG root element")
-        pages.append(svg)
-    result["pages"] = pages
+    try:
+        result["pages"] = list(sanitize_export_pages(tuple(result["pages"])))
+    except ValueError as exc:
+        raise ProtocolError(str(exc)) from exc
     return result
 
 
+def _sanitize_export_svg_xml(svg: str) -> str:
+    """Compatibility entry point for the core XML sanitizer."""
+    return sanitize_export_svg_xml(svg)
+
+
 def _transcribe(
-    payload: dict[str, Any], progress: Callable[[int, int, str], None] | None = None,
+    payload: dict[str, Any],
+    progress: Callable[[int, int, str], None] | None = None,
 ) -> dict[str, Any]:
     if set(payload) != {"path"} or not isinstance(payload["path"], str):
         raise ProtocolError("transcribe requires only a managed reference path")
@@ -256,10 +219,10 @@ def _snapshot(payload: dict[str, Any]) -> JpsDocument:
     return source
 
 
-
 def _score_model(payload: dict[str, Any]) -> ScoreModel:
     source = _snapshot(payload)
-    return normalize_document(parse_document(source), source=source)
+    return normalize_source(source)
+
 
 def _parse(payload: dict[str, Any]) -> dict[str, Any]:
     if set(payload) - {"name", "code", "custom_code", "page_config"} or "code" not in payload:
@@ -271,6 +234,7 @@ def _parse(payload: dict[str, Any]) -> dict[str, Any]:
         "source_offset_unit": "codepoint",
         "encoding_repaired": source.encoding_repaired,
     }
+
 
 def _filename(value: object) -> str:
     if (
@@ -366,14 +330,21 @@ def _serialize_document(payload: dict[str, Any]) -> dict[str, str]:
 
 def error_response(generation: str, code: str, message: str) -> dict[str, Any]:
     return envelope(
-        status="error", protocol_version=PROTOCOL_VERSION, engine_generation=generation,
-        request_id=None, document_id=None, document_revision=None,
+        status="error",
+        protocol_version=PROTOCOL_VERSION,
+        engine_generation=generation,
+        request_id=None,
+        document_id=None,
+        document_revision=None,
         error={"code": code, "message": message},
     )
 
 
 def dispatch(
-    line: bytes, generation: str, *, progress: Callable[[dict[str, Any]], None] | None = None,
+    line: bytes,
+    generation: str,
+    *,
+    progress: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """One full snapshot per request; no retained document state or filesystem operations."""
     response = error_response(generation, "invalid_request", "invalid request")
@@ -425,18 +396,31 @@ def dispatch(
             elif operation == "load_document":
                 result = _load_document(request["payload"])
             elif operation == "transcribe":
+
                 def report(completed: int, total: int, stage: str) -> None:
                     if progress:
-                        frame = {**response, "status": "progress", "result": {
-                            "completed": completed, "total": total, "stage": stage,
-                        }}
+                        frame = {
+                            **response,
+                            "status": "progress",
+                            "result": {
+                                "completed": completed,
+                                "total": total,
+                                "stage": stage,
+                            },
+                        }
                         frame.pop("error", None)
                         progress(frame)
+
                 result = _transcribe(request["payload"], report if progress else None)
             else:
                 result = _serialize_document(request["payload"])
-    except (ProtocolError, WireValidationError, UnicodeDecodeError,
-            json.JSONDecodeError, RecursionError) as exc:
+    except (
+        ProtocolError,
+        WireValidationError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        RecursionError,
+    ) as exc:
         if isinstance(exc, PageOutOfRangeError):
             response["error"] = {
                 "code": "page_out_of_range",

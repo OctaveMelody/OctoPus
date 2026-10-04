@@ -61,7 +61,8 @@ export function InformationDialog({ kind: informationDialog, dialogRef: informat
               event.preventDefault(); void openHelp("home");
             }}>{copy.projectHome}</a></p>
             <p>{copy.fontCredits}</p>
-            <h3>{copy.plannedFeatures}</h3><p>{copy.plannedFeatureList}</p>
+            <h3>{copy.plannedFeatures}</h3>
+            <p>{copy.plannedFeatureList}<br />{copy.exportLilypond} {copy.lilypondUnavailable}</p>
             <div className="dialog-actions">
               <button autoFocus className="primary-button" onClick={() => onClose()} type="button">
                 {copy.done}

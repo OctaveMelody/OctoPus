@@ -10,8 +10,6 @@ import tempfile
 import unicodedata
 from pathlib import Path
 
-from .jps import load_jps
-
 MAX_FILES = 200
 MAX_BYTES = 64 * 1024 * 1024
 
@@ -50,7 +48,6 @@ def _publish(targets: tuple[Path, ...], pages: tuple[bytes, ...]) -> None:
             temporary.unlink(missing_ok=True)
 
 
-
 def _check_output_parents(selected: Path, destination: Path) -> None:
     parent = selected.parent
     while parent != destination:
@@ -66,7 +63,7 @@ def _check_output_parents(selected: Path, destination: Path) -> None:
 def _raster_jpg(pages: tuple[str, ...], dpi: int) -> tuple[bytes, ...]:
     from PIL import Image
 
-    from ui.engine.png_export import rasterize_pages
+    from .export.png_export import rasterize_pages
 
     outputs: list[bytes] = []
     for png in rasterize_pages(pages, dpi=dpi):
@@ -78,9 +75,10 @@ def _raster_jpg(pages: tuple[str, ...], dpi: int) -> tuple[bytes, ...]:
 
 
 def run_batch_export(args: argparse.Namespace) -> int:
-    from ui.engine.desktop_protocol import _export_svg
-    from ui.engine.pdf_export import build_pdf_pages
-    from ui.engine.png_export import rasterize_pages
+    from .export.pdf_export import build_pdf_pages
+    from .export.png_export import rasterize_pages
+    from .export.svg import normalize_source, render_score_pages, sanitize_export_pages
+    from .jps import JpsDocument, jps_key, load_jps
 
     if (args.out is None) == (args.out_dir is None):
         print("Error: choose exactly one of --out or --out-dir", file=sys.stderr)
@@ -92,10 +90,17 @@ def run_batch_export(args: argparse.Namespace) -> int:
         print("Error: input must be a folder", file=sys.stderr)
         return 2
     root = args.input.resolve()
-    files = sorted((path for path in (root.rglob("*") if args.recursive else root.iterdir())
-                    if path.suffix.lower() == ".jps" and path.is_file() and not path.is_symlink()),
-                   key=lambda path: (path.relative_to(root).as_posix().casefold(),
-                                     path.relative_to(root).as_posix()))
+    files = sorted(
+        (
+            path
+            for path in (root.rglob("*") if args.recursive else root.iterdir())
+            if path.suffix.lower() == ".jps" and path.is_file() and not path.is_symlink()
+        ),
+        key=lambda path: (
+            path.relative_to(root).as_posix().casefold(),
+            path.relative_to(root).as_posix(),
+        ),
+    )
     if not files or len(files) > MAX_FILES:
         print(f"Error: batch requires between 1 and {MAX_FILES} JPS files", file=sys.stderr)
         return 2
@@ -108,11 +113,16 @@ def run_batch_export(args: argparse.Namespace) -> int:
         print("Error: --out-dir must be a folder", file=sys.stderr)
         return 2
     if args.out_dir is not None:
-        reserved = [unicodedata.normalize("NFC", path.relative_to(root).with_suffix(
-            "." + args.format).as_posix()).casefold() for path in files]
+        reserved = [
+            unicodedata.normalize(
+                "NFC", path.relative_to(root).with_suffix("." + args.format).as_posix()
+            ).casefold()
+            for path in files
+        ]
         if len(set(reserved)) != len(reserved):
-            print("Error: input names would collide on a case-insensitive filesystem",
-                  file=sys.stderr)
+            print(
+                "Error: input names would collide on a case-insensitive filesystem", file=sys.stderr
+            )
             return 2
     failures = success = 0
     combined: list[str] = []
@@ -120,12 +130,25 @@ def run_batch_export(args: argparse.Namespace) -> int:
     for source_path in files:
         try:
             source = load_jps(source_path)
-            rendered = _export_svg({"code": source.code, "custom_code": source.custom_code,
-                                    "page_config": source.page_config, "name": source_path.name})
-            pages = tuple(rendered["pages"])
-            if rendered["custom_markup_omitted"]:
-                print(f"Warning: {source_path.relative_to(root)}: unsafe custom SVG omitted",
-                      file=sys.stderr)
+            snapshot = JpsDocument(
+                path=Path(source_path.name),
+                key=jps_key(source_path.name),
+                code=source.code,
+                original_code=source.code,
+                custom_code=source.custom_code,
+                page_config=source.page_config,
+                record={},
+                json_wrapped=False,
+                encoding_repaired=False,
+            )
+            model = normalize_source(snapshot)
+            rendered_pages, custom_markup_omitted = render_score_pages(model, source.page_config)
+            pages = sanitize_export_pages(tuple(rendered_pages))
+            if custom_markup_omitted:
+                print(
+                    f"Warning: {source_path.relative_to(root)}: unsafe custom SVG omitted",
+                    file=sys.stderr,
+                )
             if args.out is not None:
                 if len(combined) + len(pages) > 200:
                     raise ValueError("combined PDF exceeds the 200-page limit")
@@ -143,14 +166,24 @@ def run_batch_export(args: argparse.Namespace) -> int:
                     data = _raster_jpg(pages, args.dpi)
                 else:
                     data = tuple(page.encode("utf-8") for page in pages)
-                targets = ((selected,) if len(data) == 1 else tuple(
-                    selected.with_name(f"{selected.stem}_page_{index:03}.{args.format}")
-                    for index in range(1, len(data) + 1)))
-                target_names = {unicodedata.normalize("NFC", target.relative_to(
-                    destination).as_posix()).casefold() for target in targets}
+                targets = (
+                    (selected,)
+                    if len(data) == 1
+                    else tuple(
+                        selected.with_name(f"{selected.stem}_page_{index:03}.{args.format}")
+                        for index in range(1, len(data) + 1)
+                    )
+                )
+                target_names = {
+                    unicodedata.normalize(
+                        "NFC", target.relative_to(destination).as_posix()
+                    ).casefold()
+                    for target in targets
+                }
                 if len(target_names) != len(targets) or target_names & published_names:
-                    raise ValueError("generated export names would collide on a "
-                                     "case-insensitive filesystem")
+                    raise ValueError(
+                        "generated export names would collide on a case-insensitive filesystem"
+                    )
                 _publish(targets, data)
                 published_names.update(target_names)
             success += 1
