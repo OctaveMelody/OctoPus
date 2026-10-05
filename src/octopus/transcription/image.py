@@ -226,11 +226,94 @@ def _barline(
     return bend is not None and abs(bend) <= max(1, component.width * 0.2)
 
 
+def _fragmented_vertical_barlines(
+    components: list[Component], digit_height: int, gray: Image.Image,
+) -> list[Component]:
+    """Reconnect thin barline fragments split by scan noise or JPEG artifacts."""
+    x_tolerance = max(2, round(digit_height * 0.08))
+    gap_tolerance = max(2, round(digit_height * 0.18))
+    fragments = sorted(
+        (
+            component for component in components
+            if 1 <= component.height < digit_height * 1.25
+            and component.width <= max(3, round(digit_height * 0.15))
+            and component.width <= max(2, component.height * 0.75)
+        ),
+        key=lambda component: (
+            (component.box[0] + component.box[2]) / 2, component.box[1],
+        ),
+    )
+    columns: list[list[Component]] = []
+    for component in fragments:
+        center_x = (component.box[0] + component.box[2]) / 2
+        if (
+            not columns
+            or center_x - (columns[-1][0].box[0] + columns[-1][0].box[2]) / 2
+            > x_tolerance
+        ):
+            columns.append([component])
+        else:
+            columns[-1].append(component)
+
+    recovered = []
+    for column in columns:
+        run: list[Component] = []
+        run_bottom = 0
+        run_center_x = 0.0
+        for component in sorted(column, key=lambda item: item.box[1]):
+            center_x = (component.box[0] + component.box[2]) / 2
+            if run and (
+                component.box[1] - run_bottom <= gap_tolerance
+                and abs(center_x - run_center_x / len(run)) <= x_tolerance
+            ):
+                run.append(component)
+                run_bottom = max(run_bottom, component.box[3])
+                run_center_x += center_x
+            else:
+                if run:
+                    candidate = _barline_from_fragments(run, digit_height, gray)
+                    if candidate is not None:
+                        recovered.append(candidate)
+                run = [component]
+                run_bottom = component.box[3]
+                run_center_x = center_x
+        if run:
+            candidate = _barline_from_fragments(run, digit_height, gray)
+            if candidate is not None:
+                recovered.append(candidate)
+    return recovered
+
+
+def _barline_from_fragments(
+    run: list[Component], digit_height: int, gray: Image.Image,
+) -> Component | None:
+    if len(run) < 3:
+        return None
+    box = (
+        min(component.box[0] for component in run),
+        min(component.box[1] for component in run),
+        max(component.box[2] for component in run),
+        max(component.box[3] for component in run),
+    )
+    candidate = Component(box, sum(component.area for component in run))
+    if not (
+        digit_height * 1.25 <= candidate.height <= digit_height * 5.2
+        and candidate.width <= max(3, round(digit_height * 0.22))
+        and candidate.area >= candidate.height * 0.3
+    ):
+        return None
+    bend = vertical_bend(candidate, gray)
+    if bend is not None and abs(bend) <= max(1, candidate.width * 0.2):
+        return candidate
+    return None
+
+
 def _music_row(
     group: list[tuple[Component, DigitMatch]],
     components: list[Component], digit_height: int, gray: Image.Image,
     *, joined_underlines: bool = False,
     accompaniment: bool = False,
+    barline_candidates: list[Component] | None = None,
 ) -> MusicRow:
     group.sort(key=lambda pair: pair[0].box[0])
     row_y = sum(component.center_y for component, _ in group) / len(group)
@@ -252,10 +335,11 @@ def _music_row(
         component for component in components
         if abs(component.center_y - row_y) <= digit_height * 1.6
     ]
-    bars = sorted(
-        component.box[0] for component in nearby
+    bars = sorted({
+        component.box[0]
+        for component in (*nearby, *(barline_candidates or ()))
         if is_bar(component)
-    )
+    })
     notes = []
     used_marks: set[Box] = set()
     for index, (component, match) in enumerate(group):
@@ -635,6 +719,9 @@ def recognize_image(path: Path) -> PageObservation:
         trusted_height if trusted_rows else
         fallback_height if fallback_count >= 12 else heights.most_common(1)[0][0]
     )
+    barline_candidates = [
+        *possible_bars, *_fragmented_vertical_barlines(components, digit_height, gray),
+    ]
     main = [
         (component, match)
         for component, match in candidates
@@ -680,7 +767,10 @@ def recognize_image(path: Path) -> PageObservation:
     for group in main_groups:
         group.sort(key=lambda pair: pair[0].box[0])
         local_branch = _by_local_brace(group, components, gray.width, digit_height)
-        row = _music_row(group, components, digit_height, gray, joined_underlines=scale > 1)
+        row = _music_row(
+            group, components, digit_height, gray, joined_underlines=scale > 1,
+            barline_candidates=barline_candidates,
+        )
         candidate_rows.append(row)
         sustained_row = len(row.barlines) >= 2 and len(row_sustains(
             tuple(note.box for note in row.notes), row.unresolved_marks,
@@ -721,7 +811,7 @@ def recognize_image(path: Path) -> PageObservation:
                 candidates.extend(recovered)
             candidate = _music_row(
                 group, components, digit_height, gray, joined_underlines=scale > 1,
-                accompaniment=True,
+                accompaniment=True, barline_candidates=barline_candidates,
             )
             compact_overlays.append((rows[owner], candidate))
     rows = [row for row in rows if id(row) not in converted_rows]
@@ -796,7 +886,8 @@ def recognize_image(path: Path) -> PageObservation:
         if group[-1][0].box[0] - group[0][0].box[0] < digit_height * 3:
             continue
         small = _music_row(
-            group, components, round(digit_height * 0.78), gray, joined_underlines=scale > 1,
+            group, components, round(digit_height * 0.78), gray,
+            joined_underlines=scale > 1, barline_candidates=barline_candidates,
         )
         y = (small.box[1] + small.box[3]) / 2
         anchors = [

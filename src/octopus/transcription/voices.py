@@ -224,14 +224,13 @@ def recognize_voice_groups(
         members = tuple(index for index in all_members if index not in excluded)
         if len(members) < 2:
             continue
-        if (not all_members or abs(
-            (rows[all_members[0]][1] + rows[all_members[0]][3]) / 2 - top
-        ) > digit_height * 2):
+        if not all_members:
             continue
-        if (
-            abs(bottom - (rows[all_members[-1]][1] + rows[all_members[-1]][3]) / 2)
-            > digit_height * 2
-        ):
+        first = rows[all_members[0]]
+        if abs((first[1] + first[3]) / 2 - top) > _tip_tolerance(first, digit_height):
+            continue
+        last = rows[all_members[-1]]
+        if abs(bottom - (last[1] + last[3]) / 2) > _tip_tolerance(last, digit_height):
             continue
         candidates.append(VoiceGroup(members, component.box))
     selected = []
@@ -241,3 +240,11 @@ def recognize_voice_groups(
             selected.append(group)
             occupied.update(group.rows)
     return tuple(sorted(selected, key=lambda value: value.rows[0]))
+
+
+def _tip_tolerance(row: Box, digit_height: int) -> float:
+    """Allow small scan skew for compact rows, but not oversized row fragments."""
+    tolerance = float(digit_height * 2)
+    if row[3] - row[1] <= digit_height * 1.5:
+        tolerance *= 1.1
+    return tolerance
