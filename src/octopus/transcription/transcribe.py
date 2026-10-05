@@ -182,12 +182,18 @@ def _row_marks(
     for index, token in row.parentheses:
         x, body = marks[index]
         marks[index] = (x, body + token)
+    head_open_count = sum(start_index is None for start_index, _ in row.slurs)
     left_cut = right_cut = 0
     for start_index, end_index in row.slurs:
         if start_index is not None:
-            mark_index = note_marks[start_index]
-            x, body = marks[mark_index]
-            marks[mark_index] = (x, "(" + body)
+            if start_index == 0 and end_index is not None and head_open_count:
+                # A hidden row-head barline carries every opener visible at
+                # the head, including complete curves that start on note 0.
+                left_cut += 1
+            else:
+                mark_index = note_marks[start_index]
+                x, body = marks[mark_index]
+                marks[mark_index] = (x, "(" + body)
         else:
             left_cut += 1
         if end_index is not None:
