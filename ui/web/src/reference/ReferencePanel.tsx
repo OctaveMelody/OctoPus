@@ -98,6 +98,11 @@ export function ReferencePanel({
   const [failedImageId, setFailedImageId] = useState<string | null>(null);
   const [failedPdfMessage, setFailedPdfMessage] = useState<string | null>(null);
   const hasImages = images.length > 0;
+  const transcriptionStatus = cancelling
+    ? copy.cancellingTranscription
+    : progress?.stage === "compiling"
+      ? copy.compilingTranscription
+      : copy.transcribing;
   const image = images.find((item) => item.id === selectedId) ?? null;
   const view = image
     ? views[image.id] ?? { fit: "width", zoom: 1, rotation: 0, panX: 0, panY: 0 }
@@ -335,10 +340,12 @@ export function ReferencePanel({
       {showHint && <aside className="reference-onboarding"><p>{copy.referenceHint}</p>
         <button type="button" aria-label={copy.dismissHint} onClick={onDismissHint}>×</button></aside>}
       {transcribing && (
-        <div className="reference-transcription-progress" role="status">
-          <span>{cancelling ? copy.cancellingTranscription : progress?.stage === "compiling"
-            ? copy.compilingTranscription : progress ? copy.transcriptionPageProgress(progress.completed, progress.total) : copy.transcribing}</span>
-          <progress aria-label={copy.transcribing} max={progress?.total} value={progress?.completed} />
+        <div aria-busy="true" className="reference-transcription-progress" role="status">
+          <span className="reference-transcription-status">{transcriptionStatus}</span>
+          <div aria-label={copy.transcribing} aria-valuetext={transcriptionStatus}
+            className="reference-transcription-progressbar" role="progressbar">
+            <span className="reference-transcription-progressbar-indicator" />
+          </div>
           <button type="button" disabled={cancelling} onClick={onCancel}>{copy.cancelTranscription}</button>
         </div>
       )}
