@@ -17,7 +17,9 @@ def main() -> int:
         "--issues", type=Path, help="review issues JSON beside the draft by default"
     )
     parser.add_argument(
-        "--ocr-backend", choices=("rapidocr-onnxruntime", "rapidocr-onnx"),
+        "--ocr-backend", choices=(
+            "rapidocr-onnxruntime", "rapidocr-onnx", "rapidocr-openvino",
+        ),
         default="rapidocr-onnxruntime", help="OCR backend (default: rapidocr-onnxruntime)",
     )
     args = parser.parse_args()

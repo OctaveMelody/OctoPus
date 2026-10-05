@@ -29,9 +29,17 @@ The compatibility **rapidocr-onnxruntime** provider uses the Apache-2.0-licensed
 implementation. The Apache license copy above applies to both RapidOCR packages and the models
 described here.
 
+## OpenVINO
+
+The optional **RapidOCR + OpenVINO** provider uses the PyPI `openvino==2026.4.0` runtime, licensed
+under Apache-2.0. The OpenVINO wheel redistributes oneTBB runtime libraries; the frozen worker
+must retain the upstream package license and third-party notices alongside those libraries. The
+license copy above applies to OpenVINO where its wheel declares Apache-2.0. Sources:
+[OpenVINO 2026.4.0 on PyPI](https://pypi.org/project/openvino/2026.4.0/) and
+[Intel OpenVINO source](https://github.com/openvinotoolkit/openvino).
+
 ## ONNX Runtime
 
 Both providers use ONNX Runtime 1.30.0, licensed under MIT. The distribution includes its
 license and third-party notices with the worker when collected from the pinned package. Source:
 [ONNX Runtime 1.30.0](https://github.com/microsoft/onnxruntime/tree/v1.30.0).
-

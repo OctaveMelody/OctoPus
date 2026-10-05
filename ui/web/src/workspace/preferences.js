@@ -7,10 +7,17 @@ import {normalizeRecentFiles} from "./recent-files.js";
 /** @typedef {"N1" | "N2"} NormalLayout */
 /** @typedef {"T1" | "T2"} TranscriptionLayout */
 /** @typedef {Record<string, "system" | "fallback">} FontSources */
-/** @typedef {"rapidocr-onnxruntime" | "rapidocr-onnx"} OcrBackend */
+/** @typedef {"rapidocr-onnxruntime" | "rapidocr-onnx" | "rapidocr-openvino"} OcrBackend */
 /** @typedef {{recentFiles: string[], referenceHintDismissed: boolean, fontSources: FontSources, ocrBackend: OcrBackend, language: Language, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
 
 export const PREFERENCES_KEY = "octopus.workspace.v1";
+
+/** @param {string} backend @param {Record<string, boolean> | undefined} capabilities */
+export function ocrBackendAvailable(backend, capabilities) {
+  if (backend === "rapidocr-pytorch") return false;
+  if (backend === "rapidocr-openvino") return capabilities?.[backend] === true;
+  return capabilities?.[backend] !== false;
+}
 
 /** @type {Record<LayoutId, Split>} */
 const DEFAULT_SPLITS = {
@@ -79,7 +86,10 @@ export function readPreferences(storage, osLanguage = "en") {
       referenceHintDismissed: candidate.referenceHintDismissed === true,
       fontSources: Object.fromEntries(Object.keys(defaults.fontSources).map(role =>
         [role, isRecord(candidate.fontSources) && candidate.fontSources[role] === "fallback" ? "fallback" : "system"])),
-      ocrBackend: candidate.ocrBackend === "rapidocr-onnx" ? "rapidocr-onnx" : "rapidocr-onnxruntime",
+      ocrBackend: candidate.ocrBackend === "rapidocr-onnx"
+        || candidate.ocrBackend === "rapidocr-openvino"
+        ? candidate.ocrBackend
+        : "rapidocr-onnxruntime",
       language: candidate.language === "zh-CN" || candidate.language === "en"
         ? candidate.language
         : defaults.language,

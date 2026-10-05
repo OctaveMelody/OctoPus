@@ -30,6 +30,8 @@ transcription = [
     "rapidocr==3.9.2",
     "rapidocr-onnxruntime==1.4.4",
     "onnxruntime==1.30.0",
+    "openvino==2026.4.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "openvino==2026.4.0; sys_platform == 'win32' and platform_machine == 'AMD64'",
 ]
 desktop-build = [
     "pyinstaller==6.22.3",

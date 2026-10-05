@@ -3,11 +3,11 @@
 </header>
 <main><article id="manual-zh-CN" lang="zh-CN"><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
 <h1>用户手册</h1>
-<p>Version 0.1.0 · 2026-10-03</p>
+<p>Version 0.1.0 · 2026-10-05</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自动与自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
 <section id="zh-CN-introduction"><h2>1. 简介</h2>
-<p>OctoPus（Octave + Jianpu）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。本手册适用于 0.1.0 版本，更新于 2026 年 10 月 3 日。</p>
+<p>OctoPus（Octave + Jianpu）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。本手册适用于 0.1.0 版本，更新于 2026 年 10 月 5 日。</p>
 <p>安装完成后，编辑、渲染和受支持的转录功能可在本地运行。帮助链接及更新检查需要浏览器或网络连接。手册本身支持离线阅读；中英文版本具有相同主题和示例。可切换语言标签页，也可下载对应 PDF。</p>
 </section>
 <section id="zh-CN-capabilities"><h2>2. 功能、限制与计划</h2>
@@ -116,7 +116,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 </tbody>
 </table>
 <p>点击顶栏<b>偏好设置</b>，可选择英语或中文，并分别设置各类字体的来源。选择<b>系统优先字体</b>使用对应已安装字体；选择<b>免费替代字体</b>则即使系统字体已安装，也使用内置替代字体。系统字体缺失时，该选项变灰，自动选中内置替代字体。设置保存在本机，适用于 SVG 预览和 SVG/PDF/PNG/JPG 导出，不会修改保存的 JPS。默认分别优先使用已安装的对应系统字体，生产便携版同样如此；Linux 需要 fontconfig 精确匹配。缺失时使用内置替代字体。内置文本出现缺字时，先尝试 Noto Sans SC，再检查 Noto Serif SC 的覆盖；不能保证所有 Unicode 字符都有字形。西文 Arial 请求使用 Liberation Sans（常规/斜体/粗体/粗斜体）。音符样式为常规、斜体及粗体。旧 HeiTi 对应 HeiTi-2。替代字体可能改变间距。微软字体不随软件分发。MiSans 使用小米独立许可；其他内置说明包含 OFL 和 IPA 许可。</p>
-<p>“转录”标签页可为图片和扫描版 PDF 选择 <b>rapidocr-onnxruntime</b> 或 <b>RapidOCR + ONNX</b>。两种引擎都通过 ONNX Runtime 在本机运行；为兼容旧设置，默认仍选择旧版引擎。此设置保存在本机，并用于下一次转录。引擎不可用时，相应选项会变灰；OctoPus 不会静默切换引擎。</p>
+<p class="keep-together">“转录”标签页可为图片和扫描版 PDF 选择 <b>rapidocr-onnxruntime</b>、<b>RapidOCR + ONNX</b> 或 <b>RapidOCR + OpenVINO</b>。仅当 OctoPus 确认 CPU 厂商为 Intel 且 OpenVINO CPU 运行时可用时，才启用 OpenVINO；在本次语料测试中，其草稿与 RapidOCR + ONNX 完全相同，但在当前主机上耗时更长。<b>RapidOCR + PyTorch</b> 会列出，但因后端尚未实现而保持禁用。为兼容旧设置，默认仍选择旧版引擎。此设置保存在本机，并用于下一次转录。引擎不可用时，相应选项会变灰；OctoPus 不会静默切换引擎。</p>
 </section>
 <section id="zh-CN-export"><h2>11. 导出与便携版使用</h2>
 <p>通过导出选择 SVG、PDF、PNG 或 JPG（96 或 300 DPI），再选择输出位置。PDF 生成一份多页文档；SVG/PNG/JPG 按页生成文件。300 DPI 适合印刷质量的像素输出。LilyPond 导出列在“帮助 → 关于 OctoPus”的规划功能中。分享渲染文件前先保存 JPS 作为可编辑原稿。PDF 嵌入字体，PNG 无损保存像素，JPEG 保存压缩像素，SVG 保留矢量内容，但外部 SVG 查看器需要相应文本字体。请在目标查看器检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，此时使用对应替代字体；这不是原生桌面导出的统一限制。</p>
@@ -659,5 +659,5 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 </section>
 </article>
 </main>
-<footer>OctoPus · OctaveMelody · 2026-10-03</footer>
+<footer>OctoPus · OctaveMelody · 2026-10-05</footer>
 </body></html>

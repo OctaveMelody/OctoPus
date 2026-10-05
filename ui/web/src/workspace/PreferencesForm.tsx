@@ -3,6 +3,7 @@ import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
 import type { EngineCapabilities, FontAvailability, WorkspaceCopy, WorkspacePreferences } from "./types";
 import { fontFamilyNames } from "./i18n";
 import type { Language } from "./i18n";
+import { ocrBackendAvailable } from "./preferences.js";
 
 const roles = [
   ["heiti-1", "fontHeiTi1", "MiSans"], ["heiti-2", "fontHeiTi2", "LXGW Neo XiHei"],
@@ -77,18 +78,26 @@ export function PreferencesForm({ copy, preferences, fonts, ocrBackends, onChang
       role="tabpanel" tabIndex={0}>
       <h3>{copy.transcriptionBackendTitle}</h3><p>{copy.transcriptionBackendHelp}</p>
       <fieldset className="preferences-ocr-backends"><legend>{copy.transcriptionBackendTitle}</legend>
-        {(["rapidocr-onnxruntime", "rapidocr-onnx"] as const).map(backend => {
-          const available = ocrBackends?.[backend];
+        {(["rapidocr-onnxruntime", "rapidocr-onnx", "rapidocr-openvino"] as const).map(backend => {
+          const disabled = !ocrBackendAvailable(backend, ocrBackends);
           return <label key={backend}>
-            <input checked={preferences.ocrBackend === backend} disabled={available === false}
+            <input checked={preferences.ocrBackend === backend} disabled={disabled}
               name="ocr-backend" onChange={() => onChange(current => ({
                 ...current, ocrBackend: backend,
               }))} type="radio" value={backend} />
             <span>{backend === "rapidocr-onnxruntime"
-              ? "rapidocr-onnxruntime" : "RapidOCR + ONNX"}</span>
-            {available === false && <small>{copy.backendUnavailable}</small>}
+              ? "rapidocr-onnxruntime"
+              : backend === "rapidocr-onnx" ? "RapidOCR + ONNX" : "RapidOCR + OpenVINO"}</span>
+            {disabled && <small>{copy.backendUnavailable}</small>}
           </label>;
         })}
+        <label key="rapidocr-pytorch">
+          {/* This option is a roadmap placeholder, never a persisted provider choice. */}
+          <input checked={false} disabled name="ocr-backend-placeholder" type="radio"
+            value="rapidocr-pytorch" />
+          <span>RapidOCR + PyTorch</span>
+          <small>{copy.backendNotAvailableYet}</small>
+        </label>
       </fieldset>
     </section>
     <div className="dialog-actions preferences-actions"><button onClick={onClose} type="button">{copy.done}</button></div>

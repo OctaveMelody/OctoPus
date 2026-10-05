@@ -34,10 +34,14 @@ with the dependencies collected into the frozen worker.
 
 - Python 3.12 for native worker builds (`.python-version`); Python source supports 3.11+.
 - Python runtime/export dependencies: `pyproject.toml` and `uv.lock`.
-- OCR: `transcription` extra provides both selectable offline CPU engines: legacy
-  `rapidocr-onnxruntime==1.4.4` and current `rapidocr==3.9.2` with
-  `onnxruntime==1.30.0`. Preferences → Transcription selects the provider; the legacy engine
-  remains the default for existing installations and saved settings.
+- OCR: `transcription` extra provides three selectable offline CPU engines: legacy
+  `rapidocr-onnxruntime==1.4.4`, RapidOCR + ONNX using `rapidocr==3.9.2` and
+  `onnxruntime==1.30.0`, and RapidOCR + OpenVINO using `openvino==2026.4.0`. OpenVINO is enabled
+  only when the host CPU vendor is confirmed as Intel and its CPU plugin is available. The package
+  is locked for x86-64 Linux and AMD64 Windows builds; other architectures keep this provider
+  disabled. Preferences also lists RapidOCR + PyTorch as unavailable; that backend is not
+  implemented. The legacy engine remains the default for existing installations and saved
+  settings.
 - Worker freezing: `desktop-build` extra, PyInstaller 6.22.3.
 - Node.js 22.23.3 (`.node-version`), npm 10.9.9; frontend `ui/web/package-lock.json`.
 - Rust 1.98.1 (`rust-toolchain.toml`), Cargo lock `ui/Cargo.lock`.

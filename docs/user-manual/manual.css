@@ -16,3 +16,5 @@ figure img{max-height:230mm;object-fit:contain}section{break-inside:auto}}
 
 @media print{.example-label,.sample-provenance{break-after:avoid}
 .sample-example pre{break-after:avoid}#en-sources,#zh-CN-sources{break-inside:avoid}}
+
+@media print{.keep-together{break-inside:avoid;page-break-inside:avoid}}

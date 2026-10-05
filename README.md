@@ -17,7 +17,7 @@ OctoPus-dev, which holds tests, audits, reference output and development tools.
 - Import JPG/PNG/PDF references through the file picker or by dropping a file into the
   Original Image/PDF panel; transcribe them into JPS drafts for review.
 - Export rendered scores as SVG, PDF, PNG or JPEG (96/300 DPI raster output).
-- Choose `rapidocr-onnxruntime` or `RapidOCR + ONNX` in Preferences → Transcription; review clickable scan regions and source warnings, and cancel an active transcription.
+- Choose `rapidocr-onnxruntime`, `RapidOCR + ONNX` or `RapidOCR + OpenVINO` in Preferences → Transcription; OpenVINO is enabled only on confirmed Intel CPUs. `RapidOCR + PyTorch` is listed as unavailable. Review clickable scan regions and source warnings, and cancel an active transcription.
 - Reopen recent scores, use keyboard shortcuts, and export folders through the Python CLI.
 
 ## Transcription drafts

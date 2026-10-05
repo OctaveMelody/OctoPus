@@ -14,13 +14,14 @@ from xml.etree import ElementTree
 
 from PIL import Image, ImageOps
 
+from .capabilities import openvino_cpu_available
 from .components import Box, Component, connected_components
 from .marks import vertical_bend
 from .session_artifacts import track_session_artifact
 
 _XHTML = "{http://www.w3.org/1999/xhtml}"
-OcrBackend = Literal["rapidocr-onnxruntime", "rapidocr-onnx"]
-_OCR_BACKENDS = frozenset(("rapidocr-onnxruntime", "rapidocr-onnx"))
+OcrBackend = Literal["rapidocr-onnxruntime", "rapidocr-onnx", "rapidocr-openvino"]
+_OCR_BACKENDS = frozenset(("rapidocr-onnxruntime", "rapidocr-onnx", "rapidocr-openvino"))
 _active_ocr_backend: ContextVar[OcrBackend] = ContextVar(
     "octopus_ocr_backend", default="rapidocr-onnxruntime",
 )
@@ -51,6 +52,10 @@ class TextSpan:
 def using_ocr_backend(backend: str) -> Iterator[None]:
     if backend not in _OCR_BACKENDS:
         raise ValueError(f"unknown OCR backend: {backend}")
+    if backend == "rapidocr-openvino" and not openvino_cpu_available():
+        raise RuntimeError(
+            "RapidOCR + OpenVINO requires a confirmed Intel CPU and OpenVINO CPU runtime"
+        )
     token = _active_ocr_backend.set(cast(OcrBackend, backend))
     try:
         yield
@@ -58,17 +63,31 @@ def using_ocr_backend(backend: str) -> Iterator[None]:
         _active_ocr_backend.reset(token)
 
 
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=3)
 def _cached_ocr_engine(backend: OcrBackend) -> object | None:
+    if backend == "rapidocr-openvino" and not openvino_cpu_available():
+        raise RuntimeError(
+            "RapidOCR + OpenVINO requires a confirmed Intel CPU and OpenVINO CPU runtime"
+        )
     try:
         if backend == "rapidocr-onnxruntime":
             from rapidocr_onnxruntime import RapidOCR  # type: ignore
             options: dict[str, Any] = {}
-        else:
+        elif backend == "rapidocr-onnx":
             from rapidocr import RapidOCR
             options = {"params": {
                 "EngineConfig.onnxruntime.intra_op_num_threads": 2,
                 "EngineConfig.onnxruntime.inter_op_num_threads": 1,
+                "Global.log_level": "critical",
+            }}
+        else:
+            from rapidocr import EngineType, RapidOCR
+
+            options = {"params": {
+                "Det.engine_type": EngineType.OPENVINO,
+                "Cls.engine_type": EngineType.OPENVINO,
+                "Rec.engine_type": EngineType.OPENVINO,
+                "EngineConfig.openvino.inference_num_threads": 2,
                 "Global.log_level": "critical",
             }}
     except ImportError:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
 from collections.abc import Callable
 from dataclasses import asdict
@@ -24,6 +23,10 @@ from octopus.render.svg import (
 )
 from octopus.render.svg_preview import add_safe_custom_page_markup
 from octopus.transcription import transcribe
+from octopus.transcription.capabilities import (
+    ocr_backend_capabilities,
+    openvino_cpu_available,
+)
 from octopus.transcription.text import OcrBackend
 
 from .validation import (
@@ -130,8 +133,15 @@ def _transcribe(
         raise ProtocolError("transcribe requires a managed reference path and optional OCR backend")
     ocr_backend = payload.get("ocr_backend", "rapidocr-onnxruntime")
     if (not isinstance(ocr_backend, str)
-            or ocr_backend not in {"rapidocr-onnxruntime", "rapidocr-onnx"}):
+            or ocr_backend not in {
+                "rapidocr-onnxruntime", "rapidocr-onnx", "rapidocr-openvino",
+            }):
         raise ProtocolError("unsupported OCR backend")
+    if ocr_backend == "rapidocr-openvino" and not openvino_cpu_available():
+        raise ProtocolError(
+            "RapidOCR + OpenVINO requires a confirmed Intel CPU and an available "
+            "OpenVINO CPU runtime"
+        )
     selected_backend = cast(OcrBackend, ocr_backend)
     path = Path(payload["path"])
     if not path.is_absolute() or path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".pdf"}:
@@ -377,6 +387,7 @@ def dispatch(
         if request["operation"] == "handshake":
             if request["payload"]:
                 raise ProtocolError("handshake payload must be empty")
+            backend_capabilities = ocr_backend_capabilities()
             result = {
                 "operations": [
                     "handshake",
@@ -391,18 +402,8 @@ def dispatch(
                 "max_request_bytes": MAX_REQUEST_BYTES,
                 "max_response_bytes": MAX_RESPONSE_BYTES,
                 "custom_svg_display": True,
-                "ocr_backends": {
-                    "rapidocr-onnxruntime": importlib.util.find_spec(
-                        "rapidocr_onnxruntime"
-                    ) is not None,
-                    "rapidocr-onnx": importlib.util.find_spec("rapidocr") is not None
-                    and importlib.util.find_spec("onnxruntime") is not None,
-                },
-                "ocr": (
-                    importlib.util.find_spec("rapidocr_onnxruntime") is not None
-                    or importlib.util.find_spec("rapidocr") is not None
-                    and importlib.util.find_spec("onnxruntime") is not None
-                ),
+                "ocr_backends": backend_capabilities,
+                "ocr": any(backend_capabilities.values()),
                 "png_export": True,
                 "fonts": system_font_availability(),
             }
