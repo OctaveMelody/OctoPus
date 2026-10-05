@@ -4,7 +4,7 @@
 /** @typedef {{documentId: string, revision: number, pageCount: number, filenames: string[], customMarkupOmitted: boolean}} SvgExportReceipt */
 /** @typedef {"pdf" | "jpg" | "png"} ScoreExportFormat */
 /** @typedef {{documentId: string, revision: number, format: ScoreExportFormat, dpi: number | null, pageCount: number, filenames: string[], customMarkupOmitted: boolean}} ScoreExportReceipt */
-/** @typedef {{ocr: boolean, ocr_backends?: Record<"rapidocr-onnxruntime" | "rapidocr-onnx" | "rapidocr-openvino", boolean>, png_export: boolean, fonts?: Record<string, {family: string, fallback: string, available: boolean}>}} EngineCapabilities */
+/** @typedef {{ocr: boolean, png_export: boolean, fonts?: Record<string, {family: string, fallback: string, available: boolean}>}} EngineCapabilities */
 /** @typedef {{id: string, path: string, name: string, mimeType: "image/png" | "image/jpeg", byteLength: number, width: number, height: number, orientation: number}} StagedReferenceImage */
 /** @typedef {{id: string, path: string, name: string, byteLength: number, sha256: string}} StagedReferencePdf */
 /** @typedef {{images: StagedReferenceImage[], pdfs: StagedReferencePdf[], order: string[]}} StagedReferenceAssets */
@@ -44,14 +44,11 @@ export function resolveReferenceImages(ids) {
 }
 
 /** @param {string} assetId @param {string} documentId @param {number} documentRevision @param {string} jobId
- * @param {"rapidocr-onnxruntime" | "rapidocr-onnx" | "rapidocr-openvino"} [ocrBackend]
  * @returns {Promise<TranscriptionResponse>} */
-export async function transcribeReference(
-  assetId, documentId, documentRevision, jobId, ocrBackend = "rapidocr-onnxruntime",
-) {
+export async function transcribeReference(assetId, documentId, documentRevision, jobId) {
   /** @type {TranscriptionResponse} */
   const response = await invokeNative("transcribe_reference", {
-    assetId, documentId, documentRevision, jobId, ocrBackend,
+    assetId, documentId, documentRevision, jobId,
   });
   const draft = response?.result;
   if (response?.status === "error" && typeof response.error?.message === "string") return response;

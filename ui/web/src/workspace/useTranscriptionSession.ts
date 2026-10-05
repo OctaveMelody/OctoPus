@@ -3,7 +3,7 @@ import type {RefObject} from "react";
 import {isCurrentDocumentRevision} from "./document.js";
 import {cancelTranscription as cancelNative, onTranscriptionProgress, transcribeReference} from "./native-files.js";
 import {normalizeJpsFileName} from "./new-score.js";
-import type {DocumentSnapshot, TranscriptionDraft, WorkspaceCopy, WorkspacePreferences} from "./types";
+import type {DocumentSnapshot, TranscriptionDraft, WorkspaceCopy} from "./types";
 
 type ReferenceSet = ReturnType<typeof import("./reference-set.js").createReferenceSet>;
 export type TranscriptionContext = {pages: string[]; draft: TranscriptionDraft; name: string};
@@ -11,14 +11,13 @@ export type TranscriptionProgress = {completed: number; total: number; stage: st
 
 /** Owns request identity, progress subscription and cancellation. Draft adoption stays guarded. */
 export function useTranscriptionSession({currentDocument, getReferences, isBusy, copyRef, onDraft,
-  onError, ocrBackend}: {
+  onError}: {
   currentDocument: RefObject<DocumentSnapshot>;
   getReferences(): ReferenceSet;
   isBusy(mode: "new" | "append"): boolean;
   copyRef: RefObject<WorkspaceCopy>;
   onDraft(mode: "new" | "append", context: TranscriptionContext): void;
   onError(message: string): void;
-  ocrBackend: WorkspacePreferences["ocrBackend"];
 }) {
   const transcribing = useRef(false);
   const active = useRef<{id: string; document: DocumentSnapshot; cancelled: boolean; cancelling: boolean; started: boolean} | null>(null);
@@ -84,7 +83,7 @@ export function useTranscriptionSession({currentDocument, getReferences, isBusy,
       if (job.cancelled || active.current !== job) return;
       job.started = true;
       const response = await transcribeReference(
-        assetId, job.document.id, job.document.revision, job.id, ocrBackend,
+        assetId, job.document.id, job.document.revision, job.id,
       );
       if (job.cancelled || active.current !== job) return;
       const draft = response.result;

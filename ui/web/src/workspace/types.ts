@@ -115,7 +115,6 @@ export type FontAvailability = Record<string, { family: string; fallback: string
 export type FontSources = WorkspacePreferences["fontSources"];
 export type EngineCapabilities = {
   ocr: boolean;
-  ocr_backends?: Record<WorkspacePreferences["ocrBackend"], boolean>;
   png_export: boolean;
   fonts?: FontAvailability;
 };

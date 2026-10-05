@@ -2,18 +2,17 @@ import type { Dispatch, SetStateAction } from "react";
 import { PreferencesForm } from "./PreferencesForm";
 import type { DocumentLifecycle } from "./useDocumentLifecycle";
 import type { useReferenceAssets } from "./useReferenceAssets";
-import type { WorkspaceCopy, WorkspacePreferences, FontAvailability, EngineCapabilities,
+import type { WorkspaceCopy, WorkspacePreferences, FontAvailability,
   NewScoreFields } from "./types";
 
 export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences, setPreferences,
-  fonts, ocrBackends }: {
+  fonts }: {
   lifecycle: DocumentLifecycle;
   referenceAssets: ReturnType<typeof useReferenceAssets>;
   copy: WorkspaceCopy;
   preferences: WorkspacePreferences;
   setPreferences: Dispatch<SetStateAction<WorkspacePreferences>>;
   fonts?: FontAvailability;
-  ocrBackends?: EngineCapabilities["ocr_backends"];
 }) {
   const {activeDialog, activeDialogRef, dialogRef, dialogError, setDialogError,
     setActiveDialog, newFileName, setNewFileName, newScoreFields, setNewScoreFields,
@@ -57,7 +56,7 @@ export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences
         ref={dialogRef}
       >
         {activeDialog === "preferences" && <PreferencesForm copy={copy}
-          preferences={preferences} fonts={fonts} ocrBackends={ocrBackends}
+          preferences={preferences} fonts={fonts}
           onChange={setPreferences} onClose={() => setActiveDialog(null)} />}
         {activeDialog === "dirty" && (
           <section>

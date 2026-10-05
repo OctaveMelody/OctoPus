@@ -3,28 +3,19 @@
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Iterator
-from contextlib import contextmanager
-from contextvars import ContextVar
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, cast
 from xml.etree import ElementTree
 
 from PIL import Image, ImageOps
 
-from .capabilities import openvino_cpu_available
 from .components import Box, Component, connected_components
 from .marks import vertical_bend
 from .session_artifacts import track_session_artifact
 
 _XHTML = "{http://www.w3.org/1999/xhtml}"
-OcrBackend = Literal["rapidocr-onnxruntime", "rapidocr-onnx", "rapidocr-openvino"]
-_OCR_BACKENDS = frozenset(("rapidocr-onnxruntime", "rapidocr-onnx", "rapidocr-openvino"))
-_active_ocr_backend: ContextVar[OcrBackend] = ContextVar(
-    "octopus_ocr_backend", default="rapidocr-onnxruntime",
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,66 +39,26 @@ class TextSpan:
         return self.box[3] - self.box[1]
 
 
-@contextmanager
-def using_ocr_backend(backend: str) -> Iterator[None]:
-    if backend not in _OCR_BACKENDS:
-        raise ValueError(f"unknown OCR backend: {backend}")
-    if backend == "rapidocr-openvino" and not openvino_cpu_available():
-        raise RuntimeError(
-            "RapidOCR + OpenVINO requires a confirmed Intel CPU and OpenVINO CPU runtime"
-        )
-    token = _active_ocr_backend.set(cast(OcrBackend, backend))
+@lru_cache(maxsize=1)
+def _cached_ocr_engine() -> object | None:
     try:
-        yield
-    finally:
-        _active_ocr_backend.reset(token)
-
-
-@lru_cache(maxsize=3)
-def _cached_ocr_engine(backend: OcrBackend) -> object | None:
-    if backend == "rapidocr-openvino" and not openvino_cpu_available():
-        raise RuntimeError(
-            "RapidOCR + OpenVINO requires a confirmed Intel CPU and OpenVINO CPU runtime"
-        )
-    try:
-        if backend == "rapidocr-onnxruntime":
-            from rapidocr_onnxruntime import RapidOCR  # type: ignore
-            options: dict[str, Any] = {}
-        elif backend == "rapidocr-onnx":
-            from rapidocr import RapidOCR
-            options = {"params": {
-                "EngineConfig.onnxruntime.intra_op_num_threads": 2,
-                "EngineConfig.onnxruntime.inter_op_num_threads": 1,
-                "Global.log_level": "critical",
-            }}
-        else:
-            from rapidocr import EngineType, RapidOCR
-
-            options = {"params": {
-                "Det.engine_type": EngineType.OPENVINO,
-                "Cls.engine_type": EngineType.OPENVINO,
-                "Rec.engine_type": EngineType.OPENVINO,
-                "EngineConfig.openvino.inference_num_threads": 2,
-                "Global.log_level": "critical",
-            }}
+        from rapidocr import RapidOCR
     except ImportError:
         return None
     with track_session_artifact():
-        return cast(object, RapidOCR(**options))
+        return cast(object, RapidOCR(params={
+            "EngineConfig.onnxruntime.intra_op_num_threads": 2,
+            "EngineConfig.onnxruntime.inter_op_num_threads": 1,
+            "Global.log_level": "critical",
+        }))
 
 
 def _ocr_engine() -> object | None:
-    return _cached_ocr_engine(_active_ocr_backend.get())
+    return _cached_ocr_engine()
 
 
 def _ocr_call(engine: object, image: Any, **options: Any) -> tuple[list[Any], Any]:
-    """Normalize both RapidOCR APIs to the tuple/list interface used by the pipeline."""
-    backend = _active_ocr_backend.get()
-    if backend == "rapidocr-onnxruntime":
-        options.pop("return_single_char_box", None)
-        result, elapsed = engine(image, **options)  # type: ignore[operator]
-        return list(result or []), elapsed
-
+    """Normalize RapidOCR's structured result to the pipeline's row tuples."""
     options.setdefault("use_det", bool(options.get("return_word_box")))
     options.setdefault("use_cls", True)
     options.setdefault("use_rec", True)

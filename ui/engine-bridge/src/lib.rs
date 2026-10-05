@@ -16,7 +16,7 @@ mod process;
 pub mod transcription_jobs;
 use process::WorkerProcess;
 
-const PROTOCOL_VERSION: &str = "1.6.0";
+const PROTOCOL_VERSION: &str = "1.7.0";
 const MAX_REQUEST_BYTES: usize = 10 * 1024 * 1024;
 const MAX_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
@@ -73,7 +73,6 @@ pub struct TranscribeArgs {
     pub document_id: String,
     pub document_revision: u64,
     pub path: String,
-    pub ocr_backend: String,
 }
 
 pub struct EngineSupervisor {
@@ -319,7 +318,7 @@ impl EngineSupervisor {
             args.document_id,
             args.document_revision,
             "transcribe",
-            json!({ "path": args.path, "ocr_backend": args.ocr_backend }),
+            json!({ "path": args.path }),
             Duration::from_secs(900),
             Some(cancelled),
             Some(Box::new(progress)),
@@ -823,7 +822,7 @@ for line in sys.stdin:
     elif operation == "parse":
         response["result"] = {"operation": "parse", "diagnostics": [], "source_offset_unit": "codepoint"}
     elif operation == "transcribe":
-        response["result"] = {"selected_backend": request["payload"].get("ocr_backend")}
+        response["result"] = {"payload": request["payload"]}
     if mode.startswith("progress") and operation == "transcribe" or mode == "progress-on-render" and operation == "render":
         frames = [(0, 2, "recognizing"), (1, 2, "recognizing"), (2, 2, "compiling")]
         if mode == "progress-regression": frames = [(1, 2, "recognizing"), (0, 2, "recognizing")]
@@ -949,7 +948,7 @@ for line in sys.stdin:
     #[test]
     fn response_identity_and_generation_are_checked() {
         let response = json!({
-            "protocol_version": "1.6.0",
+            "protocol_version": "1.7.0",
             "engine_generation": "g1",
             "request_id": "r1",
             "document_id": "d1",
@@ -965,7 +964,7 @@ for line in sys.stdin:
     #[test]
     fn handshake_requires_boolean_feature_capabilities() {
         let response = json!({
-            "protocol_version": "1.6.0",
+            "protocol_version": "1.7.0",
             "engine_generation": "g1",
             "request_id": "handshake-0",
             "document_id": "desktop",
@@ -993,7 +992,6 @@ for line in sys.stdin:
             document_id: "transcription-doc".into(),
             document_revision: 7,
             path: "/managed/reference.pdf".into(),
-            ocr_backend: "rapidocr-onnxruntime".into(),
         }
     }
 
@@ -1042,14 +1040,11 @@ for line in sys.stdin:
     }
 
     #[test]
-    fn selected_transcription_backend_is_sent_to_the_worker() {
+    fn transcription_request_sends_only_the_managed_reference_path() {
         let mut engine = fake_engine("normal");
-        let mut args = transcription_args();
-        args.ocr_backend = "rapidocr-onnx".into();
-
-        let result = engine.transcribe(args).unwrap();
-
-        assert_eq!(result["result"]["selected_backend"], "rapidocr-onnx");
+        let result = engine.transcribe(transcription_args()).unwrap();
+        assert_eq!(result["result"]["payload"]["path"], "/managed/reference.pdf");
+        assert_eq!(result["result"]["payload"].as_object().unwrap().len(), 1);
     }
 
     #[test]

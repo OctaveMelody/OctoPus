@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import asdict
+from importlib.util import find_spec
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from octopus.export.svg import (
     normalize_source,
@@ -23,11 +24,6 @@ from octopus.render.svg import (
 )
 from octopus.render.svg_preview import add_safe_custom_page_markup
 from octopus.transcription import transcribe
-from octopus.transcription.capabilities import (
-    ocr_backend_capabilities,
-    openvino_cpu_available,
-)
-from octopus.transcription.text import OcrBackend
 
 from .validation import (
     MAX_SAFE_INTEGER,
@@ -38,7 +34,7 @@ from .validation import (
     is_integer,
 )
 
-PROTOCOL_VERSION = "1.6.0"
+PROTOCOL_VERSION = "1.7.0"
 MAX_REQUEST_BYTES = 10 * 1024 * 1024
 MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 MAX_REVISION = MAX_SAFE_INTEGER
@@ -57,6 +53,13 @@ class PageOutOfRangeError(ProtocolError):
     def __init__(self, page_count: int) -> None:
         super().__init__("page_index is outside the document")
         self.page_count = page_count
+
+
+def _ocr_available() -> bool:
+    try:
+        return find_spec("rapidocr") is not None and find_spec("onnxruntime") is not None
+    except (ImportError, ValueError):
+        return False
 
 
 def _validate_request(request: object) -> dict[str, Any]:
@@ -128,30 +131,12 @@ def _transcribe(
     payload: dict[str, Any],
     progress: Callable[[int, int, str], None] | None = None,
 ) -> dict[str, Any]:
-    if (set(payload) not in ({"path"}, {"path", "ocr_backend"})
-            or not isinstance(payload.get("path"), str)):
-        raise ProtocolError("transcribe requires a managed reference path and optional OCR backend")
-    ocr_backend = payload.get("ocr_backend", "rapidocr-onnxruntime")
-    if (not isinstance(ocr_backend, str)
-            or ocr_backend not in {
-                "rapidocr-onnxruntime", "rapidocr-onnx", "rapidocr-openvino",
-            }):
-        raise ProtocolError("unsupported OCR backend")
-    if ocr_backend == "rapidocr-openvino" and not openvino_cpu_available():
-        raise ProtocolError(
-            "RapidOCR + OpenVINO requires a confirmed Intel CPU and an available "
-            "OpenVINO CPU runtime"
-        )
-    selected_backend = cast(OcrBackend, ocr_backend)
+    if set(payload) != {"path"} or not isinstance(payload.get("path"), str):
+        raise ProtocolError("transcribe requires a managed reference path")
     path = Path(payload["path"])
     if not path.is_absolute() or path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".pdf"}:
         raise ProtocolError("transcribe requires an absolute PNG, JPEG, or PDF path")
-    if ocr_backend == "rapidocr-onnxruntime":
-        draft = transcribe(path, progress=progress) if progress else transcribe(path)
-    elif progress:
-        draft = transcribe(path, progress=progress, ocr_backend=selected_backend)
-    else:
-        draft = transcribe(path, ocr_backend=selected_backend)
+    draft = transcribe(path, progress=progress) if progress else transcribe(path)
     return {
         "jps": draft.jps,
         "issues": [asdict(issue) for issue in draft.issues],
@@ -387,7 +372,6 @@ def dispatch(
         if request["operation"] == "handshake":
             if request["payload"]:
                 raise ProtocolError("handshake payload must be empty")
-            backend_capabilities = ocr_backend_capabilities()
             result = {
                 "operations": [
                     "handshake",
@@ -402,8 +386,7 @@ def dispatch(
                 "max_request_bytes": MAX_REQUEST_BYTES,
                 "max_response_bytes": MAX_RESPONSE_BYTES,
                 "custom_svg_display": True,
-                "ocr_backends": backend_capabilities,
-                "ocr": any(backend_capabilities.values()),
+                "ocr": _ocr_available(),
                 "png_export": True,
                 "fonts": system_font_availability(),
             }

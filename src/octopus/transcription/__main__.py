@@ -16,12 +16,6 @@ def main() -> int:
     parser.add_argument(
         "--issues", type=Path, help="review issues JSON beside the draft by default"
     )
-    parser.add_argument(
-        "--ocr-backend", choices=(
-            "rapidocr-onnxruntime", "rapidocr-onnx", "rapidocr-openvino",
-        ),
-        default="rapidocr-onnxruntime", help="OCR backend (default: rapidocr-onnxruntime)",
-    )
     args = parser.parse_args()
     issue_path = args.issues or args.out.with_suffix(".issues.json")
     for first, second in combinations((args.input, args.out, issue_path), 2):
@@ -29,8 +23,7 @@ def main() -> int:
             first.exists() and second.exists() and first.samefile(second)
         ):
             parser.error("input, draft and review issues must be distinct files")
-    draft = (transcribe(args.input) if args.ocr_backend == "rapidocr-onnxruntime"
-             else transcribe(args.input, ocr_backend=args.ocr_backend))
+    draft = transcribe(args.input)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     issue_path.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(draft.jps, encoding="utf-8")

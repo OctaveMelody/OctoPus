@@ -27,10 +27,6 @@ PYINSTALLER_VERSION = "6.22.3"
 sys.path[:0] = [str(ROOT), str(ROOT / "src")]
 
 from octopus.jps import load_jps  # noqa: E402
-from octopus.transcription.capabilities import (  # noqa: E402
-    intel_cpu_confirmed,
-    openvino_cpu_available,
-)
 from ui.engine.desktop_protocol import PROTOCOL_VERSION, dispatch  # noqa: E402
 
 
@@ -114,74 +110,24 @@ def _check_project_license(bundle: Path, source: Path = ROOT / "LICENSE") -> Non
         raise RuntimeError("project license missing/corrupt")
 
 
-def _copy_distribution_licenses(bundle: Path, package: str, destination: str) -> None:
-    distribution = importlib.metadata.distribution(package)
-    license_files: list[tuple[Path, Path]] = []
-    for entry in distribution.files or ():
-        parts = tuple(Path(part) for part in entry.parts)
-        normalized = tuple(part.name.casefold() for part in parts)
-        if "licenses" in normalized:
-            index = normalized.index("licenses")
-            if index + 1 < len(parts):
-                relative = Path(*parts[index + 1:])
-                if relative.is_absolute() or ".." in relative.parts:
-                    raise RuntimeError(f"{package} contains an unsafe license path: {entry}")
-                license_files.append((Path(str(distribution.locate_file(entry))), relative))
-        elif (parts and any(part.endswith(".dist-info") for part in normalized)
-              and parts[-1].name.casefold() in {"license", "notice", "copying"}):
-            license_files.append((Path(str(distribution.locate_file(entry))), Path(parts[-1].name)))
-    if not license_files:
-        raise RuntimeError(f"{package} distribution does not contain license files")
-    target = bundle / "licenses" / destination
-    for source, relative in license_files:
-        if not source.is_file():
-            raise RuntimeError(f"{package} license file is missing: {source}")
-        output = target / relative
-        output.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, output)
-
-
-def _copy_runtime_licenses(bundle: Path, repository_root: Path = ROOT) -> None:
-    if _optional_distribution_version("openvino") is None:
-        return
-    _copy_distribution_licenses(bundle, "openvino", "OpenVINO")
-    _copy_distribution_licenses(bundle, "openvino-telemetry", "OpenVINO-Telemetry")
-    shutil.copy2(repository_root / "docs/THIRD_PARTY_NOTICES.md", bundle / "THIRD_PARTY_NOTICES.md")
-
-
-def _prune_non_cpu_openvino_plugins(bundle: Path) -> None:
-    """Drop device/model plugins not used by the CPU-only OpenVINO provider."""
-    library_dir = bundle / "_internal" / "openvino" / "libs"
-    if not library_dir.is_dir():
-        raise RuntimeError("frozen OpenVINO libraries are missing")
-    unused_markers = (
-        "intel_gpu_plugin", "intel_npu_plugin", "auto_plugin", "auto_batch_plugin",
-        "hetero_plugin", "gguf_frontend", "jax_frontend", "paddle_frontend",
-        "pytorch_frontend", "tensorflow_frontend", "tensorflow_lite_frontend",
+def _prune_non_onnx_rapidocr_backends(bundle: Path) -> None:
+    """Keep only RapidOCR's ONNX inference backend in the frozen worker."""
+    engines = bundle / "_internal" / "rapidocr" / "inference_engine"
+    onnx = engines / "onnxruntime"
+    if not (onnx / "main.py").is_file():
+        raise RuntimeError("frozen RapidOCR ONNX inference backend is missing")
+    for path in engines.iterdir():
+        if path.name == "onnxruntime":
+            continue
+        if path.is_symlink():
+            path.unlink()
+        elif path.is_dir():
+            shutil.rmtree(path)
+    remaining = sorted(
+        path.name for path in engines.iterdir() if path.is_dir() or path.is_symlink()
     )
-    for path in library_dir.iterdir():
-        if path.is_file() and any(marker in path.name.casefold() for marker in unused_markers):
-            path.unlink()
-    internal_dir = bundle / "_internal"
-    for path in internal_dir.iterdir():
-        if path.is_symlink() and any(marker in path.name.casefold() for marker in unused_markers):
-            path.unlink()
-    if not any("intel_cpu_plugin" in path.name.casefold() for path in library_dir.iterdir()):
-        raise RuntimeError("frozen OpenVINO CPU plugin is missing")
-    if not any("onnx_frontend" in path.name.casefold() for path in library_dir.iterdir()):
-        raise RuntimeError("frozen OpenVINO ONNX frontend is missing")
-
-
-def _optional_distribution_version(package: str) -> str | None:
-    try:
-        return importlib.metadata.version(package)
-    except importlib.metadata.PackageNotFoundError:
-        return None
-
-
-def _openvino_wheel_supported(system: str, machine: str) -> bool:
-    return ((system == "Linux" and machine.casefold() == "x86_64")
-            or (system == "Windows" and machine.casefold() == "amd64"))
+    if remaining != ["onnxruntime"]:
+        raise RuntimeError("frozen RapidOCR worker contains a non-ONNX inference backend")
 
 
 def _index_smoke_responses(
@@ -255,7 +201,7 @@ def _stable_handshake_result(result: object) -> object:
     """Drop install-specific OCR availability from the stable protocol comparison."""
     if not isinstance(result, dict):
         return result
-    return {key: value for key, value in result.items() if key not in {"ocr", "ocr_backends"}}
+    return {key: value for key, value in result.items() if key != "ocr"}
 
 
 def _smoke_test(bundle: Path, render_request: dict[str, object]) -> None:
@@ -277,16 +223,9 @@ def _smoke_test_with_image(
     image = Image.new("RGB", (480, 120), "white")
     ImageDraw.Draw(image).text((24, 42), "Q: 1 2 3 4 |", fill="black")
     image.save(smoke_image)
-    backends_to_check = (
-        "rapidocr-onnxruntime", "rapidocr-onnx", "rapidocr-openvino",
+    transcription_request = _request(
+        "desktop-build-transcribe", "transcribe", 2, {"path": str(smoke_image)},
     )
-    transcription_requests = [
-        _request(
-            f"desktop-build-transcribe-{backend}", "transcribe", index + 2,
-            {"path": str(smoke_image), "ocr_backend": backend},
-        )
-        for index, backend in enumerate(backends_to_check)
-    ]
     handshake = _request("desktop-build-handshake", "handshake", 0, {})
     previous_profile = os.environ.get("OCTOPUS_FONT_PROFILE")
     os.environ["OCTOPUS_FONT_PROFILE"] = "release"
@@ -307,7 +246,7 @@ def _smoke_test_with_image(
     input_text = (
         "\n".join(
             json.dumps(item, ensure_ascii=True, allow_nan=False)
-            for item in (handshake, render_request, *transcription_requests)
+            for item in (handshake, render_request, transcription_request)
         )
         + "\n"
     )
@@ -328,7 +267,7 @@ def _smoke_test_with_image(
         responses = [json.loads(line) for line in completed.stdout.splitlines()]
     except json.JSONDecodeError as error:
         raise RuntimeError(f"frozen engine emitted invalid JSON: {error}") from error
-    expected_requests = [handshake, render_request, *transcription_requests]
+    expected_requests = [handshake, render_request, transcription_request]
     responses_by_id = _index_smoke_responses(responses, expected_requests)
     handshake_id = handshake["request_id"]
     render_id = render_request["request_id"]
@@ -359,44 +298,24 @@ def _smoke_test_with_image(
             + json.dumps(response.get("error"), ensure_ascii=True)[:1000]
         )
     handshake_result = handshake_response.get("result")
-    available_backends = (
-        handshake_result.get("ocr_backends", {})
-        if isinstance(handshake_result, dict)
-        else {}
-    )
     expected_handshake_result = expected_handshake.get("result")
     if (not isinstance(handshake_result, dict)
-            or not isinstance(available_backends, dict)
             or not isinstance(expected_handshake_result, dict)
-            or available_backends != expected_handshake_result.get("ocr_backends")
-            or handshake_result.get("ocr") is not any(
-            available_backends.get(backend) is True for backend in backends_to_check
-            )
-    ):
-        raise RuntimeError("frozen engine aggregate OCR capability did not match its providers")
-    for request, backend in zip(transcription_requests, backends_to_check, strict=True):
-        request_id = request["request_id"]
-        if not isinstance(request_id, str):
-            raise RuntimeError("frozen engine transcription request is missing its ID")
-        result = responses_by_id[request_id]
-        if available_backends.get(backend) is not True:
-            backend_error = result.get("error")
-            if (backend == "rapidocr-openvino" and result.get("status") == "error"
-                    and isinstance(backend_error, dict)
-                    and "confirmed Intel CPU" in str(backend_error.get("message", ""))):
-                continue
-            raise RuntimeError(f"frozen engine did not advertise OCR backend {backend}")
-        transcription_result = result.get("result")
-        if (
-            result.get("status") != "ok"
-            or not isinstance(transcription_result, dict)
+            or handshake_result.get("ocr") is not True
+            or handshake_result.get("ocr") != expected_handshake_result.get("ocr")):
+        raise RuntimeError("frozen engine did not advertise the RapidOCR + ONNX provider")
+    request_id = transcription_request["request_id"]
+    if not isinstance(request_id, str):
+        raise RuntimeError("frozen engine transcription request is missing its ID")
+    result = responses_by_id[request_id]
+    transcription_result = result.get("result")
+    if (result.get("status") != "ok" or not isinstance(transcription_result, dict)
             or transcription_result.get("page_count") != 1
-            or not isinstance(transcription_result.get("jps"), str)
-        ):
-            raise RuntimeError(
-                f"frozen engine transcription failed for {backend}: "
-                + json.dumps(result.get("error"), ensure_ascii=True)[:1000]
-            )
+            or not isinstance(transcription_result.get("jps"), str)):
+        raise RuntimeError(
+            "frozen engine RapidOCR + ONNX transcription failed: "
+            + json.dumps(result.get("error"), ensure_ascii=True)[:1000]
+        )
 
 
 def _publish_bundle(bundle: Path, output_dir: Path) -> None:
@@ -444,20 +363,10 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
         raise RuntimeError(
             f"PyInstaller {PYINSTALLER_VERSION} is required; found {installed_version}"
         )
-    if importlib.metadata.version("rapidocr-onnxruntime") != "1.4.4":
-        raise RuntimeError("desktop transcription requires rapidocr-onnxruntime 1.4.4")
     if importlib.metadata.version("rapidocr") != "3.9.2":
         raise RuntimeError("desktop transcription requires rapidocr 3.9.2")
     if importlib.metadata.version("onnxruntime") != "1.30.0":
         raise RuntimeError("desktop transcription requires ONNX Runtime 1.30.0")
-    openvino_version = _optional_distribution_version("openvino")
-    if openvino_version not in {None, "2026.4.0"}:
-        raise RuntimeError("desktop transcription requires OpenVINO 2026.4.0")
-    if (_openvino_wheel_supported(platform.system(), platform.machine())
-            and openvino_version is None):
-        raise RuntimeError("desktop transcription requires OpenVINO 2026.4.0 on x86-64")
-    if intel_cpu_confirmed() and (openvino_version is None or not openvino_cpu_available()):
-        raise RuntimeError("OpenVINO CPU runtime is unavailable on this confirmed Intel host")
     if not entry_point.is_file():
         raise RuntimeError(f"desktop engine entry point is missing: {entry_point}")
 
@@ -502,14 +411,10 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             "--collect-all",
             "fontTools",
             "--collect-all",
-            "rapidocr_onnxruntime",
-            "--collect-all",
             "rapidocr",
             "--collect-all",
             "onnxruntime",
         ]
-        if openvino_version is not None:
-            command.extend(("--collect-all", "openvino"))
         command.extend(("--exclude-module", "playwright", str(entry_point)))
         completed = subprocess.run(command, text=True, capture_output=True, check=False)
         if completed.returncode != 0:
@@ -517,12 +422,10 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
                 "PyInstaller failed:\n" + (completed.stderr or completed.stdout)[-8000:]
             )
         bundle = dist_dir / "octopus-engine"
-        if openvino_version is not None:
-            _prune_non_cpu_openvino_plugins(bundle)
+        _prune_non_onnx_rapidocr_backends(bundle)
         _check_glyph_assets(bundle, glyph_dir)
         shutil.copy2(repository_root / "LICENSE", bundle / "LICENSE")
         _check_project_license(bundle, repository_root / "LICENSE")
-        _copy_runtime_licenses(bundle, repository_root)
         font_dir = dist_dir / "fonts"
         shutil.copytree(repository_root / "src/octopus/assets/fonts", font_dir)
         _check_font_assets(font_dir)

@@ -687,11 +687,9 @@ def _pdf_pages(
 
 def transcribe(
     path: Path, *, progress: Callable[[int, int, str], None] | None = None,
-    ocr_backend: text.OcrBackend = "rapidocr-onnxruntime",
 ) -> Draft:
     """Use only the supplied image/PDF, never a paired source or reference file."""
-    with text.using_ocr_backend(ocr_backend):
-        return _transcribe(path, progress=progress)
+    return _transcribe(path, progress=progress)
 
 
 def _transcribe(
