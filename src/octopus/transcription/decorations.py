@@ -314,13 +314,13 @@ def _small_glyph_templates() -> tuple[tuple[str, int], ...]:
 
 
 def _two_branches(gray: Image.Image, box: Box, height: float) -> str | None:
-    """Distinguish two straight, diverging arms from slurs, rules and underlines."""
+    """Fit two diverging arms while tolerating short scan gaps and broken tips."""
     pixels = gray.load()
     assert pixels is not None
     left, top, right, bottom = box
-    upper: list[tuple[float, float]] = []
-    lower: list[tuple[float, float]] = []
-    columns = 0
+    paired: list[tuple[float, float, float]] = []
+    singles: list[tuple[float, float]] = []
+    clutter = 0
     for x in range(left, right):
         ink = [y for y in range(top, bottom) if cast(int, pixels[x, y]) < 160]
         if not ink:
@@ -331,22 +331,40 @@ def _two_branches(gray: Image.Image, box: Box, height: float) -> str | None:
                 runs.append([])
             runs[-1].append(y)
         if len(runs) == 2 and max(map(len, runs)) <= max(3, height * 0.16):
-            upper.append((float(x), sum(runs[0]) / len(runs[0])))
-            lower.append((float(x), sum(runs[1]) / len(runs[1])))
+            paired.append((float(x), sum(runs[0]) / len(runs[0]),
+                           sum(runs[1]) / len(runs[1])))
+        elif len(runs) == 1 and len(runs[0]) <= max(3, height * 0.16):
+            singles.append((float(x), sum(runs[0]) / len(runs[0])))
         elif len(runs) > 2:
-            return None
-        columns += 1
+            clutter += 1
     width = right - left
-    if columns < width * 0.9 or len(upper) < width * 0.62:
+    if len(paired) < max(5, width * 0.28) or clutter > max(2, width * 0.12):
         return None
-    first = linear_regression([x for x, _ in upper], [y for _, y in upper])
-    second = linear_regression([x for x, _ in lower], [y for _, y in lower])
+    first = linear_regression([x for x, _, _ in paired], [y for _, y, _ in paired])
+    second = linear_regression([x for x, _, _ in paired], [y for _, _, y in paired])
     if first.slope * second.slope >= 0 or min(abs(first.slope), abs(second.slope)) < 0.008:
         return None
-    for points, fit in ((upper, first), (lower, second)):
+    for points, fit in (
+        ([(x, y) for x, y, _ in paired], first),
+        ([(x, y) for x, _, y in paired], second),
+    ):
         residual = sum(abs(y - fit.slope * x - fit.intercept) for x, y in points) / len(points)
         if residual > max(0.9, height * 0.04):
             return None
+    assigned: list[set[int]] = [set(), set()]
+    for position, _, _ in paired:
+        assigned[0].add(round(position))
+        assigned[1].add(round(position))
+    for position, ordinate in singles:
+        residuals = (abs(ordinate - first.slope * position - first.intercept),
+                     abs(ordinate - second.slope * position - second.intercept))
+        closest = min(range(2), key=residuals.__getitem__)
+        if residuals[closest] <= max(1.5, height * 0.12):
+            assigned[closest].add(round(position))
+        else:
+            clutter += 1
+    if min(map(len, assigned)) < width * 0.4 or clutter > max(2, width * 0.12):
+        return None
     gaps = [second.slope * x + second.intercept - first.slope * x - first.intercept
             for x in (left, right - 1)]
     narrow, wide = sorted(gaps)
@@ -369,17 +387,30 @@ def row_hairpins(
         and component.area <= component.width * max(6, height * 0.24)
         and _above_row(component.box, note_boxes, height, other_rows)
     )]
-    boxes = [arm.box for arm in arms]
-    # Scans can leave the vertex disconnected; both arms must share their full span.
-    boxes.extend(_union((a.box, b.box)) for a, b in combinations(arms, 2) if (
-        min(a.box[2], b.box[2]) - max(a.box[0], b.box[0])
-        >= max(a.width, b.width) * 0.85
-        and abs(a.box[0] - b.box[0]) <= height * 0.2
-        and abs(a.box[2] - b.box[2]) <= height * 0.2
-        and max(a.box[3], b.box[3]) - min(a.box[1], b.box[1]) <= height * 1.1
+    ordered_arms = sorted(arms, key=lambda arm: arm.box[0])
+    traces = [arm.box for arm in ordered_arms]
+    for index, first in enumerate(ordered_arms):
+        chain = [first.box]
+        for candidate in ordered_arms[index + 1:]:
+            previous_box = chain[-1]
+            gap = candidate.box[0] - previous_box[2]
+            if (0 <= gap <= max(2, round(height * 0.2))
+                    and abs((previous_box[1] + previous_box[3] - candidate.box[1]
+                             - candidate.box[3]) / 2) <= height * 0.6):
+                chain.append(candidate.box)
+                if len(chain) > 1:
+                    traces.append(_union(tuple(chain)))
+    boxes = list(traces)
+    # A faint arm can lose part of one endpoint. Keep a pair only when its visible
+    # horizontal overlap and fitted wedge geometry provide independent support.
+    boxes.extend(_union((a, b)) for a, b in combinations(traces, 2) if (
+        min(a[2], b[2]) - max(a[0], b[0])
+        >= min(a[2] - a[0], b[2] - b[0]) * 0.6
+        and max(abs(a[0] - b[0]), abs(a[2] - b[2])) <= height * 4
+        and max(a[3], b[3]) - min(a[1], b[1]) <= height * 1.1
     ))
     centers = [(box[0] + box[2]) / 2 for box in (music_boxes or note_boxes)]
-    found: list[Hairpin] = []
+    found: dict[tuple[int, int, str], Hairpin] = {}
     for box in dict.fromkeys(boxes):
         code = _two_branches(gray, box, height)
         if code is None:
@@ -388,8 +419,27 @@ def row_hairpins(
         end = min(range(len(centers)), key=lambda i: abs(centers[i] - box[2]))
         if start < end and max(abs(centers[start] - box[0]), abs(centers[end] - box[2])) \
                 <= height * 1.15:
-            found.append(Hairpin(start, end, code, box))
-    return tuple(found)
+            key = (start, end, code)
+            duplicate_key = next((existing_key for existing_key, existing in found.items()
+                                  if existing_key[2] == code
+                                  and (existing_key[0] == start or existing_key[1] == end)
+                                  and min(box[2], existing.box[2]) - max(box[0], existing.box[0])
+                                  >= min(box[2] - box[0], existing.box[2] - existing.box[0]) * 0.65
+                                  and abs((box[1] + box[3] - existing.box[1]
+                                           - existing.box[3]) / 2) <= height * 0.6), None)
+            if duplicate_key is not None:
+                duplicate_pin = found[duplicate_key]
+                if box[2] - box[0] > duplicate_pin.box[2] - duplicate_pin.box[0]:
+                    del found[duplicate_key]
+                    found[key] = Hairpin(start, end, code, box)
+                continue
+            previous_pin = found.get(key)
+            if previous_pin is None or (box[2] - box[0]) * (box[3] - box[1]) > (
+                (previous_pin.box[2] - previous_pin.box[0])
+                * (previous_pin.box[3] - previous_pin.box[1])
+            ):
+                found[key] = Hairpin(start, end, code, box)
+    return tuple(sorted(found.values(), key=lambda pin: (pin.start, pin.end, pin.code)))
 
 
 def symbol_decorations(

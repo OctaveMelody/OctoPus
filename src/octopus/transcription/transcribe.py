@@ -13,7 +13,7 @@ from pathlib import Path
 from statistics import median
 
 from . import text
-from .decorations import text_decorations
+from .decorations import decoration_token, text_decorations
 from .headers import extract_headers, printed_key_span, stacked_meter_span
 from .image import MusicRow, PageObservation, _read_page, recognize_image
 from .lyrics import extract_lyrics
@@ -324,6 +324,8 @@ def _lyric_baseline_text(
 ) -> tuple[TextSpan, ...]:
     if not page.rows:
         return spans
+    bz_duplicates = _bz_duplicate_text_spans(page, spans)
+    spans = tuple(span for span in spans if span not in bz_duplicates)
     note_height = median(note.box[3] - note.box[1] for row in page.rows for note in row.notes)
     merged_lyrics = any(
         span.height >= note_height * 1.8
@@ -345,6 +347,8 @@ def _lyric_baseline_text(
     )
     if not lyrics:
         return spans
+    lyric_duplicates = _bz_duplicate_text_spans(page, lyrics)
+    lyrics = tuple(span for span in lyrics if span not in lyric_duplicates)
     return (
         *(span for span in spans if span.box[3] < page.rows[0].box[1]),
         *lyrics,
@@ -361,6 +365,13 @@ def _performance_text(
     all_rows = (*page.rows, *(bz.row for bz in page.bz_overlays))
     cropped = image_annotation_text(path, tuple(row.box for row in all_rows)) or ()
     candidates = tuple(dict.fromkeys((*page.text_spans, *original, *cropped)))
+    bz_duplicates = _bz_duplicate_text_spans(page, candidates)
+    duplicate_boxes = tuple(span.box for span in bz_duplicates)
+    candidates = tuple(span for span in candidates if (
+        span not in bz_duplicates
+        and not (decoration_token(span.text) is not None
+                 and any(_box_coverage(span.box, box) >= 0.7 for box in duplicate_boxes))
+    ))
     candidates = _score_text(replace(page, text_spans=candidates)).text_spans
     consumed: set[TextSpan] = set()
 
@@ -386,9 +397,68 @@ def _performance_text(
 
     rows = tuple(decorate(row) for row in page.rows)
     overlays = tuple(replace(bz, row=decorate(bz.row)) for bz in page.bz_overlays)
+    removed = consumed | set(bz_duplicates)
     return replace(page, rows=rows, bz_overlays=overlays, text_spans=tuple(
-        span for span in page.text_spans if span not in consumed
+        span for span in page.text_spans if span not in removed
     ))
+
+
+def _bz_duplicate_text_spans(
+    page: PageObservation, spans: tuple[TextSpan, ...],
+) -> tuple[TextSpan, ...]:
+    """Exclude OCR text that repeats the recognized notes inside a BZ overlay."""
+    duplicated: set[TextSpan] = set()
+    ordered_spans = tuple(dict.fromkeys(spans))
+    for overlay in page.bz_overlays:
+        note_digits = "".join(note.digit for note in overlay.row.notes)
+        if len(note_digits) < 4:
+            continue
+        left, top, right, bottom = overlay.row.box
+        height = bottom - top
+        center_y = (top + bottom) / 2
+        local = [span for span in ordered_spans if (
+            abs(span.center_y - center_y) <= height * 1.4
+            and span.box[2] >= left - height * 3
+            and span.box[0] <= right + height * 3
+        )]
+        groups: list[list[TextSpan]] = []
+        for span in sorted(local, key=lambda item: (item.center_y, item.box[0])):
+            group = next((items for items in groups if any(
+                abs(span.center_y - item.center_y) <= max(height * 0.65,
+                                                         min(span.height, item.height) * 0.25)
+                and max(item.box[0] - span.box[2], span.box[0] - item.box[2], 0)
+                <= height * 2
+                for item in items
+            )), None)
+            if group is None:
+                groups.append([span])
+            else:
+                group.append(span)
+        for group in groups:
+            digits = "".join(
+                character
+                for span in sorted(group, key=lambda item: item.box[0])
+                for character in span.text
+                if character.isascii() and character.isdecimal()
+            )
+            if digits != note_digits:
+                continue
+            group_box = (
+                min(span.box[0] for span in group), min(span.box[1] for span in group),
+                max(span.box[2] for span in group), max(span.box[3] for span in group),
+            )
+            if _box_coverage(overlay.row.box, group_box) >= 0.7:
+                duplicated.update(group)
+    return tuple(span for span in ordered_spans if span in duplicated)
+
+
+def _box_coverage(inner: tuple[int, int, int, int], outer: tuple[int, int, int, int]) -> float:
+    """Return what fraction of a smaller box is covered by another box."""
+    intersection = max(0, min(inner[2], outer[2]) - max(inner[0], outer[0])) * max(
+        0, min(inner[3], outer[3]) - max(inner[1], outer[1]),
+    )
+    area = max(1, (inner[2] - inner[0]) * (inner[3] - inner[1]))
+    return intersection / area
 
 
 def _score_text(page: PageObservation) -> PageObservation:

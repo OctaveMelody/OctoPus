@@ -59,8 +59,11 @@ def row_slurs(
     components: list[Component], gray: Image.Image, barlines: tuple[int, ...] = (),
 ) -> tuple[tuple[int | None, int | None], ...]:
     found = list(_detached_row_slurs(notes, row_top, height, components, gray, barlines))
-    fragment_spans: list[tuple[tuple[int | None, int | None], Box]] = []
+    fragment_spans: list[tuple[tuple[int | None, int | None], Box, Box, bool]] = []
     recovered: list[tuple[int | None, int | None]] = []
+    recovered_fragments: list[
+        tuple[tuple[int | None, int | None], Box]
+    ] = []
     centers = [(box[0] + box[2]) / 2 for box in notes]
     for joined, fragments in _joined_curve_fragments(components, row_top, height):
         endpoint_tolerance = height * 1.5
@@ -80,24 +83,33 @@ def row_slurs(
             notes, row_top, height, [joined], isolated, barlines,
         )
         recovered.extend(joined_spans)
+        recovered_fragments.extend((span, joined.box) for span in joined_spans)
         for fragment in fragments:
-            fragment_spans.extend(
-                (span, fragment.box) for span in _detached_row_slurs(
-                    notes, row_top, height, [fragment], isolated, barlines,
+            for span in _detached_row_slurs(
+                notes, row_top, height, [fragment], isolated, barlines,
+            ):
+                interval_count = (
+                    span[1] - span[0]
+                    if span[0] is not None and span[1] is not None else 0
                 )
-            )
-    # A curved tail fragment can independently resemble a shorter slur. Once it
-    # reconnects to an earlier fragment, keep the complete span and leave genuine
-    # nested curves alone because they are separate components, not chain members.
+                fragment_spans.append((
+                    span, fragment.box, joined.box,
+                    _complete_curve_component(fragment, gray, height, interval_count),
+                ))
+    # A broken shallow curve can make each half look like a shorter slur. Once its
+    # fragments reconnect into a wider span, keep that complete span alone.
     found_counts = Counter(found)
-    for span, fragment_box in fragment_spans:
-        start = span[0]
-        if start is None or fragment_box[0] <= notes[start][2] + height * 0.4:
+    for span, fragment_box, joined_box, complete_curve in fragment_spans:
+        if span[0] is None or span[1] is None:
             continue
         if any(
-            parent_end == span[1] and parent_start != span[0]
-            and (parent_start is None or span[0] is not None and parent_start < span[0])
-            for parent_start, parent_end in recovered
+            parent_start is not None and parent_end is not None
+            and parent_start <= span[0] and span[1] <= parent_end
+            and (parent_start, parent_end) != span
+            and joined_box[0] <= fragment_box[0] < fragment_box[2] <= joined_box[2]
+            and not complete_curve
+            for (parent_start, parent_end), parent_box in recovered_fragments
+            if parent_box == joined_box
         ):
             found_counts[span] = max(0, found_counts[span] - 1)
     found = list(found_counts.elements())
@@ -110,6 +122,31 @@ def row_slurs(
             merged.append(pair)
             missing[pair] -= 1
     return tuple(merged)
+
+
+def _complete_curve_component(
+    component: Component, gray: Image.Image, height: float, interval_count: int,
+) -> bool:
+    """Keep a fragment span when its own ink has both ends of a shallow arch."""
+    left, top, right, bottom = component.box
+    width = right - left
+    pixels = gray.load()
+    assert pixels is not None
+    edge = max(1, ceil(height * 0.08))
+    samples = ((left, left + edge),
+               (left + round(width * 0.4), left + round(width * 0.6)),
+               (right - edge, right))
+    tops = []
+    for index, (start, end) in enumerate(samples):
+        dark = [y for y in range(top, bottom) for x in range(start, end)
+                if cast(int, pixels[x, y]) < 170]
+        if not dark:
+            return False
+        tops.append(max(dark) if index != 1 else min(dark))
+    rises = (tops[0] - tops[1], tops[2] - tops[1])
+    if min(rises) < 1:
+        return False
+    return interval_count <= 1 or min(rises) >= ceil((bottom - top) * 0.4)
 
 
 def _joined_curve_fragments(

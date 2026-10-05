@@ -17,6 +17,7 @@ import { createRecoverySnapshot, parseRecoverySnapshot } from "./recovery.js";
 import { createReferenceSet, referenceAssetIds } from "./reference-set.js";
 import { rememberRecentFile } from "./recent-files.js";
 import { getStorage } from "./workspace-storage.js";
+import defaultStartupSource from "../../../../samples/jps_files/小星星.jps?raw";
 
 type ReferenceAssets = ReturnType<typeof useReferenceAssets>;
 type LifecycleServices = {
@@ -82,8 +83,8 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
   const recentPath = useRef<string | null>(null);
   const [score, setScore] = useState(() => createDocumentSession({
     id: crypto.randomUUID(),
-    name: "Untitled.jps",
-    source: "Q: 1 2 3 4 |",
+    name: "小星星.jps",
+    source: defaultStartupSource,
   }));
   const [documentOpen, setDocumentOpen] = useState(true);
   const currentDocument = useRef(score);

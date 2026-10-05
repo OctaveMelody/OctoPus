@@ -62,7 +62,12 @@ export function InformationDialog({ kind: informationDialog, dialogRef: informat
             }}>{copy.projectHome}</a></p>
             <p>{copy.fontCredits}</p>
             <h3>{copy.plannedFeatures}</h3>
-            <p>{copy.plannedFeatureList}<br />{copy.exportLilypond} {copy.lilypondUnavailable}</p>
+            <ul>
+              <li>{copy.plannedMusicXmlImport}</li>
+              <li>{copy.plannedMusicXmlExport}</li>
+              <li>{copy.plannedLilypondExport}</li>
+              <li>{copy.plannedMidiExport}</li>
+            </ul>
             <div className="dialog-actions">
               <button autoFocus className="primary-button" onClick={() => onClose()} type="button">
                 {copy.done}
