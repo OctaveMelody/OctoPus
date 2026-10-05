@@ -86,8 +86,16 @@ pub(crate) async fn get_engine_capabilities(
             .lock()
             .map_err(|_| "engine lock poisoned".to_owned())?
             .capabilities()?;
+        let ocr_backends = capabilities
+            .get("ocr_backends")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({
+                "rapidocr-onnxruntime": capabilities["ocr"].as_bool().unwrap_or(false),
+                "rapidocr-onnx": false,
+            }));
         Ok(serde_json::json!({
             "ocr": capabilities["ocr"].as_bool().unwrap_or(false),
+            "ocr_backends": ocr_backends,
             "png_export": capabilities["png_export"].as_bool().unwrap_or(false),
             "fonts": capabilities["fonts"]
         }))

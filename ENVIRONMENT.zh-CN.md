@@ -30,7 +30,9 @@ uv export --locked --extra transcription --no-emit-project --output-file /tmp/oc
 
 - 原生引擎构建使用 Python 3.12（`.python-version`）；Python 源码支持 3.11+。
 - Python 运行与导出依赖：`pyproject.toml` 和 `uv.lock`。
-- OCR：`transcription` 可选依赖组，RapidOCR 1.4.4 及其锁定依赖。
+- OCR：`transcription` 可选依赖组提供两种可选的本地离线 CPU 引擎：旧版
+  `rapidocr-onnxruntime==1.4.4`，以及新版 `rapidocr==3.9.2` 和
+  `onnxruntime==1.30.0`。可在“偏好设置 → 转录”中选择引擎；为兼容既有安装和设置，默认仍为旧版引擎。
 - 引擎冻结打包：`desktop-build` 可选依赖组，PyInstaller 6.22.3。
 - Node.js 22.23.3（`.node-version`）、npm 10.9.9；前端锁定文件为 `ui/web/package-lock.json`。
 - Rust 1.98.1（`rust-toolchain.toml`），Cargo 锁定文件为 `ui/Cargo.lock`。
@@ -151,3 +153,5 @@ Windows 在 `octopus.exe` 旁使用 `lib/OctoPus/`；macOS 资源配置使用
 `Contents/Resources/lib/OctoPus/`（macOS 原生构建仍待支持）。共享的 `fonts/`
 目录包含所有替代及备份字体、清单和许可证，预览与 Python 导出共同使用。
 请保持便携目录完整。默认仍优先使用操作系统字体，缺失或手动选择时使用免费替代字体。
+打包 OCR 模型、RapidOCR 和 ONNX Runtime 的许可与归属说明见
+[THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)。

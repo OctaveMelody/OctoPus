@@ -7,7 +7,8 @@ import {normalizeRecentFiles} from "./recent-files.js";
 /** @typedef {"N1" | "N2"} NormalLayout */
 /** @typedef {"T1" | "T2"} TranscriptionLayout */
 /** @typedef {Record<string, "system" | "fallback">} FontSources */
-/** @typedef {{recentFiles: string[], referenceHintDismissed: boolean, fontSources: FontSources, language: Language, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
+/** @typedef {"rapidocr-onnxruntime" | "rapidocr-onnx"} OcrBackend */
+/** @typedef {{recentFiles: string[], referenceHintDismissed: boolean, fontSources: FontSources, ocrBackend: OcrBackend, language: Language, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
 
 export const PREFERENCES_KEY = "octopus.workspace.v1";
 
@@ -37,6 +38,7 @@ export function defaultPreferences(osLanguage = "en") {
     recentFiles: [],
     referenceHintDismissed: false,
     fontSources: Object.fromEntries(["heiti-1", "heiti-2", "songti", "kaiti", "fangsong"].map(role => [role, "system"])),
+    ocrBackend: "rapidocr-onnxruntime",
     language: osLanguage.toLowerCase().startsWith("zh") ? "zh-CN" : "en",
     mode: "normal",
     normalLayout: "N1",
@@ -77,6 +79,7 @@ export function readPreferences(storage, osLanguage = "en") {
       referenceHintDismissed: candidate.referenceHintDismissed === true,
       fontSources: Object.fromEntries(Object.keys(defaults.fontSources).map(role =>
         [role, isRecord(candidate.fontSources) && candidate.fontSources[role] === "fallback" ? "fallback" : "system"])),
+      ocrBackend: candidate.ocrBackend === "rapidocr-onnx" ? "rapidocr-onnx" : "rapidocr-onnxruntime",
       language: candidate.language === "zh-CN" || candidate.language === "en"
         ? candidate.language
         : defaults.language,

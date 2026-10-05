@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import cast
+from typing import Any, Literal, cast
 from xml.etree import ElementTree
 
 from PIL import Image, ImageOps
@@ -16,6 +19,11 @@ from .marks import vertical_bend
 from .session_artifacts import track_session_artifact
 
 _XHTML = "{http://www.w3.org/1999/xhtml}"
+OcrBackend = Literal["rapidocr-onnxruntime", "rapidocr-onnx"]
+_OCR_BACKENDS = frozenset(("rapidocr-onnxruntime", "rapidocr-onnx"))
+_active_ocr_backend: ContextVar[OcrBackend] = ContextVar(
+    "octopus_ocr_backend", default="rapidocr-onnxruntime",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,14 +47,89 @@ class TextSpan:
         return self.box[3] - self.box[1]
 
 
-@lru_cache(maxsize=1)
-def _ocr_engine() -> object | None:
+@contextmanager
+def using_ocr_backend(backend: str) -> Iterator[None]:
+    if backend not in _OCR_BACKENDS:
+        raise ValueError(f"unknown OCR backend: {backend}")
+    token = _active_ocr_backend.set(cast(OcrBackend, backend))
     try:
-        from rapidocr_onnxruntime import RapidOCR  # type: ignore[import-not-found,import-untyped]
+        yield
+    finally:
+        _active_ocr_backend.reset(token)
+
+
+@lru_cache(maxsize=2)
+def _cached_ocr_engine(backend: OcrBackend) -> object | None:
+    try:
+        if backend == "rapidocr-onnxruntime":
+            from rapidocr_onnxruntime import RapidOCR  # type: ignore
+            options: dict[str, Any] = {}
+        else:
+            from rapidocr import RapidOCR
+            options = {"params": {
+                "EngineConfig.onnxruntime.intra_op_num_threads": 2,
+                "EngineConfig.onnxruntime.inter_op_num_threads": 1,
+                "Global.log_level": "critical",
+            }}
     except ImportError:
         return None
     with track_session_artifact():
-        return cast(object, RapidOCR())
+        return cast(object, RapidOCR(**options))
+
+
+def _ocr_engine() -> object | None:
+    return _cached_ocr_engine(_active_ocr_backend.get())
+
+
+def _ocr_call(engine: object, image: Any, **options: Any) -> tuple[list[Any], Any]:
+    """Normalize both RapidOCR APIs to the tuple/list interface used by the pipeline."""
+    backend = _active_ocr_backend.get()
+    if backend == "rapidocr-onnxruntime":
+        options.pop("return_single_char_box", None)
+        result, elapsed = engine(image, **options)  # type: ignore[operator]
+        return list(result or []), elapsed
+
+    options.setdefault("use_det", bool(options.get("return_word_box")))
+    options.setdefault("use_cls", True)
+    options.setdefault("use_rec", True)
+    options.setdefault("return_word_box", False)
+    options.setdefault("return_single_char_box", False)
+    result = engine(image, **options)  # type: ignore[operator]
+    texts = getattr(result, "txts", None)
+    scores = getattr(result, "scores", None)
+    if texts is None or scores is None:
+        return [], getattr(result, "elapse", None)
+    if len(texts) != len(scores):
+        raise ValueError("RapidOCR returned mismatched text and confidence counts")
+    boxes = getattr(result, "boxes", None)
+    word_results = getattr(result, "word_results", ())
+    if boxes is None and options.get("return_word_box"):
+        # Recognition without detector geometry cannot be anchored safely to a page row.
+        return [], getattr(result, "elapse", None)
+    if boxes is not None and len(boxes) != len(texts):
+        raise ValueError("RapidOCR returned mismatched text and box counts")
+    if word_results is None:
+        word_results = ()
+    rows: list[Any] = []
+    for index, (value, confidence) in enumerate(zip(texts, scores, strict=True)):
+        text_value, score = str(value), float(confidence)
+        if boxes is None:
+            rows.append((text_value, score))
+            continue
+        polygon = boxes[index]
+        if hasattr(polygon, "tolist"):
+            polygon = polygon.tolist()
+        row: tuple[Any, ...] = (polygon, text_value, score)
+        char_line = word_results[index] if index < len(word_results) else ()
+        char_items = [item for item in char_line if isinstance(item, (tuple, list))
+                      and len(item) == 3 and item[2] is not None]
+        if char_items:
+            char_boxes = [item[2].tolist() if hasattr(item[2], "tolist") else item[2]
+                          for item in char_items]
+            row += (char_boxes, [str(item[0]) for item in char_items],
+                    [float(item[1]) for item in char_items])
+        rows.append(row)
+    return rows, getattr(result, "elapse", None)
 
 
 def _character_centers(
@@ -74,7 +157,7 @@ def image_text(path: Path) -> tuple[TextSpan, ...] | None:
     white = Image.new("RGBA", oriented.size, "white")
     white.alpha_composite(oriented)
     rgb = white.convert("RGB")
-    result, _ = engine(rgb, return_word_box=True)  # type: ignore[operator]
+    result, _ = _ocr_call(engine, rgb, return_word_box=True, return_single_char_box=True)
     spans = []
     for corners, text, confidence, *details in result or []:
         xs = [point[0] for point in corners]
@@ -84,7 +167,7 @@ def image_text(path: Path) -> tuple[TextSpan, ...] | None:
         if len(word) == 1 and "\u3400" <= word <= "\u9fff" and 0.72 <= score < 0.9:
             crop = ImageOps.expand(rgb.crop(box), border=round((box[3] - box[1]) / 2),
                                    fill="white")
-            refined, _ = engine(crop, use_det=False, use_cls=False)  # type: ignore[operator]
+            refined, _ = _ocr_call(engine, crop, use_det=False, use_cls=False)
             if refined:
                 candidate, confidence = str(refined[0][0]).strip(), float(refined[0][1])
                 if len(candidate) == 1 and "\u3400" <= candidate <= "\u9fff" and confidence >= 0.95:
@@ -155,7 +238,7 @@ def image_annotation_text(path: Path, rows: tuple[Box, ...]) -> tuple[TextSpan, 
             factor = max(1, min(4, round(40 / max(1, box[3] - box[1]))))
             crop = crop.resize((crop.width * factor, crop.height * factor),
                                Image.Resampling.LANCZOS)
-            result, _ = engine(crop, use_det=False, use_cls=False)  # type: ignore[operator]
+            result, _ = _ocr_call(engine, crop, use_det=False, use_cls=False)
             for value, confidence, *_ in result or []:
                 word = str(value).strip()
                 if word:
@@ -212,7 +295,9 @@ def image_lyric_text(
             factor = 2 if small_page else 1
             crop = crop.resize((crop.width * factor, crop.height * factor),
                                Image.Resampling.LANCZOS)
-            result, _ = engine(np.asarray(crop), return_word_box=True)  # type: ignore[operator]
+            result, _ = _ocr_call(
+                engine, np.asarray(crop), return_word_box=True, return_single_char_box=True,
+            )
             band_start = len(spans)
             for corners, value, confidence, *details in sorted(
                 result or [], key=lambda item: min(point[0] for point in item[0])
@@ -294,8 +379,8 @@ def image_lyric_text(
                         crop = rgb.crop((mark.box[0], following.box[1],
                                          following.box[2], following.box[3]))
                         crop = ImageOps.expand(crop, border=round(note_height * 0.15), fill="white")
-                        result, _ = engine(np.asarray(crop), use_det=False,
-                                           use_cls=False)  # type: ignore[operator]
+                        result, _ = _ocr_call(engine, np.asarray(crop), use_det=False,
+                                              use_cls=False)
                         if (result
                                 and str(result[0][0]).strip().startswith("一" + following.text[0])
                                 and float(result[0][1]) >= 0.95):
@@ -362,7 +447,7 @@ def image_digit(
         side = round(max(crop.size) * 1.4)
         padded = Image.new("RGB", (side, side), "white")
         padded.paste(crop, ((side - crop.width) // 2, (side - crop.height) // 2))
-    result, _ = engine(np.asarray(padded), use_det=False, use_cls=False)  # type: ignore[operator]
+    result, _ = _ocr_call(engine, np.asarray(padded), use_det=False, use_cls=False)
     if not result:
         return None
     digit, confidence = str(result[0][0]).strip(), float(result[0][1])
@@ -387,8 +472,9 @@ def music_characters(gray: Image.Image, box: Box) -> tuple[tuple[str, float, flo
         border = max(2, round(crop.height * ratio))
         padded = ImageOps.expand(crop, border=border, fill="white")
         padded = padded.resize((padded.width * 2, padded.height * 2), Image.Resampling.LANCZOS)
-        result, _ = engine(  # type: ignore[operator]
-            np.asarray(padded.convert("RGB")), use_cls=False, return_word_box=True,
+        result, _ = _ocr_call(
+            engine, np.asarray(padded.convert("RGB")), use_cls=False, return_word_box=True,
+            return_single_char_box=True,
         )
         for _, value, _, *details in result or []:
             word = str(value).strip()

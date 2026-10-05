@@ -16,7 +16,7 @@ OctoPus 是一款桌面简谱编辑器，支持实时 SVG 预览、将图片和 
 - 通过文件选择器或将单个文件拖入原始图片/PDF 面板，导入 JPG/PNG/PDF 参考资料，
   再转录为可校对的 JPS 草稿。
 - 将乐谱导出为 SVG、PDF、PNG 或 JPEG；像素输出支持 96/300 DPI。
-- 通过可点击的原稿区域和源码警告校对草稿，查看 PDF 转录进度并取消任务。
+- 在偏好设置 → 转录中选择 `rapidocr-onnxruntime` 或 `RapidOCR + ONNX`；通过可点击的原稿区域和源码警告校对草稿，并可取消正在运行的转录。
 - 重新打开最近文件，使用快捷键，并通过 Python 命令行批量导出文件夹。
 
 ## 转录草稿
@@ -142,6 +142,7 @@ ReportLab 无法嵌入的 CFF 轮廓，该 Python PDF 导出路径会使用对�
 
 - `src/octopus/` 和 `ui/`：应用源码及离线 Python 引擎。
 - `docs/user-manual/index.html`：随软件附带、可切换中英文标签页的用户手册。
+- `docs/THIRD_PARTY_NOTICES.md`：OCR 模型、RapidOCR 与 ONNX Runtime 的第三方许可说明。
 - `samples/jps_files/`：65 个打包乐谱示例。
 - `OctoPus-dev`（独立仓库）：测试、审计、参考输出和开发工具。
 

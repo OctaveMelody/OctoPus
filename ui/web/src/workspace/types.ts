@@ -113,7 +113,12 @@ export type ExportDpi = 96 | 300 | null;
 
 export type FontAvailability = Record<string, { family: string; fallback: string; available: boolean }>;
 export type FontSources = WorkspacePreferences["fontSources"];
-export type EngineCapabilities = { ocr: boolean; png_export: boolean; fonts?: FontAvailability };
+export type EngineCapabilities = {
+  ocr: boolean;
+  ocr_backends?: Record<WorkspacePreferences["ocrBackend"], boolean>;
+  png_export: boolean;
+  fonts?: FontAvailability;
+};
 
 export type ExportReceipt = {
   documentId: string;

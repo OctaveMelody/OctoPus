@@ -43,6 +43,7 @@ pub(crate) async fn transcribe_reference(
     document_id: String,
     document_revision: u64,
     job_id: String,
+    ocr_backend: String,
 ) -> Result<Value, String> {
     let key = JobKey {
         id: job_id.clone(),
@@ -78,6 +79,7 @@ pub(crate) async fn transcribe_reference(
                 .to_str()
                 .ok_or("managed reference path is not UTF-8")?
                 .to_owned(),
+            ocr_backend,
         };
         supervisor
             .lock()

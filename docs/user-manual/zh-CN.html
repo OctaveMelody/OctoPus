@@ -116,6 +116,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 </tbody>
 </table>
 <p>点击顶栏<b>偏好设置</b>，可选择英语或中文，并分别设置各类字体的来源。选择<b>系统优先字体</b>使用对应已安装字体；选择<b>免费替代字体</b>则即使系统字体已安装，也使用内置替代字体。系统字体缺失时，该选项变灰，自动选中内置替代字体。设置保存在本机，适用于 SVG 预览和 SVG/PDF/PNG/JPG 导出，不会修改保存的 JPS。默认分别优先使用已安装的对应系统字体，生产便携版同样如此；Linux 需要 fontconfig 精确匹配。缺失时使用内置替代字体。内置文本出现缺字时，先尝试 Noto Sans SC，再检查 Noto Serif SC 的覆盖；不能保证所有 Unicode 字符都有字形。西文 Arial 请求使用 Liberation Sans（常规/斜体/粗体/粗斜体）。音符样式为常规、斜体及粗体。旧 HeiTi 对应 HeiTi-2。替代字体可能改变间距。微软字体不随软件分发。MiSans 使用小米独立许可；其他内置说明包含 OFL 和 IPA 许可。</p>
+<p>“转录”标签页可为图片和扫描版 PDF 选择 <b>rapidocr-onnxruntime</b> 或 <b>RapidOCR + ONNX</b>。两种引擎都通过 ONNX Runtime 在本机运行；为兼容旧设置，默认仍选择旧版引擎。此设置保存在本机，并用于下一次转录。引擎不可用时，相应选项会变灰；OctoPus 不会静默切换引擎。</p>
 </section>
 <section id="zh-CN-export"><h2>11. 导出与便携版使用</h2>
 <p>通过导出选择 SVG、PDF、PNG 或 JPG（96 或 300 DPI），再选择输出位置。PDF 生成一份多页文档；SVG/PNG/JPG 按页生成文件。300 DPI 适合印刷质量的像素输出。LilyPond 导出列在“帮助 → 关于 OctoPus”的规划功能中。分享渲染文件前先保存 JPS 作为可编辑原稿。PDF 嵌入字体，PNG 无损保存像素，JPEG 保存压缩像素，SVG 保留矢量内容，但外部 SVG 查看器需要相应文本字体。请在目标查看器检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，此时使用对应替代字体；这不是原生桌面导出的统一限制。</p>

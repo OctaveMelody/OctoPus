@@ -73,6 +73,7 @@ pub struct TranscribeArgs {
     pub document_id: String,
     pub document_revision: u64,
     pub path: String,
+    pub ocr_backend: String,
 }
 
 pub struct EngineSupervisor {
@@ -318,7 +319,7 @@ impl EngineSupervisor {
             args.document_id,
             args.document_revision,
             "transcribe",
-            json!({ "path": args.path }),
+            json!({ "path": args.path, "ocr_backend": args.ocr_backend }),
             Duration::from_secs(900),
             Some(cancelled),
             Some(Box::new(progress)),
@@ -821,6 +822,8 @@ for line in sys.stdin:
         if mode == "bad-png": response["result"]["png_export"] = "yes"
     elif operation == "parse":
         response["result"] = {"operation": "parse", "diagnostics": [], "source_offset_unit": "codepoint"}
+    elif operation == "transcribe":
+        response["result"] = {"selected_backend": request["payload"].get("ocr_backend")}
     if mode.startswith("progress") and operation == "transcribe" or mode == "progress-on-render" and operation == "render":
         frames = [(0, 2, "recognizing"), (1, 2, "recognizing"), (2, 2, "compiling")]
         if mode == "progress-regression": frames = [(1, 2, "recognizing"), (0, 2, "recognizing")]
@@ -990,6 +993,7 @@ for line in sys.stdin:
             document_id: "transcription-doc".into(),
             document_revision: 7,
             path: "/managed/reference.pdf".into(),
+            ocr_backend: "rapidocr-onnxruntime".into(),
         }
     }
 
@@ -1035,6 +1039,17 @@ for line in sys.stdin:
             }
             assert!(engine.parse(render_args()).is_ok());
         }
+    }
+
+    #[test]
+    fn selected_transcription_backend_is_sent_to_the_worker() {
+        let mut engine = fake_engine("normal");
+        let mut args = transcription_args();
+        args.ocr_backend = "rapidocr-onnx".into();
+
+        let result = engine.transcribe(args).unwrap();
+
+        assert_eq!(result["result"]["selected_backend"], "rapidocr-onnx");
     }
 
     #[test]

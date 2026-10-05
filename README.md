@@ -17,7 +17,7 @@ OctoPus-dev, which holds tests, audits, reference output and development tools.
 - Import JPG/PNG/PDF references through the file picker or by dropping a file into the
   Original Image/PDF panel; transcribe them into JPS drafts for review.
 - Export rendered scores as SVG, PDF, PNG or JPEG (96/300 DPI raster output).
-- Review clickable scan regions and source warnings; cancel transcription and follow PDF page progress.
+- Choose `rapidocr-onnxruntime` or `RapidOCR + ONNX` in Preferences → Transcription; review clickable scan regions and source warnings, and cancel an active transcription.
 - Reopen recent scores, use keyboard shortcuts, and export folders through the Python CLI.
 
 ## Transcription drafts
@@ -153,6 +153,7 @@ license; Zhuque v0.212 is an upstream technical preview. All bundled font notice
 
 - `src/octopus/` and `ui/`: application source and the offline Python worker.
 - `docs/user-manual/index.html`: the packaged, tab-switchable English/Chinese user manual.
+- `docs/THIRD_PARTY_NOTICES.md`: OCR model, RapidOCR and ONNX Runtime license notices.
 - `samples/jps_files/`: 65 bundled score examples.
 - `OctoPus-dev` (separate repository): tests, audits, reference output and development tools.
 

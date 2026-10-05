@@ -31,7 +31,10 @@ Production setup: `python3 scripts/setup.py`; release packaging: `python3 build.
 
 - Python 3.12 for native worker builds (`.python-version`); Python source supports 3.11+.
 - Python runtime/export dependencies: `pyproject.toml` and `uv.lock`.
-- OCR: `transcription` extra, RapidOCR 1.4.4 and its locked dependencies.
+- OCR: `transcription` extra provides both selectable offline CPU engines: legacy
+  `rapidocr-onnxruntime==1.4.4` and current `rapidocr==3.9.2` with
+  `onnxruntime==1.30.0`. Preferences → Transcription selects the provider; the legacy engine
+  remains the default for existing installations and saved settings.
 - Worker freezing: `desktop-build` extra, PyInstaller 6.22.3.
 - Node.js 22.23.3 (`.node-version`), npm 10.9.9; frontend `ui/web/package-lock.json`.
 - Rust 1.98.1 (`rust-toolchain.toml`), Cargo lock `ui/Cargo.lock`.
@@ -160,3 +163,5 @@ configuration uses `Contents/Resources/lib/OctoPus/` (native macOS builds remain
 The shared `fonts/` directory contains all fallback/backup faces, manifest and licenses.
 Both preview and Python exports use this directory; keep the complete portable tree together.
 OS Preference remains the default, with per-role Free Fallback when unavailable or selected.
+Bundled OCR packages and default model attributions are listed in
+[THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md).

@@ -7,7 +7,7 @@ import json
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from octopus.export.svg import (
     normalize_source,
@@ -24,6 +24,7 @@ from octopus.render.svg import (
 )
 from octopus.render.svg_preview import add_safe_custom_page_markup
 from octopus.transcription import transcribe
+from octopus.transcription.text import OcrBackend
 
 from .validation import (
     MAX_SAFE_INTEGER,
@@ -124,12 +125,23 @@ def _transcribe(
     payload: dict[str, Any],
     progress: Callable[[int, int, str], None] | None = None,
 ) -> dict[str, Any]:
-    if set(payload) != {"path"} or not isinstance(payload["path"], str):
-        raise ProtocolError("transcribe requires only a managed reference path")
+    if (set(payload) not in ({"path"}, {"path", "ocr_backend"})
+            or not isinstance(payload.get("path"), str)):
+        raise ProtocolError("transcribe requires a managed reference path and optional OCR backend")
+    ocr_backend = payload.get("ocr_backend", "rapidocr-onnxruntime")
+    if (not isinstance(ocr_backend, str)
+            or ocr_backend not in {"rapidocr-onnxruntime", "rapidocr-onnx"}):
+        raise ProtocolError("unsupported OCR backend")
+    selected_backend = cast(OcrBackend, ocr_backend)
     path = Path(payload["path"])
     if not path.is_absolute() or path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".pdf"}:
         raise ProtocolError("transcribe requires an absolute PNG, JPEG, or PDF path")
-    draft = transcribe(path, progress=progress) if progress else transcribe(path)
+    if ocr_backend == "rapidocr-onnxruntime":
+        draft = transcribe(path, progress=progress) if progress else transcribe(path)
+    elif progress:
+        draft = transcribe(path, progress=progress, ocr_backend=selected_backend)
+    else:
+        draft = transcribe(path, ocr_backend=selected_backend)
     return {
         "jps": draft.jps,
         "issues": [asdict(issue) for issue in draft.issues],
@@ -379,7 +391,18 @@ def dispatch(
                 "max_request_bytes": MAX_REQUEST_BYTES,
                 "max_response_bytes": MAX_RESPONSE_BYTES,
                 "custom_svg_display": True,
-                "ocr": importlib.util.find_spec("rapidocr_onnxruntime") is not None,
+                "ocr_backends": {
+                    "rapidocr-onnxruntime": importlib.util.find_spec(
+                        "rapidocr_onnxruntime"
+                    ) is not None,
+                    "rapidocr-onnx": importlib.util.find_spec("rapidocr") is not None
+                    and importlib.util.find_spec("onnxruntime") is not None,
+                },
+                "ocr": (
+                    importlib.util.find_spec("rapidocr_onnxruntime") is not None
+                    or importlib.util.find_spec("rapidocr") is not None
+                    and importlib.util.find_spec("onnxruntime") is not None
+                ),
                 "png_export": True,
                 "fonts": system_font_availability(),
             }

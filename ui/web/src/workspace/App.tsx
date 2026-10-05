@@ -73,6 +73,8 @@ export function App() {
     ocr: false,
     png_export: false,
   });
+  const selectedOcrBackendAvailable = engineCapabilities.ocr_backends?.[preferences.ocrBackend]
+    ?? (preferences.ocrBackend === "rapidocr-onnxruntime" && engineCapabilities.ocr);
   const [transcriptionIssues, setTranscriptionIssues] = useState<TranscriptionIssue[]>([]);
   const [reviewSource, setReviewSource] = useState<{id: string; source: string; context: TranscriptionContext} | null>(null);
   const [reviewRegion, setReviewRegion] = useState<{id: string; boxes: number[][]; serial: number} | null>(null);
@@ -101,6 +103,7 @@ export function App() {
     saveDocument} = lifecycle;
   const transcription = useTranscriptionSession({currentDocument,
     getReferences: () => currentReferences.current, copyRef,
+    ocrBackend: preferences.ocrBackend,
     isBusy: mode => saving.current || referenceAssets.isImporting() || (mode === "append" && !documentOpen),
     onDraft: adoptTranscription,
     onError: message => setStatus({kind: "error", message}),
@@ -498,23 +501,25 @@ export function App() {
         onDismissHint={() => setPreferences(current => ({...current, referenceHintDismissed: true}))}
         transcriptionControl={
           <details className="transcribe-menu" ref={transcriptionMenuRef}>
-            <summary title={engineCapabilities.ocr
+            <summary title={selectedOcrBackendAvailable
               ? copy.transcriptionReadyHint
               : copy.transcriptionNoOcr}
             >{copy.transcribe}</summary>
             <div aria-label={copy.transcribe} className="transcribe-menu-items" role="group">
               <button
-                disabled={referenceOperationBusy || isSaving || references.images.length === 0}
+                disabled={!selectedOcrBackendAvailable || referenceOperationBusy || isSaving
+                  || references.images.length === 0}
                 onClick={() => { void requestTranscription("new"); }}
                 type="button"
               >{copy.transcribeNew}</button>
               <button
-                disabled={!documentOpen || referenceOperationBusy || isSaving
+                disabled={!selectedOcrBackendAvailable || !documentOpen
+                  || referenceOperationBusy || isSaving
                   || references.images.length === 0}
                 onClick={() => { void requestTranscription("append"); }}
                 type="button"
               >{copy.transcribeAppend}</button>
-              <span>{engineCapabilities.ocr
+              <span>{selectedOcrBackendAvailable
                 ? copy.transcriptionReadyHint
                 : copy.transcriptionNoOcr}
               </span>
@@ -745,7 +750,8 @@ export function App() {
 
       </section>
       <LifecycleDialogs lifecycle={lifecycle} referenceAssets={referenceAssets} copy={copy}
-        preferences={preferences} setPreferences={setPreferences} fonts={engineCapabilities.fonts} />
+        preferences={preferences} setPreferences={setPreferences} fonts={engineCapabilities.fonts}
+        ocrBackends={engineCapabilities.ocr_backends} />
       <InformationDialog kind={informationDialog} dialogRef={informationDialogRef} copy={copy}
         checkingUpdate={checkingUpdate} updateResult={updateResult} updateError={updateError}
         browserError={browserError} onClose={() => setInformationDialog(null)} openHelp={openHelp}

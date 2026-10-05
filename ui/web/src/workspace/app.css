@@ -356,6 +356,14 @@ h2 { margin: 0; font-size: 14px; }
 
 .preferences-language { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4d5868; }
 .preferences-language select { width: auto; min-width: 0; min-height: 30px; padding: 4px 7px; border: 1px solid #d1d7e0; border-radius: 6px; color: #344258; background: #fff; font: inherit; }
+.preferences-tabs { display: flex; gap: 4px; border-bottom: 1px solid #d9dee7; margin: 0 -4px 8px; }
+.preferences-tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0; padding: 8px 12px; color: #596579; background: transparent; font: inherit; cursor: pointer; }
+.preferences-tabs button[aria-selected="true"] { border-bottom-color: #496fc4; color: #263e70; background: #f2f6fc; }
+.preferences-tabs button:focus-visible { outline: 2px solid #496fc4; outline-offset: 1px; }
+.preferences-tab-panel { padding-top: 6px; }
+.preferences-ocr-backends { display: grid; gap: 8px; margin: 14px 0; border: 1px solid #d9dee7; border-radius: 6px; }
+.preferences-ocr-backends label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.preferences-ocr-backends small { margin-left: auto; color: #9299a3; }
 .preferences-fonts { display: grid; gap: 7px; margin: 12px 0; }
 .preferences-fonts fieldset { margin: 0; border: 1px solid #d9dee7; border-radius: 6px; }
 .preferences-fonts label { display: flex; align-items: center; gap: 8px; padding: 3px; font-size: 13px; }
