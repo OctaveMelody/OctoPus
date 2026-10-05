@@ -60,7 +60,7 @@ class MusicRow:
     barlines: tuple[int, ...]
     box: Box
     unresolved_marks: tuple[Box, ...]
-    # Indices address the ordered notes and sustain dashes; None is a row-cut end.
+    # Indices address notes only; None marks an endpoint cut at a row barline.
     slurs: tuple[tuple[int | None, int | None], ...] = ()
     graces: tuple[GraceGroup, ...] = ()
     endings: tuple[EndingSegment, ...] = ()
@@ -989,11 +989,18 @@ def recognize_image(path: Path) -> PageObservation:
             for left, top, right, bottom in symbol_regions
         ))
         music = tuple(sorted((*notes, *row_sustains(notes, unresolved))))
+        ending_boxes = tuple(segment.box for segment in row.endings)
+        slur_marks = [component for component in marks if not any(
+            component.box[0] < right and component.box[2] > left
+            and component.box[1] < bottom and component.box[3] > top
+            for left, top, right, bottom in ending_boxes
+        )]
+        slurs = row_slurs(notes, row.box[1], height, slur_marks, source_gray, row.barlines)
         hairpins = row_hairpins(source_gray, notes, marks, other_rows=others, music_boxes=music)
         return replace(
             row,
             notes=tuple(recovered_notes), unresolved_marks=unresolved,
-            slurs=row_slurs(music, row.box[1], height, marks, source_gray),
+            slurs=slurs,
             parentheses=row_parentheses(music, height, marks, source_gray),
             hairpins=hairpins, decoration_regions=(*symbol_regions, *(pin.box for pin in hairpins)),
         )

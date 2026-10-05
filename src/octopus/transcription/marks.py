@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from math import ceil
 from statistics import correlation, linear_regression, median
 from typing import cast
@@ -33,7 +34,7 @@ def curve_core_parts(
     """Separate dark ink where grey scan bridges join a long curve to octave dots."""
     compounds = [component for component in components if (
         component.width >= height * 1.8
-        and 3 <= component.height <= height
+        and max(4, height * 0.15) <= component.height <= height
         and row_top - height * 2.5 < component.box[1] < row_top - height * 0.4
         and component.box[3] < row_top
         and component.area > component.width * max(4, height * 0.2)
@@ -55,17 +56,94 @@ def curve_core_parts(
 
 def row_slurs(
     notes: tuple[Box, ...], row_top: int, height: float,
-    components: list[Component], gray: Image.Image,
+    components: list[Component], gray: Image.Image, barlines: tuple[int, ...] = (),
 ) -> tuple[tuple[int | None, int | None], ...]:
-    found = _detached_row_slurs(notes, row_top, height, components, gray)
+    found = list(_detached_row_slurs(notes, row_top, height, components, gray, barlines))
+    fragment_spans: list[tuple[tuple[int | None, int | None], Box]] = []
+    recovered: list[tuple[int | None, int | None]] = []
+    centers = [(box[0] + box[2]) / 2 for box in notes]
+    for joined, fragments in _joined_curve_fragments(components, row_top, height):
+        endpoint_tolerance = height * 1.5
+        left_near_note = min(
+            abs(center - joined.box[0]) for center in centers
+        ) <= endpoint_tolerance
+        right_near_note = min(
+            abs(center - joined.box[2]) for center in centers
+        ) <= endpoint_tolerance
+        right_at_barline = bool(barlines) and abs(joined.box[2] - max(barlines)) <= height * 0.5
+        if not left_near_note or not (right_near_note or right_at_barline):
+            continue
+        isolated = Image.new("L", gray.size, 255)
+        for fragment in fragments:
+            isolated.paste(gray.crop(fragment.box), fragment.box[:2])
+        joined_spans = _detached_row_slurs(
+            notes, row_top, height, [joined], isolated, barlines,
+        )
+        recovered.extend(joined_spans)
+        for fragment in fragments:
+            fragment_spans.extend(
+                (span, fragment.box) for span in _detached_row_slurs(
+                    notes, row_top, height, [fragment], isolated, barlines,
+                )
+            )
+    # A curved tail fragment can independently resemble a shorter slur. Once it
+    # reconnects to an earlier fragment, keep the complete span and leave genuine
+    # nested curves alone because they are separate components, not chain members.
+    found_counts = Counter(found)
+    for span, fragment_box in fragment_spans:
+        start = span[0]
+        if start is None or fragment_box[0] <= notes[start][2] + height * 0.4:
+            continue
+        if any(
+            parent_end == span[1] and parent_start != span[0]
+            and (parent_start is None or span[0] is not None and parent_start < span[0])
+            for parent_start, parent_end in recovered
+        ):
+            found_counts[span] = max(0, found_counts[span] - 1)
+    found = list(found_counts.elements())
     parts, core = curve_core_parts(components, gray, row_top, height)
-    recovered = _detached_row_slurs(notes, row_top, height, parts, core)
-    return tuple(dict.fromkeys((*found, *recovered)))
+    recovered.extend(_detached_row_slurs(notes, row_top, height, parts, core, barlines))
+    missing = Counter(recovered) - Counter(found)
+    merged = found
+    for pair in recovered:
+        if missing[pair]:
+            merged.append(pair)
+            missing[pair] -= 1
+    return tuple(merged)
+
+
+def _joined_curve_fragments(
+    components: list[Component], row_top: int, height: float,
+) -> tuple[tuple[Component, tuple[Component, ...]], ...]:
+    """Reconnect thin curve segments interrupted by short scan gaps."""
+    parts = sorted((component for component in components if (
+        height * 0.8 <= component.width
+        and max(2, height * 0.15) <= component.height <= height
+        and component.area <= component.width * max(4, height * 0.2)
+        and row_top - height * 2 < component.box[1] < row_top - height * 0.4
+        and component.box[3] < row_top
+    )), key=lambda component: component.box[0])
+    joined = []
+    for index, first in enumerate(parts):
+        chain = [first]
+        for candidate in parts[index + 1:]:
+            previous = chain[-1]
+            gap = candidate.box[0] - previous.box[2]
+            if (0 <= gap <= max(2, height * 1.2)
+                    and abs(previous.center_y - candidate.center_y) <= height * 0.6):
+                chain.append(candidate)
+        if len(chain) < 2:
+            continue
+        joined.append((Component((
+            first.box[0], min(item.box[1] for item in chain),
+            chain[-1].box[2], max(item.box[3] for item in chain),
+        ), sum(item.area for item in chain)), tuple(chain)))
+    return tuple(joined)
 
 
 def _detached_row_slurs(
     notes: tuple[Box, ...], row_top: int, height: float,
-    components: list[Component], gray: Image.Image,
+    components: list[Component], gray: Image.Image, barlines: tuple[int, ...],
 ) -> tuple[tuple[int | None, int | None], ...]:
     """Attach curved ends to music events; a flat cut end continues on another row."""
     if len(notes) < 2:
@@ -79,9 +157,9 @@ def _detached_row_slurs(
         width = right - left
         if not (
             height * 0.8 <= width <= gray.width
-            and 3 <= bottom - top <= height
+            and max(3, height * 0.15) <= bottom - top <= height
             and component.area <= width * max(4, height * 0.2)
-            and row_top - height * 2.5 < top < row_top - height * 0.4
+            and row_top - height * 2 < top < row_top - height * 0.4
             and bottom < row_top
         ):
             continue
@@ -99,9 +177,11 @@ def _detached_row_slurs(
                 continue
         tops = []
         edge = max(1, ceil(height * 0.08))
-        for start, end in ((left, left + edge),
-                           (left + round(width * 0.4), left + round(width * 0.6)),
-                           (right - edge, right)):
+        for index, (start, end) in enumerate((
+            (left, left + edge),
+            (left + round(width * 0.4), left + round(width * 0.6)),
+            (right - edge, right),
+        )):
             dark = [
                 y for y in range(top, bottom)
                 for x in range(start, end)
@@ -109,28 +189,110 @@ def _detached_row_slurs(
             ]
             if not dark:
                 break
-            tops.append(min(dark))
-        if len(tops) != 3 or not (
-            min(tops[0], tops[2]) >= tops[1]
-            and max(tops[0], tops[2]) >= tops[1] + 1
-        ):
+            tops.append(max(dark) if index != 1 else min(dark))
+        if len(tops) != 3:
             continue
+        left_curves = tops[0] >= tops[1] + 2
+        right_curves = tops[2] >= tops[1] + 2
         first_anchor = min(range(len(notes)), key=lambda index: abs(centers[index] - left))
         last_anchor = min(range(len(notes)), key=lambda index: abs(centers[index] - right))
+        endpoint_tolerance = height * 2.5
+        first_attached = abs(centers[first_anchor] - left) <= endpoint_tolerance
+        last_attached = abs(centers[last_anchor] - right) <= endpoint_tolerance
+        short_overlapped_end = (
+            width <= height * 6 and first_attached and last_attached
+            and left_curves != right_curves
+        )
+        vertical_ink = max(
+            (sum(cast(int, pixels[x, y]) < 160 for y in range(top, bottom))
+             for x in range(left, right)),
+            default=0,
+        )
+        left_edge_cut = (
+            first_anchor == last_anchor == 0 and left < notes[0][0]
+            and right <= notes[0][2] + height * 0.5
+            and width <= height * 3 and (left_curves or right_curves)
+            and vertical_ink < height * 0.45
+        )
+        left_cut = left_edge_cut or (
+            not left_curves and left <= notes[0][0] + height and right_curves
+        )
+        right_barline = bool(barlines) and (
+            abs(right - max(barlines)) <= height * 0.5
+            and right >= notes[-1][2] + height * 0.25
+        )
+        right_cut = (
+            right_barline and left_curves
+        )
+        if not ((left_curves and right_curves) or short_overlapped_end or left_cut or right_cut):
+            continue
         # Short overlapping arches can hide one curved end at their shared endpoint.
-        first = first_anchor if (tops[0] > tops[1] or width <= height * 6
-                                 and abs(centers[first_anchor] - left) <= height) else None
-        last = last_anchor if (tops[2] > tops[1] or width <= height * 6
-                               and abs(centers[last_anchor] - right) <= height) else None
+        first = (
+            None if left_cut else first_anchor
+            if (left_curves or short_overlapped_end) and first_attached else None
+        )
+        last = (
+            None if right_cut else last_anchor
+            if (right_curves or short_overlapped_end) and last_attached else None
+        )
+        # A printed slur can continue visually over extension dashes after its last
+        # note. JPS spans notes, so attach a clearly curved trailing end to the outer
+        # note instead of treating a dash as the endpoint.
+        first_reaches_note = first is not None and (
+            abs(centers[first] - left) <= endpoint_tolerance
+            or first == 0 and left < centers[first] and tops[0] > tops[1]
+        )
+        last_reaches_note = last is not None and (
+            abs(centers[last] - right) <= endpoint_tolerance
+            or last == len(notes) - 1 and right > centers[last] and tops[2] > tops[1]
+        )
         if (
             (first is None or last is None or first < last)
-            and (abs(centers[first] - left) <= height if first is not None
+            and (first_reaches_note if first is not None
                  else left <= notes[0][0] + height)
-            and (abs(centers[last] - right) <= height if last is not None
+            and (last_reaches_note if last is not None
                  else right >= notes[-1][2] - height)
         ):
-            pairs.append((first, last))
-    return tuple(dict.fromkeys(pairs))
+            pairs.extend([(first, last)] * _parallel_curve_count(component, gray))
+    return tuple(pairs)
+
+
+def _parallel_curve_count(component: Component, gray: Image.Image) -> int:
+    """Count distinct nested arches merged into one connected scan component."""
+    left, top, right, bottom = component.box
+    width = right - left
+    step = max(1, width // 160)
+    pixels = gray.load()
+    assert pixels is not None
+    profiles: list[tuple[int, list[float]]] = []
+    for x in range(left + round(width * 0.18), right - round(width * 0.18), step):
+        dark = [y for y in range(top, bottom) if cast(int, pixels[x, y]) < 160]
+        runs: list[list[int]] = []
+        for y in dark:
+            if not runs or y > runs[-1][-1] + 1:
+                runs.append([])
+            runs[-1].append(y)
+        profiles.append((x, [sum(run) / len(run) for run in runs]))
+    if len(profiles) < 9:
+        return 1
+
+    for count in range(4, 1, -1):
+        supported = [item for item in profiles if len(item[1]) >= count]
+        if len(supported) < len(profiles) * 0.6:
+            continue
+        curved_layers = 0
+        for layer in range(count):
+            positions = [(x, ys[layer]) for x, ys in supported]
+            left_y = [y for x, y in positions if x < left + width * 0.34]
+            center_y = [y for x, y in positions
+                        if left + width * 0.42 <= x <= left + width * 0.58]
+            right_y = [y for x, y in positions if x > right - width * 0.34]
+            if (left_y and center_y and right_y
+                    and (median(left_y) + median(right_y)) / 2 - median(center_y) >= 1):
+                curved_layers += 1
+        if curved_layers == count:
+            return count
+    return 1
 
 
 def row_sustains(notes: tuple[Box, ...], marks: tuple[Box, ...]) -> tuple[Box, ...]:

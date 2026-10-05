@@ -149,9 +149,9 @@ def _row_marks(
     graces: dict[int, str] = {}
     for group in row.graces:
         graces[group.host] = graces.get(group.host, "") + group.body
-    marks: list[tuple[float, str]] = [
+    event_marks = [
         (
-            note.box[0],
+            note.box,
             note.digit + note.accidental
             + ("'" * note.octave if note.octave > 0 else "," * -note.octave)
             + "/" * note.duration_slashes + "." * note.duration_dots
@@ -161,10 +161,18 @@ def _row_marks(
         )
         for index, note in enumerate(row.notes)
     ]
-    marks.extend((box[0], "-") for box in row_sustains(
+    event_marks.extend((box, "-") for box in row_sustains(
         tuple(note.box for note in row.notes), row.unresolved_marks,
     ))
-    marks.sort()
+    # Keep dash ordering stable at a shared x-coordinate. Slur endpoints index notes
+    # only; accompaniment brackets and hairpins still use the complete event stream.
+    event_marks.sort(key=lambda item: item[0])
+    marks: list[tuple[float, str]] = [(box[0], body) for box, body in event_marks]
+    note_indices = {note.box: index for index, note in enumerate(row.notes)}
+    note_marks = {
+        note_indices[box]: index for index, (box, _) in enumerate(event_marks)
+        if box in note_indices
+    }
     for pin in row.hairpins:
         if 0 <= pin.start <= pin.end < len(marks):
             x, body = marks[pin.start]
@@ -174,14 +182,27 @@ def _row_marks(
     for index, token in row.parentheses:
         x, body = marks[index]
         marks[index] = (x, body + token)
+    left_cut = right_cut = 0
     for start_index, end_index in row.slurs:
         if start_index is not None:
-            x, body = marks[start_index]
-            marks[start_index] = (x, "(" + body)
+            mark_index = note_marks[start_index]
+            x, body = marks[mark_index]
+            marks[mark_index] = (x, "(" + body)
+        else:
+            left_cut += 1
         if end_index is not None:
-            x, body = marks[end_index]
-            marks[end_index] = (x, body + ")")
-    marks.extend(_bar_marks(row, tuple(x for x, _ in marks), endings))
+            mark_index = note_marks[end_index]
+            x, body = marks[mark_index]
+            marks[mark_index] = (x, body + ")")
+        else:
+            right_cut += 1
+    bars = _bar_marks(row, tuple(x for x, _ in marks), endings)
+    marks.extend(bars)
+    if left_cut:
+        marks.append((row.box[0] - 0.5, "(" * left_cut + "|/"))
+    if right_cut and bars:
+        x, body = marks[-1]
+        marks[-1] = (x, body + ")" * right_cut)
     marks.extend((x, "|/" + token) for x, token in endings if x not in row.barlines)
     return marks
 
@@ -190,57 +211,18 @@ def _row_tokens(row: MusicRow, endings: tuple[tuple[float, str], ...] = ()) -> s
     return " ".join(token for _, token in sorted(_row_marks(row, endings)))
 
 
-def _slur_continuations(
-    pages: tuple[PageObservation, ...],
-) -> tuple[tuple[PageObservation, ...], list[Issue]]:
-    """Emit row-cut curves only when an observed mate exists in the same voice."""
-    active: dict[tuple[str, int], list[tuple[int, int, int]]] = {}
-    paired: set[tuple[int, int, int]] = set()
-    for page_index, page in enumerate(pages):
-        numbers = {index: number for group in page.voice_groups
-                   for number, index in enumerate(group.rows, start=1)}
-        owners = {index: ("main", numbers.get(index, 0)) for index in range(len(page.rows))}
-        for overlay in page.dsb_overlays:
-            voice = numbers.get(overlay.anchor, 0)
-            owners[overlay.upper] = ("dsb_upper", voice)
-            owners[overlay.lower] = ("dsb_lower", voice)
-        for row_index, row in enumerate(page.rows):
-            stack = active.setdefault(owners[row_index], [])
-            for index, (first, last) in sorted(
-                enumerate(row.slurs),
-                key=lambda item: item[1][0] if item[1][0] is not None else item[1][1] or 0,
-            ):
-                location = (page_index, row_index, index)
-                if first is not None and last is None:
-                    stack.append(location)
-                elif first is None and last is not None and stack:
-                    paired.update((stack.pop(), location))
-    issues = []
-    result = []
-    for page_index, page in enumerate(pages):
-        rows = []
-        for row_index, row in enumerate(page.rows):
-            slurs = tuple(pair for index, pair in enumerate(row.slurs)
-                          if None not in pair or (page_index, row_index, index) in paired)
-            if len(slurs) != len(row.slurs):
-                issues.append(Issue(
-                    "slur_continuation_unresolved", page_index + 1,
-                    "A curved row-cut endpoint has no observed mate in this voice.", (row.box,),
-                ))
-            rows.append(replace(row, slurs=slurs))
-        # Small accompaniment overlays have no cross-system voice identity.
-        bz = tuple(replace(overlay, row=replace(
-            overlay.row, slurs=tuple(pair for pair in overlay.row.slurs if None not in pair),
-        )) for overlay in page.bz_overlays)
-        for accompaniment in page.bz_overlays:
-            if any(None in pair for pair in accompaniment.row.slurs):
-                issues.append(Issue(
-                    "slur_continuation_unresolved", page_index + 1,
-                    "An accompaniment row-cut curve has no established continuation voice.",
-                    (accompaniment.row.box,),
-                ))
-        result.append(replace(page, rows=tuple(rows), bz_overlays=bz))
-    return tuple(result), issues
+def _row_cut_issues(pages: tuple[PageObservation, ...]) -> list[Issue]:
+    """Flag only row-end cuts that lack a detected barline for local serialization."""
+    issues: list[Issue] = []
+    for page_index, page in enumerate(pages, start=1):
+        rows = [*page.rows, *(overlay.row for overlay in page.bz_overlays)]
+        issues.extend(Issue(
+            "slur_cut_barline_missing", page_index,
+            "A row-cut closer has no detected barline; check its cross-row continuation.",
+            (row.box,),
+        ) for row in rows if not row.barlines
+            and any(last is None and first is not None for first, last in row.slurs))
+    return issues
 
 
 def _ending_marks(
@@ -433,7 +415,7 @@ def _score_text(page: PageObservation) -> PageObservation:
 def _compile(pages: tuple[PageObservation, ...]) -> Draft:
     source = ["# Image transcription draft; review the adjacent .issues.json before use."]
     pages, ignored_margins = filter_document_margins(pages)
-    pages, issues = _slur_continuations(pages)
+    issues = _row_cut_issues(pages)
     issues.extend(Issue(
         "margin_text_ignored", page_number,
         "Excluded isolated margin pagination or a recurring document header/footer.", regions,
