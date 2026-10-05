@@ -24,7 +24,9 @@ uv export --locked --extra transcription --no-emit-project --output-file /tmp/oc
 `python -m pip install --no-deps -e .` 安装本仓库。锁定文件变更后应重新导出。
 参见 [uv 项目结构](https://docs.astral.sh/uv/guides/projects/)。
 
-生产环境准备：`python3 scripts/setup.py`；发布打包：`python3 build.py`。
+生产环境准备：`python3 scripts/setup.py`。准备完成后，请使用生产虚拟环境打包：Linux/macOS
+运行 `.venv/bin/python build.py`，Windows 运行 `.venv/Scripts/python.exe build.py`。这样源码侧
+检查与冻结引擎收集的依赖保持一致。
 
 ## 锁定依赖
 
@@ -110,8 +112,8 @@ uv run --locked octopus batch-export scores --out-dir images --format png --dpi 
 未明确指定类型的构建请求仅构建生产版，包括便携版可执行程序。只有明确要求时才构建
 开发版可执行程序；开发版构建说明保留在支持仓库中。
 
-先安装锁定版本的 Tauri CLI，再于 Linux 运行 `python3 build.py --bundles deb`。
-Windows 原生环境使用 `python build.py --bundles nsis` 或 `--bundles msi`，并安装
+先安装锁定版本的 Tauri CLI，再于 Linux 运行 `.venv/bin/python build.py --bundles deb`。
+Windows 原生环境使用 `.venv/Scripts/python.exe build.py --bundles nsis` 或 `--bundles msi`，并安装
 Microsoft C++ Build Tools 和 WebView2。Rust/PyInstaller 目标架构必须与运行 Python 的
 主机架构一致；不支持引擎交叉编译。macOS 打包暂未实现。
 
@@ -132,7 +134,7 @@ Cargo，并验证更新结果。
 
 ## 生产便携版测试
 
-每次原生 `python build.py` 构建均在 `dist/<target-triple>/portable/` 下生成不纳入 Git 的
+每次原生 `build.py` 构建均在 `dist/<target-triple>/portable/` 下生成不纳入 Git 的
 便携版目录，并同时生成安装包。即使请求其他安装包类型，Linux 构建也会包含 Debian 包，
 用于取得匹配的资源布局。替换便携版前，构建程序会验证引擎、字体、字形资源、中文渲染、
 示例文件内容及打包的用户手册。`portable.previous/` 保留上一次成功生成的便携版。

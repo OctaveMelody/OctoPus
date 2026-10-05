@@ -177,6 +177,13 @@ def _index_smoke_responses(
     return final
 
 
+def _stable_handshake_result(result: object) -> object:
+    """Drop install-specific OCR availability from the stable protocol comparison."""
+    if not isinstance(result, dict):
+        return result
+    return {key: value for key, value in result.items() if key not in {"ocr", "ocr_backends"}}
+
+
 def _smoke_test(bundle: Path, render_request: dict[str, object]) -> None:
     with tempfile.TemporaryDirectory(prefix="octopus-ocr-smoke-") as temporary:
         _smoke_test_with_image(bundle, render_request, Path(temporary))
@@ -258,7 +265,8 @@ def _smoke_test_with_image(
         handshake_response.get("protocol_version") != PROTOCOL_VERSION
         or handshake_response.get("request_id") != handshake["request_id"]
         or handshake_response.get("document_id") != handshake["document_id"]
-        or handshake_response.get("result") != expected_handshake.get("result")
+        or _stable_handshake_result(handshake_response.get("result"))
+        != _stable_handshake_result(expected_handshake.get("result"))
     ):
         raise RuntimeError("frozen engine handshake identity or capabilities did not match")
     response = responses_by_id[render_id]
@@ -280,6 +288,12 @@ def _smoke_test_with_image(
         if isinstance(handshake_result, dict)
         else {}
     )
+    if not isinstance(available_backends, dict) or (
+        handshake_result.get("ocr") is not any(
+            available_backends.get(backend) is True for backend in backends_to_check
+        )
+    ):
+        raise RuntimeError("frozen engine aggregate OCR capability did not match its providers")
     for request, backend in zip(transcription_requests, backends_to_check, strict=True):
         request_id = request["request_id"]
         if not isinstance(request_id, str):

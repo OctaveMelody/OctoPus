@@ -484,14 +484,29 @@ def _by_local_brace(
 ) -> bool:
     left = min(component.box[0] for component, _ in group)
     right = max(component.box[2] for component, _ in group)
+    top = min(component.box[1] for component, _ in group)
+    bottom = max(component.box[3] for component, _ in group)
     center_y = sum(component.center_y for component, _ in group) / len(group)
+
+    def touches_branch_edge(brace: Component) -> bool:
+        tolerance = digit_height * 0.5
+        return (
+            abs(center_y - brace.box[1]) <= digit_height * 1.25
+            and top <= brace.box[1] + tolerance
+            and bottom >= brace.box[1] - tolerance
+            or abs(center_y - brace.box[3]) <= digit_height * 1.25
+            and top <= brace.box[3] + tolerance
+            and bottom >= brace.box[3] - tolerance
+        )
+
     return any(
         width * 0.10 < component.box[0] < width * 0.85
         and (
             component.box[2] < left <= component.box[2] + digit_height * 3
             or right < component.box[0] <= right + width * 0.17
         )
-        and component.box[1] < center_y < component.box[3]
+        and (component.box[1] < center_y < component.box[3]
+             or touches_branch_edge(component))
         and digit_height * 2.5 <= component.height <= digit_height * 6
         and component.height >= component.width * 5
         for component in components
@@ -510,6 +525,35 @@ def _compact_bracketed_group(
         median(b - a for a, b in zip(centers, centers[1:], strict=False)) <= height * 1.7
         and bool(row_parentheses(boxes, height, components, gray))
     )
+
+
+def _compact_accompaniment_group(
+    group: list[tuple[Component, DigitMatch]], components: list[Component],
+    gray: Image.Image, host: MusicRow,
+) -> bool:
+    """Accept a small BZ row when notation or its host gives independent support."""
+    if len(group) < 3:
+        return False
+    boxes = tuple(component.box for component, _ in sorted(group, key=lambda pair: pair[0].box[0]))
+    height = median(box[3] - box[1] for box in boxes)
+    centers = [(box[0] + box[2]) / 2 for box in boxes]
+    if median(b - a for a, b in zip(centers, centers[1:], strict=False)) > height * 4.5:
+        return False
+    if row_parentheses(boxes, height, components, gray):
+        return True
+
+    first, last = centers[0], centers[-1]
+    boundaries = (host.box[0], *host.barlines, host.box[2])
+    confined_to_measure = any(
+        left <= first and last <= right
+        for left, right in zip(boundaries, boundaries[1:], strict=False)
+    )
+    if not confined_to_measure:
+        return False
+    host_centers = [(note.box[0] + note.box[2]) / 2 for note in host.notes]
+    support_x = (*host_centers, *host.barlines)
+    return any(abs(center - support) <= height * 0.85
+               for center in centers for support in support_x)
 
 
 def recognize_image(path: Path) -> PageObservation:
@@ -695,9 +739,10 @@ def recognize_image(path: Path) -> PageObservation:
     unresolved_braces = tuple(
         component.box for component in components
         if gray.width * 0.10 <= component.box[0] <= gray.width * 0.85
-        and digit_height * 0.3 <= component.width <= digit_height * 1.5
+        and digit_height * 0.2 - 1 <= component.width <= digit_height * 1.5
         and digit_height * 2.5 <= component.height <= digit_height * 6
         and component.height >= component.width * 5
+        and component.area <= component.width * component.height * 0.62
         and component.box not in used_braces
         and component.box[0] not in closing_braces
         and any(component.box[1] < (box[1] + box[3]) / 2 < component.box[3]
@@ -724,6 +769,23 @@ def recognize_image(path: Path) -> PageObservation:
     known_boxes.update(component.box for component, _ in smaller)
     for group in _groups(smaller, round(digit_height * 0.78)):
         if len(group) < 3:
+            continue
+        group.sort(key=lambda pair: pair[0].box[0])
+        group_y = sum(component.center_y for component, _ in group) / len(group)
+        group_x = (group[0][0].box[0] + group[-1][0].box[2]) / 2
+        host_candidates = [
+            (index, (row.box[1] + row.box[3]) / 2 - group_y)
+            for index, row in enumerate(rows)
+            if digit_height * 1.3 < (row.box[1] + row.box[3]) / 2 - group_y
+            < digit_height * 3.5
+            and row.box[0] < group_x < row.box[2]
+        ]
+        if not host_candidates:
+            continue
+        host_index = min(host_candidates, key=lambda pair: pair[1])[0]
+        # OCR fallback can mistake sparse lyric glyphs for note digits. A compact run
+        # needs either visible parentheses or a nearby onset/barline on a single host bar.
+        if not _compact_accompaniment_group(group, components, gray, rows[host_index]):
             continue
         recovered = _recover_row_digits(
             group, components, round(digit_height * 0.78), gray, known_boxes,

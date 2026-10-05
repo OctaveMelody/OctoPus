@@ -25,7 +25,10 @@ The export lists third-party dependencies; install this repository itself separa
 `python -m pip install --no-deps -e .` in your chosen virtual environment. Regenerate the export
 after lock changes. See [uv project structure](https://docs.astral.sh/uv/guides/projects/).
 
-Production setup: `python3 scripts/setup.py`; release packaging: `python3 build.py`.
+Production setup: `python3 scripts/setup.py`. After setup, use the production virtual
+environment for release packaging: `.venv/bin/python build.py` on Linux/macOS or
+`.venv/Scripts/python.exe build.py` on Windows. This keeps source-side package checks aligned
+with the dependencies collected into the frozen worker.
 
 ## Locked dependencies
 
@@ -118,10 +121,11 @@ An unspecified build request means production only, including the portable execu
 Development executables are built only on an explicit request, using the support repository's
 build instructions.
 
-Install the pinned Tauri CLI, then run `python3 build.py --bundles deb` on Linux. On native
-Windows use `python build.py --bundles nsis` or `--bundles msi`, with Microsoft C++ Build Tools
-and WebView2 installed. Rust/PyInstaller target architecture must match the native Python host;
-worker cross-compilation is unsupported. macOS packaging is deferred.
+Install the pinned Tauri CLI, then run `.venv/bin/python build.py --bundles deb` on Linux. On
+native Windows use `.venv/Scripts/python.exe build.py --bundles nsis` or `--bundles msi`, with
+Microsoft C++ Build Tools and WebView2 installed. Rust/PyInstaller target architecture must
+match the native Python host; worker cross-compilation is unsupported. macOS packaging is
+deferred.
 
 `build.py` builds the frontend/worker/native app under `build/` and copies packages to
 `dist/<target-triple>/`. The worker builder preserves its previous output until a new bundle
@@ -140,7 +144,7 @@ production portable builds. Reference font files stay outside Git. See the [font
 
 ## Portable production testing
 
-Every native `python build.py` build also publishes an untracked portable tree under
+Every native `build.py` build also publishes an untracked portable tree under
 `dist/<target-triple>/portable/`, alongside installation packages. Linux builds include a Debian
 bundle to obtain the matching resource layout, even when another bundle type is requested.
 The builder verifies worker/font/glyph assets, a Chinese render, example bytes and the packaged user manual before replacing

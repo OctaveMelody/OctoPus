@@ -24,6 +24,46 @@ class DsbOverlay:
     standalone: bool = False
 
 
+def _gap_branches(
+    component: Component,
+    rows: tuple[Box, ...],
+    digit_height: int,
+    *,
+    page_width: int,
+    branches_right: bool,
+) -> tuple[int, int] | None:
+    """Find the two note rows whose ink borders a local brace drawn between them."""
+    left, top, right, bottom = component.box
+    midpoint = (top + bottom) / 2
+    vertical_tolerance = digit_height * 0.5
+    horizontal_limit = digit_height * 3 if branches_right else page_width * 0.17
+
+    def adjacent(box: Box) -> bool:
+        if branches_right:
+            return right < box[0] <= right + horizontal_limit
+        return left - horizontal_limit <= box[2] < left
+
+    upper = [
+        index for index, box in enumerate(rows)
+        if adjacent(box)
+        and (box[1] + box[3]) / 2 < midpoint
+        and box[1] <= top + vertical_tolerance
+        and box[3] >= top - vertical_tolerance
+        and abs((box[1] + box[3]) / 2 - top) <= digit_height * 1.25
+    ]
+    lower = [
+        index for index, box in enumerate(rows)
+        if adjacent(box)
+        and (box[1] + box[3]) / 2 > midpoint
+        and box[1] <= bottom + vertical_tolerance
+        and box[3] >= bottom - vertical_tolerance
+        and abs((box[1] + box[3]) / 2 - bottom) <= digit_height * 1.25
+    ]
+    if len(upper) == len(lower) == 1 and upper[0] < lower[0]:
+        return upper[0], lower[0]
+    return None
+
+
 def recognize_dsb_overlays(
     components: list[Component], rows: tuple[Box, ...], page_width: int,
     digit_height: int,
@@ -33,9 +73,10 @@ def recognize_dsb_overlays(
         left, top, right, bottom = component.box
         if not (
             page_width * 0.10 <= left <= page_width * 0.85
-            and digit_height * 0.3 <= component.width <= digit_height * 1.5
+            and digit_height * 0.2 - 1 <= component.width <= digit_height * 1.5
             and digit_height * 2.5 <= component.height <= digit_height * 6
             and component.height >= component.width * 5
+            and component.area <= component.width * component.height * 0.62
         ):
             continue
         branches = [
@@ -43,6 +84,11 @@ def recognize_dsb_overlays(
             if top < (box[1] + box[3]) / 2 < bottom
             and right < box[0] <= right + digit_height * 3
         ]
+        if len(branches) != 2:
+            gap_pair = _gap_branches(
+                component, rows, digit_height, page_width=page_width, branches_right=True,
+            )
+            branches = list(gap_pair) if gap_pair is not None else []
         if len(branches) != 2:
             continue
         upper, lower = branches
@@ -82,9 +128,10 @@ def recognize_dsb_overlays(
         if not (
             page_width * 0.10 <= left <= page_width * 0.85
             and left not in closing_boxes
-            and digit_height * 0.3 <= component.width <= digit_height * 1.5
+            and digit_height * 0.2 - 1 <= component.width <= digit_height * 1.5
             and digit_height * 2.5 <= component.height <= digit_height * 6
             and component.height >= component.width * 5
+            and component.area <= component.width * component.height * 0.62
         ):
             continue
         branches = [
@@ -93,6 +140,12 @@ def recognize_dsb_overlays(
             and top < (box[1] + box[3]) / 2 < bottom
             and left - page_width * 0.17 <= box[2] < left
         ]
+        if len(branches) != 2:
+            gap_pair = _gap_branches(
+                component, rows, digit_height, page_width=page_width, branches_right=False,
+            )
+            branches = [index for index in gap_pair if index not in used_branches] \
+                if gap_pair is not None else []
         if len(branches) != 2:
             continue
         upper, lower = branches
@@ -112,11 +165,14 @@ def recognize_dsb_overlays(
         left, top, right, bottom = component.box
         if not (
             page_width * 0.10 <= left <= page_width * 0.85
-            and digit_height * 0.3 <= component.width <= digit_height * 1.5
+            and digit_height * 0.2 - 1 <= component.width <= digit_height * 1.5
             and digit_height * 2.5 <= component.height <= digit_height * 6
             and component.height >= component.width * 5
+            and component.area <= component.width * component.height * 0.62
             and any(
                 outer.box[2] < left
+                # A second adjacent staff/group brace is not a standalone DSB opener.
+                and left - outer.box[2] >= digit_height
                 and outer.box[1] < top < bottom < outer.box[3]
                 and outer.height > component.height * 2
                 for outer in components
@@ -129,6 +185,12 @@ def recognize_dsb_overlays(
             and top < (box[1] + box[3]) / 2 < bottom
             and right < box[0] <= right + digit_height * 3
         ]
+        if len(branches) != 2:
+            gap_pair = _gap_branches(
+                component, rows, digit_height, page_width=page_width, branches_right=True,
+            )
+            branches = [index for index in gap_pair if index not in used_branches] \
+                if gap_pair is not None else []
         if len(branches) == 2:
             upper, lower = branches
             overlays.append(DsbOverlay(upper, upper, lower, component.box,
@@ -153,18 +215,23 @@ def recognize_voice_groups(
         ):
             continue
         # Printed tips can overlap the end row's digit band while missing its center.
-        members = tuple(
+        all_members = tuple(
             index
             for index, box in enumerate(rows)
-            if index not in excluded
-            and box[1] < bottom and top < box[3]
+            if box[1] < bottom and top < box[3]
             and right < box[2]
         )
+        members = tuple(index for index in all_members if index not in excluded)
         if len(members) < 2:
             continue
-        if abs((rows[members[0]][1] + rows[members[0]][3]) / 2 - top) > digit_height * 2:
+        if (not all_members or abs(
+            (rows[all_members[0]][1] + rows[all_members[0]][3]) / 2 - top
+        ) > digit_height * 2):
             continue
-        if abs(bottom - (rows[members[-1]][1] + rows[members[-1]][3]) / 2) > digit_height * 2:
+        if (
+            abs(bottom - (rows[all_members[-1]][1] + rows[all_members[-1]][3]) / 2)
+            > digit_height * 2
+        ):
             continue
         candidates.append(VoiceGroup(members, component.box))
     selected = []
