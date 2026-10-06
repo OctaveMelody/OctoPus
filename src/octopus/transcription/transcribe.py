@@ -454,7 +454,10 @@ def _bz_duplicate_text_spans(
                 max(span.box[2] for span in group), max(span.box[3] for span in group),
             )
             if _box_coverage(overlay.row.box, group_box) >= 0.7:
-                duplicated.update(group)
+                duplicated.update(span for span in group if (
+                    any(character.isascii() and character.isdecimal() for character in span.text)
+                    or left <= span.center_x <= right and top <= span.center_y <= bottom
+                ))
     return tuple(span for span in ordered_spans if span in duplicated)
 
 

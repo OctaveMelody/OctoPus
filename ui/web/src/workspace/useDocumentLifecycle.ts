@@ -96,7 +96,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
   const recentPath = useRef<string | null>(null);
   const [score, setScore] = useState(() => createDocumentSession({
     id: crypto.randomUUID(),
-    name: "小星星.jps",
+    name: "小星星（内置）",
     source: DEFAULT_STARTUP_SOURCE,
   }));
   const [documentOpen, setDocumentOpen] = useState(true);
@@ -472,7 +472,8 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
       const savedPath = await saveJpsDocument({
         path: original.path,
         suggestedPath: original.suggestedPath ?? original.path,
-        suggestedName: original.name,
+        suggestedName: original.name.toLowerCase().endsWith(".jps")
+          ? original.name : normalizeJpsFileName(original.name),
         recentSavedPath: isSaveAs ? rememberedPath(LAST_SAVED_JPS_PATH_KEY) : null,
         expectedText: original.savedFileText,
         text: fileText,

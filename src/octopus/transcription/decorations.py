@@ -69,6 +69,31 @@ def decoration_token(value: str) -> str | None:
     return None
 
 
+def _split_dynamic_annotation(span: TextSpan) -> tuple[TextSpan, ...]:
+    """Separate a known dynamic and instruction when OCR supplies character centers."""
+    value = unicodedata.normalize("NFKC", span.text).strip().lower()
+    centers = span.character_centers
+    if len(centers) != len(value) or any(left >= right for left, right in zip(
+        centers, centers[1:], strict=False
+    )):
+        return ()
+    for dynamic in sorted(_DYNAMIC_WORDS, key=lambda word: (-len(word), word)):
+        if not value.startswith(dynamic):
+            continue
+        annotation = value[len(dynamic):]
+        if not (decoration_token(annotation) or "").startswith('"'):
+            continue
+        boundary = round((centers[len(dynamic) - 1] + centers[len(dynamic)]) / 2)
+        if not span.box[0] < boundary < span.box[2]:
+            continue
+        left, top, _, bottom = span.box
+        return (
+            TextSpan(dynamic, (left, top, boundary, bottom), span.confidence),
+            TextSpan(annotation, (boundary, top, span.box[2], bottom), span.confidence),
+        )
+    return ()
+
+
 def _union(boxes: tuple[Box, ...]) -> Box:
     return (min(box[0] for box in boxes), min(box[1] for box in boxes),
             max(box[2] for box in boxes), max(box[3] for box in boxes))
@@ -139,12 +164,24 @@ def text_decorations(
     if not note_boxes:
         return ()
     height = median(box[3] - box[1] for box in note_boxes)
-    candidates = sorted((span for span in spans if (
-        span.confidence >= (0.55 if gray is not None else 0.8)
-        and height * 0.2 <= span.height <= height * 1.4
-        and _above_row(span.box, note_boxes, height, other_rows)
-        and not _lyric_character(span, spans, height, other_rows)
-    )), key=lambda span: (span.box[0], span.box[1]))
+    candidate_sources: dict[TextSpan, list[TextSpan]] = {}
+    candidates = []
+    for source_span in spans:
+        pieces = _split_dynamic_annotation(source_span) or (source_span,)
+        for span in pieces:
+            candidate_sources.setdefault(span, []).append(source_span)
+            token = decoration_token(span.text)
+            # Complete words and positioned mixed spans can exceed the note height.
+            expanded = token is not None and (len(span.text.strip()) > 1 or span != source_span)
+            maximum_height = height * (2.4 if expanded else 1.4)
+            if (
+                span.confidence >= (0.55 if gray is not None else 0.8)
+                and height * 0.2 <= span.height <= maximum_height
+                and _above_row(span.box, note_boxes, height, other_rows)
+                and not _lyric_character(span, spans, height, other_rows)
+            ):
+                candidates.append(span)
+    candidates.sort(key=lambda span: (span.box[0], span.box[1]))
     found: list[TextDecoration] = []
     consumed: set[TextSpan] = set()
     for start, span in enumerate(candidates):
@@ -180,7 +217,10 @@ def text_decorations(
                 # Italic double f/p often receives a confident one-letter OCR reading.
                 token = glyph
             confidence = min(item.confidence for item in selected)
-            threshold = 0.88 if len(value.strip(".．")) == 1 else 0.8
+            threshold = (
+                0.7 if gray is not None and token in _DYNAMIC_WORDS and len(token) > 1
+                else 0.88 if len(value.strip(".．")) == 1 else 0.8
+            )
             if confidence < threshold and glyph != token:
                 continue
             index = _text_owner(box, token, note_boxes, height)
@@ -202,7 +242,15 @@ def text_decorations(
                 found.append(TextDecoration(index, token, box, selected))
                 consumed.update(selected)
                 break
-    return tuple(found)
+    return tuple(TextDecoration(
+        item.note_index,
+        item.token,
+        item.box,
+        tuple(dict.fromkeys(
+            source for candidate in item.source_spans
+            for source in candidate_sources.get(candidate, (candidate,))
+        )),
+    ) for item in found)
 
 
 def _area(box: Box) -> int:
