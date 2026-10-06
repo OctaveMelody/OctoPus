@@ -145,6 +145,7 @@ def _bar_marks(
 
 def _row_marks(
     row: MusicRow, endings: tuple[tuple[float, str], ...] = (),
+    *, synchronized_head_bar: bool = False,
 ) -> list[tuple[float, str]]:
     graces: dict[int, str] = {}
     for group in row.graces:
@@ -182,18 +183,12 @@ def _row_marks(
     for index, token in row.parentheses:
         x, body = marks[index]
         marks[index] = (x, body + token)
-    head_open_count = sum(start_index is None for start_index, _ in row.slurs)
     left_cut = right_cut = 0
     for start_index, end_index in row.slurs:
         if start_index is not None:
-            if start_index == 0 and end_index is not None and head_open_count:
-                # A hidden row-head barline carries every opener visible at
-                # the head, including complete curves that start on note 0.
-                left_cut += 1
-            else:
-                mark_index = note_marks[start_index]
-                x, body = marks[mark_index]
-                marks[mark_index] = (x, "(" + body)
+            mark_index = note_marks[start_index]
+            x, body = marks[mark_index]
+            marks[mark_index] = (x, "(" + body)
         else:
             left_cut += 1
         if end_index is not None:
@@ -207,14 +202,64 @@ def _row_marks(
         x, body = bars[-1]
         bars[-1] = (x, body + ")" * right_cut)
     marks.extend(bars)
-    if left_cut:
+    if left_cut or synchronized_head_bar:
         marks.append((row.box[0] - 0.5, "(" * left_cut + "|/"))
     marks.extend((x, "|/" + token) for x, token in endings if x not in row.barlines)
     return marks
 
 
-def _row_tokens(row: MusicRow, endings: tuple[tuple[float, str], ...] = ()) -> str:
-    return " ".join(token for _, token in sorted(_row_marks(row, endings)))
+def _row_tokens(
+    row: MusicRow,
+    endings: tuple[tuple[float, str], ...] = (),
+    *,
+    synchronized_head_bar: bool = False,
+) -> str:
+    return " ".join(token for _, token in sorted(_row_marks(
+        row, endings, synchronized_head_bar=synchronized_head_bar,
+    )))
+
+
+def _synchronized_head_bar_rows(page: PageObservation) -> set[int]:
+    """Share a hidden head bar among simultaneous voices and DSB branches."""
+    synchronized: set[int] = set()
+
+    def align_head(rows: set[int]) -> None:
+        if len(rows) < 2:
+            return
+        first_x = min(page.rows[index].box[0] for index in rows)
+        note_heights = [
+            note.box[3] - note.box[1]
+            for index in rows for note in page.rows[index].notes
+        ]
+        if not note_heights:
+            return
+        tolerance = median(note_heights) * 1.5
+        head_rows = {
+            index for index in rows
+            if page.rows[index].box[0] <= first_x + tolerance
+        }
+        if len(head_rows) > 1 and any(
+            start is None
+            for index in head_rows
+            for start, _ in page.rows[index].slurs
+        ):
+            synchronized.update(head_rows)
+
+    groups = []
+    for group in page.voice_groups:
+        rows = set(group.rows)
+        rows.update(
+            branch for overlay in page.dsb_overlays
+            if overlay.anchor in group.rows and not overlay.standalone
+            for branch in (overlay.upper, overlay.lower)
+        )
+        groups.append(rows)
+        align_head(rows)
+    for overlay in page.dsb_overlays:
+        branches = {overlay.upper, overlay.lower}
+        if not any(branches <= rows for rows in groups):
+            align_head(branches)
+    return synchronized
 
 
 def _row_cut_issues(pages: tuple[PageObservation, ...]) -> list[Issue]:
@@ -544,6 +589,7 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
             for group in page.voice_groups
             for number, row_index in enumerate(group.rows, start=1)
         }
+        synchronized_head_rows = _synchronized_head_bar_rows(page)
         for group in page.voice_groups:
             issues.append(Issue(
                 "voice_group_review", page_number,
@@ -580,7 +626,18 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
             if row_index in branch_rows:
                 continue
             voice = voice_numbers.get(row_index)
-            marks = _row_marks(row, ending_marks.get((page_number - 1, row_index), ()))
+            overlay = overlay_by_anchor.get(row_index)
+            row_for_marks = row
+            if overlay is not None and overlay.continuation:
+                brace_left, _, brace_right, _ = overlay.box
+                row_for_marks = replace(row, barlines=tuple(
+                    x for x in row.barlines if not brace_left <= x <= brace_right
+                ))
+            marks = _row_marks(
+                row_for_marks,
+                ending_marks.get((page_number - 1, row_index), ()),
+                synchronized_head_bar=row_index in synchronized_head_rows,
+            )
             for small in bz_by_anchor.get(row_index, []):
                 anchor_x = min(
                     (note.box[0] for note in row.notes),
@@ -592,21 +649,26 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
                     else small.box[0]
                 )
                 marks.append((insertion_x - 0.5, f"{{bz {_row_tokens(small)} }}"))
-            overlay = overlay_by_anchor.get(row_index)
             if overlay is not None:
                 upper = _row_tokens(
                     page.rows[overlay.upper],
                     ending_marks.get((page_number - 1, overlay.upper), ()),
+                    synchronized_head_bar=overlay.upper in synchronized_head_rows,
                 )
                 lower = _row_tokens(
                     page.rows[overlay.lower],
                     ending_marks.get((page_number - 1, overlay.lower), ()),
+                    synchronized_head_bar=overlay.lower in synchronized_head_rows,
                 )
                 block = f"{{dsb {upper} }} {lower}"
                 if overlay.standalone:
                     marks = [(overlay.box[0] - 0.5, block)]
                 elif overlay.continuation:
-                    marks.append((row.box[0] - 0.5, block))
+                    branch_start = min(
+                        page.rows[overlay.upper].box[0],
+                        page.rows[overlay.lower].box[0],
+                    )
+                    marks.append((branch_start - 0.5, block))
                 elif overlay.closing_x is not None:
                     marks = [
                         mark for mark in marks

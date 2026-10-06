@@ -990,13 +990,17 @@ def recognize_image(path: Path) -> PageObservation:
         ))
         music = tuple(sorted((*notes, *row_sustains(notes, unresolved))))
         ending_boxes = tuple(segment.box for segment in row.endings)
+        hairpins = row_hairpins(source_gray, notes, marks, other_rows=others, music_boxes=music)
         slur_marks = [component for component in marks if not any(
             component.box[0] < right and component.box[2] > left
             and component.box[1] < bottom and component.box[3] > top
             for left, top, right, bottom in ending_boxes
+        ) and not any(
+            left <= component.box[0] and component.box[2] <= right
+            and top <= component.center_y <= bottom
+            for left, top, right, bottom in (pin.box for pin in hairpins)
         )]
         slurs = row_slurs(notes, row.box[1], height, slur_marks, source_gray, row.barlines)
-        hairpins = row_hairpins(source_gray, notes, marks, other_rows=others, music_boxes=music)
         return replace(
             row,
             notes=tuple(recovered_notes), unresolved_marks=unresolved,
