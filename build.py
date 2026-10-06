@@ -17,7 +17,16 @@ BUILD = ROOT / "build" / "cargo"
 PACKAGE_SUFFIXES = {".appimage", ".deb", ".dmg", ".exe", ".msi"}
 
 
-def publish_portable(destination: Path, release: Path, packages: list[Path], system: str) -> Path:
+def _tauri_build_command(bundles: str | None) -> list[str]:
+    command = ["cargo", "tauri", "build", "--ci"]
+    if bundles:
+        command.extend(("--bundles", bundles))
+    else:
+        command.append("--no-bundle")
+    return command
+
+
+def publish_portable(destination: Path, release: Path, system: str) -> Path:
     """Stage executable/resources together and preserve the last successful portable build."""
     from build_desktop_engine import (
         _check_font_assets,
@@ -31,26 +40,23 @@ def publish_portable(destination: Path, release: Path, packages: list[Path], sys
     portable = destination / "portable"
     with tempfile.TemporaryDirectory(prefix=".portable-staging-", dir=destination) as work:
         staged = Path(work) / "portable"
+        staged.mkdir()
         if system == "Linux":
-            debs = [path for path in packages if path.suffix == ".deb"]
-            if len(debs) != 1:
-                raise RuntimeError("portable Linux output requires exactly one Debian package")
-            subprocess.run(["dpkg-deb", "-x", str(debs[0]), str(staged)], check=True)
             executable = staged / "usr/bin/octopus"
             resources = staged / "usr/lib" / config["productName"]
         elif system == "Windows":
-            staged.mkdir()
             executable = staged / "octopus.exe"
-            shutil.copy2(release / executable.name, executable)
             resources = staged / "lib/OctoPus"
-            resources.mkdir(parents=True)
-            shutil.copy2(ROOT / "LICENSE", resources / "LICENSE")
-            shutil.copytree(ROOT / "build/desktop-engine/octopus-engine", resources / "engine")
-            shutil.copytree(ROOT / "samples/jps_files", resources / "examples")
-            shutil.copytree(ROOT / "docs", resources / "docs")
-            shutil.copytree(ROOT / "src/octopus/assets/fonts", resources / "fonts")
         else:
             raise RuntimeError(f"portable output is unsupported on {system}")
+        executable.parent.mkdir(parents=True, exist_ok=True)
+        resources.mkdir(parents=True)
+        shutil.copy2(release / executable.name, executable)
+        shutil.copy2(ROOT / "LICENSE", resources / "LICENSE")
+        shutil.copytree(ROOT / "build/desktop-engine/octopus-engine", resources / "engine")
+        shutil.copytree(ROOT / "samples/jps_files", resources / "examples")
+        shutil.copytree(ROOT / "docs", resources / "docs")
+        shutil.copytree(ROOT / "src/octopus/assets/fonts", resources / "fonts")
         if not executable.is_file():
             raise RuntimeError("portable output is missing the native executable")
         bundle = resources / "engine"
@@ -90,13 +96,15 @@ def publish_portable(destination: Path, release: Path, packages: list[Path], sys
 
 
 def main() -> None:
-    default_bundle = {"Linux": "deb", "Windows": "nsis"}.get(platform.system())
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--bundles", default=default_bundle, help="Tauri bundle type(s)")
+    parser.add_argument(
+        "--bundles",
+        help="Tauri bundle type(s); omit to build only the portable executable",
+    )
     parser.add_argument("--target", help="installed Rust target triple for this host")
     args = parser.parse_args()
-    if not args.bundles:
-        parser.error("native packaging currently supports Linux and Windows")
+    if platform.system() not in {"Linux", "Windows"}:
+        parser.error("portable builds currently support Linux and Windows")
 
     from build_desktop_engine import _check_font_assets
 
@@ -106,10 +114,7 @@ def main() -> None:
         subprocess.run(["npm.cmd" if os.name == "nt" else "npm", "ci"], cwd=WEB, check=True)
 
     BUILD.mkdir(parents=True, exist_ok=True)
-    bundles_requested = args.bundles
-    if platform.system() == "Linux" and "deb" not in bundles_requested.split(","):
-        bundles_requested += ",deb"  # Provides the native portable resource layout.
-    command = ["cargo", "tauri", "build", "--ci", "--bundles", bundles_requested]
+    command = _tauri_build_command(args.bundles)
     if args.target:
         command.extend(("--target", args.target))
     # A renamed product must not accidentally republish a stale installer.
@@ -130,7 +135,7 @@ def main() -> None:
         for path in kind.iterdir()
         if path.is_file() and path.suffix.lower() in PACKAGE_SUFFIXES
     ]
-    if not packages:
+    if args.bundles and not packages:
         raise RuntimeError(f"Tauri created no installation packages under {bundles}")
     destination = ROOT / "dist" / triple
     destination.mkdir(parents=True, exist_ok=True)
@@ -138,7 +143,7 @@ def main() -> None:
         copied = destination / package.name
         shutil.copy2(package, copied)
         print(copied)
-    print(publish_portable(destination, bundles.parent, packages, platform.system()))
+    print(publish_portable(destination, bundles.parent, platform.system()))
 
 
 if __name__ == "__main__":

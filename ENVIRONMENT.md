@@ -116,20 +116,21 @@ change the version. Use it only when a distribution intentionally omits that men
 
 ## Build packages
 
-An unspecified build request means production only, including the portable executable.
-Development executables are built only on an explicit request, using the support repository's
-build instructions.
-
-Install the pinned Tauri CLI, then run `.venv/bin/python build.py --bundles deb` on Linux. On
-native Windows use `.venv/Scripts/python.exe build.py --bundles nsis` or `--bundles msi`, with
-Microsoft C++ Build Tools and WebView2 installed. Rust/PyInstaller target architecture must
+During development, build only the portable by default. Do not build installers or other
+variants unless the user explicitly asks for them. Install the pinned Tauri CLI, then run
+`.venv/bin/python build.py` on Linux or `.venv/Scripts/python.exe build.py` on native Windows.
+Omitting `--bundles` selects portable-only mode. Rust/PyInstaller target architecture must
 match the native Python host; worker cross-compilation is unsupported. macOS packaging is
 deferred.
 
-`build.py` builds the frontend/worker/native app under `build/` and copies packages to
-`dist/<target-triple>/`. The worker builder preserves its previous output until a new bundle
-has passed glyph checks and handshake/render smoke tests. Each repository has its own locks;
-update them intentionally with `uv lock`/npm/Cargo and validate the resulting change.
+For an explicitly requested installer build, pass the desired Tauri bundle type, such as
+`--bundles deb` on Linux or `--bundles nsis` / `--bundles msi` on native Windows (with Microsoft
+C++ Build Tools and WebView2 installed). `build.py` builds the frontend/worker/native app under
+`build/`, places the checked portable tree under `dist/<target-triple>/portable/`, and copies
+requested installers to `dist/<target-triple>/`. The portable builder preserves its previous
+output until the worker, fonts, glyphs, manual, examples and license checks pass. Each repository
+has its own locks; update them intentionally with `uv lock`/npm/Cargo and validate the resulting
+change.
 
 ## Release fonts
 
