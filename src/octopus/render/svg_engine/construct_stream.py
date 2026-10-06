@@ -24,6 +24,8 @@ from .nested_slurs import resolve_nested_slur_lanes
 from .primitives import text_element as _text_element
 from .primitives import use_element as _use_element
 
+_DSB_CLOSE_BRACE_BARLINE_CLEARANCE = 8.0
+
 
 def _construct_elements(layout: LayoutPage) -> list[SvgElement]:
     elements: list[SvgElement] = []
@@ -631,6 +633,15 @@ def _leading_dsb_brace_elements(
                    if onset < duration and item.event.kind != MusicTokenKind.BARLINE]
         host = following
         x = (covered[-1].x + following.x) / 2 if covered else following.x - NOTE_WIDTH / 2
+    closing_barline = next(
+        (item for onset, item in timeline
+         if onset == duration and item.event.kind == MusicTokenKind.BARLINE),
+        None,
+    )
+    if closing_barline is not None:
+        # Keep the brace left of a boundary barline instead of centering both
+        # glyphs on the same stream position.
+        x = min(x, closing_barline.x - _DSB_CLOSE_BRACE_BARLINE_CLEARANCE)
     result.append((host, _use_element(
         "dakuohu_you_2",
         x=_format_reference_number(x),
