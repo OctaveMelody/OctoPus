@@ -169,6 +169,13 @@ def extract_lyrics(
     digit_height = max(16, round(sum(note.box[3] - note.box[1] for note in row.notes) /
                                  len(row.notes)))
     next_index = max(row_index, after_index) + 1
+    continuation = next((overlay for overlay in page.dsb_overlays
+                         if overlay.anchor == row_index and overlay.continuation), None)
+    branch_boxes = tuple(
+        page.rows[index].box for index in (continuation.upper, continuation.lower)
+    ) if continuation else ()
+    if continuation and next_index in {continuation.upper, continuation.lower}:
+        next_index = max(continuation.upper, continuation.lower) + 1
     next_top = page.rows[next_index].box[1] if next_index < len(page.rows) else page.height
     top = after.box[3] + max(7, digit_height * 0.18)
     bottom = min(next_top - 7, after.box[3] + digit_height * 4.6)
@@ -180,6 +187,8 @@ def extract_lyrics(
         and (span.height >= digit_height * 0.58 or span.text == "一" and span.confidence >= 0.95)
         and top <= span.center_y < bottom
         and _is_lyric_text(span.text)
+        and not any(left <= span.center_x <= right and upper <= span.center_y <= lower
+                    for left, upper, right, lower in branch_boxes)
         and not (next_index == len(page.rows) and span.box[3] >= page.height - digit_height
                  and _PAGINATION.fullmatch(span.text.strip()))
         and not (

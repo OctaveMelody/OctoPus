@@ -202,8 +202,10 @@ def _row_marks(
         x, body = bars[-1]
         bars[-1] = (x, body + ")" * right_cut)
     marks.extend(bars)
+    if left_cut:
+        marks.append((row.box[0] - 0.5, "(" * left_cut))
     if left_cut or synchronized_head_bar:
-        marks.append((row.box[0] - 0.5, "(" * left_cut + "|/"))
+        marks.append((row.box[0] - 0.5, "|/"))
     marks.extend((x, "|/" + token) for x, token in endings if x not in row.barlines)
     return marks
 
@@ -386,12 +388,12 @@ def _lyric_baseline_text(
                 for row in page.rows)
         for span in spans
     )
+    if page.voice_groups or page.dsb_overlays or page.bz_overlays or page.unresolved_braces:
+        return spans
     if note_height >= 16:
-        # ponytail: large-page crops need one owner; polyphony needs voice-specific crops.
+        # Large merged lyric rows need crops only when whole-page OCR exceeds its safe size.
         ocr_limit = getattr(text._ocr_engine(), "max_side_len", 2000)
-        if (not merged_lyrics or page.voice_groups or page.dsb_overlays or page.bz_overlays
-                or page.unresolved_braces
-                or max(page.width, page.height) <= ocr_limit):
+        if not merged_lyrics or max(page.width, page.height) <= ocr_limit:
             return spans
     lyrics = image_lyric_text(
         path, tuple(row.box for row in page.rows), small_page=note_height < 16,
@@ -707,9 +709,10 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
                     row.unresolved_marks or (row.box,),
                 )
             )
-            for lyric in extract_lyrics(
-                page, row_index, overlay.lower if overlay is not None else None
-            ):
+            lyric_band_after = (
+                overlay.lower if overlay is not None and not overlay.continuation else None
+            )
+            for lyric in extract_lyrics(page, row_index, lyric_band_after):
                 source.append(f"C{voice or ''}: {lyric.body}")
                 issues.append(Issue(
                     "lyric_alignment_review", page_number,
