@@ -17,7 +17,20 @@ import { createRecoverySnapshot, parseRecoverySnapshot } from "./recovery.js";
 import { createReferenceSet, referenceAssetIds } from "./reference-set.js";
 import { rememberRecentFile } from "./recent-files.js";
 import { getStorage } from "./workspace-storage.js";
-import defaultStartupSource from "../../../../samples/jps_files/小星星.jps?raw";
+
+const DEFAULT_STARTUP_SOURCE = `#============================以下为描述头定义==========================
+V: 1.0
+B: 小星星
+B: Twinkle, Twinkle, Little Star
+Z: 珍·泰勒 曲
+Z: 英国儿歌
+D: C
+P: 4/4
+J: 80
+#============================以下开始简谱主体==========================
+Q: 1 1 5 5 | 6 6 5 - | 4 4 3 3 | 2 2 1 - |
+C: 一闪一闪亮晶晶满天都是小星星
+C: Twin-/ kle, twin-/ kle, lit-/ tle, star, How/ I/ won-/ der/ what/ you/ are.`;
 
 type ReferenceAssets = ReturnType<typeof useReferenceAssets>;
 type LifecycleServices = {
@@ -84,7 +97,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
   const [score, setScore] = useState(() => createDocumentSession({
     id: crypto.randomUUID(),
     name: "小星星.jps",
-    source: defaultStartupSource,
+    source: DEFAULT_STARTUP_SOURCE,
   }));
   const [documentOpen, setDocumentOpen] = useState(true);
   const currentDocument = useRef(score);
