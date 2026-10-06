@@ -82,6 +82,12 @@ def row_slurs(
         joined_spans = _detached_row_slurs(
             notes, row_top, height, [joined], isolated, barlines,
         )
+        if any(fragment.height < max(2, height * 0.15) for fragment in fragments):
+            apex_supported = _short_fragments_form_curve_apex(fragments, gray, height)
+            joined_spans = tuple(span for span in joined_spans if (
+                apex_supported or span[0] is None and span[1] is not None
+                and any(existing_end == span[1] for _, existing_end in found)
+            ))
         recovered.extend(joined_spans)
         recovered_fragments.extend((span, joined.box) for span in joined_spans)
         for fragment in fragments:
@@ -115,6 +121,10 @@ def row_slurs(
     found = list(found_counts.elements())
     parts, core = curve_core_parts(components, gray, row_top, height)
     recovered.extend(_detached_row_slurs(notes, row_top, height, parts, core, barlines))
+    recovered.extend(_head_parallel_slurs(
+        notes, row_top, height, components, gray, barlines, (*found, *recovered),
+        recovered_fragments,
+    ))
     missing = Counter(recovered) - Counter(found)
     merged = found
     for pair in recovered:
@@ -122,6 +132,109 @@ def row_slurs(
             merged.append(pair)
             missing[pair] -= 1
     return tuple(merged)
+
+
+def _short_fragments_form_curve_apex(
+    fragments: tuple[Component, ...], gray: Image.Image, height: float,
+) -> bool:
+    """Keep a short interior fragment only when it joins both sides of an arch."""
+    edge = max(1, ceil(height * 0.08))
+    pixels = gray.load()
+    assert pixels is not None
+    for index, fragment in enumerate(fragments):
+        if fragment.height >= max(2, height * 0.15):
+            continue
+        if index == 0 or index == len(fragments) - 1:
+            return False
+        left, bridge, right = fragments[index - 1:index + 2]
+        if (bridge.box[0] - left.box[2] > edge
+                or right.box[0] - bridge.box[2] > edge):
+            return False
+
+        def peak(component: Component, from_right: bool) -> int | None:
+            x0, y0, x1, y1 = component.box
+            xs = range(max(x0, x1 - edge), x1) if from_right else range(x0, min(x1, x0 + edge))
+            ink = [y for x in xs for y in range(y0, y1) if cast(int, pixels[x, y]) < 170]
+            return min(ink) if ink else None
+
+        apex = min(y for x in range(bridge.box[0], bridge.box[2])
+                   for y in range(bridge.box[1], bridge.box[3])
+                   if cast(int, pixels[x, y]) < 170)
+        left_peak, right_peak = peak(left, True), peak(right, False)
+        if (left_peak is None or right_peak is None
+                or abs(apex - left_peak) > edge or abs(apex - right_peak) > edge):
+            return False
+    return True
+
+
+def _head_parallel_slurs(
+    notes: tuple[Box, ...], row_top: int, height: float,
+    components: list[Component], gray: Image.Image, barlines: tuple[int, ...],
+    found: tuple[tuple[int | None, int | None], ...],
+    recovered_fragments: list[tuple[tuple[int | None, int | None], Box]],
+) -> tuple[tuple[int | None, int | None], ...]:
+    """Complete a nested head-cut curve when its parallel layer is scan-occluded."""
+    if len(notes) < 2 or not any(start is None and end is not None for start, end in found):
+        return ()
+    centers = [(box[0] + box[2]) / 2 for box in notes]
+    observed = set(found)
+    parents = list(recovered_fragments)
+    for component in components:
+        left, top, right, bottom = component.box
+        if not (
+            height * 0.8 <= component.width <= gray.width
+            and max(3, height * 0.15) <= component.height <= height
+            and component.area <= component.width * max(4, height * 0.2)
+            and row_top - height * 2 < top < row_top - height * 0.4
+            and bottom < row_top
+        ):
+            continue
+        parents.extend(
+            (span, component.box)
+            for span in _detached_row_slurs(notes, row_top, height, [component], gray, barlines)
+            if span[0] is None and span[1] is not None
+        )
+    fragments = [component for component in components if (
+        height * 2 <= component.width < gray.width
+        and max(3, height * 0.15) <= component.height <= height
+        and component.area <= component.width * max(4, height * 0.2)
+        and row_top - height * 2 < component.box[1] < row_top - height * 0.4
+        and component.box[3] < row_top
+        and _left_curve_rise(component, gray, height)
+    )]
+    recovered: list[tuple[int | None, int | None]] = []
+    for (start, end), parent in parents:
+        if start is not None or end is None or end == 0 or (0, end) in observed:
+            continue
+        left, top, right, bottom = parent
+        if (abs(centers[end] - right) > height * 1.5
+                or abs(centers[0] - left) > height * 1.5):
+            continue
+        for fragment in fragments:
+            f_left, f_top, f_right, f_bottom = fragment.box
+            if (fragment.box == parent or abs(f_left - left) > height * 0.5
+                    or f_right <= (centers[0] + centers[end]) / 2
+                    or not height * 0.5 <= right - f_right <= height * 4
+                    or fragment.width < (right - left) * 0.5
+                    or max(0, f_top - bottom, top - f_bottom) > height * 0.5):
+                continue
+            recovered.append((0, end))
+            break
+    return tuple(recovered)
+
+
+def _left_curve_rise(component: Component, gray: Image.Image, height: float) -> bool:
+    left, top, right, bottom = component.box
+    edge = max(1, ceil(height * 0.08))
+    pixels = gray.load()
+    assert pixels is not None
+    left_ink = [y for y in range(top, bottom) for x in range(left, left + edge)
+                if cast(int, pixels[x, y]) < 170]
+    center_ink = [y for y in range(top, bottom)
+                  for x in range(left + round((right - left) * 0.4),
+                                 left + round((right - left) * 0.6))
+                  if cast(int, pixels[x, y]) < 170]
+    return bool(left_ink and center_ink and max(left_ink) >= min(center_ink) + 2)
 
 
 def _complete_curve_component(
@@ -155,7 +268,7 @@ def _joined_curve_fragments(
     """Reconnect thin curve segments interrupted by short scan gaps."""
     parts = sorted((component for component in components if (
         height * 0.8 <= component.width
-        and max(2, height * 0.15) <= component.height <= height
+        and max(1, height * 0.08) <= component.height <= height
         and component.area <= component.width * max(4, height * 0.2)
         and row_top - height * 2 < component.box[1] < row_top - height * 0.4
         and component.box[3] < row_top

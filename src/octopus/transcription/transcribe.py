@@ -203,12 +203,12 @@ def _row_marks(
         else:
             right_cut += 1
     bars = _bar_marks(row, tuple(x for x, _ in marks), endings)
+    if right_cut and bars:
+        x, body = bars[-1]
+        bars[-1] = (x, body + ")" * right_cut)
     marks.extend(bars)
     if left_cut:
         marks.append((row.box[0] - 0.5, "(" * left_cut + "|/"))
-    if right_cut and bars:
-        x, body = marks[-1]
-        marks[-1] = (x, body + ")" * right_cut)
     marks.extend((x, "|/" + token) for x, token in endings if x not in row.barlines)
     return marks
 
