@@ -134,7 +134,7 @@ def main() -> None:
         path for kind in bundles.iterdir() if kind.is_dir()
         for path in kind.iterdir()
         if path.is_file() and path.suffix.lower() in PACKAGE_SUFFIXES
-    ]
+    ] if bundles.is_dir() else []
     if args.bundles and not packages:
         raise RuntimeError(f"Tauri created no installation packages under {bundles}")
     destination = ROOT / "dist" / triple
