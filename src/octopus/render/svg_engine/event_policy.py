@@ -343,6 +343,7 @@ def event_glyph_id(layout: LayoutPage, item: LayoutEvent) -> str | None:
         event.pitch,
         event.code,
         font_style=layout.metrics.note_font,
+        source_code=event.source_code,
     )
 
 

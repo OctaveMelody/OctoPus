@@ -126,7 +126,10 @@ def note_glyph_id(pitch: int, font_style: str = "b") -> str:
     return f"shuzi_{font_style}_{'x' if pitch == 9 else pitch}"
 
 
-def barline_glyph_id(code: str) -> str:
+def barline_glyph_id(code: str, source_code: str | None = None) -> str:
+    # Span openers can produce `|(*`; keep the source `|*` hidden in that case.
+    if source_code == "|*":
+        return "xiaojiexian_weibu"
     mapping: dict[str, str] = {
         "|": "xiaojiexian",
         "|n": "xiaojiexian_none",
@@ -148,6 +151,7 @@ def event_to_glyph_id(
     pitch: int | None,
     code: str,
     font_style: str = "b",
+    source_code: str | None = None,
 ) -> str | None:
     if kind == MusicTokenKind.HIDDEN_REST:
         return "shuzi_null"
@@ -155,7 +159,7 @@ def event_to_glyph_id(
         p = pitch if pitch is not None else 0
         return note_glyph_id(p, font_style)
     if kind == MusicTokenKind.BARLINE:
-        return barline_glyph_id(code)
+        return barline_glyph_id(code, source_code)
     if kind == MusicTokenKind.EXTENSION:
         return "yanyinfu"
     return None

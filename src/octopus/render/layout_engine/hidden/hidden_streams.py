@@ -386,7 +386,7 @@ def generated_tail_barline(reference: MusicEvent) -> MusicEvent:
     return MusicEvent(
         index=-1,
         kind=MusicTokenKind.BARLINE,
-        raw="|/",
+        raw="|*",
         span=reference.span,
         code="|w",
         time="0",
