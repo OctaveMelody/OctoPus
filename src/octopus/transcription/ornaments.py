@@ -173,6 +173,13 @@ def row_endings(
                     parts.append(".")
                 previous_letter = component
             label = "".join(parts) if complete else ""
+        starts_on_note = any(abs((box[0] + box[2]) / 2 - left) <= height * 0.75
+                             for box in notes)
+        ends_on_note = any(abs((box[0] + box[2]) / 2 - right) <= height * 0.75
+                           for box in notes)
+        ends_on_bar = any(abs(x - right) <= height * 0.65 for x in barlines)
+        if not label and starts_on_note and ends_on_note and not ends_on_bar:
+            continue
         if segment.opens or segment.closed or starts_at_row:
             found.append(EndingSegment(segment.box, segment.opens, segment.closed, label))
     return tuple(found)

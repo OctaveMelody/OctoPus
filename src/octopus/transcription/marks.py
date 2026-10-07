@@ -121,6 +121,11 @@ def row_slurs(
     found = list(found_counts.elements())
     parts, core = curve_core_parts(components, gray, row_top, height)
     recovered.extend(_detached_row_slurs(notes, row_top, height, parts, core, barlines))
+    for component in components:
+        for span in _detached_row_slurs(notes, row_top, height, [component], gray, barlines):
+            recovered.extend(_nested_shorter_slurs(
+                notes, height, component, gray, span,
+            ))
     recovered.extend(_head_parallel_slurs(
         notes, row_top, height, components, gray, barlines, (*found, *recovered),
         recovered_fragments,
@@ -132,6 +137,62 @@ def row_slurs(
             merged.append(pair)
             missing[pair] -= 1
     return tuple(merged)
+
+
+def _nested_shorter_slurs(
+    notes: tuple[Box, ...], height: float, component: Component, gray: Image.Image,
+    parent: tuple[int | None, int | None],
+) -> tuple[tuple[int | None, int | None], ...]:
+    """Recover a shorter arch that shares a head with a longer, merged arch."""
+    start, end = parent
+    if start is None or end is None or end - start < 2:
+        return ()
+    left, top, right, bottom = component.box
+    centers = [(box[0] + box[2]) / 2 for box in notes]
+    pixels = gray.load()
+    assert pixels is not None
+    step = max(1, round(height * 0.15))
+
+    def profile(x: int) -> list[float]:
+        runs: list[list[int]] = []
+        for y in range(top, min(bottom, gray.height)):
+            if cast(int, pixels[x, y]) >= 160:
+                continue
+            if not runs or y - runs[-1][-1] > max(1, round(height * 0.08)):
+                runs.append([])
+            runs[-1].append(y)
+        return [sum(run) / len(run) for run in runs]
+
+    for candidate in range(start + 1, end):
+        endpoint = centers[candidate]
+        before = list(range(
+            max(left + round((right - left) * 0.08), left + round(height * 0.5)),
+            max(left + round((right - left) * 0.08), round(endpoint - height * 0.35)),
+            step,
+        ))
+        after = list(range(
+            round(endpoint + height * 0.45),
+            min(
+                right - round(height * 0.1),
+                round(centers[candidate + 1] - height * 0.25),
+            ),
+            step,
+        ))
+        if len(before) < 6 or len(after) < 6:
+            continue
+        before_profiles = [(x, profile(x)) for x in before]
+        doubled = [(x, rows) for x, rows in before_profiles if len(rows) >= 2]
+        if len(doubled) < len(before_profiles) * 0.5:
+            continue
+        if abs(doubled[-1][0] - endpoint) > height * 1.5:
+            continue
+        after_profiles = [profile(x) for x in after]
+        if sum(len(rows) <= 1 for rows in after_profiles) < len(after_profiles) * 0.55:
+            continue
+        separation = median(rows[-1] - rows[0] for _, rows in doubled)
+        if separation >= max(2, height * 0.12):
+            return ((start, candidate),)
+    return ()
 
 
 def _short_fragments_form_curve_apex(
