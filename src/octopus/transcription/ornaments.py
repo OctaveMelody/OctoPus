@@ -11,6 +11,7 @@ from PIL import Image
 
 from .components import Box, Component, connected_components
 from .glyphs import classify_digit
+from .marks import _left_curve_rise
 from .text import image_digit
 
 
@@ -178,6 +179,11 @@ def row_endings(
         ends_on_note = any(abs((box[0] + box[2]) / 2 - right) <= height * 0.75
                            for box in notes)
         ends_on_bar = any(abs(x - right) <= height * 0.65 for x in barlines)
+        if not label and not segment.opens and not segment.closed and (
+            _left_curve_rise(Component(segment.box, 0), gray, height)
+            or starts_at_row and ends_on_note
+        ):
+            continue
         if not label and starts_on_note and ends_on_note and not ends_on_bar:
             continue
         if segment.opens or segment.closed or starts_at_row:

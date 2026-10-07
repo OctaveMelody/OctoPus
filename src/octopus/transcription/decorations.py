@@ -512,8 +512,8 @@ def symbol_decorations(
         left, top, right, bottom = arch.box
         center_x = (left + right) / 2
         dots = [component for component in components if (
-            height * 0.05 <= component.width <= height * 0.25
-            and height * 0.05 <= component.height <= height * 0.25
+            height * 0.05 <= component.width <= height / 3
+            and height * 0.05 <= component.height <= height / 3
             and component.area >= max(2, component.width * component.height * 0.45)
             and left + arch.width * 0.15
             <= (component.box[0] + component.box[2]) / 2 <= right - arch.width * 0.15

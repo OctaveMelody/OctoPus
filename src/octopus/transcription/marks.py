@@ -65,7 +65,11 @@ def row_slurs(
         tuple[tuple[int | None, int | None], Box]
     ] = []
     centers = [(box[0] + box[2]) / 2 for box in notes]
+    joined_ink: dict[tuple[int | None, int | None], set[Box]] = {}
     for joined, fragments in _joined_curve_fragments(components, row_top, height):
+        # Independently complete neighboring arches are separate marks, not fragments.
+        if all(_complete_curve_component(part, gray, height, 2) for part in fragments):
+            continue
         endpoint_tolerance = height * 1.5
         left_near_note = min(
             abs(center - joined.box[0]) for center in centers
@@ -88,6 +92,17 @@ def row_slurs(
                 apex_supported or span[0] is None and span[1] is not None
                 and any(existing_end == span[1] for _, existing_end in found)
             ))
+        joined_spans = _split_curve_at_cusps(notes, joined, isolated, height, joined_spans)
+        joined_spans = tuple(span for span in joined_spans if not any(
+            part.box in joined_ink.get(span, set()) for part in fragments
+        ))
+        for span in joined_spans:
+            joined_ink.setdefault(span, set()).update(part.box for part in fragments)
+        joined_spans = tuple(span for span in joined_spans if not any(
+            existing == span and box[0] <= joined.box[0] and joined.box[2] <= box[2]
+            and box[1] <= joined.box[1] and joined.box[3] <= box[3]
+            for existing, box in recovered_fragments
+        ))
         recovered.extend(joined_spans)
         recovered_fragments.extend((span, joined.box) for span in joined_spans)
         for fragment in fragments:
@@ -100,17 +115,20 @@ def row_slurs(
                 )
                 fragment_spans.append((
                     span, fragment.box, joined.box,
-                    _complete_curve_component(fragment, gray, height, interval_count),
+                    _complete_curve_component(
+                        fragment, gray, height,
+                        interval_count if span[0] is not None and span[1] is not None else 2,
+                    ),
                 ))
     # A broken shallow curve can make each half look like a shorter slur. Once its
     # fragments reconnect into a wider span, keep that complete span alone.
     found_counts = Counter(found)
     for span, fragment_box, joined_box, complete_curve in fragment_spans:
-        if span[0] is None or span[1] is None:
-            continue
         if any(
-            parent_start is not None and parent_end is not None
-            and parent_start <= span[0] and span[1] <= parent_end
+            (parent_start if parent_start is not None else -1)
+            <= (span[0] if span[0] is not None else -1)
+            and (span[1] if span[1] is not None else len(notes))
+            <= (parent_end if parent_end is not None else len(notes))
             and (parent_start, parent_end) != span
             and joined_box[0] <= fragment_box[0] < fragment_box[2] <= joined_box[2]
             and not complete_curve
@@ -123,20 +141,187 @@ def row_slurs(
     recovered.extend(_detached_row_slurs(notes, row_top, height, parts, core, barlines))
     for component in components:
         for span in _detached_row_slurs(notes, row_top, height, [component], gray, barlines):
-            recovered.extend(_nested_shorter_slurs(
-                notes, height, component, gray, span,
-            ))
+            nested = Counter(_nested_shorter_slurs(notes, height, component, gray, span))
+            recovered.extend((nested - (Counter(found) | Counter(recovered))).elements())
     recovered.extend(_head_parallel_slurs(
         notes, row_top, height, components, gray, barlines, (*found, *recovered),
         recovered_fragments,
     ))
-    missing = Counter(recovered) - Counter(found)
+    faint_curves = _faint_curve_bridges(notes, components, gray, row_top, height, barlines)
+    # A complete, reconnected arch supersedes only the incomplete pieces of its own ink.
+    for parent, parent_box in faint_curves:
+        for component in components:
+            left, top, right, bottom = component.box
+            if not (parent_box[0] <= left and right <= parent_box[2]
+                    and parent_box[1] <= top and bottom <= parent_box[3]):
+                continue
+            own_ink = _component_ink(component, gray, 160)
+            if own_ink is not None and _complete_curve_component(component, own_ink, height, 2):
+                continue
+            for span in _detached_row_slurs(
+                notes, row_top, height, [component], gray, barlines,
+            ):
+                if span != parent and span in found:
+                    found.remove(span)
+        for span, box in recovered_fragments:
+            if (span != parent and parent_box[0] <= box[0] and box[2] <= parent_box[2]
+                    and parent_box[1] <= box[1] and box[3] <= parent_box[3]
+                    and not _complete_curve_component(Component(box, 0), gray, height, 2)
+                    and span in recovered):
+                recovered.remove(span)
+    faint: Counter[tuple[int | None, int | None]] = Counter(span for span, _ in faint_curves)
+    missing = (Counter(recovered) | faint) - Counter(found)
     merged = found
-    for pair in recovered:
+    for pair in (*recovered, *faint.elements()):
         if missing[pair]:
             merged.append(pair)
             missing[pair] -= 1
     return tuple(merged)
+
+
+def _split_curve_at_cusps(
+    notes: tuple[Box, ...], component: Component, gray: Image.Image, height: float,
+    spans: tuple[tuple[int | None, int | None], ...],
+) -> tuple[tuple[int | None, int | None], ...]:
+    """A downward cusp on a note separates consecutive arches sharing one stroke."""
+    left, top, right, bottom = component.box
+    profile = {x: max(ink) for x in range(left, right)
+               if (ink := [y for y in range(top, bottom)
+                           if cast(int, gray.getpixel((x, y))) < 170])}
+    cusps = []
+    for index, box in enumerate(notes):
+        center = (box[0] + box[2]) / 2
+        peak = [y for x, y in profile.items() if abs(x - center) <= height * 0.25]
+        before = [y for x, y in profile.items()
+                  if center - height * 1.3 <= x <= center - height * 0.5]
+        after = [y for x, y in profile.items()
+                 if center + height * 0.5 <= x <= center + height * 1.3]
+        if (peak and before and after
+                and max(peak) - max(min(before), min(after)) >= max(2, height * 0.2)):
+            cusps.append(index)
+    result: list[tuple[int | None, int | None]] = []
+    for start, end in spans:
+        anchors = [start, *(index for index in cusps
+                           if (start is None or start < index)
+                           and (end is None or index < end)), end]
+        result.extend(zip(anchors, anchors[1:], strict=False))
+    return tuple(result)
+
+
+def _component_ink(component: Component, gray: Image.Image, threshold: int) -> Image.Image | None:
+    """Isolate an eight-connected stroke from other marks sharing its bounding box."""
+    left, top, _, _ = component.box
+    bridged = Image.new("L", gray.size, 255)
+    crop = gray.crop(component.box)
+    visited: set[tuple[int, int]] = set()
+    stroke: set[tuple[int, int]] = set()
+    for seed_y in range(crop.height):
+        seed = (0, seed_y)
+        if seed in visited or cast(int, crop.getpixel(seed)) >= threshold:
+            continue
+        pending = [seed]
+        stroke = {seed}
+        while pending:
+            x, y = pending.pop()
+            for nx in range(max(0, x - 1), min(crop.width, x + 2)):
+                for ny in range(max(0, y - 1), min(crop.height, y + 2)):
+                    if ((nx, ny) not in stroke
+                            and cast(int, crop.getpixel((nx, ny))) < threshold):
+                        stroke.add((nx, ny))
+                        pending.append((nx, ny))
+        visited.update(stroke)
+        if len(stroke) == component.area:
+            break
+    if len(stroke) != component.area:
+        return None
+    for x, y in stroke:
+        bridged.putpixel((left + x, top + y), 0)
+    return bridged
+
+
+def _faint_curve_bridges(
+    notes: tuple[Box, ...], components: list[Component], gray: Image.Image,
+    row_top: int, height: float, barlines: tuple[int, ...] = (),
+) -> tuple[tuple[tuple[int | None, int | None], Box], ...]:
+    """Recover complete arches from faint bridges or ink touching a barline."""
+    if row_top <= max(1, round(height * 0.2)):
+        return ()
+    upper = max(0, round(row_top - height * 2.5))
+    band = gray.crop((0, upper, gray.width, row_top - max(1, round(height * 0.2))))
+
+    def source_parts(threshold: int, inset: int = 0) -> list[Component]:
+        local = band.crop((0, inset, band.width, band.height))
+        return [Component((part.box[0], part.box[1] + upper + inset,
+                           part.box[2], part.box[3] + upper + inset), part.area)
+                for part in connected_components(local, threshold)]
+
+    dark_parts = source_parts(160)
+    recovered: list[tuple[tuple[int | None, int | None], Box]] = []
+    for threshold, component in (
+        (level, part) for level in (180, 200)
+        for inset in (0, round(height * 0.9)) for part in source_parts(level, inset)
+    ):
+        left, top, right, bottom = component.box
+        if not (component.width >= height * 0.8
+                and max(3, height * 0.15) <= component.height <= height
+                and row_top - height * 2.5 < top < row_top - height * 0.4
+                and bottom < row_top):
+            continue
+        pieces = {part for part in dark_parts if (
+            left <= part.box[0] and part.box[2] <= right
+            and top <= part.box[1] and part.box[3] <= bottom
+        )}
+        # Marks owned by symbols, hairpins or endings must stay excluded.
+        permitted = all(any(
+            mark.box[0] <= part.box[0] and part.box[2] <= mark.box[2]
+            and mark.box[1] <= part.box[1] and part.box[3] <= mark.box[3]
+            for mark in components
+        ) for part in pieces)
+        clipped = any(part not in components for part in pieces)
+        touches_bar = any(
+            mark.box[0] <= bar < mark.box[2] and mark.box[3] > row_top + height
+            and mark.box[0] <= left and right <= mark.box[2]
+            for mark in components for bar in barlines
+        )
+        clipped_above = any(
+            mark.box[0] <= left and right <= mark.box[2]
+            and mark.box[1] < upper and bottom <= mark.box[3] < row_top
+            for mark in components
+        )
+        if not pieces or not permitted or clipped and not (touches_bar or clipped_above):
+            continue
+        bridged = _component_ink(component, gray, threshold)
+        if bridged is None:
+            continue
+        complete = _complete_curve_component(component, bridged, height, 2)
+        right_cut = bool(barlines) and abs(right - max(barlines)) <= height * 0.5
+        spans = _detached_row_slurs(notes, row_top, height, [component], bridged, barlines)
+        left_cut = any(start is None for start, _ in spans)
+        if not complete and not right_cut and not left_cut:
+            continue
+        # Touching arches can join at this threshold. Recover one stroke only;
+        # merged/nested layers retain their existing topology-based detector.
+        branched = 0
+        for x in range(left, right):
+            ink = [y for y in range(top, bottom) if bridged.getpixel((x, y)) == 0]
+            branched += int(any(b - a > 1 for a, b in zip(ink, ink[1:], strict=False)))
+        if branched > component.width * 0.05:
+            continue
+        for start, end in _detached_row_slurs(
+            notes, row_top, height, [component], bridged, barlines,
+        ):
+            if ((start is None and left_cut or start is not None
+                 and abs((notes[start][0] + notes[start][2]) / 2 - left) <= height * 0.75)
+                    and (end is None and right_cut or end is not None and (complete or left_cut)
+                         and abs((notes[end][0] + notes[end][2]) / 2 - right) <= height * 0.75)):
+                if not any(all(
+                    abs(a - b) <= max(2, height * 0.15)
+                    for a, b in zip(box, component.box, strict=True)
+                ) for span, box in recovered):
+                    recovered.extend((span, component.box) for span in _split_curve_at_cusps(
+                        notes, component, bridged, height, ((start, end),),
+                    ))
+    return tuple(recovered)
 
 
 def _nested_shorter_slurs(
@@ -370,7 +555,7 @@ def _detached_row_slurs(
             height * 0.8 <= width <= gray.width
             and max(3, height * 0.15) <= bottom - top <= height
             and component.area <= width * max(4, height * 0.2)
-            and row_top - height * 2 < top < row_top - height * 0.4
+            and row_top - height * 2.5 < top < row_top - height * 0.4
             and bottom < row_top
         ):
             continue
@@ -426,7 +611,9 @@ def _detached_row_slurs(
             and vertical_ink < height * 0.45
         )
         left_cut = left_edge_cut or (
-            not left_curves and left <= notes[0][0] + height and right_curves
+            (not left_curves or left < notes[0][0] - height * 0.25
+             and tops[0] - tops[1] <= max(2, height * 0.2))
+            and left <= notes[0][0] + height and right_curves
         )
         right_barline = bool(barlines) and (
             abs(right - max(barlines)) <= height * 0.5
@@ -791,6 +978,36 @@ def note_modifiers(
     existing_duration_boxes.extend(box for box in used_joined)
     faint_bands: list[tuple[int, int, int]] = []
     if gray is not None:
+        # A faded beam may have only tiny dark islands, so no long component can
+        # seed the continuation rule below. Require dark ink on the same visible band.
+        crop_box = (max(0, left - digit_height * 3), min(gray.height, bottom + 1),
+                    min(gray.width, right_limit + digit_height if right_limit is not None
+                        else right + digit_height * 3),
+                    min(gray.height, bottom + round(digit_height * 0.55)))
+        for part in connected_components(gray.crop(crop_box), 200):
+            # A line continuing beyond this local window can be another voice's
+            # slur, rather than a bounded duration beam belonging to this note.
+            if part.box[0] == 0 or part.box[2] == crop_box[2] - crop_box[0]:
+                continue
+            box = (part.box[0] + crop_box[0], part.box[1] + crop_box[1],
+                   part.box[2] + crop_box[0], part.box[3] + crop_box[1])
+            if any(max(box[1], top) < min(box[3], bottom)
+                   for _, top, _, bottom in existing_duration_boxes):
+                continue
+            dark_columns = sum(any(cast(int, gray.getpixel((x, y))) < 160
+                                   for y in range(box[1], box[3]))
+                               for x in range(box[0], box[2]))
+            if dark_columns < part.width * 0.12:
+                continue
+            count = _joined_duration_lines(
+                note, Component(box, part.area), gray, digit_height, barlines, 200,
+            )
+            if count:
+                faint_bands.append((box[1], box[3], count))
+                used_joined.update(component.box for component in components if (
+                    box[0] <= component.box[0] and component.box[2] <= box[2]
+                    and box[1] <= component.box[1] and component.box[3] <= box[3]
+                ))
         for component in components:
             if not (component.width >= max(10, round((right - left) * 0.8))
                     and component.height <= max(4, digit_height * 0.17)
@@ -820,6 +1037,8 @@ def note_modifiers(
                     faint_bands[overlap] = (min(band_top, component.box[1]),
                                             max(band_bottom, component.box[3]),
                                             max(previous_count, count))
+    # Dark islands in a confirmed faded beam are stroke ink, not octave dots.
+    dots_below = [dot for dot in dots_below if dot.box not in used_joined]
     # Global pixels inside a joined beam's bounds can include an already detached dot.
     # Count that physical mark once, while retaining a second dot outside those bounds.
     joined_dot = any(not any(

@@ -35,7 +35,13 @@ from .marks import (
 )
 from .ornaments import EndingSegment, GraceGroup, row_endings, row_graces, voice_components
 from .text import TextSpan, image_digit, music_characters
-from .voices import DsbOverlay, VoiceGroup, recognize_dsb_overlays, recognize_voice_groups
+from .voices import (
+    DsbOverlay,
+    VoiceGroup,
+    dsb_brace_candidate,
+    recognize_dsb_overlays,
+    recognize_voice_groups,
+)
 
 MAX_PAGE_PIXELS = 40_000_000
 MIN_WORKING_GLYPH_HEIGHT = 24
@@ -306,6 +312,53 @@ def _barline_from_fragments(
     if bend is not None and abs(bend) <= max(1, candidate.width * 0.2):
         return candidate
     return None
+
+
+def _recover_shared_barlines(
+    rows: list[MusicRow], gray: Image.Image, height: int,
+) -> list[MusicRow]:
+    """Verify peer measure positions locally when curves join a bar to other ink."""
+    result = []
+    radius = max(3, round(height * 0.3))
+    for row in rows:
+        bars = list(row.barlines)
+        sustains = row_sustains(tuple(note.box for note in row.notes), row.unresolved_marks)
+        right = max((row.box[2], *(box[2] for box in sustains))) + height * 2
+        peers = sorted({x for peer in rows if abs(peer.box[1] - row.box[1]) <= height * 10
+                        for x in peer.barlines if row.box[0] < x < right})
+        for x in peers:
+            top = max(0, row.box[1] - round(height * 0.4))
+            bottom = min(gray.height, row.box[3] + round(height * 0.4))
+            left = max(0, x - radius)
+            strip = gray.crop((left, top, min(gray.width, x + radius + 1), bottom))
+            # Column support separates double strokes even when scan bridges join
+            # them; faint side pixels also preserve a slightly tilted single bar.
+            pixels = strip.load()
+            assert pixels is not None
+            columns = [column for column in range(strip.width) if sum(
+                cast(int, pixels[column, y]) < 200 for y in range(strip.height)
+            ) >= strip.height * 0.8]
+            bands: list[list[int]] = []
+            for column in columns:
+                if bands and column == bands[-1][-1] + 1:
+                    bands[-1].append(column)
+                else:
+                    bands.append([column])
+            for band in bands:
+                if band[0] == 0 or band[-1] == strip.width - 1:
+                    continue
+                box = (left + band[0], top, left + band[-1] + 1, bottom)
+                area = sum(cast(int, pixels[x, y]) < 160
+                           for x in band for y in range(strip.height))
+                candidate = Component(box, area)
+                if area < height * 0.8:
+                    continue
+                if _barline(candidate, (row.box[1] + row.box[3]) / 2, height, gray):
+                    center = round((box[0] + box[2]) / 2)
+                    if not any(abs(center - bar) <= max(2, height * 0.25) for bar in bars):
+                        bars.append(center)
+        result.append(replace(row, barlines=tuple(sorted(bars))))
+    return result
 
 
 def _music_row(
@@ -815,6 +868,9 @@ def recognize_image(path: Path) -> PageObservation:
             )
             compact_overlays.append((rows[owner], candidate))
     rows = [row for row in rows if id(row) not in converted_rows]
+    bz_rows = [BzOverlay(rows.index(host), accompaniment)
+               for host, accompaniment in compact_overlays]
+    rows = _recover_shared_barlines(rows, gray, digit_height)
     row_boxes = tuple(row.box for row in rows)
     overlays = recognize_dsb_overlays(components, row_boxes, gray.width, digit_height)
     voice_groups = recognize_voice_groups(
@@ -824,22 +880,23 @@ def recognize_image(path: Path) -> PageObservation:
          for index in ((overlay.lower,) if overlay.standalone
                        else (overlay.upper, overlay.lower))},
     )
+    # Broken pieces of a system brace can pass the local barline shape test.
+    # Once the complete brace is known, its ink cannot also be a measure bar.
+    rows = [replace(row, barlines=tuple(x for x in row.barlines if not any(
+        group.box[0] <= x <= group.box[2]
+        and group.box[1] <= (row.box[1] + row.box[3]) / 2 <= group.box[3]
+        for group in voice_groups
+    ))) for row in rows]
     used_braces = {overlay.box for overlay in overlays} | {group.box for group in voice_groups}
     closing_braces = {overlay.closing_x for overlay in overlays}
     unresolved_braces = tuple(
         component.box for component in components
-        if gray.width * 0.10 <= component.box[0] <= gray.width * 0.85
-        and digit_height * 0.2 - 1 <= component.width <= digit_height * 1.5
-        and digit_height * 2.5 <= component.height <= digit_height * 6
-        and component.height >= component.width * 5
-        and component.area <= component.width * component.height * 0.62
+        if dsb_brace_candidate(component, gray.width, digit_height)
         and component.box not in used_braces
         and component.box[0] not in closing_braces
         and any(component.box[1] < (box[1] + box[3]) / 2 < component.box[3]
                 for box in row_boxes)
     )
-    bz_rows = [BzOverlay(rows.index(host), accompaniment)
-               for host, accompaniment in compact_overlays]
     main_boxes = {note.box for row in rows for note in row.notes}
     main_boxes.update(note.box for overlay in bz_rows for note in overlay.row.notes)
     smaller = [

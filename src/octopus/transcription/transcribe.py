@@ -678,7 +678,7 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
                     ]
                     marks.append((overlay.box[0] - 0.5, block))
                 else:
-                    marks.append((row.box[2] + 0.5, block))
+                    marks.append((overlay.box[0] - 0.5, block))
             music = " ".join(token for _, token in sorted(marks))
             if voice is None or voice == 1:
                 source.append("")

@@ -64,6 +64,17 @@ def _gap_branches(
     return None
 
 
+def dsb_brace_candidate(component: Component, page_width: int, digit_height: int) -> bool:
+    """One note-relative shape gate for opening, closing and unowned DSB braces."""
+    return (
+        page_width * 0.10 <= component.box[0] <= page_width * 0.85
+        and digit_height * 0.2 - 1 <= component.width <= digit_height * 1.5
+        and digit_height * 2.5 <= component.height <= digit_height * 6
+        and component.height >= component.width * 5
+        and component.area <= component.width * component.height * 0.70
+    )
+
+
 def recognize_dsb_overlays(
     components: list[Component], rows: tuple[Box, ...], page_width: int,
     digit_height: int,
@@ -71,13 +82,7 @@ def recognize_dsb_overlays(
     overlays = []
     for component in components:
         left, top, right, bottom = component.box
-        if not (
-            page_width * 0.10 <= left <= page_width * 0.85
-            and digit_height * 0.2 - 1 <= component.width <= digit_height * 1.5
-            and digit_height * 2.5 <= component.height <= digit_height * 6
-            and component.height >= component.width * 5
-            and component.area <= component.width * component.height * 0.62
-        ):
+        if not dsb_brace_candidate(component, page_width, digit_height):
             continue
         branches = [
             index for index, box in enumerate(rows)
@@ -126,12 +131,8 @@ def recognize_dsb_overlays(
     for component in components:
         left, top, right, bottom = component.box
         if not (
-            page_width * 0.10 <= left <= page_width * 0.85
+            dsb_brace_candidate(component, page_width, digit_height)
             and left not in closing_boxes
-            and digit_height * 0.2 - 1 <= component.width <= digit_height * 1.5
-            and digit_height * 2.5 <= component.height <= digit_height * 6
-            and component.height >= component.width * 5
-            and component.area <= component.width * component.height * 0.62
         ):
             continue
         branches = [
@@ -164,11 +165,7 @@ def recognize_dsb_overlays(
     for component in components:
         left, top, right, bottom = component.box
         if not (
-            page_width * 0.10 <= left <= page_width * 0.85
-            and digit_height * 0.2 - 1 <= component.width <= digit_height * 1.5
-            and digit_height * 2.5 <= component.height <= digit_height * 6
-            and component.height >= component.width * 5
-            and component.area <= component.width * component.height * 0.62
+            dsb_brace_candidate(component, page_width, digit_height)
             and any(
                 outer.box[2] < left
                 # A second adjacent staff/group brace is not a standalone DSB opener.
