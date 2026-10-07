@@ -62,8 +62,8 @@ type Props = {
   transcriptionControl: ReactNode;
   visible: boolean;
   renderErrorLabel: string;
-  onImport(): void;
-  onClose(): void;
+  controls?: ReactNode;
+  hidden?: boolean;
   onSelect(id: string): void;
   onViewChange(id: string, patch: Partial<ReferenceView>): void;
 };
@@ -75,14 +75,13 @@ export function ReferencePanel({
   selectedId,
   views,
   busy,
-  importing,
   transcribing, cancelling = false, progress = null, onCancel, reviewRegion = null,
   showHint = false, onDismissHint,
   transcriptionControl,
   visible,
   renderErrorLabel,
-  onImport,
-  onClose,
+  controls,
+  hidden,
   onSelect,
   onViewChange,
 }: Props) {
@@ -244,7 +243,7 @@ export function ReferencePanel({
     view?.panY, stageSize.width, stageSize.height]);
 
   return (
-    <section aria-label={copy.reference} className={`panel reference-panel${dropActive ? " reference-drop-active" : ""}`}
+    <section hidden={hidden} aria-label={copy.reference} className={`panel reference-panel${dropActive ? " reference-drop-active" : ""}`}
       onDragOver={event => { event.preventDefault(); }}
       onDrop={event => { event.preventDefault(); }}>
       {dropActive && <div className="reference-drop-hint" role="status">{copy.dropReferenceHint}</div>}
@@ -335,7 +334,7 @@ export function ReferencePanel({
           ]}/>
         </>}/>
         <div className="reference-heading-transcribe">{transcriptionControl}</div>
-        <button aria-label={copy.closeReference} onClick={onClose} type="button">×</button>
+        {controls}
       </div>
       {showHint && <aside className="reference-onboarding"><p>{copy.referenceHint}</p>
         <button type="button" aria-label={copy.dismissHint} onClick={onDismissHint}>×</button></aside>}
@@ -354,9 +353,6 @@ export function ReferencePanel({
           <p>{copy.referenceEmpty}</p>
           <span>{copy.importLater}</span>
           <span>{copy.dropReferenceHint}</span>
-          <button className="primary-button" disabled={busy} onClick={onImport} type="button">
-            {importing ? copy.importingImages : copy.importImage}
-          </button>
         </div>
       ) : (
         <>

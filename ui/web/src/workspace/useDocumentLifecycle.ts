@@ -96,7 +96,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
   const recentPath = useRef<string | null>(null);
   const [score, setScore] = useState(() => createDocumentSession({
     id: crypto.randomUUID(),
-    name: "小星星（内置）",
+    name: copy.startupScoreName,
     source: DEFAULT_STARTUP_SOURCE,
   }));
   const [documentOpen, setDocumentOpen] = useState(true);

@@ -373,3 +373,38 @@ h2 { margin: 0; font-size: 14px; }
 .reference-onboarding p { margin: 0; flex: 1; }
 .transcription-issue { text-align: left; width: 100%; margin: 2px 0; }
 .preview-canvas:focus-visible { outline: 2px solid #5682ad; outline-offset: -2px; }
+
+/* Panel close/maximize changes visibility while keeping editor and view state mounted. */
+.workspace > .panel[hidden] { display: none; }
+.workspace.panels-reduced { display: flex; gap: 8px; }
+.workspace.panels-reduced > .panel { flex: 1; }
+.workspace.panels-reduced.layout-N2, .workspace.panels-reduced.layout-T2 { flex-direction: column; }
+.panels-empty { margin: auto; color: #697385; }
+.editor-panel > .panel-heading { grid-template-columns: auto minmax(60px, 1fr) minmax(0, auto) auto auto; }
+.panel-window-controls { display: flex; flex: none; gap: 4px; margin-left: auto; }
+.panel-window-controls button { min-width: 28px; min-height: 28px; padding: 0 5px;
+  border: 1px solid #d1d7e0; border-radius: 5px; background: white; color: #344258; }
+.panel-window-controls button:hover { background: #edf2fb; }
+.panel-window-controls button:last-child:hover { background: #fce7e7; color: #9b2525; }
+.action-menu-group { padding: 8px 10px 4px; color: #697385; font-size: 12px; font-weight: 600; }
+.action-menu-group:not(:first-child) { margin-top: 4px; border-top: 1px solid #e6e9ef; }
+.panel-action-menu [aria-checked="true"] { background: #edf2fb; }
+
+@media (max-width: 760px) {
+  .editor-panel > .panel-heading { grid-template-columns: minmax(0, 40px) minmax(55px, 1fr) 0 auto auto; column-gap: 5px; }
+}
+@media (max-width: 700px) {
+  .workspace:not(.focus-editor):not(.focus-preview):not(.focus-reference) {
+    display: flex; flex-direction: column; overflow: auto; gap: 8px;
+  }
+  .workspace:not(.focus-editor):not(.focus-preview):not(.focus-reference) > .panel {
+    flex: 1 0 230px;
+  }
+  .workspace > .panel-divider { display: none; }
+  .reference-panel > .panel-heading { flex-wrap: wrap; padding-block: 6px; }
+}
+
+.panel-action-menu button[role="menuitemradio"] { padding-inline-start: 18px; }
+.panel-action-menu button[role="menuitemradio"]::before { content: ""; display: inline-block; width: 14px; }
+.panel-action-menu button[aria-checked="true"]::before { content: "✓"; }
+.panel-window-controls svg { display: block; margin: auto; }

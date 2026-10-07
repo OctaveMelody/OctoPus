@@ -26,6 +26,7 @@ pub(crate) enum HelpDestination {
     Requests,
     Home,
     Releases,
+    TomatoJianpu,
 }
 
 pub(crate) fn project_url(destination: &HelpDestination) -> Option<String> {
@@ -35,6 +36,7 @@ pub(crate) fn project_url(destination: &HelpDestination) -> Option<String> {
         HelpDestination::Requests => format!("{PROJECT}/pulls"),
         HelpDestination::Home => PROJECT.into(),
         HelpDestination::Releases => format!("{PROJECT}/releases"),
+        HelpDestination::TomatoJianpu => "http://zhipu.lezhi99.com".into(),
     })
 }
 

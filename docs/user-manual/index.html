@@ -9,11 +9,11 @@
 <button id="tab-zh-CN" role="tab" aria-selected="false" aria-controls="manual-zh-CN"
  tabindex="-1">简体中文</button></nav></header><main><article id="manual-en" lang="en" role="tabpanel" aria-labelledby="tab-en"><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
 <h1>User Manual</h1>
-<p>Version 0.1.0 · 2026-10-05</p>
+<p>About version v1.0-Beta · 2026-10-07</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-en.pdf">Download PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#en-introduction">1. Introduction</a><a href="#en-capabilities">2. Capabilities, limits and roadmap</a><a href="#en-quickstart">3. Your first score</a><a href="#en-workspace">4. The workspace and UI</a><a href="#en-files">5. Files, saving and recovery</a><a href="#en-source">6. Editing JPS source</a><a href="#en-preview">7. Preview, cursor and navigation</a><a href="#en-reference">8. Original images/PDFs and transcription</a><a href="#en-layout">9. Modes, layouts and focus</a><a href="#en-settings">10. Page settings and fonts</a><a href="#en-export">11. Export and portable use</a><a href="#en-shortcuts">12. Keyboard and Help</a><a href="#en-jps-structure">13. JPS structure and conventions</a><a href="#en-headers">14. Descriptive header</a><a href="#en-notes">15. Notes, register and duration</a><a href="#en-beaming">16. Automatic and custom grouping</a><a href="#en-accidentals">17. Accidentals and grace notes</a><a href="#en-dynamics">18. Dynamics and hairpins</a><a href="#en-ornaments">19. Ornaments, parentheses and annotations</a><a href="#en-barlines">20. Barlines and repeat instructions</a><a href="#en-slurs">21. Slurs and tuplets</a><a href="#en-endings">22. Endings and temporary meter</a><a href="#en-voices">23. Voices and temporary accompaniment</a><a href="#en-lyrics">24. Lyrics: Chinese, English and mixed text</a><a href="#en-pagination">25. Manual page breaks</a><a href="#en-practice">26. Practical editing and review checklist</a><a href="#en-troubleshooting">27. Troubleshooting and feedback</a><a href="#en-sources">28. Reference basis and compatibility</a></nav>
 <section id="en-introduction"><h2>1. Introduction</h2>
-<p>OctoPus (Octave + Jianpu) is a desktop editor for numbered music notation. Write a score as JPS (Jianpu Script) text, review a live SVG score, compare it with an original image or PDF, and export finished pages. A .jps file describes musical content; page settings control its presentation. This guide describes version 0.1.0, updated 5 October 2026.</p>
+<p>OctoPus (Octave + Jianpu) is a desktop editor for numbered music notation. Write a score as JPS (Jianpu Script) text, review a live SVG score, compare it with an original image or PDF, and export finished pages. A .jps file describes musical content; page settings control its presentation. This guide follows the v1.0-Beta About label, updated 7 October 2026. Release and update metadata retain their own version numbers.</p>
 <p>The program works locally for editing, rendering and supported transcription once installed. Help links and update checks need a browser or network connection. This manual works offline; its English and Chinese versions share the same topics and examples. Use the language tabs, or download the matching PDF.</p>
 </section>
 <section id="en-capabilities"><h2>2. Capabilities, limits and roadmap</h2>
@@ -27,15 +27,17 @@
 </tbody>
 </table>
 <p><b>Current limits.</b> Transcription is not guaranteed to recover a complete score. Check notes, accidentals, octave dots, durations, lyrics, slurs, grace notes, endings and page order. Running-header/footer/page-number filtering is conservative; unusual layouts still need review. Complex layout and cross-page spans need manual review. There is no desktop playback/MIDI workflow, LilyPond exporter or MusicXML import/export UI. Staff-notation recognition is planned, not a supported replacement for Jianpu input. Automatic update installation is not provided. Native macOS packaging is deferred; Windows/macOS host acceptance is separate from Linux testing.</p>
+<h3>Planned features</h3>
 <ul><li>Planned: improve transcription quality, including difficult marks and repeated page furniture.</li>
 <li>Planned: LilyPond source export and MusicXML export/import.</li>
+<li>Planned: MIDI export.</li>
 <li>Planned: import and recognize staff-notation sheet music as JPS.</li>
 <li>Plans indicate intended direction, not a release date or a current capability.</li>
 </ul>
 </section>
 <section id="en-quickstart"><h2>3. Your first score</h2>
 <ul><li>Start OctoPus and choose <b>New</b>. Enter a title, choose the basic score fields and confirm.</li>
-<li>Replace the source with the example below, or open a comparable score from <b>Samples Library</b>.</li>
+<li>Replace the source with the example below, or use <b>Open</b> to load a bundled example from the portable examples directory.</li>
 <li>Wait for the SVG preview to finish rendering. Click a note to locate its source; edit the text and review the result.</li>
 <li>Use <b>Page Settings</b> for margins/fonts, <b>Save As</b> for a .jps file, then <b>Export</b> for the finished score.</li>
 </ul>
@@ -50,11 +52,11 @@ Q: 1 2 3 4 | 5 6 7 1&#x27; ||
 C: 春 风 吹 来 花 儿 开 了</code></pre>
 <p>This example has two four-note bars; the final note is one octave above the base register. The eight Chinese lyric characters map to the eight notes.</p>
 <h3>Learn from a library score</h3>
-<p>Choose Samples Library, find Farewell, and open a working copy. Read its header, then locate the row beginning Q: 5 (3/ 5/). Put the source cursor on 1&#x27;. and inspect the dotted high note in the preview. Change only the dot, compare the result, and Undo. Next move an @ in a copied lyric row and see which note loses its syllable. Save As before keeping experiments. The downloadable excerpts below include the original header, even where only body lines are displayed.</p>
+<p>Choose Open and select Farewell.jps from the portable examples directory, or download the excerpt below. Read its header, then locate the row beginning Q: 5 (3/ 5/). Put the source cursor on 1&#x27;. and inspect the dotted high note in the preview. Change only the dot, compare the result, and Undo. Next move an @ in a copied lyric row and see which note loses its syllable. Save As before keeping experiments. The downloadable excerpts below include the original header, even where only body lines are displayed.</p>
 <!-- sample:first-score:start -->
 <div class="sample-example" id="en-example-first-score">
-<h3>A melody with two lyric verses</h3><p>Open Farewell in Samples Library. This excerpt is its second sung row. Compare the four barlines, the dotted high 1, the lower 7, and the two lyric lines. Download the excerpt to try the same passage without the rest of the score.</p>
-<p class="sample-provenance">Samples Library: Farewell.jps · source lines 17-19. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/first-score.jps">Download this JPS excerpt</a></p>
+<h3>A melody with two lyric verses</h3><p>Open Farewell in bundled examples. This excerpt is its second sung row. Compare the four barlines, the dotted high 1, the lower 7, and the two lyric lines. Download the excerpt to try the same passage without the rest of the score.</p>
+<p class="sample-provenance">bundled examples: Farewell.jps · source lines 17-19. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/first-score.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 (2/ 3/) 4. 7,/ | 1 - - - |
 C: 晚风@拂柳笛声残，夕阳@山外山。
 C: 问君@此去几时还，来时@莫徘徊。</code></pre>
@@ -63,7 +65,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <!-- sample:first-score:end -->
 </section>
 <section id="en-workspace"><h2>4. The workspace and UI</h2>
-<p>The top row provides New, Open, Recent files, Save, Save As, Export, Close, Help, Import PNG/JPG/PDF, Samples Library, Page Settings, Preferences and Exit. The logo icon and text open the project home. The second row selects Mode/Layout and focuses a pane; drag the borders between panels to resize them.</p>
+<p>The top row provides New, Open, Save, Save As, Import, Export, Close, Help, Page Settings, Layout, Preferences and Exit. Import offers one JPG / PNG / PDF action. Layout groups N1/N2 under Normal and T1/T2 under Transcription. The logo icon and text open the project home. Each panel has Maximize/Restore and Close controls; drag the borders between panels to resize them.</p>
 <table><thead><tr><th>Pane</th><th>Purpose</th></tr>
 </thead>
 <tbody><tr><td>JPS source</td><td>Edit text. Filename and Unsaved status sit immediately before the right-aligned Format Source button. Editing actions follow the JPS source heading.</td></tr>
@@ -76,7 +78,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <section id="en-files"><h2>5. Files, saving and recovery</h2>
 <p><b>Open</b> loads a .jps score. Both plain JPS text and compatible JSON-wrapped JPS documents are supported. The wrapper may contain source, page settings and existing metadata. <b>Save</b> writes the current document; a new document first needs a destination. <b>Save As</b> changes the destination. Changing page settings for plain text may require a wrapper to preserve them; heed the dialog notice.</p>
 <p><b>Close</b> closes the score; <b>Exit</b> closes the application. If changes are unsaved, choose Save, Discard or Cancel. Recovery can restore the last recoverable draft and managed references after interruption; it does not replace ordinary saved backups. Reference images/PDFs are separate from score source: retain their original files. Opening a sample creates a working document; choose your own save location before overwriting anything.</p>
-<p><b>Recent files</b> lists the ten most recently opened or saved score paths on this computer. Choose an entry to reopen it; unsaved changes still prompt before replacement. A missing or moved file reports an error and keeps the current score. Use Open to find its new location.</p>
+<p>Use <b>Open</b> to reopen a saved score or a bundled example. Examples are provided in the portable examples directory; downloadable excerpts in this manual can also be opened directly.</p>
 </section>
 <section id="en-source"><h2>6. Editing JPS source</h2>
 <p>Use Undo/Redo, Cut/Copy/Paste, Find, Replace and Select All from the heading or compact Edit menu. Find opens the search UI; Replace exposes replacement controls. Standard editor keyboard shortcuts remain available. Clipboard availability depends on the operating system. <b>Format Source</b> spaces musical tokens while retaining notation content; it cannot repair musical mistakes or validate a transcription. Quoted annotations and attached grace groups need careful review after edits.</p>
@@ -90,8 +92,8 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <p>Focus the preview with Tab to use <b>Page Up / Page Down</b> for navigation and <b>Ctrl+wheel</b> for zoom. The status line reports completed pages and elapsed rendering time; during a multipage render it shows progress.</p>
 </section>
 <section id="en-reference"><h2>8. Original images/PDFs and transcription</h2>
-<p>Choose Import PNG/JPG/PDF or drop <b>one</b> PNG, JPG/JPEG or PDF into Original Image/PDF. An existing reference prompts Replace Reference or Cancel. Import is blocked while another import, replacement decision, recovery, save, transcription or conflicting dialog is active. Unsupported/multiple dropped files are rejected without import.</p>
-<p>Drag the displayed original to pan; use fit, zoom and Rotate 90°. Rotation changes the viewing orientation, not the original file. A PDF has page navigation. The pane close control returns to Normal mode; the managed reference is retained. Input limits include 100 MiB per image/PDF, at most 200 PDF/reference pages and 40 million pixels per decoded image/PDF page. Damaged, encrypted or unsupported files may fail; reduce the input if the program reports a size or page-limit error.</p>
+<p>Choose <b>Import → JPG / PNG / PDF…</b> or drop <b>one</b> PNG, JPG/JPEG or PDF into Original Image/PDF. An existing reference prompts Replace Reference or Cancel. Import is blocked while another import, replacement decision, recovery, save, transcription or conflicting dialog is active. Unsupported/multiple dropped files are rejected without import.</p>
+<p>Drag the displayed original to pan; use fit, zoom and Rotate 90°. Rotation changes the viewing orientation, not the original file. A PDF has page navigation. Closing the pane hides it and retains the managed reference; select a Transcription layout to reopen it. Input limits include 100 MiB per image/PDF, at most 200 PDF/reference pages and 40 million pixels per decoded image/PDF page. Damaged, encrypted or unsupported files may fail; reduce the input if the program reports a size or page-limit error.</p>
 <ul><li>Transcribe New: generates a provisional new score. Handle any unsaved-score prompt before replacing the working score.</li>
 <li>Transcribe Append: adds recognized music to the current source, using a page break boundary when needed and omitting repeated draft headers for a nonempty score. Undo can reverse the insertion.</li>
 <li>A PDF is transcribed as a document, not only its displayed page. Review the warnings and each page against the original; collapse warnings when you need editing space.</li>
@@ -108,7 +110,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <tr><td>Transcription T2</td><td>Original and preview above the source editor.</td></tr>
 </tbody>
 </table>
-<p>Drag the divider between panels to resize them. Vertical dividers move left/right; horizontal dividers move up/down. In T1, each divider resizes only its two neighboring panes. Each layout remembers its sizes. To resize with a keyboard, focus a divider with Tab and use the matching arrow keys (Shift for a larger step); Home/End select the smallest/largest size. Minimum sizes keep every panel accessible. Focus Original, Focus Editor or Focus Preview temporarily expands one pane; Exit Focus restores the layout. Controls adapt as the available width changes. F11 toggles the window maximized state; the toolbar has no separate Maximize button.</p>
+<p>Drag the divider between panels to resize them. Vertical dividers move left/right; horizontal dividers move up/down. In T1, each divider resizes only its two neighboring panes. Each layout remembers its sizes. To resize with a keyboard, focus a divider with Tab and use the matching arrow keys (Shift for a larger step); Home/End select the smallest/largest size. Minimum sizes keep every panel accessible. Use a panel’s Maximize control to expand it and Restore to return to the layout. Close hides a panel while preserving its content. Choosing a layout reopens its panels; if all panels are closed, use Layout to resume. Controls adapt as the available width changes. F11 toggles the window maximized state; the toolbar has no separate Maximize button.</p>
 </section>
 <section id="en-settings"><h2>10. Page settings and fonts</h2>
 <p>Page Settings groups paper (A4/A5), margins and body offset; title/lyric fonts and note style; title/subtitle/lyric sizes; music-to-lyric, lyric-to-lyric, lyric-to-music and voice spacing; and slur shape (Automatic, Arc, Flat top). Sizes/margins are renderer units, not millimeters. <b>Apply</b> updates the score while keeping the dialog open; <b>OK</b> applies and closes; <b>Cancel</b> discards unapplied draft changes. Already applied changes are not reverted by Cancel. Save the score to retain changes.</p>
@@ -125,7 +127,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <p class="keep-together">Image and scanned-PDF transcription uses RapidOCR + ONNX locally. Select <b>Transcribe</b> in the original-image/PDF panel to create a reviewable JPS draft. There is no provider setting; the application uses the same OCR engine for each transcription. Review the generated source and any issue markers before saving or using the draft.</p>
 </section>
 <section id="en-export"><h2>11. Export and portable use</h2>
-<p>Choose Export and select SVG, PDF, PNG or JPG (96 or 300 DPI), then choose the output destination. PDF produces one multipage document; SVG/PNG/JPG produce page files. 300 DPI is useful for print-quality raster output. LilyPond export appears with planned features in Help → About OctoPus. Save the JPS as the editable master before sharing rendered files. PDF embeds fonts, PNG stores lossless pixels and JPEG stores compressed pixels and SVG preserves vector content, but external SVG viewers need matching text fonts. Inspect the result in its destination viewer. The separate Python ReportLab PDF path cannot embed CFF-outline system fonts and uses the role fallback there; this is not a blanket limitation of native desktop export.</p>
+<p>Choose Export and select SVG, PDF, PNG or JPG (96 or 300 DPI), then choose the output destination. PDF produces one multipage document; SVG/PNG/JPG produce page files. 300 DPI is useful for print-quality raster output. LilyPond, MusicXML and MIDI support are listed in this manual’s planned features (§2). Save the JPS as the editable master before sharing rendered files. PDF embeds fonts, PNG stores lossless pixels and JPEG stores compressed pixels and SVG preserves vector content, but external SVG viewers need matching text fonts. Inspect the result in its destination viewer. The separate Python ReportLab PDF path cannot embed CFF-outline system fonts and uses the role fallback there; this is not a blanket limitation of native desktop export.</p>
 <p>Keep the entire portable folder together, including engine, examples and docs. On Linux run <code>dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus</code>; Windows uses <code>portable/octopus.exe</code>. The worker is bundled, so no separate Python is required. Linux still requires GTK/WebKit runtime libraries and Poppler; Windows requires WebView2. Portable does not mean every host dependency is embedded.</p>
 <h3>Batch export from the Python command line</h3><p>For a folder of JPS sources, the Python command line can produce one combined PDF or separate files per score. Files are processed in sorted path order; recursive output keeps subfolders. Existing output files are never overwritten. A failed source is reported while other valid sources continue; review the exit status and printed summary.</p><pre><code>uv run --locked octopus batch-export /path/to/scores --out combined.pdf
 uv run --locked octopus batch-export /path/to/scores --out-dir exported --format pdf --recursive
@@ -148,6 +150,7 @@ uv run --locked octopus batch-export /path/to/scores --out-dir images --format p
 </tbody>
 </table>
 <p>Some shortcuts are inactive while a modal dialog is open or a form control has focus. Help offers User Manual, Report Issues, Submit Requests, Check for Update and About OctoPus. Issues open the project issue page; Requests opens the pull-request page. Check for Update compares the latest stable GitHub release and reports unavailable information, unfamiliar tags or network errors separately; it does not install updates. About and the logo link to the project home.</p>
+<p><b>About.</b> The dialog displays v1.0-Beta and “OctoPus: Oct(Octave) + Pus (JianPu) = The ultimate numbered notation editor.” Acknowledgments credit Tomato JianPu for the adopted JPS format and rendering compatibility goal, RapidOCR (Apache-2.0) with ONNX Runtime (MIT), and the bundled font authors. Fonts include MiSans, LXGW Neo XiHei, SimZhiSong, LXGW WenKai, Zhuque Fangsong, Noto Sans SC, Noto Serif SC and Liberation Sans. OctoPus uses the GNU General Public License, version 3 or later, without any warranty. Full third-party licenses remain bundled. Planned features are listed in section 2.</p>
 </section>
 <section id="en-jps-structure"><h2>13. JPS structure and conventions</h2>
 <p>JPS is ordinary text, normally stored with extension .jps. A score has a descriptive header followed by music Q: and lyrics C:. One Q line represents a printed music row; following C lines belong to that row. Numbered prefixes identify voices. Blank lines improve source readability. A whole line beginning with # is a comment; inside a Q line, # is an accidental, not a comment.</p>
@@ -186,7 +189,7 @@ X: 10</code></pre>
 <!-- sample:header-layout:start -->
 <div class="sample-example" id="en-example-header-layout">
 <h3>Header placement and a multilingual title</h3><p>The second B is a subtitle; the three Z lines are separate credits. D: E$ displays the flat key. P sets 4/4 and J supplies a numeric tempo. The title punctuation is text, not a musical barline.</p>
-<p class="sample-provenance">Samples Library: O-Canada.jps · source lines 13-15. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/header-layout.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: O-Canada.jps · source lines 13-15. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/header-layout.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>V: 1.0
 B: O Canada | Ô Canada
 B: --- Canada National Anthem
@@ -230,7 +233,7 @@ C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,
 <!-- sample:duration-rest:start -->
 <div class="sample-example" id="en-example-duration-rest">
 <h3>Duration, register and a hidden rest</h3><p>Read 3/ and 5/ as eighth notes, 1&#x27;. as a dotted high note, and 7,/ as a low eighth note. The final 0 is visible; 8 reserves space but prints no rest digit. &amp;zkh / &amp;ykh delimit the accompaniment visually.</p>
-<p class="sample-provenance">Samples Library: Farewell.jps · source lines 10-10. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/duration-rest.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Farewell.jps · source lines 10-10. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/duration-rest.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 5&amp;zkh 3/ 5/ 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 2/ 3/ 4. 7,/ | 1 - - 0 8&amp;ykh |</code></pre>
 <figure><img src="assets/examples/duration-rest-1.png" alt="Duration, register and a hidden rest - 1" loading="eager"><figcaption>Rendered output: Duration, register and a hidden rest</figcaption></figure>
 </div>
@@ -238,7 +241,7 @@ C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,
 <!-- sample:short-values:start -->
 <div class="sample-example" id="en-example-short-values">
 <h3>Thirty-second notes and continuation strokes</h3><p>Three slashes produce three shortening lines. Compare the opening 0 rests, the low commas and high apostrophes, the short-note run, and 2 - at the end. The final (y...) is a tuplet, explained later.</p>
-<p class="sample-provenance">Samples Library: Flower-In-Water.jps · source lines 10-10. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/short-values.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Flower-In-Water.jps · source lines 10-10. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/short-values.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 0&amp;zkh 0 6/// 1&#x27;/// 5/// 6/// 3/// 5/// 2/// 3/// 1/// 2/// 6,/// 1/// 5,/// 6,/// 2,/// 3,/// | 1/ 5,/ 6,/ 7,/ 5,/ 6,/ 5,/ | 2 - (y3 5 6&amp;ykh) |</code></pre>
 <figure><img src="assets/examples/short-values-1.png" alt="Thirty-second notes and continuation strokes - 1" loading="eager"><figcaption>Rendered output: Thirty-second notes and continuation strokes</figcaption></figure>
 </div>
@@ -253,7 +256,7 @@ Q: 1/ 2/ 3/ 4/ 5/ 6/ |</code></pre>
 <!-- sample:beam-control:start -->
 <div class="sample-example" id="en-example-beam-control">
 <h3>Join and split beams in compound meter</h3><p>The header lists 6/8 and 9/8; the first meter sets the initial dotted-quarter grouping. Explicit marks can customize it: in the first row, 6/^ ends the group after that note, while 5/~ 4/~ 1/ joins a group. The second row uses ~ to join longer runs. These marks change beam grouping, not note lengths.</p>
-<p class="sample-provenance">Samples Library: Autumn-Cicada - Fei-Yuqing.jps · source lines 11-12. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/beam-control.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Autumn-Cicada - Fei-Yuqing.jps · source lines 11-12. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/beam-control.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 6/&amp;sby&amp;zkh | 5 6/^ 5/~ 4/~ 1/ | (3&#x27;. 3&#x27;) 3&#x27;/ | 2 3/ 2 1/ | (7,. 7,.) |
 Q: 5,//~ 6,//~ 7,//~ 1//~ 2//~ 3// 1//~ 2//~ 3//~ 4//~ 5//~ 6// | 4//~ 5//~ 6//~ 7//~ 1&#x27;//~ 2&#x27;// 7//~ 6//~ 5//~ 6//~ 4//~ 2// | (1. 1.) 8&amp;ykh |</code></pre>
 <figure><img src="assets/examples/beam-control-1.png" alt="Join and split beams in compound meter - 1" loading="eager"><figcaption>Rendered output: Join and split beams in compound meter</figcaption></figure>
@@ -270,7 +273,7 @@ Q: 5,//~ 6,//~ 7,//~ 1//~ 2//~ 3// 1//~ 2//~ 3//~ 4//~ 5//~ 6// | 4//~ 5//~ 6//~
 <!-- sample:accidental-return:start -->
 <div class="sample-example" id="en-example-accidental-return">
 <h3>Flat/sharp followed by a natural</h3><p>In Q2, 3$ is followed by 3=; in Q4, 4# is followed by 4=. The modifier is typed after the digit but drawn before it. Hidden 8 slots keep the choir parts aligned. These two selected voices are rendered independently of the omitted parts.</p>
-<p class="sample-provenance">Samples Library: Edelweiss - Choir ChinEng.jps · source lines 23-23, 27-27. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/accidental-return.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Edelweiss - Choir ChinEng.jps · source lines 23-23, 27-27. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/accidental-return.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q2: 3 - 8 3 | 5 - - | 5 - 8 5 | 4 - - | 3 - 5 | 4 8 3$ 8 2 | 3= - - | 1&#x27; - - |
 Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; - - |</code></pre>
 <figure><img src="assets/examples/accidental-return-1.png" alt="Flat/sharp followed by a natural - 1" loading="eager"><figcaption>Rendered output: Flat/sharp followed by a natural</figcaption></figure>
@@ -279,7 +282,7 @@ Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; -
 <!-- sample:grace-register:start -->
 <div class="sample-example" id="en-example-grace-register">
 <h3>Before/after grace notes and register</h3><p>The first four hosts compare before/after grace notes and their shorter values. The next bars compare low and high grace notes. [h...] follows the host visually; [...] precedes it. All groups are typed after the main note.</p>
-<p class="sample-provenance">Samples Library: Symbols.jps · source lines 8-8. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/grace-register.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Symbols.jps · source lines 8-8. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/grace-register.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 1[1/] 1[1] 1[h1] 1[h1/] | 1[1,/] 1[1,] 1[h1,,] 1[h1,,/] | 1[1&#x27;/] 1[1&#x27;&#x27;] 1[h1&#x27;] 1[h1&#x27;&#x27;/] |</code></pre>
 <figure><img src="assets/examples/grace-register-1.png" alt="Before/after grace notes and register - 1" loading="eager"><figcaption>Rendered output: Before/after grace notes and register</figcaption></figure>
 </div>
@@ -287,7 +290,7 @@ Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; -
 <!-- sample:grace-groups:start -->
 <div class="sample-example" id="en-example-grace-groups">
 <h3>Grace groups containing several notes</h3><p>The left bar contains preceding grace groups; the right bar repeats the pattern as following grace groups with h. Slashes within a group shorten the grace notes independently of the host.</p>
-<p class="sample-provenance">Samples Library: Symbols.jps · source lines 15-15. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/grace-groups.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Symbols.jps · source lines 15-15. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/grace-groups.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 1&#x27;/[23] 7/[23/4] 2,/[3/4/] 3,/[45/] 4[5/6] 5&#x27;/[1/2/3/] 6/[5/67/] | 1&#x27;/[h23] 7/[h23/4] 2,/[h3/4/] 3,/[h45/] 4[h5/6] 5&#x27;/[h1/2/3/] 6/[h5/67/] |</code></pre>
 <figure><img src="assets/examples/grace-groups-1.png" alt="Grace groups containing several notes - 1" loading="eager"><figcaption>Rendered output: Grace groups containing several notes</figcaption></figure>
 </div>
@@ -323,7 +326,7 @@ Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; -
 <!-- sample:hairpin-height:start -->
 <div class="sample-example" id="en-example-hairpin-height">
 <h3>Dynamics and raised hairpins in a choir</h3><p>Q1 and Q3 start with &amp;mp. &lt;+ begins a raised crescendo, ! ends it, then &gt; begins a decrescendo. Compare the span endpoints with the notes and rests in the other parts; lyric rows remain attached to their source system.</p>
-<p class="sample-provenance">Samples Library: Edelweiss - Choir ChinEng.jps · source lines 11-18. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/hairpin-height.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Edelweiss - Choir ChinEng.jps · source lines 11-18. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/hairpin-height.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q1: 3&amp;mp -&lt;+ 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 3 | 3 8 4 8 5 | {dsb 6 - - | 5 - - | } 4 - - | 4 - - |
 C1: 雪绒花，雪绒花，清晨迎@着@我开放，
 C2: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
@@ -361,7 +364,7 @@ Q: 1&amp;zkh 2 3 4&amp;ykh | 5&quot;sing gently&quot; - - - ||</code></pre>
 <!-- sample:fermata-rit:start -->
 <div class="sample-example" id="en-example-fermata-rit">
 <h3>Ritardando and fermata</h3><p>5&amp;rit prints the tempo instruction. 7,/&amp;yc prints a fermata above the low eighth note. Neither command changes playback, because OctoPus currently has no playback workflow.</p>
-<p class="sample-provenance">Samples Library: Farewell.jps · source lines 34-36. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/fermata-rit.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Farewell.jps · source lines 34-36. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/fermata-rit.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5&amp;rit (2/ 3/) 4. 7,/&amp;yc | 1 - - 0 ||
 C: 人生@难得是欢聚，唯有@别离多。
 C: (~问君@此去几时还，来时@莫徘徊~)</code></pre>
@@ -371,7 +374,7 @@ C: (~问君@此去几时还，来时@莫徘徊~)</code></pre>
 <!-- sample:tenuto-parentheses:start -->
 <div class="sample-example" id="en-example-tenuto-parentheses">
 <h3>Tenuto and accompaniment parentheses</h3><p>The final bar attaches &amp;bc to each note. &amp;zkh is attached to its first note and &amp;ykh to its last, creating visible accompaniment parentheses without adding musical events.</p>
-<p class="sample-provenance">Samples Library: China-In-The-Lights.jps · source lines 21-21. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/tenuto-parentheses.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: China-In-The-Lights.jps · source lines 21-21. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/tenuto-parentheses.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 8 2 (2/ 3/) (4/ 3/) 2/ 1/ | 1/. (1// 1/) 6/ 6 - | 1/ 7,/ 7,/ 1/ 2/ 1/ 2/ (3/ | 3/) (1/ 1) - - | 2&amp;bc&amp;zkh 3&amp;bc 4&amp;bc 5&amp;bc&amp;ykh |</code></pre>
 <figure><img src="assets/examples/tenuto-parentheses-1.png" alt="Tenuto and accompaniment parentheses - 1" loading="eager"><figcaption>Rendered output: Tenuto and accompaniment parentheses</figcaption></figure>
 </div>
@@ -407,7 +410,7 @@ C: (~问君@此去几时还，来时@莫徘徊~)</code></pre>
 <!-- sample:repeat-start:start -->
 <div class="sample-example" id="en-example-repeat-start">
 <h3>A repeat beginning inside a source row</h3><p>The |: occurs after two bars. A repeat boundary is part of the musical flow, not a request for a new source row. The lyric skip markers align unsung notes before the chorus.</p>
-<p class="sample-provenance">Samples Library: JingleBells.jps · source lines 18-20. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/repeat-start.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: JingleBells.jps · source lines 18-20. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/repeat-start.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 6,/ 4/ 3/~ 8~ 2/ 5/~ 8~ 5/ 5/~ 8~ 5/ | 6/ 5/ 4/~ 8~ 2/ 1. 0/ |: 3/ 3/ 3 3/ 3/ 3 |
 C: fun /it /is @/to /ride @/and /sing @/a /sleigh- /ing /song @/to- /night~. @Jin- /gle /bells~, jin- /gle /bells~,
 C: 今晚滑@雪真@快乐@把滑雪歌@儿唱。@叮叮当，叮叮当，</code></pre>
@@ -417,7 +420,7 @@ C: 今晚滑@雪真@快乐@把滑雪歌@儿唱。@叮叮当，叮叮当，</code
 <!-- sample:navigation-sign:start -->
 <div class="sample-example" id="en-example-navigation-sign">
 <h3>Segno and a barline meter annotation</h3><p>The last |&amp;ty carries a segno. The preceding |&quot;p:9/8&quot; introduces a local meter. A quoted barline instruction and an ampersand navigation symbol can serve different purposes on the same kind of anchor.</p>
-<p class="sample-provenance">Samples Library: Autumn-Cicada - Fei-Yuqing.jps · source lines 21-22. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/navigation-sign.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Autumn-Cicada - Fei-Yuqing.jps · source lines 21-22. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/navigation-sign.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 5 3/ 5 3/ | 1&#x27; 6/ 1&#x27; 6/ | 5 5/^ (5/ 6/)~ 5/ |&quot;p:9/8&quot; (4/ 5/)~ 4/ (3. 3.) |&amp;ty
 C: 秋去冬来美景不在，莫教好@春逝@匆匆，</code></pre>
 <figure><img src="assets/examples/navigation-sign-1.png" alt="Segno and a barline meter annotation - 1" loading="eager"><figcaption>Rendered output: Segno and a barline meter annotation</figcaption></figure>
@@ -436,7 +439,7 @@ Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
 <!-- sample:slur-bar:start -->
 <div class="sample-example" id="en-example-slur-bar">
 <h3>A slur crossing a barline</h3><p>In the second row, (3 - | 3) opens before a continuation and closes in the next bar. The same note number at both endpoints is not enough: the parentheses define the printed span.</p>
-<p class="sample-provenance">Samples Library: As-Wished.jps · source lines 11-12. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/slur-bar.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: As-Wished.jps · source lines 11-12. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/slur-bar.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 3&amp;zkh 6,// 1// 3// 5// 4/ 3/ 2/ 1/ | 7,/ 1/ 2/ 7,/ 3 7 | 1 6,// 1// 3// 5// 4/ 3/ 2/ 1/ | 7, - 0/ 3,/ 6,/ 7,/ |
 Q: 1. 3// 5// 4 - | 0/ 7,/ 1/ 2/ (3 - | 3) 0 0 3/ 1&#x27;/ |&quot;p:2/4&quot; 7 5# |&quot;p:4/4&quot; 6 - -&amp;ykh</code></pre>
 <figure><img src="assets/examples/slur-bar-1.png" alt="A slur crossing a barline - 1" loading="eager"><figcaption>Rendered output: A slur crossing a barline</figcaption></figure>
@@ -445,7 +448,7 @@ Q: 1. 3// 5// 4 - | 0/ 7,/ 1/ 2/ (3 - | 3) 0 0 3/ 1&#x27;/ |&quot;p:2/4&quot; 7 
 <!-- sample:tuplets:start -->
 <div class="sample-example" id="en-example-tuplets">
 <h3>Ordinary slurs beside triplet groups</h3><p>(5// 5) is an ordinary slur; (y1/ 2/ 3/) creates a numbered three-note tuplet. The y is lowercase and comes immediately after the opening parenthesis.</p>
-<p class="sample-provenance">Samples Library: Flower-In-Water.jps · source lines 12-13. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/tuplets.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Flower-In-Water.jps · source lines 12-13. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/tuplets.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 1&#x27;/ 5/ 6/ 3// (5// 5) (y1/ 2/ 3/) | 2. 3/ 6, (y1/ 2/ 3/) | 2. 3/ 6, 0/ 6,/ | 5,/ 3/ 3 - 0 |
 C: 凄雨冷风中 @多少繁华如梦  曾经万紫千红   @随风吹落</code></pre>
 <figure><img src="assets/examples/tuplets-1.png" alt="Ordinary slurs beside triplet groups - 1" loading="eager"><figcaption>Rendered output: Ordinary slurs beside triplet groups</figcaption></figure>
@@ -465,7 +468,7 @@ Q: |/[+/&quot;1,2&quot; 1 2 3 4 | 5 6 7 1&#x27; |]</code></pre>
 <!-- sample:first-second-ending:start -->
 <div class="sample-example" id="en-example-first-second-ending">
 <h3>First and second endings on one row</h3><p>The first [&quot;1&quot; begins on a barline and ends at :|]; [&quot;2&quot; follows on that same boundary and finishes at ||]. Compare the two branches with the matching lyric endings.</p>
-<p class="sample-provenance">Samples Library: JingleBells.jps · source lines 22-24. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/first-second-ending.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: JingleBells.jps · source lines 22-24. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/first-second-ending.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 3/ 5/ 1/. 2// 3 - | 4/~ 8~ 4/ 4./~ 4// 4/~ 8~ 3/ 3/~ 3//~ 3// |[&quot;1&quot; 3/ 2/ 2/~ 8~ 1/ (2/ 5.) :|][&quot;2&quot; 5/ 5/ 4/~ 8~ 2/ 1. ||]
 C: Jin- /gle /all /the /way~. Oh @/what /fun /it /is @/to /ride~, in /a /one- /horse /o- @/pen /sleigh~! one- /horse /o- @/pen /sleigh~!
 C: 铃儿响叮当，我@们滑雪多@快乐，我们坐在雪@橇上。坐在雪@橇上。</code></pre>
@@ -475,7 +478,7 @@ C: 铃儿响叮当，我@们滑雪多@快乐，我们坐在雪@橇上。坐在�
 <!-- sample:open-ending-meter:start -->
 <div class="sample-example" id="en-example-open-ending-meter">
 <h3>Raised ending, row-start anchor and open right edge</h3><p>|/ provides an invisible row-start anchor; [+ raises the bracket. The closing |]/ leaves an open right edge. The local &quot;p:2/4&quot; changes the printed meter during the passage.</p>
-<p class="sample-provenance">Samples Library: As-Wished.jps · source lines 32-32. Excerpt rendered with Free Fallback fonts; blank page space omitted. Extra top clearance separates the isolated ending from the header. <a download href="assets/examples/open-ending-meter.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: As-Wished.jps · source lines 32-32. Excerpt rendered with Free Fallback fonts; blank page space omitted. Extra top clearance separates the isolated ending from the header. <a download href="assets/examples/open-ending-meter.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q:  |/[+&quot;2&quot; 6/ 7/ 1&#x27;/ 2&#x27;/ 2&#x27;/ 3&#x27;// (3&#x27;// 3&#x27;/.) 3&#x27;// | 3&#x27;/ 2&#x27;// (4&#x27;// 4&#x27;/) 3&#x27;/ 2&#x27;/ 1&#x27;// (1&#x27;// 1&#x27;/.) 1&#x27;// |&quot;p:2/4&quot; 7/ 1&#x27;// (2&#x27;// 2&#x27;/) 7/ |]/</code></pre>
 <figure><img src="assets/examples/open-ending-meter-1.png" alt="Raised ending, row-start anchor and open right edge - 1" loading="eager"><figcaption>Rendered output: Raised ending, row-start anchor and open right edge</figcaption></figure>
 </div>
@@ -502,7 +505,7 @@ Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre>
 <!-- sample:temporary-accompaniment:start -->
 <div class="sample-example" id="en-example-temporary-accompaniment">
 <h3>Temporary accompaniment above the melody</h3><p>The {bz ...} group is embedded inside the second bar, while the main slur closes on the following 6. A raised second-ending bracket spans the passage. Read brace, bracket and parenthesis pairs separately.</p>
-<p class="sample-provenance">Samples Library: Azalea.jps · source lines 29-30. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/temporary-accompaniment.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Azalea.jps · source lines 29-30. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/temporary-accompaniment.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q:  |/[+++&quot;2&quot; (6/ 2&#x27;/) (2&#x27;/ 1&#x27;// 6//) | (6[5] - | {bz 6/&amp;zkh 2&#x27;/ 2&#x27;/ 3&#x27;/ | } 6) - | 3&#x27;/ 2&#x27;/ 3&#x27; | 2&#x27; - | 3&#x27; - | 3&#x27; - 8&amp;ykh ||]
 C: 映@山@@红。</code></pre>
 <figure><img src="assets/examples/temporary-accompaniment-1.png" alt="Temporary accompaniment above the melody - 1" loading="eager"><figcaption>Rendered output: Temporary accompaniment above the melody</figcaption></figure>
@@ -511,7 +514,7 @@ C: 映@山@@红。</code></pre>
 <!-- sample:temporary-voices:start -->
 <div class="sample-example" id="en-example-temporary-voices">
 <h3>Temporary multiple voices within a full choir system</h3><p>Q1 contains {dsb 6 - - | 5 - - | } while its main sequence continues with 4. Compare this inline branch with the ordinary Q2/Q3/Q4 parts. A brace group is not a new top-level Q row.</p>
-<p class="sample-provenance">Samples Library: Edelweiss - Choir ChinEng.jps · source lines 11-18. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/temporary-voices.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Edelweiss - Choir ChinEng.jps · source lines 11-18. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/temporary-voices.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q1: 3&amp;mp -&lt;+ 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 3 | 3 8 4 8 5 | {dsb 6 - - | 5 - - | } 4 - - | 4 - - |
 C1: 雪绒花，雪绒花，清晨迎@着@我开放，
 C2: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
@@ -526,7 +529,7 @@ Q4: 1 - 1 | 7, - - | 3 - 3 | 4 - - | 5 - 5 | 5 8 4 8 3 | 2 - - | 5 - - |</code><
 <!-- sample:four-voices:start -->
 <div class="sample-example" id="en-example-four-voices">
 <h3>Four aligned parts and reserved blank slots</h3><p>Q1 through Q4 form one system. Compare the simultaneous barlines and the inserted 8 slots. Numbered C rows in library files can also denote successive lyric lanes: inspect their actual preview rather than mechanically renumbering a borrowed score.</p>
-<p class="sample-provenance">Samples Library: O-Canada Choir.jps · source lines 13-17. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/four-voices.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: O-Canada Choir.jps · source lines 13-17. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/four-voices.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q1: 3 - 5. 5/ | 1 - - 2 | 3 8 4 8 5 6 | 2 - - 0 | 3 - 4#. 4/ | 5 - - 6 |
 Q2: 1 - 7,. 7,/ | 6, - - 7, | 1 8 1 8 1 1 | 1 - 7, 0 | 1 - 2. 2/ | 2 - - 3 |
 C: O /Can- /a- /da~! Our/ home / @and /@na-tive/ land~! @@True /pa-triot /love/ in
@@ -554,7 +557,7 @@ C: &quot;2.&quot; 春/风/@/song</code></pre>
 <!-- sample:chinese-verses:start -->
 <div class="sample-example" id="en-example-chinese-verses">
 <h3>Chinese verses, skipped notes and a lyric enclosure</h3><p>Both sung verses follow the same Q row. @ skips the second note of a slurred group. The third C row uses the legacy (~...~) lyric enclosure; this is lyric text/grouping, not a music slur.</p>
-<p class="sample-provenance">Samples Library: Farewell.jps · source lines 17-20. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/chinese-verses.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Farewell.jps · source lines 17-20. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/chinese-verses.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 (2/ 3/) 4. 7,/ | 1 - - - |
 C: 晚风@拂柳笛声残，夕阳@山外山。
 C: 问君@此去几时还，来时@莫徘徊。
@@ -565,7 +568,7 @@ C: (~人生@难得是欢聚，唯有@别离多~)</code></pre>
 <!-- sample:joined-characters:start -->
 <div class="sample-example" id="en-example-joined-characters">
 <h3>Chinese joins and bilingual lyric rows</h3><p>The Chinese text joins 马~儿 and 令~人 so each pair belongs to one lyric slot. The English line uses / to separate words/syllables and @ for unsung notes. Compare both under the same melody.</p>
-<p class="sample-provenance">Samples Library: JingleBells.jps · source lines 14-16. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/joined-characters.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: JingleBells.jps · source lines 14-16. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/joined-characters.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 5/ 5/ 4/ 2/ (3 1/) 5,/ | 5,/ 3/ 2/ 1/ 5,. 5,/ | 5,/ 3/ 2/ 1/ 6,. 6,/ |
 C:  laugh- /ing /all /the /way~.  @@Bells /on /bob- /tail /ring~, @mak- /ing /spir- /its / bright~. What
 C: 欢笑又歌唱。@马~儿铃声响叮当，令~人精神多欢畅，我~们</code></pre>
@@ -575,7 +578,7 @@ C: 欢笑又歌唱。@马~儿铃声响叮当，令~人精神多欢畅，我~们<
 <!-- sample:english-syllables:start -->
 <div class="sample-example" id="en-example-english-syllables">
 <h3>English and French syllable alignment</h3><p>Can- /a- /da gives three sung slots. A hyphen in a lyric is visible text, not a duration extension. Both C rows share the melody; the long final syllable does not require a new lyric entry for every continuation stroke.</p>
-<p class="sample-provenance">Samples Library: O-Canada.jps · source lines 13-15. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/english-syllables.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: O-Canada.jps · source lines 13-15. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/english-syllables.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 3 - 5. 5/ | 1 - - 2 | 3 4 5 6 | 2 - - 0 |
 C: O /Can- /a- /da~! Our/ home / and /na-tive/ land~!
 C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,</code></pre>
@@ -585,7 +588,7 @@ C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,</code></pre>
 <!-- sample:verse-label:start -->
 <div class="sample-example" id="en-example-verse-label">
 <h3>Quoted verse labels after an initial skip</h3><p>The pickup rest is skipped with @; then &quot;1.　&quot; and &quot;2.　&quot; label the verses. The library uses a full-width space in those labels. For a portable ASCII-space label, use the documented underscore convention.</p>
-<p class="sample-provenance">Samples Library: As-Wished.jps · source lines 14-16. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/verse-label.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: As-Wished.jps · source lines 14-16. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/verse-label.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 0/. 6,// |: 3 1// 2// 3// (4// 4.) 4// 3// | 2/ 1// (2// 2/) 7,/ 3 - | 0 1/ 3/ 2/ 1// (2// 2/.) 1// | 2/ 1// (2// 2/) 7,/ 3. 0// 6,// |
 C: @&quot;1.　&quot;你是 遥遥的路   @山野大雾里@的灯  @我是孩童啊 @走在你的@眼眸 @你是 明月清风 @我是
 C: @&quot;2.　&quot;@是 岁月长河   @星火燃起的@天空  @我是仰望者 @就把你唱@成歌 @你是</code></pre>
@@ -607,7 +610,7 @@ C: 第 二 页 词</code></pre>
 <!-- sample:page-boundary:start -->
 <div class="sample-example" id="en-example-page-boundary">
 <h3>Two systems separated by a manual page break</h3><p>The first system ends before [fenye]; the next starts with a complete Q1-Q4 system. Both output pages are shown. Keep each system and its lyric rows together when choosing a boundary.</p>
-<p class="sample-provenance">Samples Library: Edelweiss - Choir ChinEng.jps · source lines 29-47. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/page-boundary.jps">Download this JPS excerpt</a></p>
+<p class="sample-provenance">bundled examples: Edelweiss - Choir ChinEng.jps · source lines 29-47. Excerpt rendered with Free Fallback fonts; blank page space omitted. <a download href="assets/examples/page-boundary.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q1: 2&#x27;&amp;mf 0/ 5/ 8 5 | 7 8 6 8 5 | 3 - 8 5 | 1&#x27; - - | 6 - 8 1&#x27; | 2&#x27; - 8 1&#x27; | 7&gt; - - | 5 - -! |
 C1: 白@雪@般~的花@儿@愿你@芬芳，永@远开@花生长。
 C2: Blos-/ @ som/ @ of/ snow~, @may/ @you/ bloom/ @and/ grow~, bloom/ @and/ grow/ @for-/ ev-/ er.
@@ -666,11 +669,11 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 </article>
 <article id="manual-zh-CN" lang="zh-CN" role="tabpanel" aria-labelledby="tab-zh-CN" hidden><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
 <h1>用户手册</h1>
-<p>Version 0.1.0 · 2026-10-05</p>
+<p>关于版本 v1.0-Beta · 2026-10-07</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自动与自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
 <section id="zh-CN-introduction"><h2>1. 简介</h2>
-<p>OctoPus（Octave + Jianpu）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。本手册适用于 0.1.0 版本，更新于 2026 年 10 月 5 日。</p>
+<p>八爪鱼简谱（OctoPus）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。本手册适用于 v1.0-Beta 版本，更新于 2026 年 10 月 7 日。</p>
 <p>安装完成后，编辑、渲染和受支持的转录功能可在本地运行。帮助链接及更新检查需要浏览器或网络连接。手册本身支持离线阅读；中英文版本具有相同主题和示例。可切换语言标签页，也可下载对应 PDF。</p>
 </section>
 <section id="zh-CN-capabilities"><h2>2. 功能、限制与计划</h2>
@@ -684,15 +687,17 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 </tbody>
 </table>
 <p><b>当前限制。</b>转录不能保证完整还原乐谱。请核对音符、变音、八度点、时值、歌词、连音线、倚音、跳房子及页序。页眉、页脚和页码过滤采取保守规则，特殊排版仍需校对。复杂排版及跨页连线需要人工检查。桌面界面目前没有播放/MIDI 工作流、LilyPond 导出或 MusicXML 导入导出。五线谱识别属于计划功能，不能作为当前简谱输入的替代。没有自动安装更新功能。macOS 原生打包暂缓；Windows/macOS 主机验收与 Linux 测试分别进行。</p>
+<h3>规划中的功能</h3>
 <ul><li>计划：提升转录质量，包括复杂记号及重复的页面附属文字。</li>
 <li>计划：导出 LilyPond 源码及导入、导出 MusicXML。</li>
+<li>计划：导出 MIDI。</li>
 <li>计划：导入五线谱资料并识别为 JPS。</li>
 <li>计划表示发展方向，不代表发布日期或现有功能。</li>
 </ul>
 </section>
 <section id="zh-CN-quickstart"><h2>3. 第一份乐谱</h2>
 <ul><li>启动 OctoPus，选择<b>新建</b>，输入标题及基本乐谱字段并确认。</li>
-<li>将源码替换为下面示例，或从<b>示例库</b>打开相似乐谱。</li>
+<li>将源码替换为下面示例，或通过<b>打开</b>加载便携版 examples 目录中的示例乐谱。</li>
 <li>等待 SVG 预览渲染完成。点击音符定位源码，修改文本并检查结果。</li>
 <li>通过<b>页面设置</b>调整边距与字体，用<b>另存为</b>保存 .jps，再通过<b>导出</b>生成最终谱面。</li>
 </ul>
@@ -707,10 +712,10 @@ Q: 1 2 3 4 | 5 6 7 1&#x27; ||
 C: 春 风 吹 来 花 儿 开 了</code></pre>
 <p>该示例有两个小节，每小节四个音符；最后一个音符高一个八度。八个歌词汉字分别对应八个音符。</p>
 <h3>从示例曲谱入门</h3>
-<p>点击示例库，找到 Farewell 并打开工作副本。先读描述头，再找到以 Q: 5 (3/ 5/) 开头的行。将源码光标放在 1&#x27;. 上，对照预览中的高音附点。只删改附点，比较结果，再撤销。然后在复制的歌词行中移动一个 @，观察哪个音失去唱词。需要保留练习时先另存为。下方可下载的摘录都包含原描述头，即使页面只展示主体行。</p>
+<p>通过“打开”选择便携版 examples 目录中的 Farewell.jps，或下载下方摘录。先读描述头，再找到以 Q: 5 (3/ 5/) 开头的行。将源码光标放在 1&#x27;. 上，对照预览中的高音附点。只删改附点，比较结果，再撤销。然后在复制的歌词行中移动一个 @，观察哪个音失去唱词。需要保留练习时先另存为。下方可下载的摘录都包含原描述头，即使页面只展示主体行。</p>
 <!-- sample:first-score:start -->
 <div class="sample-example" id="zh-CN-example-first-score">
-<h3>单声部旋律与两段歌词</h3><p>在示例库打开 Farewell（送别）。此处摘录第二行演唱旋律。逐一对照四个小节线、高音 1 的附点、低音 7 和两行歌词。下载摘录可单独练习该片段。</p>
+<h3>单声部旋律与两段歌词</h3><p>通过“打开”加载 Farewell.jps（送别），或下载下方摘录。此处摘录第二行演唱旋律。逐一对照四个小节线、高音 1 的附点、低音 7 和两行歌词。下载摘录可单独练习该片段。</p>
 <p class="sample-provenance">示例库：Farewell.jps · 源码行 17-19。 摘录采用免费替代字体渲染，省略页面空白。 <a download href="assets/examples/first-score.jps">下载此 JPS 摘录</a></p>
 <p class="example-label">JPS 源码</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 (2/ 3/) 4. 7,/ | 1 - - - |
 C: 晚风@拂柳笛声残，夕阳@山外山。
@@ -720,7 +725,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <!-- sample:first-score:end -->
 </section>
 <section id="zh-CN-workspace"><h2>4. 工作区与界面</h2>
-<p>顶栏提供新建、打开、保存、另存为、导出、关闭、帮助、导入 PNG/JPG/PDF、示例库、页面设置、偏好设置及退出。点击图标或品牌文字会打开项目主页。第二行用于选择模式和布局以及聚焦面板；拖动面板之间的边界即可调整大小。</p>
+<p>顶栏提供新建、打开、保存、另存为、导入、导出、关闭、帮助、页面设置、布局、偏好设置及退出。导入菜单提供一项 JPG / PNG / PDF 操作。布局菜单在普通模式下列出 N1/N2，在转录模式下列出 T1/T2。点击图标或品牌文字会打开项目主页。各面板提供最大化、还原及关闭按钮；拖动面板之间的边界即可调整大小。</p>
 <table><thead><tr><th>面板</th><th>用途</th></tr>
 </thead>
 <tbody><tr><td>JPS 源码</td><td>编辑文本。文件名及未保存标记位于右侧格式化源码按钮前；编辑工具位于 JPS 源码标题后。</td></tr>
@@ -733,7 +738,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <section id="zh-CN-files"><h2>5. 文件、保存与恢复</h2>
 <p><b>打开</b>加载 .jps 乐谱。支持纯 JPS 文本及兼容的 JSON 包装文档；包装可包含源码、页面设置和原有元数据。<b>保存</b>写入当前文档，新文档首次保存需选择位置。<b>另存为</b>更换保存位置。对纯文本文档修改页面设置时，为保存设置可能需要转为包装格式，请留意对话框提示。</p>
 <p><b>关闭</b>关闭乐谱，<b>退出</b>关闭程序。有未保存修改时，可选择保存、放弃或取消。中断后的恢复功能可还原最后可恢复的草稿及托管原稿，但不能替代常规文件备份。参考图片/PDF 与乐谱源码分别管理，请保留原始文件。打开示例后得到工作文档；覆盖文件前应选择自己的保存位置。</p>
-<p><b>最近文件</b>列出本机最近打开或保存的十个乐谱路径。选择条目可重新打开；替换前仍会处理未保存提示。文件被移动或删除时会报告错误，并保留当前乐谱。可通过“打开”查找新位置。</p>
+<p>使用<b>打开</b>重新打开已保存乐谱，或加载便携版 examples 目录中的示例。手册中可下载的摘录也可直接打开。</p>
 </section>
 <section id="zh-CN-source"><h2>6. 编辑 JPS 源码</h2>
 <p>从标题行或折叠的编辑菜单使用撤销/重做、剪切/复制/粘贴、查找、替换及全选。查找打开搜索界面；替换显示替换控制。标准编辑器快捷键仍可用。剪贴板能力取决于操作系统。<b>格式化源码</b>调整音乐标记间距并保留记谱内容，不能纠正音乐错误或确认转录正确。修改后应仔细检查带引号的注释及紧附音符的倚音组。</p>
@@ -747,8 +752,8 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <p>用 Tab 聚焦预览后，可通过 <b>Page Up / Page Down</b> 翻页，通过 <b>Ctrl+鼠标滚轮</b> 缩放。状态栏在完成后显示页数及渲染用时；多页渲染时显示进度。</p>
 </section>
 <section id="zh-CN-reference"><h2>8. 原稿图片/PDF 与转录</h2>
-<p>选择导入 PNG/JPG/PDF，或将<b>单个</b> PNG、JPG/JPEG、PDF 拖入原始图片/PDF 面板。已有原稿时会询问替换原稿或取消。另一次导入、替换选择、恢复、保存、转录或冲突对话框正在进行时不能导入。拖入不支持的文件或多个文件会被拒绝。</p>
-<p>拖动原稿可平移；适合、缩放及旋转 90° 用于查看。旋转只改变显示方向，不修改原文件。PDF 支持翻页。关闭面板会返回普通模式，但保留托管原稿。输入限制包括每个图片/PDF 不超过 100 MiB、PDF/参考页不超过 200 页、每个解码图片或 PDF 页不超过四千万像素。损坏、加密或不支持的文件可能失败；出现大小或页数限制提示时请缩减输入。</p>
+<p>选择<b>导入 → JPG / PNG / PDF…</b>，或将<b>单个</b> PNG、JPG/JPEG、PDF 拖入原始图片/PDF 面板。已有原稿时会询问替换原稿或取消。另一次导入、替换选择、恢复、保存、转录或冲突对话框正在进行时不能导入。拖入不支持的文件或多个文件会被拒绝。</p>
+<p>拖动原稿可平移；适合、缩放及旋转 90° 用于查看。旋转只改变显示方向，不修改原文件。PDF 支持翻页。关闭面板仅隐藏该面板，保留托管原稿；选择转录布局可重新打开。输入限制包括每个图片/PDF 不超过 100 MiB、PDF/参考页不超过 200 页、每个解码图片或 PDF 页不超过四千万像素。损坏、加密或不支持的文件可能失败；出现大小或页数限制提示时请缩减输入。</p>
 <ul><li>转录新建：生成暂定的新乐谱；替换当前乐谱前先处理未保存提示。</li>
 <li>转录追加：向当前源码添加识别内容，必要时加分页边界；非空乐谱不重复加入草稿描述头。撤销可回退插入。</li>
 <li>PDF 按整份文档转录，不只处理当前显示页。阅读提示并逐页对照原稿；需要编辑空间时可折叠提示。</li>
@@ -765,7 +770,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <tr><td>转录 T2</td><td>原稿和预览在上，源码编辑器在下。</td></tr>
 </tbody>
 </table>
-<p>拖动面板之间的分隔条即可调整大小：竖向分隔条左右移动，横向分隔条上下移动。T1 中每条分隔条只调整相邻两个面板。每种布局分别记住大小。键盘操作时，用 Tab 聚焦分隔条，再按相应方向键（按住 Shift 可加大步长）；Home/End 调整到最小/最大尺寸。最小尺寸限制可避免面板消失。聚焦原稿、编辑器或预览可临时放大一个面板；退出聚焦恢复原布局。面板宽度改变时控件自动调整。F11 切换窗口最大化状态；工具栏不另设最大化按钮。</p>
+<p>拖动面板之间的分隔条即可调整大小：竖向分隔条左右移动，横向分隔条上下移动。T1 中每条分隔条只调整相邻两个面板。每种布局分别记住大小。键盘操作时，用 Tab 聚焦分隔条，再按相应方向键（按住 Shift 可加大步长）；Home/End 调整到最小/最大尺寸。最小尺寸限制可避免面板消失。点击面板的最大化按钮可临时放大该面板，还原按钮恢复布局。关闭面板会保留其内容；选择布局可重新打开对应面板。所有面板关闭后，通过布局菜单继续。面板宽度改变时控件自动调整。F11 切换窗口最大化状态；工具栏不另设最大化按钮。</p>
 </section>
 <section id="zh-CN-settings"><h2>10. 页面设置与字体</h2>
 <p>页面设置分组提供纸张（A4/A5）、边距及正文起始位置；标题/歌词字体及音符样式；标题/副标题/歌词字号；曲到词、词到词、词到曲及声部间距；连音线形状（自动、圆弧、平顶）。字号和边距使用渲染器单位，并非毫米。<b>应用</b>更新乐谱并保持窗口打开；<b>确定</b>应用并关闭；<b>取消</b>放弃尚未应用的草稿修改，不会撤回已经应用的修改。请保存乐谱以保留设置。</p>
@@ -782,7 +787,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <p class="keep-together">图片和扫描版 PDF 使用本地 RapidOCR + ONNX 进行转录。在原始图片/PDF 面板中点击<b>转录</b>，即可生成可供检查的 JPS 草稿。应用不提供识别引擎选项，每次转录都使用相同的 OCR 引擎。保存或使用草稿前，请检查生成的乐谱源码和所有问题标记。</p>
 </section>
 <section id="zh-CN-export"><h2>11. 导出与便携版使用</h2>
-<p>通过导出选择 SVG、PDF、PNG 或 JPG（96 或 300 DPI），再选择输出位置。PDF 生成一份多页文档；SVG/PNG/JPG 按页生成文件。300 DPI 适合印刷质量的像素输出。LilyPond 导出列在“帮助 → 关于 OctoPus”的规划功能中。分享渲染文件前先保存 JPS 作为可编辑原稿。PDF 嵌入字体，PNG 无损保存像素，JPEG 保存压缩像素，SVG 保留矢量内容，但外部 SVG 查看器需要相应文本字体。请在目标查看器检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，此时使用对应替代字体；这不是原生桌面导出的统一限制。</p>
+<p>通过导出选择 SVG、PDF、PNG 或 JPG（96 或 300 DPI），再选择输出位置。PDF 生成一份多页文档；SVG/PNG/JPG 按页生成文件。300 DPI 适合印刷质量的像素输出。LilyPond、MusicXML 和 MIDI 支持列于本手册第 2 节的规划功能中。分享渲染文件前先保存 JPS 作为可编辑原稿。PDF 嵌入字体，PNG 无损保存像素，JPEG 保存压缩像素，SVG 保留矢量内容，但外部 SVG 查看器需要相应文本字体。请在目标查看器检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，此时使用对应替代字体；这不是原生桌面导出的统一限制。</p>
 <p>请保持便携目录完整，包括 engine、examples 和 docs。Linux 运行 <code>dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus</code>，Windows 运行 <code>portable/octopus.exe</code>。已内置引擎，无需另装 Python。Linux 仍需 GTK/WebKit 运行库及 Poppler，Windows 需 WebView2。便携并不表示包含全部主机依赖。</p>
 <h3>通过 Python 命令行批量导出</h3><p>Python 命令行可将一组 JPS 合并为一份 PDF，或按乐谱分别导出。文件按路径排序处理；递归导出保留子目录。已有输出不会被覆盖。某个源文件失败时会报告错误，并继续处理其他有效源文件；请检查退出状态和输出摘要。</p><pre><code>uv run --locked octopus batch-export /path/to/scores --out combined.pdf
 uv run --locked octopus batch-export /path/to/scores --out-dir exported --format pdf --recursive
@@ -804,7 +809,8 @@ uv run --locked octopus batch-export /path/to/scores --out-dir images --format p
 <tr><td>方向键 / Home / End / Escape</td><td>导航菜单，Escape 关闭；语言标签页也支持方向键/Home/End。</td></tr>
 </tbody>
 </table>
-<p>模态对话框打开或表单控件获得焦点时，部分快捷键不生效。帮助提供用户手册、报告问题、提交请求、检查更新及关于 OctoPus。报告问题打开项目 Issues 页，提交请求打开 Pull Requests 页。检查更新比较 GitHub 最新稳定发布，分别报告信息不可用、不熟悉的版本标签或网络错误，不会安装更新。关于窗口及品牌标识链接项目主页。</p>
+<p>模态对话框打开或表单控件获得焦点时，部分快捷键不生效。帮助提供用户手册、报告问题、提交请求、检查更新及关于八爪鱼简谱。报告问题打开项目 Issues 页，提交请求打开 Pull Requests 页。检查更新比较 GitHub 最新稳定发布，分别报告信息不可用、不熟悉的版本标签或网络错误，不会安装更新。关于窗口及品牌标识链接项目主页。</p>
+<p><b>关于。</b>“关于八爪鱼简谱”显示 v1.0-Beta 和“八爪鱼简谱：玩转八度，轻松制谱”。致谢依次介绍番茄简谱的 JPS 格式及渲染兼容目标、RapidOCR（Apache-2.0）与 ONNX Runtime（MIT），以及内置字体作者。字体包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。八爪鱼简谱采用 GNU 通用公共许可证第 3 版或后续版本，不附带任何质保；完整第三方许可证随程序提供。规划中的功能见第 2 节。发布及更新元数据使用各自版本号。</p>
 </section>
 <section id="zh-CN-jps-structure"><h2>13. JPS 结构与约定</h2>
 <p>JPS 是普通文本，通常以 .jps 为扩展名。乐谱由描述头及曲 Q:、词 C: 组成。一个 Q 行对应一行印刷曲谱；随后 C 行依附该曲行。带数字前缀标识声部。空行便于阅读。以 # 开始的整行是注释；Q 行中的 # 是升音记号，不是注释。</p>
@@ -1321,4 +1327,4 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 <p><a href="https://github.com/OctaveMelody/OctoPus">项目主页</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/README.zh-CN.md">生产版说明</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/ENVIRONMENT.zh-CN.md">构建环境</a></p>
 </section>
 </article></main>
-<footer>OctoPus · OctaveMelody · 2026-10-05</footer></body></html>
+<footer>OctoPus · OctaveMelody · 2026-10-07</footer></body></html>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
+import { PanelControls } from "./PanelControls";
 import { PanelDivider } from "./PanelDivider";
 import { AdaptiveToolbar } from "./AdaptiveToolbar";
 import { ActionMenu } from "./ActionMenu";
@@ -26,7 +27,6 @@ import {createSourceOffsetMap} from "./source-mapping.js";
 import { useReferenceAssets } from "./useReferenceAssets";
 import type {
   WorkspacePreferences,
-  WorkspaceMode,
   LayoutId,
   PaneId,
   FocusPane,
@@ -68,6 +68,10 @@ export function App() {
       : defaultPreferences(window.navigator.language);
   });
   const [focusPane, setFocusPane] = useState<FocusPane>(null);
+  const [hiddenPanes, setHiddenPanes] = useState<PaneId[]>([]);
+  useEffect(() => {
+    if (focusPane) setHiddenPanes(current => current.filter(pane => pane !== focusPane));
+  }, [focusPane]);
   const [editorHistory, setEditorHistory] = useState({ undo: false, redo: false });
   const [engineCapabilities, setEngineCapabilities] = useState<EngineCapabilities>({
     ocr: false,
@@ -255,16 +259,21 @@ export function App() {
     if (!storage || !writePreferences(storage, preferences)) setStatus({ kind: "preferences" });
   }, [preferences]);
 
-  function changeMode(mode: WorkspaceMode) {
-    setFocusPane(null);
-    setPreferences((current) => ({ ...current, mode }));
-  }
-
   function changeLayout(nextLayout: LayoutId) {
     setFocusPane(null);
-    setPreferences((current) => current.mode === "normal"
-      ? { ...current, normalLayout: nextLayout === "N2" ? "N2" : "N1" }
-      : { ...current, transcriptionLayout: nextLayout === "T1" ? "T1" : "T2" });
+    setHiddenPanes([]);
+    setPreferences(current => nextLayout === "N1" || nextLayout === "N2"
+      ? { ...current, mode: "normal", normalLayout: nextLayout }
+      : { ...current, mode: "transcription", transcriptionLayout: nextLayout });
+  }
+
+  function panelControls(pane: PaneId, name: string) {
+    return <PanelControls copy={copy} name={name} maximized={focusPane === pane}
+      onToggle={() => setFocusPane(current => current === pane ? null : pane)}
+      onClose={() => {
+        setHiddenPanes(current => [...new Set([...current, pane])]);
+        setFocusPane(null);
+      }} />;
   }
 
   function changeSplit(nextSplit: { x: number; y: number }) {
@@ -273,15 +282,6 @@ export function App() {
     }));
   }
 
-  const layoutOptions = preferences.mode === "normal"
-    ? [
-        { value: "N1", label: copy.normalSideBySide },
-        { value: "N2", label: copy.normalStacked },
-      ]
-    : [
-        { value: "T1", label: copy.transcriptionColumns },
-        { value: "T2", label: copy.transcriptionComparison },
-      ];
   const setSplitStyle = {
     "--split-x": `${split.x}fr`,
     "--split-y": `${split.y}fr`,
@@ -359,7 +359,7 @@ export function App() {
   const replaceShortcut = isMac ? "⌘+⌥+F" : "Ctrl+H";
   const panes: Record<PaneId, ReactNode> = {
     editor: (
-      <section aria-label={copy.source} className="panel editor-panel" key="editor">
+      <section aria-label={copy.source} className="panel editor-panel" key="editor" hidden={hiddenPanes.includes("editor")}>
         <div className="panel-heading">
           <div className="editor-heading-title">
             <h2>{copy.source}</h2>
@@ -437,6 +437,7 @@ export function App() {
           <button className="heading-action editor-format-action" disabled={!documentOpen} onClick={() => editorController.current?.formatSource()} type="button">
             {copy.formatSource}
           </button>
+          {panelControls("editor", copy.source)}
         </div>
         {documentOpen && <JpsEditor
           diagnostics={[...sourceDiagnostics.diagnostics, ...noteDiagnostics]}
@@ -480,7 +481,7 @@ export function App() {
         )}
       </section>
     ),
-    preview: <ScorePreview key="preview" preview={preview} copy={copy} documentOpen={documentOpen} status={status} />,
+    preview: <ScorePreview hidden={hiddenPanes.includes("preview")} controls={panelControls("preview", copy.preview)} key="preview" preview={preview} copy={copy} documentOpen={documentOpen} status={status} />,
     reference: (
       <ReferencePanel
         key="reference"
@@ -525,8 +526,8 @@ export function App() {
         }
         renderErrorLabel={copy.pdfRenderFailed}
         visible={!focusPane || focusPane === "reference"}
-        onClose={() => changeMode("normal")}
-        onImport={() => { void importReferences(); }}
+        hidden={hiddenPanes.includes("reference")}
+        controls={panelControls("reference", copy.reference)}
         onSelect={(id) => updateReferences(selectReferenceImage(currentReferences.current, id))}
         onViewChange={(id, patch) => updateReferences(updateReferenceView(currentReferences.current, id, patch))}
         selectedId={references.selectedId}
@@ -595,10 +596,10 @@ export function App() {
           <button disabled={isSaving || referenceOperationBusy} title={`${copy.open} (${shortcut("O")})`} onClick={() => requestAction("open")} type="button">{copy.open}</button>
           <button disabled={!documentOpen || isSaving || referenceOperationBusy} title={`${copy.save} (${shortcut("S")})`} onClick={() => { void saveDocument(); }} type="button">{copy.save}</button>
           <button disabled={!documentOpen || isSaving || referenceOperationBusy} title={`${copy.saveAs} (${shortcut("Shift+S")})`} onClick={() => { void saveDocument(true); }} type="button">{copy.saveAs}</button>
-          <ActionMenu label={copy.recentFiles} actions={preferences.recentFiles.length
-            ? preferences.recentFiles.map(path => ({label: path, disabled: isSaving || referenceOperationBusy,
-                run: () => { requestAction("open", path); }}))
-            : [{label: copy.noRecentFiles, disabled: true, run: () => {}}]} />
+          <ActionMenu label={copy.importMenu} actions={[
+            {label: "JPG / PNG / PDF…", disabled: isSaving || referenceOperationBusy,
+              run: () => { setHiddenPanes([]); setFocusPane(null); void importReferences(); }},
+          ]} />
           <details className="export-menu" ref={exportMenuRef}>
             <summary>{copy.exportMenu}</summary>
             <div aria-label={copy.exportOptions} className="export-menu-items">
@@ -661,16 +662,6 @@ export function App() {
           )}
         </nav>
         <div className="workspace-actions">
-          <button
-            disabled={referenceOperationBusy}
-            onClick={() => { void importReferences(); }}
-            type="button"
-          >
-            {isImportingReferences ? copy.importingImages : copy.importImage}
-          </button>
-          <button disabled={isSaving || referenceOperationBusy} onClick={() => requestAction("examples")} type="button">
-            {copy.examples}
-          </button>
           {documentOpen && (
             <PageSettings
               config={score.pageConfig}
@@ -683,6 +674,16 @@ export function App() {
               wrapped={score.jsonWrapped}
             />
           )}
+          <ActionMenu label={copy.layout} actions={[
+            {label: copy.normalSideBySide, group: copy.normalMode, selected: layout === "N1",
+              run: () => changeLayout("N1")},
+            {label: copy.normalStacked, group: copy.normalMode, selected: layout === "N2",
+              run: () => changeLayout("N2")},
+            {label: copy.transcriptionColumns, group: copy.transcriptionMode, selected: layout === "T1",
+              run: () => changeLayout("T1")},
+            {label: copy.transcriptionComparison, group: copy.transcriptionMode, selected: layout === "T2",
+              run: () => changeLayout("T2")},
+          ]} />
           <button disabled={isSaving || referenceOperationBusy}
             onClick={() => setActiveDialog("preferences")} type="button">{copy.preferences}</button>
           <button
@@ -694,54 +695,18 @@ export function App() {
           </button>
         </div>
       </header>
-      <section aria-label={copy.workspaceControls} className="toolbar">
-        <div className="selectors">
-          <label>
-            {copy.mode} <select
-              onChange={(event) => changeMode(event.target.value as WorkspaceMode)}
-              value={preferences.mode}
-            >
-              <option value="normal">{copy.normalMode}</option>
-              <option value="transcription">{copy.transcriptionMode}</option>
-            </select>
-          </label>
-          <label>
-            {copy.layout} <select onChange={(event) => changeLayout(event.target.value as LayoutId)} value={layout}>
-              {layoutOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </label>
-        </div>
-        <div aria-label={copy.focusControls} className="focus-controls">
-          {preferences.mode === "transcription" && (
-            <button
-              aria-pressed={focusPane === "reference"}
-              disabled={!documentOpen}
-              onClick={() => setFocusPane("reference")}
-              title={copy.focusOriginal}
-              type="button"
-            >
-              {copy.focusOriginal}
-            </button>
-          )}
-          <button aria-pressed={focusPane === "editor"} disabled={!documentOpen} onClick={() => setFocusPane("editor")} title={copy.focusEditor} type="button">
-            {copy.focusEditor}
-          </button>
-          <button aria-pressed={focusPane === "preview"} disabled={!documentOpen} onClick={() => setFocusPane("preview")} title={copy.focusPreview} type="button">
-            {copy.focusPreview}
-          </button>
-          {focusPane && <button onClick={() => setFocusPane(null)} title={copy.exitFocus} type="button">{copy.exitFocus}</button>}
-        </div>
-      </section>
       <section
         aria-label={copy.workspace}
-        className={`workspace layout-${layout}${focusPane ? ` focus-${focusPane}` : ""}`}
+        className={`workspace layout-${layout}${hiddenPanes.length ? " panels-reduced" : ""}${focusPane ? ` focus-${focusPane}` : ""}`}
         style={setSplitStyle}
       >
         {paneOrder.map((pane) => panes[pane])}
-        {!focusPane && (layout === "N1" || layout === "T1" || layout === "T2") &&
+        {paneOrder.every(pane => hiddenPanes.includes(pane)) &&
+          <p className="panels-empty">{copy.panelsClosed}</p>}
+        {!focusPane && hiddenPanes.length === 0 && (layout === "N1" || layout === "T1" || layout === "T2") &&
           <PanelDivider key={`${layout}-x`} layout={layout} axis="x" split={split}
             label={xLabel} onChange={changeSplit} />}
-        {!focusPane && (layout === "N2" || layout === "T1" || layout === "T2") &&
+        {!focusPane && hiddenPanes.length === 0 && (layout === "N2" || layout === "T1" || layout === "T2") &&
           <PanelDivider key={`${layout}-y`} layout={layout} axis="y" split={split}
             label={yLabel} onChange={changeSplit} />}
 

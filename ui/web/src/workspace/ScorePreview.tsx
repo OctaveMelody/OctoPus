@@ -1,4 +1,4 @@
-import {useEffect} from "react";
+import {useEffect, type ReactNode} from "react";
 import { AdaptiveToolbar } from "./AdaptiveToolbar";
 import { ActionMenu } from "./ActionMenu";
 import type { useScorePreview } from "./useScorePreview";
@@ -19,11 +19,13 @@ function statusText(status: Status, copy: WorkspaceCopy): string {
   }
 }
 
-export function ScorePreview({ preview, copy, documentOpen, status }: {
+export function ScorePreview({ preview, copy, documentOpen, status, controls, hidden }: {
   preview: ReturnType<typeof useScorePreview>;
   copy: WorkspaceCopy;
   documentOpen: boolean;
   status: Status;
+  controls: ReactNode;
+  hidden: boolean;
 }) {
   const { currentPageCache, currentPage, selectedPage, previewZoom, setPreviewZoom, setPreviewFit,
     displayedPreview, previewScale, previewIsCurrent, previewUrl, previewCanvasRef, previewImageRef,
@@ -42,7 +44,7 @@ export function ScorePreview({ preview, copy, documentOpen, status }: {
     return () => element.removeEventListener("wheel", zoom);
   }, [documentOpen, previewCanvasRef, setPreviewZoom]);
   return (
-    <section aria-label={copy.preview} className="panel preview-panel" key="preview">
+    <section aria-label={copy.preview} className="panel preview-panel" key="preview" hidden={hidden}>
       <div className="panel-heading">
         <h2>{copy.preview}</h2>
         <AdaptiveToolbar label={copy.previewTools} className="preview-tools"
@@ -122,6 +124,7 @@ export function ScorePreview({ preview, copy, documentOpen, status }: {
             <button className="heading-action" disabled={!documentOpen}
               onClick={renderSelectedPage} type="button">{copy.render}</button>
           </>}/>
+        {controls}
       </div>
       <div className="preview-canvas" onClick={selectPreviewAnchor} ref={previewCanvasRef}
         tabIndex={0} role="region" aria-label={copy.preview} onKeyDown={event => {

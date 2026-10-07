@@ -56,18 +56,19 @@ export function InformationDialog({ kind: informationDialog, dialogRef: informat
           <section>
             <h2 id="information-dialog-title">{copy.aboutTitle}</h2>
             {brand}
+            <p>v1.0-Beta</p>
             <p>{copy.aboutDescription}</p>
             <p><a href="https://github.com/OctaveMelody/OctoPus" onClick={event => {
               event.preventDefault(); void openHelp("home");
             }}>{copy.projectHome}</a></p>
+            <h3>{copy.acknowledgments}</h3>
+            <p><a href="http://zhipu.lezhi99.com" onClick={event => {
+              event.preventDefault(); void openHelp("tomato_jianpu");
+            }}>{copy.tomatoJianpu}</a>{" — "}{copy.tomatoCredits}</p>
+            <p>{copy.transcriptionCredits}</p>
             <p>{copy.fontCredits}</p>
-            <h3>{copy.plannedFeatures}</h3>
-            <ul>
-              <li>{copy.plannedMusicXmlImport}</li>
-              <li>{copy.plannedMusicXmlExport}</li>
-              <li>{copy.plannedLilypondExport}</li>
-              <li>{copy.plannedMidiExport}</li>
-            </ul>
+            <h3>{copy.licenseTitle}</h3>
+            <p>{copy.licenseInformation}</p>
             <div className="dialog-actions">
               <button autoFocus className="primary-button" onClick={() => onClose()} type="button">
                 {copy.done}

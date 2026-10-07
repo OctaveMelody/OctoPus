@@ -6,10 +6,12 @@ OctoPus is a desktop editor for Jianpu (numbered musical notation). Scores are a
 (Jianpu Script) and rendered as a live SVG preview. The application can also transcribe Jianpu
 images and PDF files into editable JPS drafts and export scores to SVG, PDF, PNG or JPEG.
 
+The About dialog displays **v1.0-Beta** and the tagline “OctoPus: Oct(Octave) + Pus (JianPu) = The ultimate numbered notation editor.”
+
 ## Project background
 
-OctoPus is an independent implementation of a JPS parser and score renderer, developed with the
-visible output of the [Tomato JianPu Editor](http://zhipu.lezhi99.com) as a reference. It adds
+OctoPus adopts the JPS format from [Tomato JianPu](http://zhipu.lezhi99.com) and aims to match
+its rendered output through an independent parser and score renderer. It adds
 automatic note grouping for 6/8, 9/8 and 12/8 meters, as well as image and PDF transcription.
 
 This production repository contains the application, packaging configuration, offline Python
@@ -24,7 +26,9 @@ the separate OctoPus-dev repository.
 - Transcribe JPG, PNG and PDF score images into JPS drafts. Source-region findings support review,
   and a running transcription can be cancelled.
 - Export scores as SVG, PDF, PNG or JPEG. Raster exports support 96 and 300 DPI.
-- Reopen recent scores, use keyboard shortcuts and batch-export folders with the Python CLI.
+- Choose Normal or Transcription layouts and maximize, restore or close individual panels;
+  closing a panel preserves its content.
+- Use keyboard shortcuts and batch-export folders with the Python CLI.
 
 ## Transcription
 
@@ -107,5 +111,6 @@ for font mappings, fallback behavior and license details.
 - `samples/jps_files/`: 65 bundled score examples.
 - OctoPus-dev: tests, audits, reference output and development tools.
 
-OctoPus is licensed under GPL-3.0-or-later. The full license is in [LICENSE](LICENSE) and is
+OctoPus is licensed under the GNU General Public License, version 3 or later
+(GPL-3.0-or-later), without any warranty. The full license is in [LICENSE](LICENSE) and is
 included with Python distributions and native application resources.

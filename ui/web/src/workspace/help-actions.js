@@ -1,9 +1,9 @@
-/** @typedef {"manual" | "issues" | "requests" | "home" | "releases"} HelpDestination */
+/** @typedef {"manual" | "issues" | "requests" | "home" | "releases" | "tomato_jianpu"} HelpDestination */
 /** @typedef {{status: "available" | "up_to_date" | "unknown_version" | "unavailable", current_version: string, latest_version: string | null}} UpdateResult */
 
 /** @param {HelpDestination} destination @param {string} language */
 export async function openHelpDestination(destination, language) {
-  if (!["manual", "issues", "requests", "home", "releases"].includes(destination)) {
+  if (!["manual", "issues", "requests", "home", "releases", "tomato_jianpu"].includes(destination)) {
     throw new Error("Unsupported help destination.");
   }
   const invoke = window.__TAURI__?.core.invoke;
