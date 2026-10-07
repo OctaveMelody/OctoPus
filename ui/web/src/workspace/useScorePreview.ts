@@ -15,12 +15,12 @@ import {
   hitTestSourceAnchor,
   imagePointToSvg,
 } from "./source-mapping.js";
-import type { DocumentSnapshot, FocusPane, PageCache, PageRenderResponse, PreviewQueue,
+import type { DocumentSnapshot, PageCache, PageRenderResponse, PreviewQueue,
   PreviewRequest, RenderDiagnostic, RenderDiagnostics, RenderedPage, SourceAnchor, Status,
   WorkspaceCopy, FontSources } from "./types";
 
 export function useScorePreview({ score, currentDocument, documentOpen, recoveryReady, copy,
-  setStatus, editorController, focusPane, setFocusPane, fontSources }: {
+  setStatus, editorController, revealEditor, fontSources }: {
   fontSources?: FontSources;
   score: DocumentSnapshot;
   currentDocument: RefObject<DocumentSnapshot>;
@@ -29,8 +29,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
   copy: WorkspaceCopy;
   setStatus: Dispatch<SetStateAction<Status>>;
   editorController: RefObject<JpsEditorHandle | null>;
-  focusPane: FocusPane;
-  setFocusPane: Dispatch<SetStateAction<FocusPane>>;
+  revealEditor(): void;
 }) {
   const copyRef = useRef(copy);
   copyRef.current = copy;
@@ -274,12 +273,8 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
     const to = sourceOffsetMapRef.current.codePointToUtf16(item.span.end.offset);
     if (from === null || to === null) return;
     const selectSpan = () => editorController.current?.selectSourceRange(from, to, false);
-    if (focusPane === "preview") {
-      setFocusPane("editor");
-      window.requestAnimationFrame(selectSpan);
-    } else {
-      selectSpan();
-    }
+    revealEditor();
+    window.requestAnimationFrame(selectSpan);
   }
 
   function selectPage(pageIndex: number) {
@@ -323,13 +318,16 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
     const to = offsets.codePointToUtf16(end);
     if (from === null || to === null) return;
     // Programmatic editor focus/selection must not feed back into preview scrolling.
-    followEditorCursor.current = false;
-    selectingPreviewAnchor.current = true;
-    try {
-      editorController.current?.selectSourceRange(from, to);
-    } finally {
-      selectingPreviewAnchor.current = false;
-    }
+    revealEditor();
+    window.requestAnimationFrame(() => {
+      followEditorCursor.current = false;
+      selectingPreviewAnchor.current = true;
+      try {
+        editorController.current?.selectSourceRange(from, to);
+      } finally {
+        selectingPreviewAnchor.current = false;
+      }
+    });
   }
 
   function resetPreview(nextDocument: DocumentSnapshot) {

@@ -67,7 +67,7 @@ function validateNewScoreDraft(value) {
   }
   for (const key of ["beatNumerator", "beatDenominator"]) {
     const beat = value.fields[key];
-    if (typeof beat !== "number" || !Number.isInteger(beat) || beat < 1 || beat > 9) {
+    if (typeof beat !== "number" || !Number.isSafeInteger(beat) || beat < 1) {
       throw new TypeError("draft time signature is invalid");
     }
   }

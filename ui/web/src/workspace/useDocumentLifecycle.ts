@@ -7,7 +7,7 @@ import type { TranscriptionContext } from "./useTranscriptionSession";
 import type { WorkspaceCopy, WorkspacePreferences, FocusPane, LifecycleAction, DialogKind,
   CatalogDocument, NewScoreFields, CodecResponse, LoadedJps, SerializedJps, RecoveryDraft,
   RecoverySnapshot, DocumentSnapshot, Status } from "./types";
-import { beginDocumentSave, createDocumentSession, finishDocumentSave, isDocumentDirty } from "./document.js";
+import { beginDocumentSave, createDocumentSession, finishDocumentSave, isCurrentDocumentRevision, isDocumentDirty } from "./document.js";
 import { createNewScore, createNewScorePageConfig, normalizeJpsFileName } from "./new-score.js";
 import { destroyNativeWindow, listJpsDocuments, nativeCloseDisposition, openJpsDocument,
   openJpsCatalogDocument, pruneReferenceImages, referenceImageUrl, readRecoverySnapshot,
@@ -245,6 +245,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
     suggestedPath: string | null,
     text: string,
     sequence: number,
+    original: DocumentSnapshot,
   ) {
     const tauri = window.__TAURI__;
     if (!tauri) throw new Error(copy.needsDesktop);
@@ -253,6 +254,11 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
       args: { documentId: id, documentRevision: 0, name, text },
     });
     if (sequence !== transitionSequence.current) return false;
+    if (!isCurrentDocumentRevision(currentDocument.current, {
+      documentId: original.id, revision: original.revision,
+    }) || settingsDraftRef.current.dirty) {
+      throw new Error(copyRef.current.openDocumentChanged);
+    }
     const loaded = response.result?.document;
     if (response.status !== "ok" || !loaded) {
       throw new Error(response.error?.message ?? copy.openFailed);
@@ -277,6 +283,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
 
   async function performAction(action: LifecycleAction) {
     const sequence = ++transitionSequence.current;
+    const original = currentDocument.current;
     setDialogError("");
     if (action === "new") {
       setNewFileName("Untitled.jps");
@@ -349,6 +356,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
         opened.suggestedPath,
         opened.text,
         sequence,
+        original,
       );
       if (loaded) {
         rememberPath(LAST_OPENED_JPS_PATH_KEY, opened.suggestedPath || opened.path);
@@ -755,11 +763,12 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
 
   async function chooseCatalogDocument(document: CatalogDocument) {
     const sequence = ++transitionSequence.current;
+    const original = currentDocument.current;
     setActiveDialog(null);
     try {
       const opened = await openJpsCatalogDocument(document.kind, document.name);
       if (sequence !== transitionSequence.current) return;
-      await loadJpsText(opened.name, opened.path, opened.suggestedPath, opened.text, sequence);
+      await loadJpsText(opened.name, opened.path, opened.suggestedPath, opened.text, sequence, original);
     } catch (error) {
       if (sequence === transitionSequence.current) {
         setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });

@@ -9,11 +9,11 @@
 <button id="tab-zh-CN" role="tab" aria-selected="false" aria-controls="manual-zh-CN"
  tabindex="-1">简体中文</button></nav></header><main><article id="manual-en" lang="en" role="tabpanel" aria-labelledby="tab-en"><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
 <h1>User Manual</h1>
-<p>About version v1.0-Beta · 2026-10-07</p>
+<p>Version v1.0-Beta · 2026-10-07</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-en.pdf">Download PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#en-introduction">1. Introduction</a><a href="#en-capabilities">2. Capabilities, limits and roadmap</a><a href="#en-quickstart">3. Your first score</a><a href="#en-workspace">4. The workspace and UI</a><a href="#en-files">5. Files, saving and recovery</a><a href="#en-source">6. Editing JPS source</a><a href="#en-preview">7. Preview, cursor and navigation</a><a href="#en-reference">8. Original images/PDFs and transcription</a><a href="#en-layout">9. Modes, layouts and focus</a><a href="#en-settings">10. Page settings and fonts</a><a href="#en-export">11. Export and portable use</a><a href="#en-shortcuts">12. Keyboard and Help</a><a href="#en-jps-structure">13. JPS structure and conventions</a><a href="#en-headers">14. Descriptive header</a><a href="#en-notes">15. Notes, register and duration</a><a href="#en-beaming">16. Automatic and custom grouping</a><a href="#en-accidentals">17. Accidentals and grace notes</a><a href="#en-dynamics">18. Dynamics and hairpins</a><a href="#en-ornaments">19. Ornaments, parentheses and annotations</a><a href="#en-barlines">20. Barlines and repeat instructions</a><a href="#en-slurs">21. Slurs and tuplets</a><a href="#en-endings">22. Endings and temporary meter</a><a href="#en-voices">23. Voices and temporary accompaniment</a><a href="#en-lyrics">24. Lyrics: Chinese, English and mixed text</a><a href="#en-pagination">25. Manual page breaks</a><a href="#en-practice">26. Practical editing and review checklist</a><a href="#en-troubleshooting">27. Troubleshooting and feedback</a><a href="#en-sources">28. Reference basis and compatibility</a></nav>
 <section id="en-introduction"><h2>1. Introduction</h2>
-<p>OctoPus (Octave + Jianpu) is a desktop editor for numbered music notation. Write a score as JPS (Jianpu Script) text, review a live SVG score, compare it with an original image or PDF, and export finished pages. A .jps file describes musical content; page settings control its presentation. This guide follows the v1.0-Beta About label, updated 7 October 2026. Release and update metadata retain their own version numbers.</p>
+<p>OctoPus (Octave + Jianpu) is a desktop editor for numbered music notation. Write a score as JPS (Jianpu Script) text, review a live SVG score, compare it with an original image or PDF, and export finished pages. A .jps file describes musical content; page settings control its presentation. This guide describes version v1.0-Beta, updated 7 October 2026.</p>
 <p>The program works locally for editing, rendering and supported transcription once installed. Help links and update checks need a browser or network connection. This manual works offline; its English and Chinese versions share the same topics and examples. Use the language tabs, or download the matching PDF.</p>
 </section>
 <section id="en-capabilities"><h2>2. Capabilities, limits and roadmap</h2>
@@ -36,7 +36,7 @@
 </ul>
 </section>
 <section id="en-quickstart"><h2>3. Your first score</h2>
-<ul><li>Start OctoPus and choose <b>New</b>. Enter a title, choose the basic score fields and confirm.</li>
+<ul><li>Start OctoPus and choose <b>New</b>. Enter a title, choose the basic score fields and confirm. Time-signature values are positive integers; compound meters such as 12/8 are supported.</li>
 <li>Replace the source with the example below, or use <b>Open</b> to load a bundled example from the portable examples directory.</li>
 <li>Wait for the SVG preview to finish rendering. Click a note to locate its source; edit the text and review the result.</li>
 <li>Use <b>Page Settings</b> for margins/fonts, <b>Save As</b> for a .jps file, then <b>Export</b> for the finished score.</li>
@@ -76,7 +76,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <p>On a narrow pane, view controls become a <b>View</b> menu and source tools become <b>Edit</b>. SVG View includes Fit Page, Fit Width, Prev Page and Next Page; Original View includes fit and rotation plus PDF page navigation when applicable. Very narrow panes also expose zoom through View. This keeps actions on one heading row.</p>
 </section>
 <section id="en-files"><h2>5. Files, saving and recovery</h2>
-<p><b>Open</b> loads a .jps score. Both plain JPS text and compatible JSON-wrapped JPS documents are supported. The wrapper may contain source, page settings and existing metadata. <b>Save</b> writes the current document; a new document first needs a destination. <b>Save As</b> changes the destination. Changing page settings for plain text may require a wrapper to preserve them; heed the dialog notice.</p>
+<p><b>Open</b> loads a .jps score. If you edit the score or page settings while another file is loading, your changes are preserved and Open asks you to retry. Both plain JPS text and compatible JSON-wrapped JPS documents are supported. The wrapper may contain source, page settings and existing metadata. <b>Save</b> writes the current document; a new document first needs a destination. <b>Save As</b> changes the destination. Changing page settings for plain text may require a wrapper to preserve them; heed the dialog notice.</p>
 <p><b>Close</b> closes the score; <b>Exit</b> closes the application. If changes are unsaved, choose Save, Discard or Cancel. Recovery can restore the last recoverable draft and managed references after interruption; it does not replace ordinary saved backups. Reference images/PDFs are separate from score source: retain their original files. Opening a sample creates a working document; choose your own save location before overwriting anything.</p>
 <p>Use <b>Open</b> to reopen a saved score or a bundled example. Examples are provided in the portable examples directory; downloadable excerpts in this manual can also be opened directly.</p>
 </section>
@@ -669,7 +669,7 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 </article>
 <article id="manual-zh-CN" lang="zh-CN" role="tabpanel" aria-labelledby="tab-zh-CN" hidden><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
 <h1>用户手册</h1>
-<p>关于版本 v1.0-Beta · 2026-10-07</p>
+<p>版本 v1.0-Beta · 2026-10-07</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自动与自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
 <section id="zh-CN-introduction"><h2>1. 简介</h2>
@@ -696,7 +696,7 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 </ul>
 </section>
 <section id="zh-CN-quickstart"><h2>3. 第一份乐谱</h2>
-<ul><li>启动 OctoPus，选择<b>新建</b>，输入标题及基本乐谱字段并确认。</li>
+<ul><li>启动 OctoPus，选择<b>新建</b>，输入标题及基本乐谱字段并确认。拍号的分子和分母为正整数，支持 12/8 等复拍子。</li>
 <li>将源码替换为下面示例，或通过<b>打开</b>加载便携版 examples 目录中的示例乐谱。</li>
 <li>等待 SVG 预览渲染完成。点击音符定位源码，修改文本并检查结果。</li>
 <li>通过<b>页面设置</b>调整边距与字体，用<b>另存为</b>保存 .jps，再通过<b>导出</b>生成最终谱面。</li>
@@ -736,7 +736,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <p>面板较窄时，视图工具折叠为<b>视图（View）</b>菜单，源码工具折叠为<b>编辑（Edit）</b>菜单。SVG 视图含适合页面、适合宽度、上一页和下一页；原稿视图含适合、旋转，PDF 适用时还含翻页。极窄面板也通过视图菜单提供缩放。这些操作保持在同一标题行。</p>
 </section>
 <section id="zh-CN-files"><h2>5. 文件、保存与恢复</h2>
-<p><b>打开</b>加载 .jps 乐谱。支持纯 JPS 文本及兼容的 JSON 包装文档；包装可包含源码、页面设置和原有元数据。<b>保存</b>写入当前文档，新文档首次保存需选择位置。<b>另存为</b>更换保存位置。对纯文本文档修改页面设置时，为保存设置可能需要转为包装格式，请留意对话框提示。</p>
+<p><b>打开</b>加载 .jps 乐谱。如果加载另一文件期间修改了乐谱或页面设置，程序会保留修改并提示重新打开。支持纯 JPS 文本及兼容的 JSON 包装文档；包装可包含源码、页面设置和原有元数据。<b>保存</b>写入当前文档，新文档首次保存需选择位置。<b>另存为</b>更换保存位置。对纯文本文档修改页面设置时，为保存设置可能需要转为包装格式，请留意对话框提示。</p>
 <p><b>关闭</b>关闭乐谱，<b>退出</b>关闭程序。有未保存修改时，可选择保存、放弃或取消。中断后的恢复功能可还原最后可恢复的草稿及托管原稿，但不能替代常规文件备份。参考图片/PDF 与乐谱源码分别管理，请保留原始文件。打开示例后得到工作文档；覆盖文件前应选择自己的保存位置。</p>
 <p>使用<b>打开</b>重新打开已保存乐谱，或加载便携版 examples 目录中的示例。手册中可下载的摘录也可直接打开。</p>
 </section>
@@ -810,7 +810,7 @@ uv run --locked octopus batch-export /path/to/scores --out-dir images --format p
 </tbody>
 </table>
 <p>模态对话框打开或表单控件获得焦点时，部分快捷键不生效。帮助提供用户手册、报告问题、提交请求、检查更新及关于八爪鱼简谱。报告问题打开项目 Issues 页，提交请求打开 Pull Requests 页。检查更新比较 GitHub 最新稳定发布，分别报告信息不可用、不熟悉的版本标签或网络错误，不会安装更新。关于窗口及品牌标识链接项目主页。</p>
-<p><b>关于。</b>“关于八爪鱼简谱”显示 v1.0-Beta 和“八爪鱼简谱：玩转八度，轻松制谱”。致谢依次介绍番茄简谱的 JPS 格式及渲染兼容目标、RapidOCR（Apache-2.0）与 ONNX Runtime（MIT），以及内置字体作者。字体包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。八爪鱼简谱采用 GNU 通用公共许可证第 3 版或后续版本，不附带任何质保；完整第三方许可证随程序提供。规划中的功能见第 2 节。发布及更新元数据使用各自版本号。</p>
+<p><b>关于。</b>“关于八爪鱼简谱”显示 v1.0-Beta 和“八爪鱼简谱：玩转八度，轻松制谱”。致谢依次介绍番茄简谱的 JPS 格式及渲染兼容目标、RapidOCR（Apache-2.0）与 ONNX Runtime（MIT），以及内置字体作者。字体包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。八爪鱼简谱采用 GNU 通用公共许可证第 3 版或后续版本，不附带任何质保；完整第三方许可证随程序提供。规划中的功能见第 2 节。</p>
 </section>
 <section id="zh-CN-jps-structure"><h2>13. JPS 结构与约定</h2>
 <p>JPS 是普通文本，通常以 .jps 为扩展名。乐谱由描述头及曲 Q:、词 C: 组成。一个 Q 行对应一行印刷曲谱；随后 C 行依附该曲行。带数字前缀标识声部。空行便于阅读。以 # 开始的整行是注释；Q 行中的 # 是升音记号，不是注释。</p>

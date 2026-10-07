@@ -113,13 +113,11 @@ export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences
                 </select>
               </span></label>
               <label>{copy.timeSignature}<span className="field-pair">
-                <select aria-label={copy.timeNumerator} onChange={(event) => setNewScoreFields((current) => ({ ...current, beatNumerator: Number(event.target.value) }))} value={newScoreFields.beatNumerator}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((value) => <option key={value}>{value}</option>)}
-                </select>
+                <input type="number" min={1} max={Number.MAX_SAFE_INTEGER} step={1} required aria-label={copy.timeNumerator}
+                  onChange={(event) => setNewScoreFields((current) => ({ ...current, beatNumerator: Number(event.target.value) }))} value={newScoreFields.beatNumerator} />
                 <span aria-hidden="true">/</span>
-                <select aria-label={copy.timeDenominator} onChange={(event) => setNewScoreFields((current) => ({ ...current, beatDenominator: Number(event.target.value) }))} value={newScoreFields.beatDenominator}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((value) => <option key={value}>{value}</option>)}
-                </select>
+                <input type="number" min={1} max={Number.MAX_SAFE_INTEGER} step={1} required aria-label={copy.timeDenominator}
+                  onChange={(event) => setNewScoreFields((current) => ({ ...current, beatDenominator: Number(event.target.value) }))} value={newScoreFields.beatDenominator} />
               </span></label>
               <label>{copy.tempo}<input onChange={(event) => setNewScoreFields((current) => ({ ...current, tempo: event.target.value }))} value={newScoreFields.tempo} /></label>
             </div>

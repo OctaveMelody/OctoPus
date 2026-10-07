@@ -136,7 +136,7 @@ export function App() {
     importReferences, updateReferences } = referenceAssets;
 
   const preview = useScorePreview({ score, currentDocument, documentOpen, recoveryReady, copy,
-    setStatus, editorController, focusPane, setFocusPane, fontSources: outputFontSources });
+    setStatus, editorController, revealEditor: () => revealPane("editor"), fontSources: outputFontSources });
   const { handleEditorCursor, resetPreview, sourceChanged } = preview;
   useRecoveryPersistence(lifecycle, referenceAssets, setStatus);
 
@@ -207,12 +207,16 @@ export function App() {
       updateReferences(selectReferenceImage(currentReferences.current, id));
       const boxes = normalizedIssueRegions(issue.regions, reviewSource.context.draft.page_dimensions?.[issue.page - 1]);
       setReviewRegion({id, boxes, serial: Date.now()});
+      revealPane("reference");
       setPreferences(current => ({...current, mode: "transcription"}));
       setFocusPane(null);
     }
     if (reviewSource.id === score.id && reviewSource.source === score.source) {
       const range = issueSourceRange(score.source, issue);
-      if (range) editorController.current?.selectSourceRange(range.from, range.to, false);
+      if (range) {
+        revealPane("editor");
+        window.requestAnimationFrame(() => editorController.current?.selectSourceRange(range.from, range.to, false));
+      }
     }
   }
 
@@ -258,6 +262,11 @@ export function App() {
     const storage = getStorage();
     if (!storage || !writePreferences(storage, preferences)) setStatus({ kind: "preferences" });
   }, [preferences]);
+
+  function revealPane(pane: PaneId) {
+    setHiddenPanes(current => current.filter(hidden => hidden !== pane));
+    setFocusPane(current => current && current !== pane ? pane : current);
+  }
 
   function changeLayout(nextLayout: LayoutId) {
     setFocusPane(null);

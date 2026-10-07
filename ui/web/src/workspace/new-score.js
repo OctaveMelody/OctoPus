@@ -21,8 +21,8 @@ export function createNewScore(fields) {
     throw new TypeError("key signature is invalid");
   }
   for (const value of [fields.beatNumerator, fields.beatDenominator]) {
-    if (!Number.isInteger(value) || value < 1 || value > 9) {
-      throw new TypeError("time-signature values must be between 1 and 9");
+    if (!Number.isSafeInteger(value) || value < 1) {
+      throw new TypeError("time-signature values must be positive safe integers");
     }
   }
 
