@@ -6,15 +6,50 @@ import argparse
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "ui" / "web"
 BUILD = ROOT / "build" / "cargo"
 PACKAGE_SUFFIXES = {".appimage", ".deb", ".dmg", ".exe", ".msi"}
+RELEASE_TAG = re.compile(
+    r"^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)"
+    r"(?:-(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
+    r"(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
+
+
+def build_metadata(root: Path = ROOT, now: datetime | None = None) -> tuple[str, str]:
+    """Return the app version and short Git SHA for this build."""
+    def git(*args: str) -> str:
+        return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
+
+    sha = git("rev-parse", "--short", "HEAD")
+    tags = [
+        tag for tag in git("tag", "--merged", "HEAD", "--sort=-version:refname").splitlines()
+        if RELEASE_TAG.fullmatch(tag)
+    ]
+    ancestors = {commit: distance for distance, commit in enumerate(git("rev-list", "HEAD").splitlines())}
+    nearest_tag = None
+    nearest_distance = None
+    for tag in tags:
+        commit = git("rev-list", "-n", "1", tag)
+        distance = ancestors.get(commit)
+        if distance is not None and (nearest_distance is None or distance < nearest_distance):
+            nearest_tag, nearest_distance = tag, distance
+
+    release = (nearest_tag or "v0.0.0")[1:]
+    if nearest_distance != 0:
+        stamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime("%m%d%H%M")
+        version, separator, metadata = release.partition("+")
+        release = f"{version}-{stamp}" + (f"+{metadata}" if separator else "")
+    return release, sha
 
 
 def _tauri_build_command(bundles: str | None) -> list[str]:
@@ -114,14 +149,23 @@ def main() -> None:
         subprocess.run(["npm.cmd" if os.name == "nt" else "npm", "ci"], cwd=WEB, check=True)
 
     BUILD.mkdir(parents=True, exist_ok=True)
+    version, build_number = build_metadata()
+    version_config = BUILD / "tauri-version.json"
+    version_config.write_text(json.dumps({"version": version}), encoding="utf-8")
     command = _tauri_build_command(args.bundles)
+    command.extend(("--config", str(version_config)))
     if args.target:
         command.extend(("--target", args.target))
     # A renamed product must not accidentally republish a stale installer.
     bundle_output = BUILD / (args.target or "") / "release/bundle"
     if bundle_output.exists():
         shutil.rmtree(bundle_output)
-    subprocess.run(command, cwd=WEB, env={**os.environ, "CARGO_TARGET_DIR": str(BUILD)}, check=True)
+    subprocess.run(command, cwd=WEB, env={
+        **os.environ,
+        "CARGO_TARGET_DIR": str(BUILD),
+        "VITE_APP_VERSION": version,
+        "VITE_BUILD_NUMBER": build_number,
+    }, check=True)
 
     host = next(
         line.split(": ", 1)[1] for line in subprocess.check_output(
@@ -143,6 +187,7 @@ def main() -> None:
         copied = destination / package.name
         shutil.copy2(package, copied)
         print(copied)
+    print(f"Version: {version}, Build: {build_number}")
     print(publish_portable(destination, bundles.parent, platform.system()))
 
 

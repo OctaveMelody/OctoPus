@@ -9,11 +9,11 @@
 <button id="tab-zh-CN" role="tab" aria-selected="false" aria-controls="manual-zh-CN"
  tabindex="-1">简体中文</button></nav></header><main><article id="manual-en" lang="en" role="tabpanel" aria-labelledby="tab-en"><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
 <h1>User Manual</h1>
-<p>Version v1.0-Beta · 2026-10-07</p>
+<p>Version and build are generated from Git metadata · Updated 7 October 2026</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-en.pdf">Download PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#en-introduction">1. Introduction</a><a href="#en-capabilities">2. Capabilities, limits and roadmap</a><a href="#en-quickstart">3. Your first score</a><a href="#en-workspace">4. The workspace and UI</a><a href="#en-files">5. Files, saving and recovery</a><a href="#en-source">6. Editing JPS source</a><a href="#en-preview">7. Preview, cursor and navigation</a><a href="#en-reference">8. Original images/PDFs and transcription</a><a href="#en-layout">9. Modes, layouts and focus</a><a href="#en-settings">10. Page settings and fonts</a><a href="#en-export">11. Export and portable use</a><a href="#en-shortcuts">12. Keyboard and Help</a><a href="#en-jps-structure">13. JPS structure and conventions</a><a href="#en-headers">14. Descriptive header</a><a href="#en-notes">15. Notes, register and duration</a><a href="#en-beaming">16. Automatic and custom grouping</a><a href="#en-accidentals">17. Accidentals and grace notes</a><a href="#en-dynamics">18. Dynamics and hairpins</a><a href="#en-ornaments">19. Ornaments, parentheses and annotations</a><a href="#en-barlines">20. Barlines and repeat instructions</a><a href="#en-slurs">21. Slurs and tuplets</a><a href="#en-endings">22. Endings and temporary meter</a><a href="#en-voices">23. Voices and temporary accompaniment</a><a href="#en-lyrics">24. Lyrics: Chinese, English and mixed text</a><a href="#en-pagination">25. Manual page breaks</a><a href="#en-practice">26. Practical editing and review checklist</a><a href="#en-troubleshooting">27. Troubleshooting and feedback</a><a href="#en-sources">28. Reference basis and compatibility</a></nav>
 <section id="en-introduction"><h2>1. Introduction</h2>
-<p>OctoPus (Octave + Jianpu) is a desktop editor for numbered music notation. Write a score as JPS (Jianpu Script) text, review a live SVG score, compare it with an original image or PDF, and export finished pages. A .jps file describes musical content; page settings control its presentation. This guide describes version v1.0-Beta, updated 7 October 2026.</p>
+<p>OctoPus (Octave + Jianpu) is a desktop editor for numbered music notation. Write a score as JPS (Jianpu Script) text, review a live SVG score, compare it with an original image or PDF, and export finished pages. A .jps file describes musical content; page settings control its presentation. The installed version and build are shown in the About dialog; this guide was updated 7 October 2026.</p>
 <p>The program works locally for editing, rendering and supported transcription once installed. Help links and update checks need a browser or network connection. This manual works offline; its English and Chinese versions share the same topics and examples. Use the language tabs, or download the matching PDF.</p>
 </section>
 <section id="en-capabilities"><h2>2. Capabilities, limits and roadmap</h2>
@@ -150,7 +150,7 @@ uv run --locked octopus batch-export /path/to/scores --out-dir images --format p
 </tbody>
 </table>
 <p>Some shortcuts are inactive while a modal dialog is open or a form control has focus. Help offers User Manual, Report Issues, Submit Requests, Check for Update and About OctoPus. Issues open the project issue page; Requests opens the pull-request page. Check for Update compares the latest stable GitHub release and reports unavailable information, unfamiliar tags or network errors separately; it does not install updates. About and the logo link to the project home.</p>
-<p><b>About.</b> The dialog displays v1.0-Beta and “OctoPus: Oct(Octave) + Pus (JianPu) = The ultimate numbered notation editor.” Acknowledgments credit Tomato JianPu for the adopted JPS format and rendering compatibility goal, RapidOCR (Apache-2.0) with ONNX Runtime (MIT), and the bundled font authors. Fonts include MiSans, LXGW Neo XiHei, SimZhiSong, LXGW WenKai, Zhuque Fangsong, Noto Sans SC, Noto Serif SC and Liberation Sans. OctoPus uses the GNU General Public License, version 3 or later, without any warranty. Full third-party licenses remain bundled. Planned features are listed in section 2.</p>
+<p><b>About.</b> The dialog displays the generated version and short build SHA, followed by “OctoPus: Oct(Octave) + Pus (JianPu) = The ultimate numbered notation editor.” Acknowledgments credit Tomato JianPu for the adopted JPS format and rendering compatibility goal, RapidOCR (Apache-2.0) with ONNX Runtime (MIT), and the bundled font authors. Fonts include MiSans, LXGW Neo XiHei, SimZhiSong, LXGW WenKai, Zhuque Fangsong, Noto Sans SC, Noto Serif SC and Liberation Sans. OctoPus uses the GNU General Public License, version 3 or later, without any warranty. Full third-party licenses remain bundled. Planned features are listed in section 2.</p>
 </section>
 <section id="en-jps-structure"><h2>13. JPS structure and conventions</h2>
 <p>JPS is ordinary text, normally stored with extension .jps. A score has a descriptive header followed by music Q: and lyrics C:. One Q line represents a printed music row; following C lines belong to that row. Numbered prefixes identify voices. Blank lines improve source readability. A whole line beginning with # is a comment; inside a Q line, # is an accidental, not a comment.</p>
@@ -669,11 +669,11 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 </article>
 <article id="manual-zh-CN" lang="zh-CN" role="tabpanel" aria-labelledby="tab-zh-CN" hidden><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
 <h1>用户手册</h1>
-<p>版本 v1.0-Beta · 2026-10-07</p>
+<p>版本和构建号由 Git 元数据生成 · 更新于 2026-10-07</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自动与自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
 <section id="zh-CN-introduction"><h2>1. 简介</h2>
-<p>八爪鱼简谱（OctoPus）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。本手册适用于 v1.0-Beta 版本，更新于 2026 年 10 月 7 日。</p>
+<p>八爪鱼简谱（OctoPus）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。已安装版本和构建号可在“关于”对话框中查看；本手册更新于 2026 年 10 月 7 日。</p>
 <p>安装完成后，编辑、渲染和受支持的转录功能可在本地运行。帮助链接及更新检查需要浏览器或网络连接。手册本身支持离线阅读；中英文版本具有相同主题和示例。可切换语言标签页，也可下载对应 PDF。</p>
 </section>
 <section id="zh-CN-capabilities"><h2>2. 功能、限制与计划</h2>
@@ -810,7 +810,7 @@ uv run --locked octopus batch-export /path/to/scores --out-dir images --format p
 </tbody>
 </table>
 <p>模态对话框打开或表单控件获得焦点时，部分快捷键不生效。帮助提供用户手册、报告问题、提交请求、检查更新及关于八爪鱼简谱。报告问题打开项目 Issues 页，提交请求打开 Pull Requests 页。检查更新比较 GitHub 最新稳定发布，分别报告信息不可用、不熟悉的版本标签或网络错误，不会安装更新。关于窗口及品牌标识链接项目主页。</p>
-<p><b>关于。</b>“关于八爪鱼简谱”显示 v1.0-Beta 和“八爪鱼简谱：玩转八度，轻松制谱”。致谢依次介绍番茄简谱的 JPS 格式及渲染兼容目标、RapidOCR（Apache-2.0）与 ONNX Runtime（MIT），以及内置字体作者。字体包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。八爪鱼简谱采用 GNU 通用公共许可证第 3 版或后续版本，不附带任何质保；完整第三方许可证随程序提供。规划中的功能见第 2 节。</p>
+<p><b>关于。</b>“关于八爪鱼简谱”显示生成的版本和构建提交短 SHA，以及“八爪鱼简谱：玩转八度，轻松制谱”。致谢依次介绍番茄简谱的 JPS 格式及渲染兼容目标、RapidOCR（Apache-2.0）与 ONNX Runtime（MIT），以及内置字体作者。字体包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。八爪鱼简谱采用 GNU 通用公共许可证第 3 版或后续版本，不附带任何质保；完整第三方许可证随程序提供。规划中的功能见第 2 节。</p>
 </section>
 <section id="zh-CN-jps-structure"><h2>13. JPS 结构与约定</h2>
 <p>JPS 是普通文本，通常以 .jps 为扩展名。乐谱由描述头及曲 Q:、词 C: 组成。一个 Q 行对应一行印刷曲谱；随后 C 行依附该曲行。带数字前缀标识声部。空行便于阅读。以 # 开始的整行是注释；Q 行中的 # 是升音记号，不是注释。</p>

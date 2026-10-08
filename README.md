@@ -6,7 +6,8 @@ OctoPus is a desktop editor for Jianpu (numbered musical notation). Scores are a
 (Jianpu Script) and rendered as a live SVG preview. The application can also transcribe Jianpu
 images and PDF files into editable JPS drafts and export scores to SVG, PDF, PNG or JPEG.
 
-Version **v1.0-Beta** (matching About). The tagline is “OctoPus: Oct(Octave) + Pus (JianPu) = The ultimate numbered notation editor.”
+The About dialog shows the Git-tag-derived application version and the short SHA of the build commit.
+The tagline is “OctoPus: Oct(Octave) + Pus (JianPu) = The ultimate numbered notation editor.”
 
 ## Project background
 

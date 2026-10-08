@@ -117,6 +117,13 @@ Windows 原生环境使用 `.venv/Scripts/python.exe build.py --bundles nsis` �
 Microsoft C++ Build Tools 和 WebView2。Rust/PyInstaller 目标架构必须与运行 Python 的
 主机架构一致；不支持引擎交叉编译。macOS 打包暂未实现。
 
+每次 `build.py` 构建都会从 Git 标签生成应用版本，并使用当前提交的短 SHA 作为构建号。
+发布标签采用 SemVer 格式，例如 `v1.0.0-beta.1`。若 `HEAD` 有此类标签，“关于”对话框和安装包
+使用去掉开头 `v` 的标签版本。否则使用当前提交可达的最近发布标签，并追加 UTC 时间后缀
+`-MMDDHHmm`；若没有可达的发布标签，则以 `v0.0.0` 为基础并始终追加该后缀。构建程序会将生成的
+版本注入 Tauri 和前端；`package.json` 和源码中的字面值不是应用版本的来源。CI 检出时必须拉取标签。
+打包请使用 `build.py`；直接调用 Tauri 会绕过版本生成。
+
 `build.py` 在 `build/` 下构建前端、引擎和原生应用，将安装包复制到
 `dist/<target-triple>/`。引擎构建程序保留原有输出，直到新引擎通过字形检查、协议握手及
 渲染冒烟测试后才替换。每个仓库拥有独立的锁定文件；有意更新时使用 `uv lock`、npm 或

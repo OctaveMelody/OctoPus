@@ -15,6 +15,9 @@ export function InformationDialog({ kind: informationDialog, dialogRef: informat
   openHelp: (destination: HelpDestination) => Promise<void>;
   brand: ReactNode;
 }) {
+  const version = import.meta.env.VITE_APP_VERSION || "development";
+  const build = import.meta.env.VITE_BUILD_NUMBER || "unknown";
+
   return (
       <dialog
         aria-labelledby="information-dialog-title"
@@ -56,7 +59,7 @@ export function InformationDialog({ kind: informationDialog, dialogRef: informat
           <section>
             <h2 id="information-dialog-title">{copy.aboutTitle}</h2>
             {brand}
-            <p>v1.0-Beta</p>
+            <p>{copy.aboutVersionAndBuild(version, build)}</p>
             <p>{copy.aboutDescription}</p>
             <p><a href="https://github.com/OctaveMelody/OctoPus" onClick={event => {
               event.preventDefault(); void openHelp("home");
