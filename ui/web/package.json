@@ -7,8 +7,8 @@
     "node": ">=20.19"
   },
   "scripts": {
-    "dev": "node scripts/prepare-pdfjs-assets.mjs && vite --host 127.0.0.1 --port 5173 --strictPort",
-    "build": "node scripts/prepare-pdfjs-assets.mjs && tsc --noEmit && vite build",
+    "dev": "node scripts/prepare-pdfjs-assets.mjs && node scripts/prepare-user-manual.mjs && vite --host 127.0.0.1 --port 5173 --strictPort",
+    "build": "node scripts/prepare-pdfjs-assets.mjs && node scripts/prepare-user-manual.mjs && tsc --noEmit && vite build",
     "build:desktop": "npm run build -- --mode desktop && node scripts/build-desktop-engine.mjs"
   },
   "dependencies": {

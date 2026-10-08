@@ -18,3 +18,7 @@ figure img{max-height:230mm;object-fit:contain}section{break-inside:auto}}
 .sample-example pre{break-after:avoid}#en-sources,#zh-CN-sources{break-inside:avoid}}
 
 @media print{.keep-together{break-inside:avoid;page-break-inside:avoid}}
+.history-controls{position:fixed;right:12px;bottom:12px;z-index:1000;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;align-items:center;max-width:calc(100vw - 16px);padding:4px;background:rgba(20,57,74,.96);border:1px solid #83b2c5;border-radius:9px;box-shadow:0 3px 12px #0004}
+.history-controls button{display:grid;place-items:center;width:30px;height:30px;padding:0;color:#e6f4fc;background:transparent;font-size:16px;line-height:1;border-radius:6px}
+.history-controls button:hover{background:#ffffff24}
+@media print{.history-controls{display:none}}

@@ -65,9 +65,7 @@ export function InformationDialog({ kind: informationDialog, dialogRef: informat
               event.preventDefault(); void openHelp("home");
             }}>{copy.projectHome}</a></p>
             <h3>{copy.acknowledgments}</h3>
-            <p><a href="http://zhipu.lezhi99.com" onClick={event => {
-              event.preventDefault(); void openHelp("tomato_jianpu");
-            }}>{copy.tomatoJianpu}</a>{" — "}{copy.tomatoCredits}</p>
+            <p>{copy.tomatoJianpu}{" — "}{copy.tomatoCredits}</p>
             <p>{copy.transcriptionCredits}</p>
             <p>{copy.fontCredits}</p>
             <h3>{copy.licenseTitle}</h3>

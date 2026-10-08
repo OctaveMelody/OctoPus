@@ -1,14 +1,18 @@
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::future::Future;
+#[cfg(debug_assertions)]
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::async_runtime::Mutex;
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
-use tauri::AppHandle;
-#[cfg(not(debug_assertions))]
-use tauri::Manager;
+use tauri::WebviewWindow;
+use tauri::{AppHandle, Manager};
+use tauri::{WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 const PROJECT: &str = "https://github.com/OctaveMelody/OctoPus";
@@ -26,7 +30,6 @@ pub(crate) enum HelpDestination {
     Requests,
     Home,
     Releases,
-    TomatoJianpu,
 }
 
 pub(crate) fn project_url(destination: &HelpDestination) -> Option<String> {
@@ -36,35 +39,138 @@ pub(crate) fn project_url(destination: &HelpDestination) -> Option<String> {
         HelpDestination::Requests => format!("{PROJECT}/pulls"),
         HelpDestination::Home => PROJECT.into(),
         HelpDestination::Releases => format!("{PROJECT}/releases"),
-        HelpDestination::TomatoJianpu => "http://zhipu.lezhi99.com".into(),
     })
 }
 
-#[cfg(debug_assertions)]
-fn manual_path(_app: &AppHandle) -> Result<PathBuf, String> {
-    Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../docs/user-manual/index.html"))
+fn manual_filename(language: &str) -> &'static str {
+    if language == "zh-CN" {
+        "zh-CN.html"
+    } else {
+        "en.html"
+    }
 }
 
-#[cfg(not(debug_assertions))]
-fn manual_path(app: &AppHandle) -> Result<PathBuf, String> {
-    app.path()
+fn manual_pdf_filename(language: &str) -> &'static str {
+    if language == "zh-CN" {
+        "OctoPus-User-Manual-zh-CN.pdf"
+    } else {
+        "OctoPus-User-Manual-en.pdf"
+    }
+}
+
+fn manual_window_title(language: &str) -> &'static str {
+    if language == "zh-CN" {
+        "章鱼简谱用户手册"
+    } else {
+        "OctoPus User Manual"
+    }
+}
+
+fn manual_pdf_path(_app: &AppHandle, language: &str) -> Result<PathBuf, String> {
+    let filename = manual_pdf_filename(language);
+    #[cfg(debug_assertions)]
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../docs/PDF")
+        .join(filename);
+    #[cfg(not(debug_assertions))]
+    let path = _app
+        .path()
         .resolve(
-            crate::resource_relative("docs/user-manual/index.html"),
+            crate::resource_relative(&format!("docs/PDF/{filename}")),
             BaseDirectory::Resource,
         )
-        .map_err(|error| format!("could not locate user manual: {error}"))
+        .map_err(|error| format!("could not locate bundled user manual PDF: {error}"))?;
+    if !path.is_file() {
+        return Err(format!(
+            "bundled user manual PDF is missing: {}",
+            path.display()
+        ));
+    }
+    Ok(path)
 }
 
-pub(crate) fn manual_url(path: PathBuf, language: &str) -> Result<String, String> {
-    let path = path
-        .canonicalize()
-        .map_err(|error| format!("user manual is unavailable: {error}"))?;
-    if !path.is_file() {
-        return Err("user manual is not a file".into());
+#[tauri::command]
+pub(crate) async fn save_user_manual_pdf(
+    app: AppHandle,
+    window: WebviewWindow,
+    language: String,
+) -> Result<(), String> {
+    let source = manual_pdf_path(&app, &language)?;
+    let filename = manual_pdf_filename(&language).to_owned();
+    tauri::async_runtime::spawn_blocking(move || {
+        let selected = window
+            .dialog()
+            .file()
+            .set_parent(&window)
+            .add_filter("PDF document", &["pdf"])
+            .set_file_name(filename)
+            .blocking_save_file();
+        let Some(selected) = selected else {
+            return Ok(());
+        };
+        let mut destination = selected
+            .into_path()
+            .map_err(|_| "save dialog did not return a local path".to_owned())?;
+        if destination.extension().is_none() {
+            destination.set_extension("pdf");
+        }
+        if !destination
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"))
+        {
+            return Err("user manual destination must use the .pdf extension".into());
+        }
+        if source != destination {
+            fs::copy(source, destination)
+                .map_err(|error| format!("could not save user manual PDF: {error}"))?;
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("user manual save dialog failed: {error}"))?
+}
+
+fn open_manual(app: &AppHandle, language: &str) -> Result<(), String> {
+    let label = if language == "zh-CN" {
+        "user-manual-zh-cn"
+    } else {
+        "user-manual-en"
+    };
+    if let Some(window) = app.get_webview_window(label) {
+        window
+            .show()
+            .and_then(|()| window.set_focus())
+            .map_err(|error| format!("could not focus user manual: {error}"))?;
+        return Ok(());
     }
-    let mut url = reqwest::Url::from_file_path(path).map_err(|()| "invalid user manual path")?;
-    url.set_fragment(Some(if language == "zh-CN" { "zh-CN" } else { "en" }));
-    Ok(url.to_string())
+
+    let navigation_app = app.clone();
+    let new_window_app = app.clone();
+    WebviewWindowBuilder::new(app, label, WebviewUrl::App(manual_app_path(language)))
+        .title(manual_window_title(language))
+        .inner_size(1040.0, 780.0)
+        .min_inner_size(640.0, 480.0)
+        .on_navigation(move |url| {
+            let decision = manual_navigation_decision(url.as_str());
+            if decision.open_in_default_browser {
+                let _ = open_external_web_url(&navigation_app, url.as_str());
+            }
+            decision.allow_in_app
+        })
+        .on_new_window(move |url, _features| {
+            if manual_navigation_decision(url.as_str()).open_in_default_browser {
+                let _ = open_external_web_url(&new_window_app, url.as_str());
+            }
+            tauri::webview::NewWindowResponse::Deny
+        })
+        .build()
+        .map(|_| ())
+        .map_err(|error| format!("could not open user manual window: {error}"))
+}
+
+fn manual_app_path(language: &str) -> PathBuf {
+    PathBuf::from("docs/user-manual").join(manual_filename(language))
 }
 
 #[tauri::command]
@@ -73,13 +179,266 @@ pub(crate) fn open_help_destination(
     destination: HelpDestination,
     language: String,
 ) -> Result<(), String> {
-    let url = match project_url(&destination) {
-        Some(url) => url,
-        None => manual_url(manual_path(&app)?, &language)?,
+    match project_url(&destination) {
+        Some(url) => app
+            .opener()
+            .open_url(url, None::<&str>)
+            .map_err(|error| format!("could not open browser: {error}")),
+        None => open_manual(&app, &language),
+    }
+}
+
+fn is_internal_app_origin(url: &reqwest::Url) -> bool {
+    matches!(
+        (url.scheme(), url.host_str()),
+        ("tauri", Some("localhost"))
+            | ("http", Some("tauri.localhost"))
+            | ("https", Some("tauri.localhost"))
+    ) || (cfg!(debug_assertions)
+        && url.scheme() == "http"
+        && url.host_str() == Some("127.0.0.1")
+        && url.port() == Some(5173))
+}
+
+fn is_manual_page_url(raw_url: &str) -> bool {
+    let Ok(url) = reqwest::Url::parse(raw_url) else {
+        return false;
     };
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|error| format!("could not open browser: {error}"))
+    is_internal_app_origin(&url)
+        && url.path().starts_with("/docs/user-manual/")
+        && url.path().ends_with(".html")
+}
+
+fn is_external_web_url(raw_url: &str) -> bool {
+    let Ok(url) = reqwest::Url::parse(raw_url) else {
+        return false;
+    };
+    matches!(url.scheme(), "http" | "https")
+        && url.host_str().is_some()
+        && !is_internal_app_origin(&url)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ManualNavigationDecision {
+    allow_in_app: bool,
+    open_in_default_browser: bool,
+}
+
+fn manual_navigation_decision(raw_url: &str) -> ManualNavigationDecision {
+    if is_manual_page_url(raw_url) {
+        ManualNavigationDecision {
+            allow_in_app: true,
+            open_in_default_browser: false,
+        }
+    } else if is_external_web_url(raw_url) {
+        ManualNavigationDecision {
+            allow_in_app: false,
+            open_in_default_browser: true,
+        }
+    } else {
+        ManualNavigationDecision {
+            allow_in_app: false,
+            open_in_default_browser: false,
+        }
+    }
+}
+
+fn app_navigation_decision(raw_url: &str) -> ManualNavigationDecision {
+    let Ok(url) = reqwest::Url::parse(raw_url) else {
+        return ManualNavigationDecision {
+            allow_in_app: false,
+            open_in_default_browser: false,
+        };
+    };
+    if is_internal_app_origin(&url) {
+        ManualNavigationDecision {
+            allow_in_app: true,
+            open_in_default_browser: false,
+        }
+    } else if is_external_web_url(raw_url) {
+        ManualNavigationDecision {
+            allow_in_app: false,
+            open_in_default_browser: true,
+        }
+    } else {
+        ManualNavigationDecision {
+            allow_in_app: false,
+            open_in_default_browser: false,
+        }
+    }
+}
+
+pub(crate) fn handle_app_navigation(app: &AppHandle, raw_url: &str) -> bool {
+    let decision = app_navigation_decision(raw_url);
+    if decision.open_in_default_browser {
+        open_external_web_url(app, raw_url);
+    }
+    decision.allow_in_app
+}
+
+pub(crate) fn open_app_new_window(app: &AppHandle, raw_url: &str) {
+    if app_navigation_decision(raw_url).open_in_default_browser {
+        open_external_web_url(app, raw_url);
+    }
+}
+
+fn open_external_web_url(app: &AppHandle, url: &str) {
+    if is_external_web_url(url) {
+        let _ = app.opener().open_url(url.to_owned(), None::<&str>);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        app_navigation_decision, is_external_web_url, is_manual_page_url, manual_app_path,
+        manual_navigation_decision, manual_pdf_filename, manual_window_title, project_url,
+        HelpDestination, ManualNavigationDecision,
+    };
+    use std::path::PathBuf;
+
+    #[test]
+    fn manual_url_uses_the_bundled_frontend_path_and_selected_language() {
+        assert_eq!(
+            manual_app_path("en"),
+            PathBuf::from("docs/user-manual/en.html")
+        );
+        assert_eq!(
+            manual_app_path("zh-CN"),
+            PathBuf::from("docs/user-manual/zh-CN.html")
+        );
+        assert_eq!(manual_pdf_filename("en"), "OctoPus-User-Manual-en.pdf");
+        assert_eq!(
+            manual_pdf_filename("zh-CN"),
+            "OctoPus-User-Manual-zh-CN.pdf"
+        );
+    }
+
+    #[test]
+    fn manual_window_titles_use_the_product_name_in_both_languages() {
+        assert_eq!(manual_window_title("en"), "OctoPus User Manual");
+        assert_eq!(manual_window_title("zh-CN"), "章鱼简谱用户手册");
+    }
+
+    #[test]
+    fn manual_links_open_external_web_urls_instead_of_navigating_the_webview() {
+        assert!(is_external_web_url("https://example.com/"));
+        assert!(is_external_web_url("http://zhipu.lezhi99.com"));
+        assert!(!is_external_web_url("javascript:alert(1)"));
+        assert!(!is_external_web_url("file:///tmp/example.html"));
+        assert!(!is_external_web_url(
+            "http://tauri.localhost/docs/user-manual/en.html"
+        ));
+    }
+
+    #[test]
+    fn manual_navigation_keeps_local_pages_and_sends_external_web_links_to_default_browser() {
+        assert_eq!(
+            manual_navigation_decision("http://tauri.localhost/docs/user-manual/en.html"),
+            ManualNavigationDecision {
+                allow_in_app: true,
+                open_in_default_browser: false,
+            }
+        );
+        for url in ["https://example.com/", "http://zhipu.lezhi99.com"] {
+            assert_eq!(
+                manual_navigation_decision(url),
+                ManualNavigationDecision {
+                    allow_in_app: false,
+                    open_in_default_browser: true,
+                }
+            );
+        }
+        for url in [
+            "http://tauri.localhost/",
+            "javascript:alert(1)",
+            "file:///tmp/example.html",
+            "mailto:help@example.com",
+        ] {
+            assert_eq!(
+                manual_navigation_decision(url),
+                ManualNavigationDecision {
+                    allow_in_app: false,
+                    open_in_default_browser: false,
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn app_navigation_keeps_app_origins_and_routes_only_external_web_links_to_default_browser() {
+        for url in [
+            "tauri://localhost/",
+            "http://tauri.localhost/",
+            "https://tauri.localhost/",
+        ] {
+            assert_eq!(
+                app_navigation_decision(url),
+                ManualNavigationDecision {
+                    allow_in_app: true,
+                    open_in_default_browser: false,
+                }
+            );
+        }
+        for url in ["https://example.com/", "http://zhipu.lezhi99.com"] {
+            assert_eq!(
+                app_navigation_decision(url),
+                ManualNavigationDecision {
+                    allow_in_app: false,
+                    open_in_default_browser: true,
+                }
+            );
+        }
+        for url in [
+            "javascript:alert(1)",
+            "file:///tmp/example.html",
+            "mailto:help@example.com",
+        ] {
+            assert_eq!(
+                app_navigation_decision(url),
+                ManualNavigationDecision {
+                    allow_in_app: false,
+                    open_in_default_browser: false,
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn help_destinations_are_web_urls_routed_to_the_default_browser() {
+        let destinations = [
+            HelpDestination::Issues,
+            HelpDestination::Requests,
+            HelpDestination::Home,
+            HelpDestination::Releases,
+        ];
+        for destination in destinations {
+            let url = project_url(&destination).expect("external Help destination has a URL");
+            assert!(is_external_web_url(&url));
+            assert_eq!(
+                manual_navigation_decision(&url),
+                ManualNavigationDecision {
+                    allow_in_app: false,
+                    open_in_default_browser: true,
+                }
+            );
+        }
+        assert!(project_url(&HelpDestination::Manual).is_none());
+    }
+
+    #[test]
+    fn manual_window_stays_on_bundled_manual_pages() {
+        assert!(is_manual_page_url(
+            "http://tauri.localhost/docs/user-manual/en.html#contents"
+        ));
+        assert!(is_manual_page_url(
+            "https://tauri.localhost/docs/user-manual/zh-CN.html"
+        ));
+        assert!(!is_manual_page_url("http://tauri.localhost/"));
+        assert!(!is_manual_page_url(
+            "https://example.com/docs/user-manual/en.html"
+        ));
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]

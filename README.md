@@ -6,7 +6,7 @@ OctoPus is a desktop editor for Jianpu (numbered musical notation). Scores are a
 (Jianpu Script) and rendered as a live SVG preview. The application can also transcribe Jianpu
 images and PDF files into editable JPS drafts and export scores to SVG, PDF, PNG or JPEG.
 
-The About dialog shows the Git-tag-derived application version and the short SHA of the build commit.
+The About dialog shows the Git-derived application version and the short SHA of the build commit.
 The tagline is “OctoPus: Oct(Octave) + Pus (JianPu) = The ultimate numbered notation editor.”
 
 ## Project background
@@ -54,6 +54,7 @@ supported JPS notation and current limitations. The manual is included with inst
 portable packages. PDF editions are available in
 [English](docs/PDF/OctoPus-User-Manual-en.pdf) and
 [Chinese](docs/PDF/OctoPus-User-Manual-zh-CN.pdf).
+In the desktop app, the manual's PDF link opens a save dialog; in a browser, it downloads the PDF.
 
 ## Build from source
 
@@ -112,6 +113,7 @@ for font mappings, fallback behavior and license details.
 - `samples/jps_files/`: 65 bundled score examples.
 - OctoPus-dev: tests, audits, reference output and development tools.
 
-OctoPus is licensed under the GNU General Public License, version 3 or later
-(GPL-3.0-or-later), without any warranty. The full license is in [LICENSE](LICENSE) and is
-included with Python distributions and native application resources.
+OctoPus is released under the GNU General Public License, version 3. This software is
+shared for free; the author makes no warranty of any kind and assumes no liability for any
+direct or indirect loss arising from the use of this software. The full license is in
+[LICENSE](LICENSE) and is included with Python distributions and native application resources.

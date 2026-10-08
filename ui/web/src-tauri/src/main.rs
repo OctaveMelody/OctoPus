@@ -82,8 +82,17 @@ fn main() {
                 transcription: Arc::new(Mutex::new(transcription)),
                 transcription_jobs: Arc::default(),
             });
+            let navigation_app = app.handle().clone();
+            let new_window_app = app.handle().clone();
             tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
                 .enable_clipboard_access()
+                .on_navigation(move |url| {
+                    commands::help::handle_app_navigation(&navigation_app, url.as_str())
+                })
+                .on_new_window(move |url, _features| {
+                    commands::help::open_app_new_window(&new_window_app, url.as_str());
+                    tauri::webview::NewWindowResponse::Deny
+                })
                 .build()?;
             Ok(())
         })
@@ -113,6 +122,7 @@ fn main() {
             transcription::cancel_transcription,
             toggle_window_maximize,
             help::open_help_destination,
+            help::save_user_manual_pdf,
             help::check_for_update,
             documents::write_recovery_snapshot
         ])

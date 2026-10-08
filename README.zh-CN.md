@@ -1,15 +1,15 @@
-# 八爪鱼简谱（OctoPus）
+# 章鱼简谱（OctoPus）
 
 [English](README.md) | **简体中文**
 
-八爪鱼简谱（OctoPus）是一款桌面简谱编辑器，以 JPS（Jianpu Script）作为乐谱源格式，可实时生成 SVG
+章鱼简谱（OctoPus）是一款桌面简谱编辑器，以 JPS（Jianpu Script）作为乐谱源格式，可实时生成 SVG
 预览。程序也支持将简谱图片和 PDF 识别为可编辑的 JPS 草稿，并导出为 SVG、PDF、PNG 或 JPEG。
 
-“关于”对话框会显示由 Git 标签生成的应用版本和构建提交短 SHA。标语为“八爪鱼简谱：玩转八度，轻松制谱”。
+“关于”对话框会显示由 Git 元数据生成的应用版本和构建提交短 SHA。标语为“章鱼简谱：玩转八度，轻松制谱”。
 
 ## 项目背景
 
-八爪鱼简谱采用[番茄简谱](http://zhipu.lezhi99.com)的 JPS 格式，独立实现解析和乐谱排版，
+章鱼简谱采用[番茄简谱](http://zhipu.lezhi99.com)的 JPS 格式，独立实现解析和乐谱排版，
 并以匹配其渲染输出为目标。程序增加了 6/8、9/8、12/8 拍号下的音符自动分组，以及图片和 PDF 识谱功能。
 
 本生产仓库包含应用、打包配置、离线 Python 引擎和 JPS 示例。测试、审计、参考输出和开发工具
@@ -41,7 +41,7 @@
 
 在程序中选择 **帮助 → 用户手册**，或阅读[中英文离线手册](docs/user-manual/index.html)。手册介绍
 编辑流程、支持的 JPS 记谱和当前限制，随安装包和便携版附带。另有[英文 PDF](docs/PDF/OctoPus-User-Manual-en.pdf)
-和[中文 PDF](docs/PDF/OctoPus-User-Manual-zh-CN.pdf)。
+和[中文 PDF](docs/PDF/OctoPus-User-Manual-zh-CN.pdf)。在桌面程序中点击 PDF 链接会打开保存对话框；在浏览器中则直接下载。
 
 ## 源码构建
 
@@ -83,9 +83,9 @@ Python 引擎和乐谱示例。Linux 需要 GTK/WebKit 运行库和 Poppler 工�
 
 ## 字体
 
-字体角色优先使用已配置的系统字体；系统字体不可用时，程序使用随附并保留许可证的替代字体。
+字体角色优先使用已配置的系统字体；系统字体不可用时，改用随附的、附有许可证的内置替代字体。
 可在**偏好设置**中配置字体。PDF 导出会嵌入字体；外部 SVG 查看器需要能够访问乐谱引用的字体。
-字体对应关系、替换规则和许可证见[字体指南](src/octopus/assets/fonts/README.md)。
+字体对应关系、替换规则和许可证见[字体指南](src/octopus/assets/fonts/README.zh-CN.md)。
 
 ## 仓库内容
 
@@ -95,4 +95,4 @@ Python 引擎和乐谱示例。Linux 需要 GTK/WebKit 运行库和 Poppler 工�
 - `samples/jps_files/`：65 个打包乐谱示例。
 - OctoPus-dev：测试、审计、参考输出和开发工具。
 
-八爪鱼简谱采用 GNU 通用公共许可证第 3 版或后续版本（GPL-3.0-or-later），不附带任何质保。完整文本见 [LICENSE](LICENSE)，并随 Python 发行包和桌面程序资源分发。
+章鱼简谱基于 GNU 通用公共许可证第 3 版发布，本软件为免费分享，作者不承诺任何形式的担保，亦不承担因使用本软件所导致的任何直接或间接损失。完整文本见 [LICENSE](LICENSE)，并随 Python 发行包和桌面程序资源分发。

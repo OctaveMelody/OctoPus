@@ -1,5 +1,7 @@
 # Application fonts
 
+**English** | [简体中文](README.zh-CN.md)
+
 The settings panel offers HeiTi-1, HeiTi-2, SongTi, KaiTi and FangSong. Each installed
 system family is preferred independently on every OS; a missing family uses its
 bundled fallback. Windows/macOS use the mappings below. Linux, including the production
