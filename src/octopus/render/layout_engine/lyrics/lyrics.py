@@ -53,10 +53,12 @@ def _layout_lyrics(
     associations = _associate_lyrics(system.music_line_numbers, lyric_lines)
     for source_line, lyrics in associations.items():
         line_events = by_source_line.get(source_line, [])
-        # The reference anchors every verse of a line to the line's bottom row
-        # (the lowest rendered note row, dsb sub-rows included).
+        # Start at the bottom row, then use only this verse's visible lyric hosts.
+        # An unlyricized DSB passage must not lower lyrics on ordinary notes later.
         bottom_row_y = max((event.y for event in line_events), default=0.0)
+        events_by_address = {event.address.notepos: event for event in line_events}
         for lyric_index, lyric_line in enumerate(lyrics, start=1):
+            lyric_start = len(layout.lyrics)
             _layout_lyric_line(
                 layout,
                 lyric_line,
@@ -64,6 +66,18 @@ def _layout_lyrics(
                 lyric_index,
                 _lyric_consumable_events(line_events),
             )
+            rendered = layout.lyrics[lyric_start:]
+            host_y = [
+                events_by_address[address].y
+                for lyric in rendered
+                if lyric.text
+                and (address := lyric.cipos or lyric.anchor_cipos) is not None
+                and address in events_by_address
+            ]
+            if host_y:
+                offset = max(host_y) - bottom_row_y
+                for lyric in rendered:
+                    lyric.y += offset
 
 def _legacy_lyric_text_by_event(
     metrics: PageMetrics,
@@ -284,6 +298,7 @@ def _layout_lyric_line(
             previous_alignment_kind = token.kind
             continue
         if token.kind == LyricTokenKind.ANNOTATION:
+            event_index = _skip_implicit_hidden_placeholders(events, event_index)
             if event_index < len(events):
                 current_event = events[event_index]
                 annotation = LayoutLyric(

@@ -537,6 +537,7 @@ export function App() {
         visible={!focusPane || focusPane === "reference"}
         hidden={hiddenPanes.includes("reference")}
         controls={panelControls("reference", copy.reference)}
+        onImport={() => { void importReferences(); }}
         onSelect={(id) => updateReferences(selectReferenceImage(currentReferences.current, id))}
         onViewChange={(id, patch) => updateReferences(updateReferenceView(currentReferences.current, id, patch))}
         selectedId={references.selectedId}

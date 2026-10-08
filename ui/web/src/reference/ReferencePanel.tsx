@@ -64,6 +64,7 @@ type Props = {
   renderErrorLabel: string;
   controls?: ReactNode;
   hidden?: boolean;
+  onImport(): void;
   onSelect(id: string): void;
   onViewChange(id: string, patch: Partial<ReferenceView>): void;
 };
@@ -75,6 +76,7 @@ export function ReferencePanel({
   selectedId,
   views,
   busy,
+  importing,
   transcribing, cancelling = false, progress = null, onCancel, reviewRegion = null,
   showHint = false, onDismissHint,
   transcriptionControl,
@@ -82,6 +84,7 @@ export function ReferencePanel({
   renderErrorLabel,
   controls,
   hidden,
+  onImport,
   onSelect,
   onViewChange,
 }: Props) {
@@ -353,6 +356,9 @@ export function ReferencePanel({
           <p>{copy.referenceEmpty}</p>
           <span>{copy.importLater}</span>
           <span>{copy.dropReferenceHint}</span>
+          <button className="primary-button" disabled={busy} onClick={onImport} type="button">
+            {importing ? copy.importingImages : copy.importImage}
+          </button>
         </div>
       ) : (
         <>

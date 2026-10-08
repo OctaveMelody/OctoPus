@@ -217,7 +217,7 @@ def image_annotation_text(path: Path, rows: tuple[Box, ...]) -> tuple[TextSpan, 
 
 
 def image_lyric_text(
-    path: Path, rows: tuple[Box, ...], *, small_page: bool,
+    path: Path, rows: tuple[Box, ...], *, small_page: bool, recover_sparse: bool = False,
 ) -> tuple[TextSpan, ...] | None:
     """Read separate lyric baselines when whole-page OCR merges them."""
     engine = _ocr_engine()
@@ -254,13 +254,45 @@ def image_lyric_text(
         baseline_ranges = [(top + int(start), top + int(end))
                            for start, end in zip(starts, ends, strict=True)
                            if end - start >= max(8, round(note_height * 0.55))]
+        if recover_sparse:
+            # Recover sparse single-glyph baselines without joining already separated
+            # verses. The higher ink threshold above remains authoritative for those.
+            sparse = ink >= max(5, round(width * 0.005))
+            for gap in (1, 2):
+                sparse[gap:-1] |= sparse[:-gap - 1] & sparse[gap + 1:]
+            sparse_starts = np.flatnonzero(sparse & ~np.r_[False, sparse[:-1]])
+            sparse_ends = np.flatnonzero(sparse & ~np.r_[sparse[1:], False]) + 1
+            for start, end in zip(sparse_starts, sparse_ends, strict=True):
+                low, high = top + int(start), top + int(end)
+                if not max(8, note_height * 0.55) <= high - low <= note_height * 1.8:
+                    continue
+                overlaps = [(a, b) for a, b in baseline_ranges if low < b and high > a]
+                if not overlaps or (len(overlaps) == 1
+                                    and overlaps[0][1] - overlaps[0][0] < note_height * 1.1
+                                    and ink[int(start):int(end)].max(initial=0)
+                                    < note_height * 2.5):
+                    baseline_ranges = [band for band in baseline_ranges if band not in overlaps]
+                    baseline_ranges.append((low, high))
+        baseline_ranges.sort()
         row_start = len(spans)
-        for start, end in zip(starts, ends, strict=True):
-            if end - start < max(8, round(note_height * 0.55)):
-                continue
+        for low, high in baseline_ranges:
             padding = 2 if small_page else max(2, round(note_height * 0.1))
-            crop_top = max(0, top + int(start) - padding)
-            crop_bottom = min(height, top + int(end) + padding)
+            sparse_band = (recover_sparse
+                           and ink[low - top:high - top].max(initial=0) < note_height * 2.5)
+            if sparse_band and high - low < note_height * 1.1:
+                padding = max(padding, round(note_height * 0.3))
+            crop_top = max(0, low - padding)
+            crop_bottom = min(height, high + padding)
+            glyph_parts = [part for part in connected_components(
+                gray.crop((margin, crop_top, width - margin, crop_bottom)),
+            ) if part.height >= note_height * 0.5
+                and note_height * 0.25 <= part.width <= part.height * 6] if sparse_band else []
+            crop_left, crop_right = margin, width - margin
+            if glyph_parts:
+                crop_left = max(margin, margin + min(part.box[0] for part in glyph_parts)
+                                - note_height)
+                crop_right = min(width - margin,
+                                 margin + max(part.box[2] for part in glyph_parts) + note_height)
             crop = rgb.crop((margin, crop_top, width - margin, crop_bottom))
             factor = 2 if small_page else 1
             crop = crop.resize((crop.width * factor, crop.height * factor),
@@ -268,15 +300,45 @@ def image_lyric_text(
             result, _ = _ocr_call(
                 engine, np.asarray(crop), return_word_box=True, return_single_char_box=True,
             )
+            glyph_columns: list[tuple[int, int]] = []
+            for part in sorted(glyph_parts, key=lambda item: item.box[0]):
+                part_left, _, part_right, _ = part.box
+                if (glyph_columns and part_left - glyph_columns[-1][1] <= note_height * 0.2
+                        and part_right - glyph_columns[-1][0] <= note_height * 1.8):
+                    glyph_columns[-1] = (
+                        glyph_columns[-1][0], max(part_right, glyph_columns[-1][1]),
+                    )
+                else:
+                    glyph_columns.append((part_left, part_right))
+            count = sum("\u3400" <= char <= "\u9fff"
+                        for item in result or [] for char in str(item[1]))
+            if count and glyph_columns and count != len(glyph_columns):
+                tight = rgb.crop((crop_left, crop_top, crop_right, crop_bottom))
+                tight = tight.resize((tight.width * factor, tight.height * factor),
+                                     Image.Resampling.LANCZOS)
+                recovered, _ = _ocr_call(
+                    engine, np.asarray(tight), return_word_box=True, return_single_char_box=True,
+                )
+                recovered_count = sum("\u3400" <= char <= "\u9fff"
+                                      for item in recovered or [] for char in str(item[1]))
+                if recovered_count == len(glyph_columns) and all(
+                    float(item[2]) >= 0.72 for item in recovered or []
+                    if any("\u3400" <= char <= "\u9fff" for char in str(item[1]))
+                ):
+                    result = recovered
+                else:
+                    crop_left = margin
+            else:
+                crop_left = margin
             band_start = len(spans)
             for corners, value, confidence, *details in sorted(
                 result or [], key=lambda item: min(point[0] for point in item[0])
             ):
                 word = str(value).strip()
-                xs = [point[0] / factor + margin for point in corners]
+                xs = [point[0] / factor + crop_left for point in corners]
                 ys = [point[1] / factor + crop_top for point in corners]
                 box = (round(min(xs)), round(min(ys)), round(max(xs)), round(max(ys)))
-                centers = _character_centers(word, details, 1 / factor, margin)
+                centers = _character_centers(word, details, 1 / factor, crop_left)
                 overlap_trimmed = False
                 if (not small_page and len(spans) > band_start
                         and centers and spans[-1].character_centers
@@ -320,6 +382,16 @@ def image_lyric_text(
                     tuple(box[0] + (left + right) / 2 for left, right in glyphs)
                     if not overlap_trimmed and len(glyphs) == len(word) else centers
                 )
+                chinese = [index for index, char in enumerate(word)
+                           if "\u3400" <= char <= "\u9fff"]
+                if (recover_sparse and not overlap_trimmed and len(glyphs) == len(chinese)
+                        and all("\u3400" <= char <= "\u9fff" or char in "，。！？、,.!?；;：:"
+                                for char in word)):
+                    positions = dict(zip(chinese, (box[0] + (a + b) / 2 for a, b in glyphs),
+                                         strict=True))
+                    centers = tuple(positions.get(index, centers[index] if len(centers) == len(word)
+                                                  else (box[0] + box[2]) / 2)
+                                    for index in range(len(word)))
                 spans.append(TextSpan(
                     word,
                     box,

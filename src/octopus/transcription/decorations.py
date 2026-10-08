@@ -101,10 +101,11 @@ def _union(boxes: tuple[Box, ...]) -> Box:
 
 def _above_row(
     box: Box, notes: tuple[Box, ...], height: float, other_rows: tuple[Box, ...],
+    *, reach_factor: float = 2.6,
 ) -> bool:
     top = median(note[1] for note in notes)
     center_y = (box[1] + box[3]) / 2
-    reach = max(height * 2.6, height + (box[3] - box[1]) * 2)
+    reach = max(height * reach_factor, height + (box[3] - box[1]) * 2)
     if not (
         top - reach <= box[1]
         and box[3] <= top + height * 0.08
@@ -431,9 +432,9 @@ def row_hairpins(
         return ()
     height = median(box[3] - box[1] for box in note_boxes)
     arms = [component for component in components if (
-        component.width >= height * 1.8 and 2 <= component.height <= height * 1.1
+        component.width >= height * 0.8 and 1 <= component.height <= height * 1.1
         and component.area <= component.width * max(6, height * 0.24)
-        and _above_row(component.box, note_boxes, height, other_rows)
+        and _above_row(component.box, note_boxes, height, other_rows, reach_factor=3.0)
     )]
     ordered_arms = sorted(arms, key=lambda arm: arm.box[0])
     traces = [arm.box for arm in ordered_arms]
@@ -442,7 +443,8 @@ def row_hairpins(
         for candidate in ordered_arms[index + 1:]:
             previous_box = chain[-1]
             gap = candidate.box[0] - previous_box[2]
-            if (0 <= gap <= max(2, round(height * 0.2))
+            if (-height * 0.5 <= gap <= max(2, round(height * 0.5))
+                    and candidate.box[2] > previous_box[2]
                     and abs((previous_box[1] + previous_box[3] - candidate.box[1]
                              - candidate.box[3]) / 2) <= height * 0.6):
                 chain.append(candidate.box)
@@ -454,12 +456,14 @@ def row_hairpins(
     boxes.extend(_union((a, b)) for a, b in combinations(traces, 2) if (
         min(a[2], b[2]) - max(a[0], b[0])
         >= min(a[2] - a[0], b[2] - b[0]) * 0.6
-        and max(abs(a[0] - b[0]), abs(a[2] - b[2])) <= height * 4
+        and max(abs(a[0] - b[0]), abs(a[2] - b[2])) <= height * 6
         and max(a[3], b[3]) - min(a[1], b[1]) <= height * 1.1
     ))
     centers = [(box[0] + box[2]) / 2 for box in (music_boxes or note_boxes)]
     found: dict[tuple[int, int, str], Hairpin] = {}
     for box in dict.fromkeys(boxes):
+        if box[2] - box[0] < height * 1.8:
+            continue
         code = _two_branches(gray, box, height)
         if code is None:
             continue

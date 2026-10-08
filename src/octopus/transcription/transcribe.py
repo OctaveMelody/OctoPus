@@ -112,8 +112,8 @@ def _bar_marks(
     dots = [
         box for box in row.unresolved_marks
         if box[2] - box[0] <= digit_height * 0.4
-        and box[3] - box[1] <= max(4, digit_height * 0.35)
-        and abs((box[1] + box[3]) / 2 - row_y) <= digit_height * 0.8
+        and box[3] - box[1] <= max(4, digit_height * 0.5)
+        and abs((box[1] + box[3]) / 2 - row_y) <= digit_height * 1.1
     ]
     owners = {
         box: min(range(len(groups)), key=lambda index: min(
@@ -388,7 +388,13 @@ def _lyric_baseline_text(
                 for row in page.rows)
         for span in spans
     )
-    if page.voice_groups or page.dsb_overlays or page.bz_overlays or page.unresolved_braces:
+    if (page.dsb_overlays or page.unresolved_braces
+            or page.bz_overlays and not page.voice_groups):
+        return spans
+    if page.voice_groups and not any(
+        any("\u3400" <= char <= "\u9fff" for char in span.text)
+        and span.center_y > page.rows[0].box[3] for span in spans
+    ):
         return spans
     if note_height >= 16:
         # Large merged lyric rows need crops only when whole-page OCR exceeds its safe size.
@@ -397,11 +403,64 @@ def _lyric_baseline_text(
             return spans
     lyrics = image_lyric_text(
         path, tuple(row.box for row in page.rows), small_page=note_height < 16,
+        recover_sparse=bool(page.voice_groups),
     )
     if not lyrics:
         return spans
     lyric_duplicates = _bz_duplicate_text_spans(page, lyrics)
     lyrics = tuple(span for span in lyrics if span not in lyric_duplicates)
+    if page.voice_groups:
+        # Crops can also contain the next voice's digits or performance marks.
+        # Replace only corroborated lyric baselines, retaining all other text.
+        lyrics = tuple(span for span in lyrics if span.confidence >= 0.72
+                       and any("\u3400" <= char <= "\u9fff" for char in span.text)
+                       and all("\u3400" <= char <= "\u9fff" or char.isspace()
+                               or char in "，。！？、,.!?；;：:" for char in span.text))
+        def same_baseline(first: TextSpan, second: TextSpan) -> bool:
+            return (abs(first.center_y - second.center_y)
+                    <= max(9, min(first.height, second.height) * 0.42)
+                    or first.height >= note_height * 1.8
+                    and first.box[2] - first.box[0] < first.height
+                    and sum("\u3400" <= char <= "\u9fff" for char in first.text) >= 2)
+
+        def chinese_centers(span: TextSpan) -> tuple[float, ...]:
+            return tuple(
+                span.character_centers[index] if len(span.character_centers) == len(span.text)
+                else span.box[0] + (span.box[2] - span.box[0]) * (index + 0.5) / len(span.text)
+                for index, char in enumerate(span.text) if "\u3400" <= char <= "\u9fff"
+            )
+
+        retained: set[TextSpan] = set()
+        for span in spans:
+            if (span.confidence < 0.9 or len(span.character_centers) != len(span.text)
+                    or span.height >= note_height * 1.8
+                    and span.box[2] - span.box[0] < span.height
+                    and sum("\u3400" <= char <= "\u9fff" for char in span.text) >= 2):
+                continue
+            original_centers = chinese_centers(span)
+            recovered_centers = tuple(x for lyric in lyrics if same_baseline(span, lyric)
+                                      for x in chinese_centers(lyric))
+            if any(not any(abs(x - y) <= note_height for y in recovered_centers)
+                   for x in original_centers):
+                # A crop can omit a previously confident isolated glyph. Retain it;
+                # conflicting partial readings fall back to the original span too.
+                retained.add(span)
+                lyrics = tuple(lyric for lyric in lyrics if not (
+                    same_baseline(span, lyric) and any(
+                        abs(x - y) <= note_height
+                        for x in original_centers for y in chinese_centers(lyric)
+                    )
+                ))
+        return (
+            *(span for span in spans if span in retained or not any(
+                span.box[1] < lyric.box[3] and span.box[3] > lyric.box[1]
+                and span.box[0] < lyric.box[2] and span.box[2] > lyric.box[0]
+                and same_baseline(span, lyric)
+                and any("\u3400" <= char <= "\u9fff" for char in span.text)
+                for lyric in lyrics
+            )),
+            *lyrics,
+        )
     return (
         *(span for span in spans if span.box[3] < page.rows[0].box[1]),
         *lyrics,

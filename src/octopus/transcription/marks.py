@@ -117,7 +117,7 @@ def row_slurs(
                     span, fragment.box, joined.box,
                     _complete_curve_component(
                         fragment, gray, height,
-                        interval_count if span[0] is not None and span[1] is not None else 2,
+                        max(2, interval_count),
                     ),
                 ))
     # A broken shallow curve can make each half look like a shorter slur. Once its

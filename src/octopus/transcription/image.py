@@ -1049,6 +1049,10 @@ def recognize_image(path: Path) -> PageObservation:
         ending_boxes = tuple(segment.box for segment in row.endings)
         hairpins = row_hairpins(source_gray, notes, marks, other_rows=others, music_boxes=music)
         slur_marks = [component for component in marks if not any(
+            component.box[2] > left and component.box[0] < right
+            and top - height * 0.2 <= component.center_y <= bottom + height * 0.35
+            for left, top, right, bottom in others
+        ) and not any(
             component.box[0] < right and component.box[2] > left
             and component.box[1] < bottom and component.box[3] > top
             for left, top, right, bottom in ending_boxes

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from .components import Box
 from .image import MusicRow, PageObservation
@@ -171,6 +171,27 @@ def extract_lyrics(
     next_index = max(row_index, after_index) + 1
     continuation = next((overlay for overlay in page.dsb_overlays
                          if overlay.anchor == row_index and overlay.continuation), None)
+    alignment_row = row
+    overlay = next((overlay for overlay in page.dsb_overlays
+                    if overlay.anchor == row_index), None)
+    if overlay is not None:
+        # The emitted JPS lyric stream includes the lower DSB branch, even when
+        # the observed anchor row starts after a closing brace. Keep its note
+        # slots so later syllables receive the necessary skips; upper notes are
+        # a parallel stream, and sustain dashes do not consume lyric slots.
+        lower = page.rows[overlay.lower]
+        main_notes = tuple(note for note in row.notes if not (
+            overlay.standalone or overlay.closing_x is not None
+            and overlay.box[0] <= note.box[0] <= overlay.closing_x
+        ))
+        main_bars = tuple(x for x in row.barlines if not (
+            overlay.standalone or overlay.closing_x is not None
+            and overlay.box[0] <= x <= overlay.closing_x
+        ))
+        alignment_row = replace(
+            row, notes=tuple(sorted((*main_notes, *lower.notes), key=lambda note: note.box[0])),
+            barlines=tuple(sorted(set((*main_bars, *lower.barlines)))),
+        )
     branch_boxes = tuple(
         page.rows[index].box for index in (continuation.upper, continuation.lower)
     ) if continuation else ()
@@ -212,12 +233,13 @@ def extract_lyrics(
             abs(baseline - band[0].center_y) <= digit_height * 0.5
             for baseline in span.lyric_baselines
         ))
-        body = _assemble(band, row)
+        body = _assemble(band, alignment_row)
         if body:
             units = [unit for span in sorted(band, key=lambda item: item.box[0])
                      for unit in _lyric_units(span)]
             constrained = bool(_measure_slot_priors(
-                band, units, row, [(note.box[0] + note.box[2]) / 2 for note in row.notes],
+                band, units, alignment_row,
+                [(note.box[0] + note.box[2]) / 2 for note in alignment_row.notes],
             ))
             drafts.append(LyricDraft(body, tuple(span.box for span in band), constrained))
     return tuple(drafts)
