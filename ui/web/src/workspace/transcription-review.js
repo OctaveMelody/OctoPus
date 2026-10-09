@@ -26,25 +26,49 @@ export function mapFormattedIssueSpans(raw, actual, issues) {
   const points = issues.flatMap(issue => [issue.source_start, issue.source_end].map(
     offset => offset == null ? 0 : before.codePointToUtf16(offset) ?? 0,
   ));
-  const separator = actual.match(/\r\n|\r|\n/)?.[0] ?? "\n";
   /** @param {string} text */
-  const normalizeLines = text => text.replace(/\r\n|\r|\n/g, separator);
-  const formatted = normalizeLines(raw) === actual
+  const normalizeLines = text => text.replace(/\r\n|\r|\n/g, "\n");
+  const normalizedActual = normalizeLines(actual);
+  const formatted = normalizeLines(raw) === normalizedActual
     ? {text: raw, positions: points}
     : formatJpsSource(raw, points);
   const formattedText = normalizeLines(formatted.text);
   const after = createSourceOffsetMap(actual);
   return issues.map((issue, index) => {
-    let from = normalizeLines(formatted.text.slice(0, formatted.positions[index*2])).length;
-    let to = normalizeLines(formatted.text.slice(0, formatted.positions[index*2+1])).length;
-    const valid = formattedText === actual && issue.source_start != null && issue.source_end != null
+    let from = sourceOffsetFromNormalizedLines(actual,
+      normalizeLines(formatted.text.slice(0, formatted.positions[index*2])).length);
+    let to = sourceOffsetFromNormalizedLines(actual,
+      normalizeLines(formatted.text.slice(0, formatted.positions[index*2+1])).length);
+    const valid = formattedText === normalizedActual && from !== null && to !== null
+      && issue.source_start != null && issue.source_end != null
       && issue.source_end > issue.source_start && before.codePointToUtf16(issue.source_start) !== null
       && before.codePointToUtf16(issue.source_end) !== null;
+    if (!valid || from === null || to === null) {
+      return {...issue, source_start: null, source_end: null};
+    }
     while (from < to && /\s/.test(actual[from])) from++;
     while (to > from && /\s/.test(actual[to-1])) to--;
-    return {...issue,
-      source_start: valid && to > from ? after.utf16ToCodePoint(from) : null,
-      source_end: valid && to > from ? after.utf16ToCodePoint(to) : null,
-    };
+    return {...issue, source_start: to > from ? after.utf16ToCodePoint(from) : null,
+      source_end: to > from ? after.utf16ToCodePoint(to) : null};
   });
+}
+
+/** Map a normalized UTF-16 offset back to the serialized source without changing line endings.
+ * @param {string} source @param {number} offset
+ */
+function sourceOffsetFromNormalizedLines(source, offset) {
+  if (!Number.isSafeInteger(offset) || offset < 0) return null;
+  let sourceStart = 0;
+  let normalizedStart = 0;
+  for (const match of source.matchAll(/\r\n|\r|\n/g)) {
+    const sourceBreak = match.index;
+    if (sourceBreak === undefined) return null;
+    const normalizedBreak = normalizedStart + sourceBreak - sourceStart;
+    if (offset <= normalizedBreak) return sourceStart + offset - normalizedStart;
+    sourceStart = sourceBreak + match[0].length;
+    normalizedStart = normalizedBreak + 1;
+    if (offset === normalizedStart) return sourceStart;
+  }
+  const sourceOffset = sourceStart + offset - normalizedStart;
+  return sourceOffset <= source.length ? sourceOffset : null;
 }

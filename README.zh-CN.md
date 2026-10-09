@@ -92,7 +92,7 @@ Python 引擎和乐谱示例。Linux 需要 GTK/WebKit 运行库和 Poppler 工�
 - `src/octopus/` 和 `ui/`：应用源码及离线 Python 引擎。
 - `docs/user-manual/index.html`：随程序附带的中英文用户手册。
 - `docs/THIRD_PARTY_NOTICES.md`：OCR 模型、RapidOCR 和 ONNX Runtime 的许可说明。
-- `samples/jps_files/`：65 个打包乐谱示例。
+- `samples/jps_files/`：66 个打包乐谱示例，包括《小星星》。
 - OctoPus-dev：测试、审计、参考输出和开发工具。
 
 章鱼简谱基于 GNU 通用公共许可证第 3 版发布，本软件为免费分享，作者不承诺任何形式的担保，亦不承担因使用本软件所导致的任何直接或间接损失。完整文本见 [LICENSE](LICENSE)，并随 Python 发行包和桌面程序资源分发。

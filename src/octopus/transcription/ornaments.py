@@ -136,7 +136,8 @@ def row_endings(
             continue
         label = ""
         if segment.opens:
-            # ponytail: numeric labels only; keep other text in review until ownership is reliable.
+            # Interpret numeric volta labels only; other text stays in review until
+            # ownership is reliable.
             letters = [
                 component for component in components
                 if left + height * 0.15 < component.box[0] < min(right, left + height * 4)

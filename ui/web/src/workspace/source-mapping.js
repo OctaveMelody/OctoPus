@@ -13,11 +13,18 @@
 /** @typedef {{source_spans: SourceSpan[], row: number, x: number, y: number}} LyricAnchor */
 /** @typedef {{events: EventAnchor[], lyrics: LyricAnchor[]}} PageAnchors */
 
-/** CodeMirror stores each configured line separator as one character.
- * @param {string} source @param {number} offset */
-export function sourceOffsetToEditorOffset(source, offset) {
+/** CodeMirror accepts one separator; keep the first serialized ending for round-tripping.
+ * @param {string} source
+ */
+export function sourceLineSeparator(source) {
+  return source.match(/\r\n|\r|\n/)?.[0] ?? "\n";
+}
+
+/** Map serialized UTF-16 offsets to CodeMirror offsets; configured separators count as one.
+ * @param {string} source @param {number} offset @param {string} [separator]
+ */
+export function sourceOffsetToEditorOffset(source, offset, separator = sourceLineSeparator(source)) {
   if (!Number.isSafeInteger(offset) || offset < 0 || offset > source.length) return null;
-  const separator = source.match(/\r\n|\r|\n/)?.[0] ?? "\n";
   return source.slice(0, offset).split(separator).join("\n").length;
 }
 

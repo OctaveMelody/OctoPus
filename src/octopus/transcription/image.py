@@ -103,7 +103,7 @@ def _qr_regions(gray: Image.Image) -> tuple[Box, ...]:
         import numpy as np
     except ImportError:
         return ()
-    # ponytail: one readable QR panel per page; use decodeMulti for multiple panels.
+    # shortcut: reads one QR panel per page, use decodeMulti for multi-panel pages.
     detector = cv2.QRCodeDetector()
     payload, corners, _ = detector.detectAndDecode(np.asarray(gray))
     scale = 1
@@ -505,7 +505,7 @@ def _split_digit_cluster(
     left, upper, right, lower = component.box
     pixels = gray.load()
     assert pixels is not None
-    # ponytail: four touching digits; use dynamic programming if larger clusters need recovery.
+    # shortcut: splits at most four touching digits, use dynamic programming for larger clusters.
     if not 1 <= len(owned) <= 4 or component.width > height and len(owned) < 2:
         return []
     seams = []

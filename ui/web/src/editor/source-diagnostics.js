@@ -1,25 +1,32 @@
-import { createSourceOffsetMap, sourceOffsetToEditorOffset } from "../workspace/source-mapping.js";
+import {
+  createSourceOffsetMap,
+  sourceLineSeparator,
+  sourceOffsetToEditorOffset,
+} from "../workspace/source-mapping.js";
 
 /**
  * Convert parser codepoint spans to CodeMirror UTF-16 positions. CodeMirror stores every
  * configured line separator as one internal character, even when sliceDoc returns CRLF.
  * @param {string} source
  * @param {import('../workspace/types').RenderDiagnostic[]} diagnostics
+ * @param {string} [separator]
  */
-export function sourceDiagnosticRanges(source, diagnostics) {
+export function sourceDiagnosticRanges(source, diagnostics, separator = sourceLineSeparator(source)) {
   const offsets = createSourceOffsetMap(source);
-  const separator = source.match(/\r\n|\r|\n/)?.[0] ?? "\n";
-  const normalized = source.split(separator).join("\n");
   return diagnostics.flatMap((diagnostic) => {
     if (!diagnostic.span || typeof diagnostic.message !== "string") return [];
     const serializedFrom = offsets.codePointToUtf16(diagnostic.span.start.offset);
     const serializedTo = offsets.codePointToUtf16(diagnostic.span.end.offset);
     if (serializedFrom === null || serializedTo === null || serializedFrom > serializedTo) return [];
-    const from = sourceOffsetToEditorOffset(source, serializedFrom);
-    const to = sourceOffsetToEditorOffset(source, serializedTo);
+    const from = sourceOffsetToEditorOffset(source, serializedFrom, separator);
+    const to = sourceOffsetToEditorOffset(source, serializedTo, separator);
     if (from === null || to === null) return [];
     // Use offsets, not a potentially mismatched line number, as the single positioning authority.
-    const lineFrom = from === 0 ? 0 : normalized.lastIndexOf("\n", from - 1) + 1;
+    const separatorFrom = serializedFrom < separator.length
+      ? -1 : source.lastIndexOf(separator, serializedFrom - separator.length);
+    const lineStart = separatorFrom < 0 ? 0 : separatorFrom + separator.length;
+    const lineFrom = sourceOffsetToEditorOffset(source, lineStart, separator);
+    if (lineFrom === null) return [];
     return [{ from, to, lineFrom,
       severity: diagnostic.severity === "error" || diagnostic.severity === "warning"
         ? diagnostic.severity : "info",

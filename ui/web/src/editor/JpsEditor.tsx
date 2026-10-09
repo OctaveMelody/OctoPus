@@ -60,7 +60,7 @@ import { jpsLanguage } from "./jps-language";
 import { pageConfigField, pageConfigHistory, setPageConfig } from "./page-config-history.js";
 import { setSourceDiagnostics, sourceDiagnosticsExtension, sourceWrappingGutter } from "./diagnostics.js";
 import { sourceDiagnosticRanges } from "./source-diagnostics.js";
-import { sourceOffsetToEditorOffset } from "../workspace/source-mapping.js";
+import { sourceLineSeparator, sourceOffsetToEditorOffset } from "../workspace/source-mapping.js";
 
 const setNoteHighlight = StateEffect.define<{ from: number; to: number } | null>();
 const noteHighlightField = StateField.define<DecorationSet>({
@@ -136,8 +136,10 @@ export function JpsEditor({
   const lineSeparator = useRef(new Compartment());
   const wrappingGutter = useRef(new Compartment());
   const extensions = useRef<Extension[]>([]);
+  const configuredSeparator = view.current && sourceId.current === documentId
+    ? view.current.state.lineBreak : sourceLineSeparator(source);
   const diagnosticRanges = diagnosticsSource === source
-    ? sourceDiagnosticRanges(source, diagnostics) : [];
+    ? sourceDiagnosticRanges(source, diagnostics, configuredSeparator) : [];
 
   onChangeRef.current = onChange;
   onCursorChangeRef.current = onCursorChange;
@@ -151,7 +153,7 @@ export function JpsEditor({
     initialPageConfig: Record<string, unknown>,
   ): Extension[] {
     return [
-      lineSeparator.current.of(EditorState.lineSeparator.of(lineSeparatorFor(doc))),
+      lineSeparator.current.of(EditorState.lineSeparator.of(sourceLineSeparator(doc))),
       locale.current.of(localeExtensions(editorLanguage)),
       keymap.of([{
         key: "Mod-f",
@@ -266,8 +268,8 @@ export function JpsEditor({
       },
       selectSourceRange(from, to, highlight = true) {
         const source = editor.state.sliceDoc();
-        const editorFrom = sourceOffsetToEditorOffset(source, from);
-        const editorTo = sourceOffsetToEditorOffset(source, to);
+        const editorFrom = sourceOffsetToEditorOffset(source, from, editor.state.lineBreak);
+        const editorTo = sourceOffsetToEditorOffset(source, to, editor.state.lineBreak);
         if (
           editorFrom === null || editorTo === null || editorFrom > editorTo
         ) return false;
@@ -404,8 +406,4 @@ function localeExtensions(language: Language): Extension[] {
       spellcheck: "false",
     }),
   ];
-}
-
-function lineSeparatorFor(source: string) {
-  return source.match(/\r\n|\r|\n/)?.[0] ?? "\n";
 }

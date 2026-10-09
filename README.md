@@ -110,7 +110,7 @@ for font mappings, fallback behavior and license details.
 - `src/octopus/` and `ui/`: application source and offline Python worker.
 - `docs/user-manual/index.html`: packaged English/Chinese user manual.
 - `docs/THIRD_PARTY_NOTICES.md`: OCR model, RapidOCR and ONNX Runtime license notices.
-- `samples/jps_files/`: 65 bundled score examples.
+- `samples/jps_files/`: 66 bundled score examples, including 小星星.
 - OctoPus-dev: tests, audits, reference output and development tools.
 
 OctoPus is released under the GNU General Public License, version 3. This software is
