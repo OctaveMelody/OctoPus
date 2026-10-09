@@ -185,11 +185,11 @@ class _DurationGroupState:
       eighth-note run starting on a half-beat offset).
     * A ``^`` mark closes the group after its note; the following note starts
       a new group even within the same beat window.
-    * In simple meters, when a long note whose duration is not a whole number of beats or that
-      carries a tie mark appears in a measure, the first short note of every
-      following run in that measure is isolated as a stub when its duration
-      is at least half a beat and it is not tied. The priming is consumed by
-      the first short note it meets.
+    * A tied long note in any meter, or a long note with a fractional beat
+      duration in simple meter, primes the first short note of every following
+      run in that measure as a stub when its duration is at least half a beat
+      and it is not tied. The priming is consumed by the first short note it
+      meets.
     * The run immediately after a zero-duration tied rest (``8~``) renders
       all of its notes as isolated stubs, except notes pulled into a group by
       a preceding tie.
@@ -228,12 +228,10 @@ class _DurationGroupState:
         # A tied rest isolates its following run only when no preceding tie
         # pulls across it; a pending pull takes precedence.
         self.tied_rest_isolation = tied_rest and not last_tied
-        # The legacy quarter-beat isolation rule belongs to simple meters.
-        # Compound beats use their exact phase: two quarters followed by two
-        # eighths must leave those eighths together in the final compound beat.
-        if self.beat == 1 and duration > 0 and (
-            duration % self.beat != 0 or self.tied_long_note
-        ):
+        # Explicit ties prime their following run in any meter. Ordinary
+        # fractional-duration priming remains a simple-meter rule; compound
+        # beats use their exact phase for ordinary notes.
+        if self.tied_long_note or (self.beat == 1 and duration > 0 and duration % self.beat != 0):
             self.measure_primed = True
         self.onset += duration
 

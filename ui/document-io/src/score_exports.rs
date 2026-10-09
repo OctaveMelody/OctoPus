@@ -278,7 +278,7 @@ mod tests {
     use image::codecs::jpeg::JpegDecoder;
     use image::ImageDecoder;
 
-    use super::{export_jpg_pages, export_pdf, export_png_pages};
+    use super::{export_jpg_pages, export_pdf, export_pdf_with_options, export_png_pages};
     use crate::DocumentIoError;
 
     const SVG_PAGE: &str = r##"
@@ -344,7 +344,17 @@ mod tests {
 
     #[test]
     fn exports_multiple_vector_pdf_pages_with_embedded_text_resources() {
-        let pdf = export_pdf(&vec![SVG_PAGE.to_owned(); 5]).unwrap();
+        let font_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../src/octopus/assets/fonts/MiSans-Regular.ttf");
+        let mut font_database = super::usvg::fontdb::Database::new();
+        font_database.load_font_file(font_path).unwrap();
+        let options = super::usvg::Options {
+            font_family: "MiSans".into(),
+            fontdb: std::sync::Arc::new(font_database),
+            ..Default::default()
+        };
+        let pages = vec![SVG_PAGE.replace("Microsoft YaHei", "MiSans"); 5];
+        let pdf = export_pdf_with_options(&pages, options).unwrap();
         let page_marker = b"/Type/Page/";
 
         assert!(pdf.starts_with(b"%PDF-"));

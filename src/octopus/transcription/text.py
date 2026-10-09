@@ -224,6 +224,7 @@ def image_lyric_text(
     if engine is None:
         return None
     import numpy as np
+    from numpy.typing import NDArray
 
     with Image.open(path) as source:
         oriented = ImageOps.exif_transpose(source).convert("RGBA")
@@ -353,7 +354,9 @@ def image_lyric_text(
                         continue
                 glyphs: list[tuple[int, int]] = []
                 if any("\u3400" <= character <= "\u9fff" for character in word):
-                    columns = dark[box[1]:box[3], box[0]:box[2]].any(axis=0)
+                    columns: NDArray[np.bool_] = np.asarray(
+                        dark[box[1]:box[3], box[0]:box[2]].any(axis=0), dtype=np.bool_
+                    )
                     starts = np.flatnonzero(columns & ~np.r_[False, columns[:-1]])
                     ends = np.flatnonzero(columns & ~np.r_[columns[1:], False]) + 1
                     for left, right in zip(starts, ends, strict=True):
