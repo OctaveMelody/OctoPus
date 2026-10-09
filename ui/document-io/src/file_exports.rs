@@ -33,13 +33,13 @@ pub fn publish_export_pages(
     selected_path: &Path,
     format: ExportFormat,
     pages: &[&[u8]],
-    replace_existing: bool,
+    confirmed_existing: &[PathBuf],
 ) -> Result<Vec<PathBuf>, DocumentIoError> {
     publish_pages(
         selected_path,
         format,
         pages,
-        replace_existing,
+        confirmed_existing,
         |temporary| Handle::from_file(temporary.as_file().try_clone()?),
     )
 }
@@ -48,7 +48,7 @@ fn publish_pages(
     selected_path: &Path,
     format: ExportFormat,
     pages: &[&[u8]],
-    replace_existing: bool,
+    confirmed_existing: &[PathBuf],
     mut identify: impl FnMut(&NamedTempFile) -> io::Result<Handle>,
 ) -> Result<Vec<PathBuf>, DocumentIoError> {
     if pages.is_empty() || pages.iter().any(|page| page.is_empty()) {
@@ -75,23 +75,19 @@ fn publish_pages(
     let mut existing_targets = Vec::new();
     for target in &targets {
         match fs::symlink_metadata(target) {
-            Ok(metadata) if replace_existing && metadata.file_type().is_file() => {
+            Ok(metadata)
+                if confirmed_existing.contains(target) && metadata.file_type().is_file() =>
+            {
                 existing_targets.push(target.clone());
             }
-            Ok(_) if replace_existing => return Err(DocumentIoError::InvalidTarget),
+            Ok(_) if confirmed_existing.contains(target) => {
+                return Err(DocumentIoError::InvalidTarget)
+            }
             Ok(_) => return Err(DocumentIoError::ExportDestinationExists),
             Err(error) if error.kind() == io::ErrorKind::NotFound => {}
             Err(error) => return Err(DocumentIoError::Io(error)),
         }
     }
-    if pages.len() > 1 && !replace_existing {
-        match fs::symlink_metadata(selected_path) {
-            Ok(_) => return Err(DocumentIoError::ExportDestinationExists),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-            Err(error) => return Err(DocumentIoError::Io(error)),
-        }
-    }
-
     let mut staged = Vec::with_capacity(pages.len());
     for (target, page) in targets.iter().zip(pages) {
         let mut temporary = NamedTempFile::new_in(directory)?;
@@ -161,6 +157,29 @@ fn preserve_recovery_files(
         || destination_directory.to_path_buf(),
         tempfile::TempDir::keep,
     )
+}
+
+pub fn existing_export_targets(
+    selected_path: &Path,
+    format: ExportFormat,
+    page_count: usize,
+) -> Result<Vec<PathBuf>, DocumentIoError> {
+    if page_count == 0 {
+        return Err(DocumentIoError::EmptyExport);
+    }
+    if page_count > MAX_EXPORT_FILES {
+        return Err(DocumentIoError::TooManyExportFiles);
+    }
+    let mut existing = Vec::new();
+    for target in page_targets(selected_path, page_count, format)? {
+        match fs::symlink_metadata(&target) {
+            Ok(metadata) if metadata.file_type().is_file() => existing.push(target),
+            Ok(_) => return Err(DocumentIoError::InvalidTarget),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(DocumentIoError::Io(error)),
+        }
+    }
+    Ok(existing)
 }
 
 fn page_targets(
@@ -242,8 +261,8 @@ mod tests {
     use tempfile::{tempdir, NamedTempFile};
 
     use super::{
-        preserve_recovery_files, publish_export_pages, publish_pages, rollback_published,
-        ExportFormat, MAX_EXPORT_BYTES,
+        existing_export_targets, preserve_recovery_files, publish_export_pages, publish_pages,
+        rollback_published, ExportFormat, MAX_EXPORT_BYTES,
     };
     use crate::DocumentIoError;
 
@@ -252,7 +271,7 @@ mod tests {
         pages: &[String],
     ) -> Result<Vec<PathBuf>, DocumentIoError> {
         let pages = pages.iter().map(String::as_bytes).collect::<Vec<_>>();
-        publish_export_pages(selected_path, ExportFormat::Svg, &pages, false)
+        publish_export_pages(selected_path, ExportFormat::Svg, &pages, &[])
     }
 
     fn replace_svg_pages(
@@ -260,7 +279,12 @@ mod tests {
         pages: &[String],
     ) -> Result<Vec<PathBuf>, DocumentIoError> {
         let pages = pages.iter().map(String::as_bytes).collect::<Vec<_>>();
-        publish_export_pages(selected_path, ExportFormat::Svg, &pages, true)
+        publish_export_pages(
+            selected_path,
+            ExportFormat::Svg,
+            &pages,
+            &existing_export_targets(selected_path, ExportFormat::Svg, pages.len())?,
+        )
     }
 
     #[test]
@@ -276,7 +300,7 @@ mod tests {
             &selected,
             ExportFormat::Svg,
             &[b"first replacement", b"second replacement"],
-            true,
+            &[first.clone(), second.clone()],
             |temporary| {
                 calls += 1;
                 if calls == 2 {
@@ -306,6 +330,55 @@ mod tests {
     }
 
     #[test]
+    fn repeated_multi_page_exports_confirm_the_numbered_output_paths() {
+        let directory = tempdir().unwrap();
+        for (format, extension) in [
+            (ExportFormat::Svg, "svg"),
+            (ExportFormat::Png, "png"),
+            (ExportFormat::Jpg, "jpg"),
+        ] {
+            let selected = directory.path().join(format!("Song.{extension}"));
+            let outputs =
+                publish_export_pages(&selected, format, &[b"first", b"second"], &[]).unwrap();
+            assert!(!selected.exists());
+            let confirmed = existing_export_targets(&selected, format, 2).unwrap();
+            assert_eq!(confirmed, outputs);
+            publish_export_pages(
+                &selected,
+                format,
+                &[b"updated first", b"updated second"],
+                &confirmed,
+            )
+            .unwrap();
+            assert_eq!(fs::read(&outputs[0]).unwrap(), b"updated first");
+            assert_eq!(fs::read(&outputs[1]).unwrap(), b"updated second");
+        }
+    }
+
+    #[test]
+    fn a_later_collision_is_not_covered_by_another_files_confirmation() {
+        let directory = tempdir().unwrap();
+        let selected = directory.path().join("Song.svg");
+        let first = directory.path().join("Song_page_001.svg");
+        let second = directory.path().join("Song_page_002.svg");
+        fs::write(&first, "confirmed original").unwrap();
+        let confirmed = existing_export_targets(&selected, ExportFormat::Svg, 2).unwrap();
+        assert_eq!(confirmed, vec![first.clone()]);
+        fs::write(&second, "unconfirmed original").unwrap();
+        assert!(matches!(
+            publish_export_pages(
+                &selected,
+                ExportFormat::Svg,
+                &[b"new first", b"new second"],
+                &confirmed
+            ),
+            Err(DocumentIoError::ExportDestinationExists)
+        ));
+        assert_eq!(fs::read_to_string(&first).unwrap(), "confirmed original");
+        assert_eq!(fs::read_to_string(&second).unwrap(), "unconfirmed original");
+    }
+
+    #[test]
     fn names_multi_page_exports_with_a_one_based_padded_suffix() {
         let directory = tempdir().expect("temporary directory");
         let selected = directory.path().join("Song.svg");
@@ -325,7 +398,7 @@ mod tests {
         let selected = directory.path().join("曲.jpg");
         let pages = [b"first".as_slice(), b"second".as_slice()];
 
-        let outputs = publish_export_pages(&selected, ExportFormat::Jpg, &pages, false).unwrap();
+        let outputs = publish_export_pages(&selected, ExportFormat::Jpg, &pages, &[]).unwrap();
 
         assert_eq!(outputs[0].file_name().unwrap(), "曲_page_001.jpg");
         assert_eq!(outputs[1].file_name().unwrap(), "曲_page_002.jpg");
@@ -378,20 +451,20 @@ mod tests {
     }
 
     #[test]
-    fn multi_page_dialog_base_path_must_also_be_unused() {
+    fn multi_page_export_preserves_an_unused_dialog_base_path() {
         let directory = tempdir().expect("temporary directory");
         let selected = directory.path().join("Song.svg");
         fs::write(&selected, "keep selected target").expect("write selected target");
 
-        assert!(matches!(
-            publish_svg_pages(&selected, &["page one".into(), "page two".into()]),
-            Err(DocumentIoError::ExportDestinationExists)
-        ));
+        publish_svg_pages(&selected, &["page one".into(), "page two".into()]).unwrap();
         assert_eq!(
             fs::read_to_string(&selected).unwrap(),
             "keep selected target"
         );
-        assert!(!directory.path().join("Song_page_001.svg").exists());
+        assert_eq!(
+            fs::read_to_string(directory.path().join("Song_page_001.svg")).unwrap(),
+            "page one"
+        );
     }
 
     #[test]
@@ -503,7 +576,7 @@ mod tests {
                 &directory.path().join("Song.svg"),
                 ExportFormat::Pdf,
                 &[b"pdf"],
-                false
+                &[]
             ),
             Err(DocumentIoError::InvalidExportPath)
         ));

@@ -6,8 +6,8 @@ use crate::DocumentIoError;
 pub fn publish_svg_pages(
     selected_path: &Path,
     pages: &[String],
-    replace_existing: bool,
+    confirmed_existing: &[PathBuf],
 ) -> Result<Vec<PathBuf>, DocumentIoError> {
     let pages = pages.iter().map(String::as_bytes).collect::<Vec<_>>();
-    publish_export_pages(selected_path, ExportFormat::Svg, &pages, replace_existing)
+    publish_export_pages(selected_path, ExportFormat::Svg, &pages, confirmed_existing)
 }

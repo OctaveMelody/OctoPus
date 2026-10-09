@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -60,11 +61,20 @@ def load_jps(path: Path) -> JpsDocument:
     return load_jps_text(path.read_text(encoding="utf-8-sig"), path)
 
 
+def _finite_json_number(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("non-finite JSON number in JPS document")
+    return number
+
+
 def decode_page_config(value: Any) -> dict[str, Any]:
     """Normalize dict or JSON-string page settings while retaining invalid input."""
     if isinstance(value, str):
         try:
-            decoded = json.loads(value)
+            decoded = json.loads(
+                value, parse_float=_finite_json_number, parse_constant=_finite_json_number,
+            )
         except json.JSONDecodeError:
             return {"_raw": value}
         return decoded if isinstance(decoded, dict) else {"_raw": value}
@@ -77,7 +87,9 @@ def load_jps_text(text: str, path: Path) -> JpsDocument:
     record: dict[str, Any] = {}
     json_wrapped = False
     try:
-        parsed = json.loads(text)
+        parsed = json.loads(
+            text, parse_float=_finite_json_number, parse_constant=_finite_json_number,
+        )
     except json.JSONDecodeError:
         parsed = None
     if isinstance(parsed, dict) and isinstance(parsed.get("code"), str):
@@ -121,7 +133,7 @@ def serialize_jps(
     record["code"] = source_code
     if page_config is not None:
         record["page_config"] = dict(page_config)
-    return json.dumps(record, ensure_ascii=False, indent=2) + "\n"
+    return json.dumps(record, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
 
 
 def jps_key(filename: str) -> str:

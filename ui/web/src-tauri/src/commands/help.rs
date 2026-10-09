@@ -1,7 +1,7 @@
+use jps_document_io::file_exports::{publish_export_pages, ExportFormat};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::future::Future;
-#[cfg(debug_assertions)]
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -14,6 +14,8 @@ use tauri::{AppHandle, Manager};
 use tauri::{WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
+
+use super::save_dialogs::{approved_save_path, confirm_replacements};
 
 const PROJECT: &str = "https://github.com/OctaveMelody/OctoPus";
 const UPDATE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
@@ -89,6 +91,23 @@ fn manual_pdf_path(_app: &AppHandle, language: &str) -> Result<PathBuf, String> 
     Ok(path)
 }
 
+pub(crate) fn copy_manual_pdf(
+    source: &Path,
+    destination: &Path,
+    confirmed_existing: &[PathBuf],
+) -> Result<(), String> {
+    let bytes =
+        fs::read(source).map_err(|error| format!("could not read user manual PDF: {error}"))?;
+    publish_export_pages(
+        destination,
+        ExportFormat::Pdf,
+        &[&bytes],
+        confirmed_existing,
+    )
+    .map_err(|error| format!("could not save user manual PDF: {error}"))?;
+    Ok(())
+}
+
 #[tauri::command]
 pub(crate) async fn save_user_manual_pdf(
     app: AppHandle,
@@ -108,24 +127,22 @@ pub(crate) async fn save_user_manual_pdf(
         let Some(selected) = selected else {
             return Ok(());
         };
-        let mut destination = selected
+        let selected = selected
             .into_path()
             .map_err(|_| "save dialog did not return a local path".to_owned())?;
-        if destination.extension().is_none() {
-            destination.set_extension("pdf");
-        }
-        if !destination
-            .extension()
-            .and_then(|extension| extension.to_str())
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"))
-        {
-            return Err("user manual destination must use the .pdf extension".into());
-        }
-        if source != destination {
-            fs::copy(source, destination)
-                .map_err(|error| format!("could not save user manual PDF: {error}"))?;
-        }
-        Ok(())
+        let Some((destination, replace_existing)) =
+            approved_save_path(&selected, "pdf", |paths| {
+                confirm_replacements(&window, paths)
+            })?
+        else {
+            return Ok(());
+        };
+        let existing = if replace_existing {
+            vec![destination.clone()]
+        } else {
+            Vec::new()
+        };
+        copy_manual_pdf(&source, &destination, &existing)
     })
     .await
     .map_err(|error| format!("user manual save dialog failed: {error}"))?
@@ -154,13 +171,13 @@ fn open_manual(app: &AppHandle, language: &str) -> Result<(), String> {
         .on_navigation(move |url| {
             let decision = manual_navigation_decision(url.as_str());
             if decision.open_in_default_browser {
-                let _ = open_external_web_url(&navigation_app, url.as_str());
+                open_external_web_url(&navigation_app, url.as_str());
             }
             decision.allow_in_app
         })
         .on_new_window(move |url, _features| {
             if manual_navigation_decision(url.as_str()).open_in_default_browser {
-                let _ = open_external_web_url(&new_window_app, url.as_str());
+                open_external_web_url(&new_window_app, url.as_str());
             }
             tauri::webview::NewWindowResponse::Deny
         })

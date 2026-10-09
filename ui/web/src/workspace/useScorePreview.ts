@@ -105,7 +105,8 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
         cache.pages.size === cache.pageCount ? position : null,
       ) as SourceAnchor | null;
     setCursorAnchor(anchor);
-    if (anchor?.pageIndex !== undefined && anchor.pageIndex !== selectedPageRef.current) {
+    if (followEditorCursor.current && anchor?.pageIndex !== undefined
+      && anchor.pageIndex !== selectedPageRef.current) {
       selectedPageRef.current = anchor.pageIndex;
       setSelectedPage(anchor.pageIndex);
     }
@@ -279,6 +280,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
 
   function selectPage(pageIndex: number) {
     if (!currentPageCache) return;
+    followEditorCursor.current = false;
     const page = Math.max(0, Math.min(currentPageCache.pageCount - 1, pageIndex));
     selectedPageRef.current = page;
     setSelectedPage(page);

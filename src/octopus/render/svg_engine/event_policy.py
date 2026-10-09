@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from octopus.normalization.types import MusicEvent
+from octopus.normalization.types import DurationValue, MusicEvent
 from octopus.render.core.glyphs import event_to_glyph_id
 from octopus.render.core.layout_types import LayoutEvent, LayoutPage
 
 from ...parser.ast import MusicTokenKind
-from ..compatibility import EXPECTED_SVG_SILENT_AUDIO_EVENTS as _EXPECTED_SVG_SILENT_AUDIO_EVENTS
-from .compatibility_context import compatibility_page_key as _compatibility_page_key
 
 
 def dsb_close_barline(
@@ -73,21 +71,21 @@ def effective_event_audio(
     event = item.event
     if item.block in {"dsb-hidden", "dsb-hidden-tail"}:
         if is_hidden_internal_tie_end(layout, item) or is_hidden_slur_echoed_visibly(layout, item):
-            return expected_svg_audio_compatibility(layout, item, "0")
-        return expected_svg_audio_compatibility(layout, item, hidden_dsb_audio(layout, item))
+            return "0"
+        return hidden_dsb_audio(layout, item)
     if event.audio == "0" and is_audible_replayed_tie_inside_slur(layout, item):
-        return expected_svg_audio_compatibility(layout, item, pitch_audio(event))
+        return pitch_audio(event)
     if event.audio == "0" and is_dsb_replayed_tie_end(layout, item):
-        return expected_svg_audio_compatibility(layout, item, pitch_audio(event))
+        return pitch_audio(event)
     if event.audio == "0" and is_dotted_overlapping_tie_continuation(item):
-        return expected_svg_audio_compatibility(layout, item, pitch_audio(event))
+        return pitch_audio(event)
     if is_repeated_parenthesized_note(item, previous_musical_by_event_id):
-        return expected_svg_audio_compatibility(layout, item, "0")
+        return "0"
     if is_repeated_tuplet_close(item, previous_musical_by_event_id):
-        return expected_svg_audio_compatibility(layout, item, "0")
+        return "0"
     if is_same_pitch_slur_continuation(item, previous_musical_by_event_id):
-        return expected_svg_audio_compatibility(layout, item, "0")
-    return expected_svg_audio_compatibility(layout, item, event.audio)
+        return "0"
+    return event.audio
 
 
 def hidden_dsb_audio(layout: LayoutPage, item: LayoutEvent) -> str | None:
@@ -116,7 +114,37 @@ def is_dsb_replayed_tie_end(layout: LayoutPage, item: LayoutEvent) -> bool:
         return False
     if has_construct_role(item.event, "slur", "inside"):
         return False
-    return after_hidden_dsb_segment_on_source_line(layout, item)
+    if not after_hidden_dsb_segment_on_source_line(layout, item):
+        return False
+    # Only a rhythm replayed from the hidden voice restarts tied-note audio.
+    # Unrelated ties later on the same source row retain their normal silence.
+    visible_ties = construct_ids_for_role(item.event, "tie", "end") | construct_ids_for_role(
+        item.event, "tie", "single"
+    )
+    hidden = [
+        candidate for candidate in layout.hidden_events
+        if candidate.block in {"dsb-hidden", "dsb-hidden-tail"}
+        and candidate.voice == item.voice
+        and candidate.event.span.start.line == item.event.span.start.line
+    ]
+    hidden_ties = {
+        construct_id for candidate in hidden
+        for construct_id in construct_ids_for_role(candidate.event, "tie", "end")
+    }
+    return any(
+        _tie_rhythm(layout.events, visible_id) == _tie_rhythm(hidden, hidden_id)
+        for visible_id in visible_ties for hidden_id in hidden_ties
+    )
+
+
+def _tie_rhythm(
+    events: list[LayoutEvent], construct_id: str,
+) -> tuple[tuple[MusicTokenKind, DurationValue | None], ...]:
+    """Compare a local tie's note durations, extensions and barlines across voices."""
+    return tuple(
+        (item.event.kind, item.event.duration)
+        for item in events if construct_id in item.event.construct_ids
+    )
 
 
 def is_audible_replayed_tie_inside_slur(layout: LayoutPage, item: LayoutEvent) -> bool:
@@ -244,22 +272,6 @@ def construct_ids_for_role(event: MusicEvent, kind: str, role: str) -> set[str]:
         for value in event.construct_roles
         if f":{kind}:" in value and value.endswith(f":{role}")
     }
-
-
-def expected_svg_audio_compatibility(
-    layout: LayoutPage,
-    item: LayoutEvent,
-    audio: str | None,
-) -> str | None:
-    event_key = (
-        *_compatibility_page_key(layout, item.page_index),
-        item.voice,
-        item.line,
-        item.slot,
-        item.block,
-        item.event.code,
-    )
-    return "0" if event_key in _EXPECTED_SVG_SILENT_AUDIO_EVENTS else audio
 
 
 def is_same_pitch_slur_continuation(

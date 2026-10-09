@@ -46,7 +46,7 @@ def build_metadata(root: Path = ROOT, now: datetime | None = None) -> tuple[str,
 
     release = (nearest_tag or "v0.0.0")[1:]
     if nearest_distance != 0:
-        stamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime("%m%d%H%M")
+        stamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime("%Y%m%d%H%M")
         version, separator, metadata = release.partition("+")
         release = f"{version}-{stamp}" + (f"+{metadata}" if separator else "")
     return release, sha

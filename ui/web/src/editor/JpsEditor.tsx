@@ -6,6 +6,7 @@ import {
   EditorState,
   StateEffect,
   StateField,
+  Text,
   Transaction,
   type Extension,
 } from "@codemirror/state";
@@ -59,6 +60,7 @@ import { jpsLanguage } from "./jps-language";
 import { pageConfigField, pageConfigHistory, setPageConfig } from "./page-config-history.js";
 import { setSourceDiagnostics, sourceDiagnosticsExtension, sourceWrappingGutter } from "./diagnostics.js";
 import { sourceDiagnosticRanges } from "./source-diagnostics.js";
+import { sourceOffsetToEditorOffset } from "../workspace/source-mapping.js";
 
 const setNoteHighlight = StateEffect.define<{ from: number; to: number } | null>();
 const noteHighlightField = StateField.define<DecorationSet>({
@@ -88,7 +90,7 @@ type JpsEditorProps = {
   diagnostics?: RenderDiagnostic[];
   diagnosticsSource?: string | null;
   onChange(source: string): void;
-  onCursorChange(offset: number, focused: boolean): void;
+  onCursorChange(sourceOffset: number, focused: boolean): void;
   onPageConfigChange(pageConfig: Record<string, unknown>): void;
   onHistoryChange(canUndo: boolean, canRedo: boolean): void;
   onReady(handle: JpsEditorHandle | null): void;
@@ -104,6 +106,7 @@ export type JpsEditorHandle = {
   find(replace?: boolean): boolean;
   selectAll(): boolean;
   formatSource(): void;
+  // Public positions use serialized source UTF-16 offsets, including CRLF.
   selectSourceRange(from: number, to: number, highlight?: boolean): boolean;
   appendSource(source: string): void;
 };
@@ -186,7 +189,9 @@ export function JpsEditor({
         onHistoryChangeRef.current(undoDepth(update.state) > 0, redoDepth(update.state) > 0);
         if (update.docChanged) onChangeRef.current(update.state.sliceDoc());
         if (update.docChanged || update.selectionSet) {
-          onCursorChangeRef.current(update.state.selection.main.head, update.view.hasFocus);
+          onCursorChangeRef.current(
+            update.state.sliceDoc(0, update.state.selection.main.head).length, update.view.hasFocus,
+          );
         }
         const before = update.startState.field(pageConfigField);
         const after = update.state.field(pageConfigField);
@@ -194,11 +199,11 @@ export function JpsEditor({
       }),
       EditorView.domEventHandlers({
         focus: (_event, editor) => {
-          onCursorChangeRef.current(editor.state.selection.main.head, true);
+          onCursorChangeRef.current(editor.state.sliceDoc(0, editor.state.selection.main.head).length, true);
           return false;
         },
         blur: (_event, editor) => {
-          onCursorChangeRef.current(editor.state.selection.main.head, false);
+          onCursorChangeRef.current(editor.state.sliceDoc(0, editor.state.selection.main.head).length, false);
           return false;
         },
       }),
@@ -260,25 +265,25 @@ export function JpsEditor({
         applySourceFormatting();
       },
       selectSourceRange(from, to, highlight = true) {
+        const source = editor.state.sliceDoc();
+        const editorFrom = sourceOffsetToEditorOffset(source, from);
+        const editorTo = sourceOffsetToEditorOffset(source, to);
         if (
-          !Number.isSafeInteger(from)
-          || !Number.isSafeInteger(to)
-          || from < 0
-          || from > to
-          || to > editor.state.doc.length
+          editorFrom === null || editorTo === null || editorFrom > editorTo
         ) return false;
         editor.focus();
         editor.dispatch({
-          selection: highlight ? EditorSelection.cursor(from) : EditorSelection.range(from, to),
-          effects: setNoteHighlight.of(highlight ? { from, to } : null),
+          selection: highlight ? EditorSelection.cursor(editorFrom) : EditorSelection.range(editorFrom, editorTo),
+          effects: setNoteHighlight.of(highlight ? { from: editorFrom, to: editorTo } : null),
           scrollIntoView: true,
         });
         return true;
       },
       appendSource(text) {
+        const insert = Text.of(text.split(/\r\n|\r|\n/));
         editor.dispatch({
-          changes: { from: editor.state.doc.length, insert: text },
-          selection: EditorSelection.cursor(editor.state.doc.length + text.length),
+          changes: { from: editor.state.doc.length, insert },
+          selection: EditorSelection.cursor(editor.state.doc.length + insert.length),
           scrollIntoView: true,
           annotations: [
             Transaction.userEvent.of("input.transcription"),

@@ -26,12 +26,18 @@ export function mapFormattedIssueSpans(raw, actual, issues) {
   const points = issues.flatMap(issue => [issue.source_start, issue.source_end].map(
     offset => offset == null ? 0 : before.codePointToUtf16(offset) ?? 0,
   ));
-  const formatted = formatJpsSource(raw, points);
+  const separator = actual.match(/\r\n|\r|\n/)?.[0] ?? "\n";
+  /** @param {string} text */
+  const normalizeLines = text => text.replace(/\r\n|\r|\n/g, separator);
+  const formatted = normalizeLines(raw) === actual
+    ? {text: raw, positions: points}
+    : formatJpsSource(raw, points);
+  const formattedText = normalizeLines(formatted.text);
   const after = createSourceOffsetMap(actual);
   return issues.map((issue, index) => {
-    let from = formatted.positions[index*2];
-    let to = formatted.positions[index*2+1];
-    const valid = formatted.text === actual && issue.source_start != null && issue.source_end != null
+    let from = normalizeLines(formatted.text.slice(0, formatted.positions[index*2])).length;
+    let to = normalizeLines(formatted.text.slice(0, formatted.positions[index*2+1])).length;
+    const valid = formattedText === actual && issue.source_start != null && issue.source_end != null
       && issue.source_end > issue.source_start && before.codePointToUtf16(issue.source_start) !== null
       && before.codePointToUtf16(issue.source_end) !== null;
     while (from < to && /\s/.test(actual[from])) from++;

@@ -155,9 +155,8 @@ export function closeNativeWindow() {
 }
 
 export function destroyNativeWindow() {
-  const tauriWindow = window.__TAURI__?.window?.getCurrentWindow();
-  if (!tauriWindow) return Promise.resolve();
-  return tauriWindow.destroy();
+  if (!window.__TAURI__) return Promise.resolve();
+  return invokeNative("exit_application", {});
 }
 
 /** @returns {Promise<EngineCapabilities>} */

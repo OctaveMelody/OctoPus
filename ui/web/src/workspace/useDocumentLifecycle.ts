@@ -310,20 +310,27 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
     }
     if (action === "close-document") {
       try {
-        await getServices().referenceAssets.commitReferenceSet(createReferenceSet(), {});
+        await getServices().referenceAssets.commitReferenceSet(createReferenceSet(), {}, () => {
+          if (sequence !== transitionSequence.current
+            || !isCurrentDocumentRevision(currentDocument.current, {
+              documentId: original.id, revision: original.revision,
+            }) || settingsDraftRef.current.dirty) {
+            throw new Error(copyRef.current.closeDocumentChanged);
+          }
+          replaceDocument(createDocumentSession({
+            id: crypto.randomUUID(),
+            name: "Untitled.jps",
+            source: "",
+            savedSource: "",
+          }));
+          setDocumentOpen(false);
+          setFocusPane(null);
+          setNewScoreDraftActive(false);
+        });
       } catch (error) {
         setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
         return;
       }
-      replaceDocument(createDocumentSession({
-        id: crypto.randomUUID(),
-        name: "Untitled.jps",
-        source: "",
-        savedSource: "",
-      }));
-      setDocumentOpen(false);
-      setFocusPane(null);
-      setNewScoreDraftActive(false);
       return;
     }
     if (action === "examples") {
@@ -371,7 +378,8 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
 
   function requestAction(action: LifecycleAction, recentFilePath: string | null = null) {
     recentPath.current = action === "open" ? recentFilePath : null;
-    if (saving.current || isSaving || getServices().referenceAssets.isCommitting()) return;
+    if (closeRequestPending.current || saving.current || isSaving
+      || getServices().referenceAssets.isCommitting()) return;
     if (action !== "transcribe-new") pendingTranscription.current = null;
     if (action === "close-document" && !documentOpen) return;
     if (settingsDraftRef.current.dirty) {
@@ -528,7 +536,12 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
     recovery: string | null | (() => string | null),
     recoveryPersisted = false,
   ) {
+    let restoreInteraction: (() => void) | null = null;
     try {
+      const original = currentDocument.current;
+      const draft = JSON.stringify(currentRecoveryDraft());
+      const settingsDraft = JSON.stringify(settingsDraftRef.current);
+      const references = getServices().referenceAssets.currentReferences.current;
       const recoveryText = typeof recovery === "function" ? recovery() : recovery;
       await getServices().referenceAssets.discardPendingImport();
       if (!recoveryPersisted) {
@@ -537,8 +550,24 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
           throw new Error(copyRef.current.recoverySaveSuperseded);
         }
       }
+      if (!isCurrentDocumentRevision(currentDocument.current, {
+        documentId: original.id, revision: original.revision,
+      }) || currentDocument.current.saveSequence !== original.saveSequence
+        || JSON.stringify(currentRecoveryDraft()) !== draft
+        || JSON.stringify(settingsDraftRef.current) !== settingsDraft
+        || getServices().referenceAssets.currentReferences.current !== references) {
+        setPendingAction("exit");
+        setActiveDialog(settingsDraftRef.current.dirty ? "settings-dirty" : "dirty");
+        setDialogError(copyRef.current.closeDocumentChanged);
+        return;
+      }
+      // Freeze browser input before IPC yields, closing the final revision-check race.
+      const wasInert = document.body.inert;
+      document.body.inert = true;
+      restoreInteraction = () => { document.body.inert = wasInert; };
       await destroyNativeWindow();
     } catch (error) {
+      restoreInteraction?.();
       closeRequestPending.current = false;
       const detail = error instanceof Error ? error.message : String(error);
       setStatus({ kind: "error", message: `${copyRef.current.closeFailed} ${detail}` });
@@ -804,7 +833,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
   return {score, setScore, currentDocument, documentOpen, activeDialog, setActiveDialog,
     activeDialogRef, dialogRef, dialogError, setDialogError, newFileName, setNewFileName,
     newScoreFields, setNewScoreFields, newScoreDraftActive, setNewScoreDraftActive,
-    settingsDraftRef, settingsDraftReset, examples, examplesLoaded, exampleFilter,
+    settingsDraftRef, settingsDraftReset, closeRequestPending, examples, examplesLoaded, exampleFilter,
     setExampleFilter, isSaving, saving, recoveryReady, recoveryReadyRef, recoveryInitialized,
     recoverySequence, recoveryCandidate, recoveryError, isRecoveryActionRunning,
     currentRecoveryDraft, requestAction, requestNativeClose, saveDocument, prepareTranscription,

@@ -5,6 +5,7 @@ mod commands;
 use commands::{documents, engine, exports, help, references, transcription};
 use jps_document_io::{RecoverySnapshotSequence, SelectedJpsFiles};
 use jps_engine_bridge::EngineSupervisor;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
@@ -14,6 +15,8 @@ struct DesktopState {
     engine: Arc<Mutex<EngineSupervisor>>,
     transcription: Arc<Mutex<EngineSupervisor>>,
     transcription_jobs: Arc<transcription::TranscriptionJobs>,
+    engine_shutdown: Arc<AtomicBool>,
+    transcription_shutdown: Arc<AtomicBool>,
 }
 
 #[cfg(debug_assertions)]
@@ -70,6 +73,46 @@ fn toggle_window_maximize(window: WebviewWindow) {
     }
 }
 
+#[tauri::command]
+async fn exit_application(
+    app: AppHandle,
+    state: tauri::State<'_, DesktopState>,
+) -> Result<(), String> {
+    let windows = app.webview_windows();
+    for window in windows.values() {
+        if let Err(error) = window.set_enabled(false) {
+            for window in windows.values() {
+                let _ = window.set_enabled(true);
+            }
+            return Err(format!("could not disable windows during exit: {error}"));
+        }
+    }
+    // Signal before taking the supervisor locks so an in-flight render stops promptly.
+    state.engine_shutdown.store(true, Ordering::Release);
+    state.transcription_shutdown.store(true, Ordering::Release);
+    let engine = Arc::clone(&state.engine);
+    let transcription = Arc::clone(&state.transcription);
+    let shutdown = tauri::async_runtime::spawn_blocking(move || {
+        engine
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .shutdown();
+        transcription
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .shutdown();
+    })
+    .await;
+    if let Err(error) = shutdown {
+        for window in windows.values() {
+            let _ = window.set_enabled(true);
+        }
+        return Err(format!("engine shutdown failed: {error}"));
+    }
+    app.exit(0);
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -77,10 +120,14 @@ fn main() {
         .setup(|app| {
             let engine = engine_supervisor(app.handle()).map_err(std::io::Error::other)?;
             let transcription = engine_supervisor(app.handle()).map_err(std::io::Error::other)?;
+            let engine_shutdown = engine.shutdown_signal();
+            let transcription_shutdown = transcription.shutdown_signal();
             app.manage(DesktopState {
                 engine: Arc::new(Mutex::new(engine)),
                 transcription: Arc::new(Mutex::new(transcription)),
                 transcription_jobs: Arc::default(),
+                engine_shutdown,
+                transcription_shutdown,
             });
             let navigation_app = app.handle().clone();
             let new_window_app = app.handle().clone();
@@ -121,6 +168,7 @@ fn main() {
             transcription::transcribe_reference,
             transcription::cancel_transcription,
             toggle_window_maximize,
+            exit_application,
             help::open_help_destination,
             help::save_user_manual_pdf,
             help::check_for_update,

@@ -1,15 +1,15 @@
 use crate::DesktopState;
-use jps_document_io::file_exports::{publish_export_pages, ExportFormat};
+use jps_document_io::file_exports::{existing_export_targets, publish_export_pages, ExportFormat};
 use jps_document_io::score_exports::{export_jpg_pages, export_pdf, export_png_pages};
 use jps_document_io::svg_exports::publish_svg_pages;
 use jps_engine_bridge::RenderArgs;
 use serde_json::Value;
-use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
+
+use super::save_dialogs::{confirm_replacements, normalized_save_path};
 
 fn export_svg_pages(
     response: Value,
@@ -74,7 +74,8 @@ async fn choose_export_path(
     suggested_path: Option<String>,
     suggested_name: Option<String>,
     format: ExportFormat,
-) -> Result<Option<(PathBuf, bool)>, String> {
+    page_count: usize,
+) -> Result<Option<(PathBuf, Vec<PathBuf>)>, String> {
     let source_path = suggested_path
         .map(PathBuf::from)
         .filter(|path| path.is_absolute());
@@ -97,7 +98,7 @@ async fn choose_export_path(
         .ok_or("could not locate Documents or home directory")?;
     let candidate_name = source_path
         .as_ref()
-        .and_then(|path| path.file_stem())
+        .and_then(|path| path.file_name())
         .map(|stem| stem.to_string_lossy().into_owned())
         .or_else(|| {
             suggested_name.filter(|name| {
@@ -115,7 +116,7 @@ async fn choose_export_path(
     );
     let file_name = format!("{stem}.{}", export_extension(format));
     let selected = tauri::async_runtime::spawn_blocking(move || {
-        window
+        let selected = window
             .dialog()
             .file()
             .set_parent(&window)
@@ -127,32 +128,22 @@ async fn choose_export_path(
                 path.into_path()
                     .map_err(|_| "native dialog did not return a local path".to_owned())
             })
-            .transpose()
+            .transpose()?;
+        let Some(selected) = selected else {
+            return Ok(None);
+        };
+        let target = normalized_save_path(&selected, export_extension(format))?;
+        let existing = existing_export_targets(&target, format, page_count)
+            .map_err(|error| error.to_string())?;
+        // The file dialog confirms its literal path, not numbered or extension-normalized outputs.
+        if (page_count > 1 || target != selected) && !confirm_replacements(&window, &existing) {
+            return Ok(None);
+        }
+        Ok::<_, String>(Some((target, existing)))
     })
     .await
     .map_err(|error| format!("{} save dialog failed: {error}", export_filter(format)))??;
-    let Some(mut selected_path) = selected else {
-        return Ok(None);
-    };
-    if selected_path.extension().is_none() {
-        selected_path.set_extension(export_extension(format));
-    }
-    if !selected_path
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| extension.eq_ignore_ascii_case(export_extension(format)))
-    {
-        return Err(format!(
-            "export destination must use the .{} extension",
-            export_extension(format)
-        ));
-    }
-    let replace_existing = match fs::symlink_metadata(&selected_path) {
-        Ok(_) => true,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => false,
-        Err(error) => return Err(format!("could not inspect export destination: {error}")),
-    };
-    Ok(Some((selected_path, replace_existing)))
+    Ok(selected)
 }
 
 #[tauri::command]
@@ -164,28 +155,33 @@ pub(crate) async fn export_svg(
     suggested_path: Option<String>,
     suggested_name: Option<String>,
 ) -> Result<Option<Value>, String> {
-    let Some((selected_path, replace_existing)) = choose_export_path(
+    let document_id = args.document_id.clone();
+    let revision = args.document_revision;
+    let supervisor = Arc::clone(&state.engine);
+    let response = tauri::async_runtime::spawn_blocking(move || {
+        supervisor
+            .lock()
+            .map_err(|_| "engine lock poisoned".to_owned())?
+            .export_svg(args)
+    })
+    .await
+    .map_err(|error| format!("SVG render task failed: {error}"))??;
+    let (pages, custom_markup_omitted) = export_svg_pages(response, &document_id, revision)?;
+    let Some((selected_path, confirmed_existing)) = choose_export_path(
         app,
         window,
         suggested_path,
         suggested_name,
         ExportFormat::Svg,
+        pages.len(),
     )
     .await?
     else {
         return Ok(None);
     };
 
-    let document_id = args.document_id.clone();
-    let revision = args.document_revision;
-    let supervisor = Arc::clone(&state.engine);
     tauri::async_runtime::spawn_blocking(move || {
-        let response = supervisor
-            .lock()
-            .map_err(|_| "engine lock poisoned".to_owned())?
-            .export_svg(args)?;
-        let (pages, custom_markup_omitted) = export_svg_pages(response, &document_id, revision)?;
-        let outputs = publish_svg_pages(&selected_path, &pages, replace_existing)
+        let outputs = publish_svg_pages(&selected_path, &pages, &confirmed_existing)
             .map_err(|error| error.to_string())?;
         let filenames = outputs
             .iter()
@@ -239,22 +235,37 @@ pub(crate) async fn export_score(
         "pdf" => return Err("PDF export does not accept a raster resolution".into()),
         _ => return Err("export format must be PDF, JPG or PNG".into()),
     };
-    let Some((selected_path, replace_existing)) =
-        choose_export_path(app, window, suggested_path, suggested_name, format).await?
+    let document_id = args.document_id.clone();
+    let revision = args.document_revision;
+    let supervisor = Arc::clone(&state.engine);
+    let response = tauri::async_runtime::spawn_blocking(move || {
+        supervisor
+            .lock()
+            .map_err(|_| "engine lock poisoned".to_owned())?
+            .export_svg(args)
+    })
+    .await
+    .map_err(|error| format!("score render task failed: {error}"))??;
+    let (svg_pages, custom_markup_omitted) = export_svg_pages(response, &document_id, revision)?;
+    let output_count = if format == ExportFormat::Pdf {
+        1
+    } else {
+        svg_pages.len()
+    };
+    let Some((selected_path, confirmed_existing)) = choose_export_path(
+        app,
+        window,
+        suggested_path,
+        suggested_name,
+        format,
+        output_count,
+    )
+    .await?
     else {
         return Ok(None);
     };
 
-    let document_id = args.document_id.clone();
-    let revision = args.document_revision;
-    let supervisor = Arc::clone(&state.engine);
     tauri::async_runtime::spawn_blocking(move || {
-        let response = supervisor
-            .lock()
-            .map_err(|_| "engine lock poisoned".to_owned())?
-            .export_svg(args)?;
-        let (svg_pages, custom_markup_omitted) =
-            export_svg_pages(response, &document_id, revision)?;
         let output_pages = match format {
             ExportFormat::Pdf => vec![export_pdf(&svg_pages).map_err(|error| error.to_string())?],
             ExportFormat::Jpg => export_jpg_pages(&svg_pages, dpi.unwrap_or(96))
@@ -264,8 +275,9 @@ pub(crate) async fn export_score(
             ExportFormat::Svg => return Err("SVG uses the SVG export command".into()),
         };
         let output_bytes = output_pages.iter().map(Vec::as_slice).collect::<Vec<_>>();
-        let outputs = publish_export_pages(&selected_path, format, &output_bytes, replace_existing)
-            .map_err(|error| error.to_string())?;
+        let outputs =
+            publish_export_pages(&selected_path, format, &output_bytes, &confirmed_existing)
+                .map_err(|error| error.to_string())?;
         let filenames = outputs
             .iter()
             .map(|path| {

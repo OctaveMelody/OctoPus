@@ -2,8 +2,8 @@ use jps_document_io::reference_recovery::validate_recovery_references;
 use jps_document_io::{
     list_jps_examples as get_jps_examples, read_jps_example, read_jps_text,
     read_recovery_snapshot as read_recovery_text, validate_jps_path, write_jps_text_atomically,
-    write_jps_text_atomically_if_unchanged, RecoverySnapshotSequence, SelectedJpsFiles,
-    MAX_JPS_FILE_BYTES, MAX_RECOVERY_SNAPSHOT_BYTES,
+    write_jps_text_atomically_if_unchanged, write_new_jps_text_atomically,
+    RecoverySnapshotSequence, SelectedJpsFiles, MAX_JPS_FILE_BYTES, MAX_RECOVERY_SNAPSHOT_BYTES,
 };
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
+
+use super::save_dialogs::{approved_save_path, confirm_replacements};
 
 #[cfg(debug_assertions)]
 fn examples_directory(_app: &AppHandle) -> Result<PathBuf, String> {
@@ -240,12 +242,12 @@ pub(crate) async fn save_jps_file(
         return Err("the saved file snapshot is required for a direct save".into());
     }
 
-    let (target, expected_path) = if let Some(path) = path.filter(|_| !save_as) {
+    let (target, expected_path, replace_existing) = if let Some(path) = path.filter(|_| !save_as) {
         let path = validate_jps_path(Path::new(&path)).map_err(|error| error.to_string())?;
         if !selected_files.allows(&path)? {
             return Err("save path was not selected in this app session".into());
         }
-        (path.clone(), Some(path))
+        (path.clone(), Some(path), true)
     } else {
         let suggested = match suggested_path {
             Some(path) => {
@@ -292,22 +294,25 @@ pub(crate) async fn save_jps_file(
                 Some(directory) => dialog.set_directory(directory).set_file_name(file_name),
                 None => dialog.set_file_name(file_name),
             };
-            dialog.blocking_save_file()
+            let Some(selected) = dialog.blocking_save_file() else {
+                return Ok(None);
+            };
+            let selected = selected
+                .into_path()
+                .map_err(|_| "native dialog did not return a local file path".to_owned())?;
+            approved_save_path(&selected, "jps", |paths| {
+                confirm_replacements(&window, paths)
+            })
         })
         .await
-        .map_err(|error| format!("JPS save dialog failed: {error}"))?;
-        let Some(selected) = selected else {
+        .map_err(|error| format!("JPS save dialog failed: {error}"))??;
+        let Some((path, replace_existing)) = selected else {
             return Ok(None);
         };
-        let mut path = selected
-            .into_path()
-            .map_err(|_| "native dialog did not return a local file path".to_owned())?;
-        if path.extension().is_none() {
-            path.set_extension("jps");
-        }
         (
             validate_jps_path(&path).map_err(|error| error.to_string())?,
             expected_path,
+            replace_existing,
         )
     };
 
@@ -318,7 +323,8 @@ pub(crate) async fn save_jps_file(
             Some(expected_text) => {
                 write_jps_text_atomically_if_unchanged(&write_path, expected_text, &text)
             }
-            None => write_jps_text_atomically(&write_path, &text),
+            None if replace_existing => write_jps_text_atomically(&write_path, &text),
+            None => write_new_jps_text_atomically(&write_path, &text),
         };
         result.map_err(|error| error.to_string())
     })

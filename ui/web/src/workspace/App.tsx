@@ -102,10 +102,12 @@ export function App() {
   const {score, setScore, currentDocument, documentOpen, setActiveDialog, activeDialogRef,
     setDialogError, settingsDraftRef, settingsDraftReset, isSaving, saving, recoveryReady,
     recoveryReadyRef, recoverySequence, currentRecoveryDraft, requestAction, requestNativeClose,
+    closeRequestPending,
     saveDocument} = lifecycle;
   const transcription = useTranscriptionSession({currentDocument,
     getReferences: () => currentReferences.current, copyRef,
-    isBusy: mode => saving.current || referenceAssets.isImporting() || (mode === "append" && !documentOpen),
+    isBusy: mode => closeRequestPending.current || saving.current || referenceAssets.isImporting()
+      || (mode === "append" && !documentOpen),
     onDraft: adoptTranscription,
     onError: message => setStatus({kind: "error", message}),
   });
@@ -129,7 +131,8 @@ export function App() {
     score, currentDocument, documentOpen, copyRef, fontSources: outputFontSources });
   const referenceAssets = useReferenceAssets({ currentDocument, recoverySequence,
     currentRecoveryDraft, copyRef, setStatus, setActiveDialog, setDialogError, setPreferences,
-    externalImportBusy: () => !recoveryReadyRef.current || saving.current || transcribing.current
+    externalImportBusy: () => closeRequestPending.current || !recoveryReadyRef.current
+      || saving.current || transcribing.current
       || activeDialogRef.current !== null || Boolean(informationDialogRef.current?.open) });
   const { referenceDropActive, references, referenceSources, currentReferences, pendingReferenceImport,
     isImportingReferences, isCommittingReferences, isHandlingReferenceChoice,

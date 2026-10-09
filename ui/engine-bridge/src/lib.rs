@@ -79,6 +79,7 @@ pub struct EngineSupervisor {
     process: Option<EngineProcess>,
     launch: EngineLaunch,
     request_timeout: Duration,
+    shutdown: Arc<AtomicBool>,
 }
 
 enum EngineLaunch {
@@ -179,6 +180,7 @@ impl Default for EngineSupervisor {
             process: None,
             launch: EngineLaunch::Development,
             request_timeout: REQUEST_TIMEOUT,
+            shutdown: Arc::default(),
         }
     }
 }
@@ -190,6 +192,7 @@ impl Default for EngineSupervisor {
             process: None,
             launch: EngineLaunch::Unconfigured,
             request_timeout: REQUEST_TIMEOUT,
+            shutdown: Arc::default(),
         }
     }
 }
@@ -200,6 +203,7 @@ impl EngineSupervisor {
             process: None,
             launch: EngineLaunch::Packaged(executable),
             request_timeout: REQUEST_TIMEOUT,
+            shutdown: Arc::default(),
         }
     }
 
@@ -212,15 +216,20 @@ impl EngineSupervisor {
                 args: args.iter().map(OsString::from).collect(),
             },
             request_timeout: timeout,
+            shutdown: Arc::default(),
         }
     }
 
     pub fn capabilities(&mut self) -> Result<Value, String> {
+        if self.shutdown.load(Ordering::Acquire) {
+            return Err("engine shut down".into());
+        }
         if self.process.is_none() {
             self.process = Some(EngineProcess::spawn(
                 &self.launch,
                 self.request_timeout,
                 None,
+                &self.shutdown,
             )?);
         }
         Ok(self
@@ -229,6 +238,15 @@ impl EngineSupervisor {
             .expect("engine was spawned")
             .capabilities
             .clone())
+    }
+
+    pub fn shutdown_signal(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.shutdown)
+    }
+
+    pub fn shutdown(&mut self) {
+        self.shutdown.store(true, Ordering::Release);
+        self.process.take();
     }
 
     pub fn render(&mut self, args: RenderArgs) -> Result<Value, String> {
@@ -371,6 +389,9 @@ impl EngineSupervisor {
         cancelled: Option<Arc<AtomicBool>>,
         progress: Option<ProgressHandler>,
     ) -> Result<Value, String> {
+        if self.shutdown.load(Ordering::Acquire) {
+            return Err("engine shut down".into());
+        }
         if cancelled
             .as_deref()
             .is_some_and(|flag| flag.load(Ordering::Acquire))
@@ -401,6 +422,7 @@ impl EngineSupervisor {
                 &self.launch,
                 self.request_timeout,
                 cancelled.as_deref(),
+                &self.shutdown,
             )?);
         }
         let process = self.process.as_mut().expect("engine was spawned");
@@ -412,6 +434,7 @@ impl EngineSupervisor {
             timeout,
             cancelled.as_deref(),
             progress,
+            &self.shutdown,
         );
         if result.is_err() {
             self.process.take();
@@ -425,6 +448,7 @@ impl EngineProcess {
         launch: &EngineLaunch,
         request_timeout: Duration,
         cancelled: Option<&AtomicBool>,
+        shutdown: &AtomicBool,
     ) -> Result<Self, String> {
         let mut command = launch.command()?;
         command
@@ -453,21 +477,22 @@ impl EngineProcess {
                 return Err(format!("could not start render supervisor: {error}"));
             }
         };
-        let capabilities = match receive_controlled(&startup_receiver, request_timeout, cancelled) {
-            Ok(Ok(capabilities)) => capabilities,
-            Ok(Err(error)) => {
-                stop_child(&child);
-                let _ = worker.join();
-                return Err(error);
-            }
-            Err(error) => {
-                stop_child(&child);
-                let _ = worker.join();
-                return Err(format!(
-                    "Python engine handshake timed out or stopped: {error}"
-                ));
-            }
-        };
+        let capabilities =
+            match receive_controlled(&startup_receiver, request_timeout, cancelled, shutdown) {
+                Ok(Ok(capabilities)) => capabilities,
+                Ok(Err(error)) => {
+                    stop_child(&child);
+                    let _ = worker.join();
+                    return Err(error);
+                }
+                Err(error) => {
+                    stop_child(&child);
+                    let _ = worker.join();
+                    return Err(format!(
+                        "Python engine handshake timed out or stopped: {error}"
+                    ));
+                }
+            };
         Ok(Self {
             child,
             sender,
@@ -486,6 +511,7 @@ impl EngineProcess {
         timeout: Duration,
         cancelled: Option<&AtomicBool>,
         progress: Option<ProgressHandler>,
+        shutdown: &AtomicBool,
     ) -> Result<Value, String> {
         let (reply, receiver) = mpsc::sync_channel(1);
         self.sender
@@ -498,7 +524,7 @@ impl EngineProcess {
                 progress,
             }))
             .map_err(|_| "Python worker stopped".to_owned())?;
-        match receive_controlled(&receiver, timeout, cancelled) {
+        match receive_controlled(&receiver, timeout, cancelled, shutdown) {
             Ok(result) => result,
             Err(error) => {
                 self.terminate();
@@ -526,9 +552,13 @@ fn receive_controlled<T>(
     receiver: &mpsc::Receiver<T>,
     timeout: Duration,
     cancelled: Option<&AtomicBool>,
+    shutdown: &AtomicBool,
 ) -> Result<T, String> {
     let deadline = Instant::now() + timeout;
     loop {
+        if shutdown.load(Ordering::Acquire) {
+            return Err("engine shut down".into());
+        }
         if cancelled.is_some_and(|flag| flag.load(Ordering::Acquire)) {
             return Err("transcription cancelled".into());
         }
@@ -1043,7 +1073,10 @@ for line in sys.stdin:
     fn transcription_request_sends_only_the_managed_reference_path() {
         let mut engine = fake_engine("normal");
         let result = engine.transcribe(transcription_args()).unwrap();
-        assert_eq!(result["result"]["payload"]["path"], "/managed/reference.pdf");
+        assert_eq!(
+            result["result"]["payload"]["path"],
+            "/managed/reference.pdf"
+        );
         assert_eq!(result["result"]["payload"].as_object().unwrap().len(), 1);
     }
 
@@ -1167,6 +1200,35 @@ for line in sys.stdin:
         drop(engine);
 
         assert_reaped(&child);
+    }
+
+    #[test]
+    fn shutdown_signal_interrupts_a_request_and_prevents_restarting_workers() {
+        let mut engine = fake_engine("child-hang-request");
+        let pid = engine.capabilities().unwrap()["descendant_pid"]
+            .as_u64()
+            .unwrap() as u32;
+        let child = Arc::clone(&engine.process.as_ref().unwrap().child);
+        let signal = engine.shutdown_signal();
+        let stop = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(100));
+            signal.store(true, Ordering::Release);
+        });
+        let started = Instant::now();
+        assert!(engine
+            .render(render_args())
+            .unwrap_err()
+            .contains("shut down"));
+        stop.join().unwrap();
+        assert!(started.elapsed() < Duration::from_secs(1));
+        engine.shutdown();
+        assert_reaped(&child);
+        assert!(!descendant_running(pid));
+        assert!(engine.capabilities().unwrap_err().contains("shut down"));
+        assert!(engine
+            .render(render_args())
+            .unwrap_err()
+            .contains("shut down"));
     }
 
     #[test]

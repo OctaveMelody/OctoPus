@@ -304,7 +304,6 @@ class LayoutHairpinMark:
 class LayoutPage:
     metrics: PageMetrics
     page_index: int = 1
-    compatibility_key: str | None = None
     events: list[LayoutEvent] = field(default_factory=list)
     hidden_events: list[LayoutEvent] = field(default_factory=list)
     lyrics: list[LayoutLyric] = field(default_factory=list)

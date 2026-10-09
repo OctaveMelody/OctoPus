@@ -271,7 +271,11 @@ pub fn remove_recovery_snapshot(path: &Path) -> Result<(), DocumentIoError> {
 }
 
 pub fn write_jps_text_atomically(path: &Path, text: &str) -> Result<(), DocumentIoError> {
-    write_jps_text(path, text, None)
+    write_jps_text(path, text, None, true)
+}
+
+pub fn write_new_jps_text_atomically(path: &Path, text: &str) -> Result<(), DocumentIoError> {
+    write_jps_text(path, text, None, false)
 }
 
 pub fn write_jps_text_atomically_if_unchanged(
@@ -279,13 +283,14 @@ pub fn write_jps_text_atomically_if_unchanged(
     expected_text: &str,
     text: &str,
 ) -> Result<(), DocumentIoError> {
-    write_jps_text(path, text, Some(expected_text))
+    write_jps_text(path, text, Some(expected_text), true)
 }
 
 fn write_jps_text(
     path: &Path,
     text: &str,
     expected_text: Option<&str>,
+    replace_existing: bool,
 ) -> Result<(), DocumentIoError> {
     validate_jps_path(path)?;
     if text.len() > MAX_JPS_FILE_BYTES {
@@ -298,6 +303,9 @@ fn write_jps_text(
         Err(error) if error.kind() == io::ErrorKind::NotFound => None,
         Err(error) => return Err(DocumentIoError::Io(error)),
     };
+    if existing.is_some() && !replace_existing {
+        return Err(DocumentIoError::ChangedOnDisk);
+    }
     let parent = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -315,9 +323,12 @@ fn write_jps_text(
             return Err(DocumentIoError::ChangedOnDisk);
         }
     }
-    temporary
-        .persist(path)
-        .map_err(|error| DocumentIoError::Io(error.error))?;
+    let result = if replace_existing {
+        temporary.persist(path)
+    } else {
+        temporary.persist_noclobber(path)
+    };
+    result.map_err(|error| DocumentIoError::Io(error.error))?;
     Ok(())
 }
 
@@ -438,9 +449,23 @@ mod tests {
         create_jps_working_copy, list_jps_examples, read_jps_example, read_jps_text,
         read_recovery_snapshot, remove_recovery_snapshot, validate_jps_path,
         write_jps_text_atomically, write_jps_text_atomically_if_unchanged,
-        write_recovery_snapshot_atomically, DocumentIoError, RecoverySnapshotSequence,
-        SelectedJpsFiles, MAX_JPS_FILE_BYTES, MAX_RECOVERY_SNAPSHOT_BYTES, MAX_SELECTED_JPS_FILES,
+        write_new_jps_text_atomically, write_recovery_snapshot_atomically, DocumentIoError,
+        RecoverySnapshotSequence, SelectedJpsFiles, MAX_JPS_FILE_BYTES,
+        MAX_RECOVERY_SNAPSHOT_BYTES, MAX_SELECTED_JPS_FILES,
     };
+
+    #[test]
+    fn new_save_never_overwrites_a_file_created_after_the_dialog() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("Existing.jps");
+        write_new_jps_text_atomically(&path, "first score").unwrap();
+        assert!(matches!(
+            write_new_jps_text_atomically(&path, "unconfirmed replacement"),
+            Err(DocumentIoError::ChangedOnDisk)
+        ));
+        assert_eq!(fs::read_to_string(&path).unwrap(), "first score");
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
 
     #[test]
     fn read_preserves_bom_and_unicode() {

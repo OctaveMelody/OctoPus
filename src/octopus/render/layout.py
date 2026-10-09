@@ -9,7 +9,6 @@ from octopus.normalization.types import (
     VoiceModel,
 )
 from octopus.parser.ast import MusicTokenKind
-from octopus.render.compatibility_identity import compatibility_profile_key
 from octopus.render.core.layout_metrics import (
     DEFAULT_PAGE_HEIGHT,
     DEFAULT_PAGE_WIDTH,
@@ -153,7 +152,6 @@ __all__ = [
     "align_parallel_refrain_rows",
     "align_parallel_sustain_sentinel_rows",
     "build_syllabic_projection_plan",
-    "compatibility_profile_key",
     "compute_event_width",
     "compute_header",
     "hidden_dsb_events_for_layout",

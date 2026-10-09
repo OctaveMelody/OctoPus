@@ -79,6 +79,7 @@ export function useReferenceAssets({ currentDocument, recoverySequence,
   async function commitReferenceSet(
     next: ReturnType<typeof createReferenceSet>,
     sources: Record<string, string>,
+    beforeCommit?: () => void,
   ) {
     if (referenceCommitInFlight.current) throw new Error(copyRef.current.imageImportInProgress);
     referenceCommitInFlight.current = true;
@@ -99,6 +100,15 @@ export function useReferenceAssets({ currentDocument, recoverySequence,
       );
       if (!(await writeRecoverySnapshot(sequence, snapshot))) {
         throw new Error(copyRef.current.recoveryFailed);
+      }
+      try {
+        beforeCommit?.();
+      } catch (error) {
+        const rollbackSequence = ++recoverySequence.current;
+        if (!(await writeRecoverySnapshot(rollbackSequence, createRecoverySnapshot(
+          currentDocument.current, currentRecoveryDraft(), previous,
+        )))) throw new Error(copyRef.current.recoveryFailed);
+        throw error;
       }
       setReferences(next);
       const retainedSources = Object.fromEntries(

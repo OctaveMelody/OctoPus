@@ -13,6 +13,14 @@
 /** @typedef {{source_spans: SourceSpan[], row: number, x: number, y: number}} LyricAnchor */
 /** @typedef {{events: EventAnchor[], lyrics: LyricAnchor[]}} PageAnchors */
 
+/** CodeMirror stores each configured line separator as one character.
+ * @param {string} source @param {number} offset */
+export function sourceOffsetToEditorOffset(source, offset) {
+  if (!Number.isSafeInteger(offset) || offset < 0 || offset > source.length) return null;
+  const separator = source.match(/\r\n|\r|\n/)?.[0] ?? "\n";
+  return source.slice(0, offset).split(separator).join("\n").length;
+}
+
 /** @param {string} source */
 export function createSourceOffsetMap(source) {
   const utf16Offsets = [0];

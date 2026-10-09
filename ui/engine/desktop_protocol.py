@@ -262,7 +262,10 @@ def _load_document(payload: dict[str, Any]) -> dict[str, Any]:
     text = payload["text"]
     if not isinstance(text, str):
         raise ProtocolError("text must be a string")
-    document = load_jps_text(text, Path(name))
+    try:
+        document = load_jps_text(text, Path(name))
+    except ValueError as exc:
+        raise ProtocolError(str(exc)) from exc
     wrapper_fields = dict(document.record)
     wrapper_fields.pop("code", None)
     return {

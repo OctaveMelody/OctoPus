@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from octopus.normalization.types import ScoreModel
-from octopus.render.compatibility_identity import compatibility_profile_key
 from octopus.render.core.layout_metrics import page_metrics
 from octopus.render.core.layout_types import (
     LayoutEvent,
@@ -26,16 +25,10 @@ from octopus.render.layout_engine.system import _layout_system
 
 def layout_page(model: ScoreModel, page_index: int) -> LayoutPage:
     metrics = page_metrics(model)
-    compatibility_key = compatibility_profile_key(
-        code=model.code,
-        custom_code=model.custom_code,
-        page_config=model.page_config,
-    )
     if page_index >= len(model.pages):
         return LayoutPage(
             metrics=metrics,
             page_index=page_index + 1,
-            compatibility_key=compatibility_key,
             header=compute_header(model),
         )
 
@@ -43,7 +36,6 @@ def layout_page(model: ScoreModel, page_index: int) -> LayoutPage:
     layout = LayoutPage(
         metrics=metrics,
         page_index=page_index + 1,
-        compatibility_key=compatibility_key,
         header=compute_header(model),
         source_voice_by_line=dict(model.source_voice_by_line),
         unresolved_span_states=model.unresolved_span_states,

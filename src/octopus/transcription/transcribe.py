@@ -32,6 +32,7 @@ from .text import (
 
 MAX_PDF_BYTES = 100_000_000
 MAX_PDF_PAGES = 200
+MAX_PDF_RASTER_PIXELS = 7_000_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -802,6 +803,27 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
     return Draft(code, pages, tuple(issues))
 
 
+def _pdf_raster_options(width: float, height: float) -> list[str]:
+    """Bound rounded raster dimensions, including pages too large for one DPI."""
+    longest, shortest = max(width, height), min(width, height)
+    aspect = shortest / longest
+    side_limit = (
+        MAX_PDF_RASTER_PIXELS if aspect <= 1 / MAX_PDF_RASTER_PIXELS
+        else math.floor(math.sqrt(MAX_PDF_RASTER_PIXELS / aspect))
+    )
+    # Rounding a very short side up to one or more pixels can exceed the area budget.
+    side_limit = min(side_limit, MAX_PDF_RASTER_PIXELS // max(1, math.ceil(side_limit * aspect)))
+    dpi = (
+        203 if longest <= side_limit * 72 / 203
+        else max(1, math.floor(side_limit * 72 / longest))
+    )
+    options = ["-r", str(dpi)]
+    if longest > side_limit * 72 / dpi:
+        # Poppler's explicit output cap takes precedence over the one-DPI minimum.
+        options.extend(("-scale-to", str(side_limit)))
+    return options
+
+
 def _pdf_pages(
     path: Path, progress: Callable[[int, int, str], None] | None = None,
 ) -> tuple[PageObservation, ...]:
@@ -817,12 +839,28 @@ def _pdf_pages(
     )
     if not 1 <= count <= MAX_PDF_PAGES:
         raise ValueError("PDF must have between 1 and 200 pages")
-    page_sizes = {
-        int(number): (float(width), float(height))
-        for number, width, height in re.findall(
-            r"Page\s+(\d+)\s+size:\s+([\d.]+) x ([\d.]+) pts", metadata
-        )
-    }
+    try:
+        page_sizes = {
+            int(number): (float(width), float(height))
+            for number, width, height in re.findall(
+                r"^Page\s+(\d+)\s+size:\s+(\S+) x (\S+) pts", metadata, re.MULTILINE,
+            )
+        }
+        media_sizes = {
+            int(number): (float(right) - float(left), float(bottom) - float(top))
+            for number, left, top, right, bottom in re.findall(
+                r"^Page\s+(\d+)\s+MediaBox:\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)",
+                metadata, re.MULTILINE,
+            )
+        }
+    except ValueError as exc:
+        raise ValueError("PDF has invalid page dimensions") from exc
+    expected_pages = set(range(1, count + 1))
+    if set(page_sizes) != expected_pages or set(media_sizes) != expected_pages or any(
+        not math.isfinite(value) or value <= 0
+        for size in (*page_sizes.values(), *media_sizes.values()) for value in size
+    ):
+        raise ValueError("PDF has missing or invalid page dimensions")
     if progress:
         progress(0, count, "recognizing")
     observations = []
@@ -830,14 +868,12 @@ def _pdf_pages(
     with tempfile.TemporaryDirectory(prefix="jianpu-transcribe-") as temporary:
         raster = Path(temporary) / "page"
         for page_number in range(1, count + 1):
-            page_width, page_height = page_sizes.get(page_number, (750.0, 1061.25))
-            dpi = min(203, max(1, math.floor(72 * math.sqrt(
-                7_000_000 / (page_width * page_height)
-            ))))
             subprocess.run(
                 [
                     "pdftoppm", "-f", str(page_number), "-l", str(page_number),
-                    "-singlefile", "-r", str(dpi), "-png", str(path), str(raster),
+                    # Page size describes CropBox; both raster and native text use MediaBox.
+                    "-singlefile", *_pdf_raster_options(*media_sizes[page_number]),
+                    "-png", str(path), str(raster),
                 ],
                 capture_output=True,
                 timeout=120,
