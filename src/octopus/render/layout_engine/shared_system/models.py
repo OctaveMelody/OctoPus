@@ -120,7 +120,9 @@ class DsbShadowGridProjection:
     hidden_event_offsets: Mapping[tuple[int, int, int], Fraction]
     total_reserve: Fraction
     hidden_event_right_pins: frozenset[tuple[int, int, int]] = frozenset()
-    visible_event_offsets: Mapping[GridEventKey, Fraction] = MappingProxyType({})
+    visible_event_offsets: Mapping[GridEventKey, Fraction] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
 
 @dataclass(frozen=True)
