@@ -10,7 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -30,12 +30,18 @@ def build_metadata(root: Path = ROOT, now: datetime | None = None) -> tuple[str,
     def git(*args: str) -> str:
         return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
 
+    if git("rev-parse", "--is-shallow-repository") == "true":
+        raise ValueError(
+            "build versions require full Git history; run git fetch --unshallow --tags"
+        )
     sha = git("rev-parse", "--short", "HEAD")
     tags = [
         tag for tag in git("tag", "--merged", "HEAD", "--sort=-version:refname").splitlines()
         if RELEASE_TAG.fullmatch(tag)
     ]
-    ancestors = {commit: distance for distance, commit in enumerate(git("rev-list", "HEAD").splitlines())}
+    ancestors = {
+        commit: distance for distance, commit in enumerate(git("rev-list", "HEAD").splitlines())
+    }
     nearest_tag = None
     nearest_distance = None
     for tag in tags:
@@ -46,9 +52,13 @@ def build_metadata(root: Path = ROOT, now: datetime | None = None) -> tuple[str,
 
     release = (nearest_tag or "v0.0.0")[1:]
     if nearest_distance != 0:
-        stamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime("%Y%m%d%H%M")
+        roots = git("rev-list", "--max-parents=0", "HEAD").splitlines()
+        first_timestamp = min(int(git("show", "-s", "--format=%ct", root)) for root in roots)
+        hours = int(((now or datetime.now(UTC)).timestamp() - first_timestamp) // 3600)
+        if hours < 0:
+            raise ValueError("build time precedes the first OctoPus commit")
         version, separator, metadata = release.partition("+")
-        release = f"{version}-{stamp}" + (f"+{metadata}" if separator else "")
+        release = f"{version}-{hours}" + (f"+{metadata}" if separator else "")
     return release, sha
 
 

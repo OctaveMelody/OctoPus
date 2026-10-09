@@ -126,10 +126,13 @@ deferred.
 Every `build.py` build derives its app version from Git tags and its build number from the
 current short commit SHA. Release tags use SemVer names such as `v1.0.0-beta.1`. If `HEAD` has
 such a tag, the About dialog and package use the tag without its leading `v`. Otherwise the
-nearest reachable release tag is used with a UTC `-YYYYMMDDHHmm` suffix; if no release tag is
+nearest reachable release tag is used with an `-H` suffix, where `H` is the number of completed
+hours from the first reachable root commit’s Git committer timestamp to the build time
+(`floor((build Unix time - first commit Unix time) / 3600)`). If no release tag is
 reachable, the base is `v0.0.0` and the suffix is always added. The build injects this generated
 version into Tauri and the frontend, so `package.json` and source literals are not the app
-version source. CI checkouts must fetch the tags. Use `build.py` for packaging; calling Tauri
+version source. CI checkouts must fetch full history and tags; shallow repositories and build times before
+the first commit are rejected. Use `build.py` for packaging; calling Tauri
 directly bypasses this version generation.
 
 For an explicitly requested installer build, pass the desired Tauri bundle type, such as
