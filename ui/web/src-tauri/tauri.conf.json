@@ -70,7 +70,7 @@
       "../../../LICENSE": "LICENSE",
       "../../../samples/jps_files/": "examples/",
       "../../../build/desktop-engine/octopus-engine/": "engine/",
-      "../../../docs/": "docs/",
+      "../../../build/pdfjs-assets/docs/": "docs/",
       "../../../src/octopus/assets/fonts/": "fonts/"
     }
   }

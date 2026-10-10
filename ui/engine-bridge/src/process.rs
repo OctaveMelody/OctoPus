@@ -20,8 +20,11 @@ impl WorkerProcess {
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
+            use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
             // Assign the job before the worker can create any descendants.
-            command.creation_flags(windows_sys::Win32::System::Threading::CREATE_SUSPENDED);
+            command.creation_flags(
+                windows_sys::Win32::System::Threading::CREATE_SUSPENDED | CREATE_NO_WINDOW,
+            );
         }
         let child = command.spawn()?;
         #[cfg_attr(not(windows), allow(unused_mut))]

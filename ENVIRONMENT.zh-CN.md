@@ -117,13 +117,16 @@ Windows 原生环境使用 `.venv/Scripts/python.exe build.py --bundles nsis` �
 Microsoft C++ Build Tools 和 WebView2。Rust/PyInstaller 目标架构必须与运行 Python 的
 主机架构一致；不支持引擎交叉编译。macOS 打包暂未实现。
 
-每次 `build.py` 构建都会从 Git 标签生成应用版本，并使用当前提交的短 SHA 作为构建号。
-发布标签采用 SemVer 格式，例如 `v1.0.0-beta.1`。若 `HEAD` 有此类标签，“关于”对话框和安装包
-使用去掉开头 `v` 的标签版本。否则使用当前提交可达的最近发布标签，并追加后缀
-`-H`，其中 `H` 是从可达历史中最早根提交的 Git 提交者时间到构建时间之间的完整小时数
-（两个 Unix 时间戳之差除以 3600 后向下取整）；若没有可达的发布标签，则以 `v0.0.0` 为基础并始终追加该后缀。构建程序会将生成的
-版本注入 Tauri 和前端；`package.json` 和源码中的字面值不是应用版本的来源。CI 检出时必须拉取完整历史和标签；浅克隆以及早于首个提交的构建时间会被拒绝。
-打包请使用 `build.py`；直接调用 Tauri 会绕过版本生成。
+手动设置的应用版本是仓库根目录 `VERSION` 文件中的 SemVer 值，不带开头的 `v`。当前版本为
+`1.0.0-beta`，对应已指定的 `v1.0-Beta`。发布时应有意更新 `VERSION`；Git 标签和当前时间
+不会改变应用版本。`build.py` 会校验该值并注入 Tauri 和前端；`package.json` 和源码中的字面值
+不是应用版本来源。
+
+数字构建号为 OctoPus 产品仓库 `HEAD` 可达的提交数（`git rev-list --count HEAD`）。同时显示的
+短 SHA 用于标识确切的产品提交。`build.py` 始终相对于脚本所在目录读取 Git 元数据，因此从
+OctoPus-dev 调用生产构建脚本时，不会使用 OctoPus-dev 的提交数或 SHA；仅修改 OctoPus-dev
+不会改变生产版本或构建标识。必须获取产品仓库完整 Git 历史；浅克隆会被拒绝，因为无法计算
+完整提交数。产品工作树中的未提交更改可能改变二进制文件，却不会改变基于提交的标识；发布构建前请先提交产品代码。打包请使用 `build.py`；直接调用 Tauri 会绕过版本和构建号生成。
 
 `build.py` 在 `build/` 下构建前端、引擎和原生应用，将安装包复制到
 `dist/<target-triple>/`。引擎构建程序保留原有输出，直到新引擎通过字形检查、协议握手及
