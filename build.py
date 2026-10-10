@@ -82,7 +82,10 @@ def publish_portable(destination: Path, release: Path, system: str) -> Path:
         shutil.copy2(ROOT / "LICENSE", resources / "LICENSE")
         shutil.copytree(ROOT / "build/desktop-engine/octopus-engine", resources / "engine")
         shutil.copytree(ROOT / "samples/jps_files", resources / "examples")
-        shutil.copytree(ROOT / "docs", resources / "docs")
+        manual_docs = ROOT / "build" / "pdfjs-assets" / "docs"
+        if not manual_docs.is_dir():
+            raise RuntimeError("prepared manual resources are missing")
+        shutil.copytree(manual_docs, resources / "docs")
         shutil.copytree(ROOT / "src/octopus/assets/fonts", resources / "fonts")
         if not executable.is_file():
             raise RuntimeError("portable output is missing the native executable")
@@ -100,10 +103,10 @@ def publish_portable(destination: Path, release: Path, system: str) -> Path:
                 copied = examples / source.relative_to(expected)
                 if not copied.is_file() or copied.read_bytes() != source.read_bytes():
                     raise RuntimeError(f"portable example missing/corrupt: {source.name}")
-        for manual in sorted((ROOT / "docs").rglob("*")):
+        for manual in sorted(manual_docs.rglob("*")):
             if not manual.is_file():
                 continue
-            copied_manual = resources / "docs" / manual.relative_to(ROOT / "docs")
+            copied_manual = resources / "docs" / manual.relative_to(manual_docs)
             if not copied_manual.is_file() or copied_manual.read_bytes() != manual.read_bytes():
                 raise RuntimeError(f"portable user manual missing/corrupt: {manual.name}")
         _check_project_license(resources)

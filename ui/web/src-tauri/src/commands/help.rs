@@ -150,7 +150,7 @@ fn manual_html_path(_app: &AppHandle, language: &str) -> Result<PathBuf, String>
     let filename = manual_filename(language);
     #[cfg(debug_assertions)]
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../docs/user-manual")
+        .join("../../../build/pdfjs-assets/docs/user-manual")
         .join(filename);
     #[cfg(not(debug_assertions))]
     let path = _app
