@@ -10,6 +10,8 @@ use tauri::async_runtime::Mutex;
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
 use tauri::AppHandle;
+#[cfg(not(debug_assertions))]
+use tauri::Manager;
 use tauri::WebviewWindow;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
