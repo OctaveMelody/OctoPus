@@ -10,56 +10,38 @@ import re
 import shutil
 import subprocess
 import tempfile
-from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "ui" / "web"
 BUILD = ROOT / "build" / "cargo"
 PACKAGE_SUFFIXES = {".appimage", ".deb", ".dmg", ".exe", ".msi"}
-RELEASE_TAG = re.compile(
-    r"^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)"
+SEMVER_VERSION = re.compile(
+    r"^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)"
     r"(?:-(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
     r"(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?"
     r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
 )
 
 
-def build_metadata(root: Path = ROOT, now: datetime | None = None) -> tuple[str, str]:
-    """Return the app version and short Git SHA for this build."""
+def build_metadata(root: Path = ROOT) -> tuple[str, str, str]:
+    """Return the manually assigned SemVer, product commit count, and short SHA."""
     def git(*args: str) -> str:
         return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
 
     if git("rev-parse", "--is-shallow-repository") == "true":
         raise ValueError(
-            "build versions require full Git history; run git fetch --unshallow --tags"
+            "commit-based build numbers require full Git history; run git fetch --unshallow"
         )
+    version = (root / "VERSION").read_text(encoding="utf-8").strip()
+    if not SEMVER_VERSION.fullmatch(version):
+        raise ValueError(
+            f"VERSION must contain a SemVer value without a leading 'v'; got {version!r}"
+        )
+    commit = git("rev-parse", "HEAD")
     sha = git("rev-parse", "--short", "HEAD")
-    tags = [
-        tag for tag in git("tag", "--merged", "HEAD", "--sort=-version:refname").splitlines()
-        if RELEASE_TAG.fullmatch(tag)
-    ]
-    ancestors = {
-        commit: distance for distance, commit in enumerate(git("rev-list", "HEAD").splitlines())
-    }
-    nearest_tag = None
-    nearest_distance = None
-    for tag in tags:
-        commit = git("rev-list", "-n", "1", tag)
-        distance = ancestors.get(commit)
-        if distance is not None and (nearest_distance is None or distance < nearest_distance):
-            nearest_tag, nearest_distance = tag, distance
-
-    release = (nearest_tag or "v0.0.0")[1:]
-    if nearest_distance != 0:
-        roots = git("rev-list", "--max-parents=0", "HEAD").splitlines()
-        first_timestamp = min(int(git("show", "-s", "--format=%ct", root)) for root in roots)
-        hours = int(((now or datetime.now(UTC)).timestamp() - first_timestamp) // 3600)
-        if hours < 0:
-            raise ValueError("build time precedes the first OctoPus commit")
-        version, separator, metadata = release.partition("+")
-        release = f"{version}-{hours}" + (f"+{metadata}" if separator else "")
-    return release, sha
+    build_number = git("rev-list", "--count", commit)
+    return version, build_number, sha
 
 
 def _tauri_build_command(bundles: str | None) -> list[str]:
@@ -159,7 +141,7 @@ def main() -> None:
         subprocess.run(["npm.cmd" if os.name == "nt" else "npm", "ci"], cwd=WEB, check=True)
 
     BUILD.mkdir(parents=True, exist_ok=True)
-    version, build_number = build_metadata()
+    version, build_number, build_commit = build_metadata()
     version_config = BUILD / "tauri-version.json"
     version_config.write_text(json.dumps({"version": version}), encoding="utf-8")
     command = _tauri_build_command(args.bundles)
@@ -174,7 +156,7 @@ def main() -> None:
         **os.environ,
         "CARGO_TARGET_DIR": str(BUILD),
         "VITE_APP_VERSION": version,
-        "VITE_BUILD_NUMBER": build_number,
+        "VITE_BUILD_NUMBER": f"{build_number} ({build_commit})",
     }, check=True)
 
     host = next(
@@ -197,7 +179,7 @@ def main() -> None:
         copied = destination / package.name
         shutil.copy2(package, copied)
         print(copied)
-    print(f"Version: {version}, Build: {build_number}")
+    print(f"Version: {version}, Build: {build_number}, Commit: {build_commit}")
     print(publish_portable(destination, bundles.parent, platform.system()))
 
 

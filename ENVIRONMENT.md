@@ -123,17 +123,21 @@ Omitting `--bundles` selects portable-only mode. Rust/PyInstaller target archite
 match the native Python host; worker cross-compilation is unsupported. macOS packaging is
 deferred.
 
-Every `build.py` build derives its app version from Git tags and its build number from the
-current short commit SHA. Release tags use SemVer names such as `v1.0.0-beta.1`. If `HEAD` has
-such a tag, the About dialog and package use the tag without its leading `v`. Otherwise the
-nearest reachable release tag is used with an `-H` suffix, where `H` is the number of completed
-hours from the first reachable root commit’s Git committer timestamp to the build time
-(`floor((build Unix time - first commit Unix time) / 3600)`). If no release tag is
-reachable, the base is `v0.0.0` and the suffix is always added. The build injects this generated
-version into Tauri and the frontend, so `package.json` and source literals are not the app
-version source. CI checkouts must fetch full history and tags; shallow repositories and build times before
-the first commit are rejected. Use `build.py` for packaging; calling Tauri
-directly bypasses this version generation.
+The manually assigned app version is the single SemVer value in the repository-root `VERSION`
+file. Store it without a leading `v`; the current value is `1.0.0-beta`, normalized from the
+assigned `v1.0-Beta`. Update `VERSION` intentionally for a release. Git tags and the clock do not
+change the app version. `build.py` validates this value and injects it into Tauri and the
+frontend, so `package.json` and source literals are not the app version source.
+
+The numeric build number is the count of commits reachable from the `HEAD` of the OctoPus
+product repository (`git rev-list --count HEAD`). The short SHA shown alongside it identifies
+that exact product commit. `build.py` resolves Git metadata relative to its own file, so invoking
+the production script from OctoPus-dev does not use OctoPus-dev's commit count or SHA. Changes in
+OctoPus-dev alone therefore do not alter the production version or build identity. Fetch full
+product Git history; shallow repositories are rejected because they cannot produce the complete
+commit count. A dirty product checkout can change the binary without changing its commit-based
+identity, so commit product-source changes before creating a release build. Use `build.py` for
+packaging; calling Tauri directly bypasses this version and build-number generation.
 
 For an explicitly requested installer build, pass the desired Tauri bundle type, such as
 `--bundles deb` on Linux or `--bundles nsis` / `--bundles msi` on native Windows (with Microsoft
