@@ -10,7 +10,7 @@ use tauri::async_runtime::Mutex;
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
 use tauri::WebviewWindow;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -262,8 +262,6 @@ mod tests {
         app_navigation_decision, is_external_web_url, manual_pdf_filename, project_url,
         HelpDestination, ManualNavigationDecision,
     };
-    use std::path::PathBuf;
-
     #[test]
     fn manual_pdf_filename_uses_the_selected_language() {
         assert_eq!(manual_pdf_filename("en"), "OctoPus-User-Manual-en.pdf");
