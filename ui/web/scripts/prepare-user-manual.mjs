@@ -15,7 +15,7 @@ cpSync(path.join(docsRoot, "PDF"), path.join(frontendAssets, "PDF"), {
   recursive: true,
 });
 
-const version = (process.env.VITE_APP_VERSION || "development")
+const version = readFileSync(path.join(repositoryRoot, "VERSION"), "utf8").trim()
   .replaceAll("&", "&amp;")
   .replaceAll("<", "&lt;")
   .replaceAll(">", "&gt;")
