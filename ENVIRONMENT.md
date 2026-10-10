@@ -124,16 +124,19 @@ match the native Python host; worker cross-compilation is unsupported. macOS pac
 deferred.
 
 Every `build.py` build derives its app version from Git tags and its build number from the
-current short commit SHA. Release tags use SemVer names such as `v1.0.0-beta.1`. If `HEAD` has
-such a tag, the About dialog and package use the tag without its leading `v`. Otherwise the
+current short commit SHA. Release tags may use full SemVer names such as `v1.0.0-beta.1` or
+abbreviated `MAJOR.MINOR` prerelease names such as `v1.0-Beta`. If `HEAD` has a supported tag,
+the About dialog and frontend use the tag without its leading `v`. Tauri requires a three-part
+SemVer version, so the build pads an abbreviated version with `.0` only in Tauri's generated
+configuration; the displayed version and build output retain the tag spelling. Otherwise the
 nearest reachable release tag is used with an `-H` suffix, where `H` is the number of completed
 hours from the first reachable root commit’s Git committer timestamp to the build time
 (`floor((build Unix time - first commit Unix time) / 3600)`). If no release tag is
-reachable, the base is `v0.0.0` and the suffix is always added. The build injects this generated
-version into Tauri and the frontend, so `package.json` and source literals are not the app
-version source. CI checkouts must fetch full history and tags; shallow repositories and build times before
-the first commit are rejected. Use `build.py` for packaging; calling Tauri
-directly bypasses this version generation.
+reachable, the base is `v0.0.0` and the suffix is always added. Checkpoint and invalid tags are
+ignored. The build injects this generated version into Tauri and the frontend, so `package.json`
+and source literals are not the app version source. CI checkouts must fetch full history and tags;
+shallow repositories and build times before the first commit are rejected. Use `build.py` for
+packaging; calling Tauri directly bypasses this version generation.
 
 For an explicitly requested installer build, pass the desired Tauri bundle type, such as
 `--bundles deb` on Linux or `--bundles nsis` / `--bundles msi` on native Windows (with Microsoft

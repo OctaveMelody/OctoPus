@@ -23,6 +23,31 @@ RELEASE_TAG = re.compile(
     r"(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?"
     r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
 )
+ABBREVIATED_PRERELEASE_VERSION = re.compile(
+    r"^((?:0|[1-9]\d*)\.(?:0|[1-9]\d*))-(.+)$"
+)
+
+
+def _is_release_tag(tag: str) -> bool:
+    if RELEASE_TAG.fullmatch(tag):
+        return True
+    if not tag.startswith("v"):
+        return False
+    abbreviated = ABBREVIATED_PRERELEASE_VERSION.fullmatch(tag[1:])
+    return bool(
+        abbreviated
+        and RELEASE_TAG.fullmatch(
+            f"v{abbreviated.group(1)}.0-{abbreviated.group(2)}"
+        )
+    )
+
+
+def _tauri_compatible_version(version: str) -> str:
+    abbreviated = ABBREVIATED_PRERELEASE_VERSION.fullmatch(version)
+    if not abbreviated:
+        return version
+    normalized = f"{abbreviated.group(1)}.0-{abbreviated.group(2)}"
+    return normalized if RELEASE_TAG.fullmatch(f"v{normalized}") else version
 
 
 def build_metadata(root: Path = ROOT, now: datetime | None = None) -> tuple[str, str]:
@@ -37,7 +62,7 @@ def build_metadata(root: Path = ROOT, now: datetime | None = None) -> tuple[str,
     sha = git("rev-parse", "--short", "HEAD")
     tags = [
         tag for tag in git("tag", "--merged", "HEAD", "--sort=-version:refname").splitlines()
-        if RELEASE_TAG.fullmatch(tag)
+        if _is_release_tag(tag)
     ]
     ancestors = {
         commit: distance for distance, commit in enumerate(git("rev-list", "HEAD").splitlines())
@@ -161,7 +186,9 @@ def main() -> None:
     BUILD.mkdir(parents=True, exist_ok=True)
     version, build_number = build_metadata()
     version_config = BUILD / "tauri-version.json"
-    version_config.write_text(json.dumps({"version": version}), encoding="utf-8")
+    version_config.write_text(
+        json.dumps({"version": _tauri_compatible_version(version)}), encoding="utf-8"
+    )
     command = _tauri_build_command(args.bundles)
     command.extend(("--config", str(version_config)))
     if args.target:
