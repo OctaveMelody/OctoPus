@@ -138,6 +138,11 @@ and source literals are not the app version source. CI checkouts must fetch full
 shallow repositories and build times before the first commit are rejected. Use `build.py` for
 packaging; calling Tauri directly bypasses this version generation.
 
+For Linux AppImages, the filename's version segment must match the About/frontend version exactly.
+Use `1.0-Beta-245` in `OctoPus_1.0-Beta-245_amd64.AppImage`, even though Tauri's package metadata
+uses the SemVer-normalized `1.0.0-Beta-245`. Do not copy Tauri's padded version into the AppImage
+filename.
+
 For an explicitly requested installer build, pass the desired Tauri bundle type, such as
 `--bundles deb` on Linux or `--bundles nsis` / `--bundles msi` on native Windows (with Microsoft
 C++ Build Tools and WebView2 installed). `build.py` builds the frontend/worker/native app under
