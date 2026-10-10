@@ -161,7 +161,10 @@ fn manual_html_path(_app: &AppHandle, language: &str) -> Result<PathBuf, String>
         )
         .map_err(|error| format!("could not locate bundled user manual: {error}"))?;
     if !path.is_file() {
-        return Err(format!("bundled user manual is missing: {}", path.display()));
+        return Err(format!(
+            "bundled user manual is missing: {}",
+            path.display()
+        ));
     }
     Ok(path)
 }
