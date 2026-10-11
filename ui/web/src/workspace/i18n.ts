@@ -363,7 +363,7 @@ export const messages = {
     aboutTitle: "关于章鱼简谱",
     aboutVersionAndBuild: (version: string, build: string) => `版本：${version}，构建：${build}`,
     aboutDescription: "章鱼简谱：玩转八度，轻松制谱",
-    aboutDisclaimer: "章鱼简谱正在通过 AI 辅助编程开发，并将继续以此方式维护。",
+    aboutDisclaimer: "章鱼简谱通过 AI 辅助开发，并将以此方式维护。",
     done: "确定",
     exportMenu: "导出",
     exportOptions: "导出选项",
