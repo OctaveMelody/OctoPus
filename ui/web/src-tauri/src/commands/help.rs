@@ -301,7 +301,7 @@ pub(crate) fn copy_manual_docs(source: &Path, destination: &Path) -> io::Result<
 }
 
 pub(crate) fn manual_staging_base(home_dir: &Path) -> PathBuf {
-    home_dir.join("OctoPus").join("manual")
+    home_dir.join("Downloads").join(".octopus.tmp")
 }
 
 pub(crate) fn find_matching_manual_docs(
@@ -509,6 +509,7 @@ mod tests {
         app_navigation_decision, is_external_web_url, manual_pdf_filename, project_url,
         HelpDestination, ManualNavigationDecision,
     };
+
     #[test]
     fn manual_pdf_filename_uses_the_selected_language() {
         assert_eq!(manual_pdf_filename("en"), "OctoPus-User-Manual-en.pdf");
