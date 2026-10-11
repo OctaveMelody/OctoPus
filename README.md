@@ -2,51 +2,38 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-OctoPus is a desktop editor for Jianpu (numbered musical notation). Scores are authored in JPS
-(Jianpu Script) and rendered as a live SVG preview. The application can also transcribe Jianpu
-images and PDF files into editable JPS drafts and export scores to SVG, PDF, PNG or JPEG.
+**OctoPus: Oct (Octave) + Pus (Jianpu) = the ultimate numbered-notation editor.**
 
-The manually assigned SemVer application version is stored in `VERSION`. The About dialog shows
-that version, the number of commits in the OctoPus product history, and the short product commit
-SHA used for the build.
-The tagline is “OctoPus: Oct(Octave) + Pus (JianPu) = The ultimate numbered notation editor.”
+OctoPus is a desktop editor for Jianpu (numbered musical notation). Scores are written in JPS
+(Jianpu Script) and rendered as a live SVG preview. The application can also transcribe images
+and PDF files of Jianpu scores into editable JPS drafts and export scores to SVG, PDF, PNG or JPEG.
 
 ## Project background
 
 OctoPus adopts the JPS format from [Tomato JianPu](http://zhipu.lezhi99.com) and aims to match
-its rendered output through an independent parser and score renderer. It adds
-automatic note grouping for 6/8, 9/8 and 12/8 meters, as well as image and PDF transcription.
-
-This production repository contains the application, packaging configuration, offline Python
-worker and JPS examples. Tests, audits, reference output and development tools are maintained in
-the separate OctoPus-dev repository.
+Tomato JianPu's rendered output with its own parser and score renderer. It also adds automatic note
+grouping in 6/8, 9/8 and 12/8 meters, along with image and PDF transcription.
 
 ## Features
 
 - Edit JPS source with a live score preview.
-- Group short notes automatically by dotted-quarter beats in 6/8, 9/8 and 12/8; use JPS `~` and
-  `^` for custom joins and splits.
-- Transcribe JPG, PNG and PDF score images into JPS drafts. Source-region findings support review,
-  and a running transcription can be cancelled.
+- Transcribe score images (JPG or PNG) and PDF files into editable JPS drafts.
 - Export scores as SVG, PDF, PNG or JPEG. Raster exports support 96 and 300 DPI.
-- Choose Normal or Transcription layouts and maximize, restore or close individual panels;
-  closing a panel preserves its content.
-- Use keyboard shortcuts and batch-export folders with the Python CLI.
+- The app offers Normal and Transcription layouts.
 
 ## Transcription
 
-Image and PDF recognition uses RapidOCR with ONNX Runtime. Results are provisional drafts and
-should be compared with the source before use. Small, blurred or overlapping marks may be missed or
-misread. OctoPus reports review findings when note-number agreement is low or the rendered draft
-differs substantially from the source; a finding can open the related scan region and, when
+Image and PDF recognition uses RapidOCR with ONNX Runtime. Recognition produces provisional drafts
+that should be checked against the source before use. Small, blurred or overlapping marks may be
+missed or misread. OctoPus reports review findings when note-number agreement is low or the rendered
+draft differs substantially from the source. A finding can open the related scan region and, when
 available, the corresponding note.
 
 ## Planned improvements
 
-- Improve image and PDF transcription accuracy.
+- Continue improving image and PDF transcription accuracy over the long term.
 - Add audio playback, MIDI export, and LilyPond and MusicXML export.
 - Import MusicXML and convert it to JPS.
-- Recognize staff-notation images and PDFs as JPS.
 
 ## User manual
 
@@ -56,7 +43,10 @@ supported JPS notation and current limitations. The manual is included with inst
 portable packages. PDF editions are available in
 [English](docs/PDF/OctoPus-User-Manual-en.pdf) and
 [Chinese](docs/PDF/OctoPus-User-Manual-zh-CN.pdf).
-In the desktop app, the manual's PDF link opens a save dialog; in a browser, it downloads the PDF.
+The manual's PDF links open a save dialog in the desktop app and download the PDF in a browser.
+
+For the source format specification, see [Tomato JPS Spec](https://github.com/yetist/jianpu-spec),
+which OctoPus uses for JPS input.
 
 ## Build from source
 
@@ -102,20 +92,17 @@ the host GTK/WebKit runtime libraries and Poppler tools. Windows requires WebVie
 
 ## Fonts
 
-Font roles use configured system fonts when available and bundled, licensed alternatives otherwise.
-Font preferences are set in **Preferences**. PDF exports embed fonts; external SVG viewers require
-access to the fonts referenced by the score. See the [font guide](src/octopus/assets/fonts/README.md)
-for font mappings, fallback behavior and license details.
+For each font role, OctoPus uses the configured system font when available and otherwise falls back
+to a bundled font with a compatible license. Configure font preferences in **Preferences**. PDF
+exports embed fonts; external SVG viewers require access to the fonts referenced by the score. See
+the [font guide](src/octopus/assets/fonts/README.md) for font mappings, fallback behavior and
+license details.
 
-## Repository contents
+## Disclaimer
 
-- `src/octopus/` and `ui/`: application source and offline Python worker.
-- `docs/user-manual/index.html`: packaged English/Chinese user manual.
-- `docs/THIRD_PARTY_NOTICES.md`: OCR model, RapidOCR and ONNX Runtime license notices.
-- `samples/jps_files/`: 66 bundled score examples, including 小星星.
-- OctoPus-dev: tests, audits, reference output and development tools.
+OctoPus is released under the GNU General Public License, version 3. This software is provided free
+of charge. The author makes no warranties and accepts no liability for any direct or indirect loss
+arising from its use.
 
-OctoPus is released under the GNU General Public License, version 3. This software is
-shared for free; the author makes no warranty of any kind and assumes no liability for any
-direct or indirect loss arising from the use of this software. The full license is in
-[LICENSE](LICENSE) and is included with Python distributions and native application resources.
+AI-assisted coding is used to develop this software, and the same approach will be used for ongoing
+maintenance.

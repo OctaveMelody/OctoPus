@@ -1,48 +1,44 @@
-# 章鱼简谱（OctoPus）
+# 章鱼简谱（OctoPus）— 简谱编辑器
 
 [English](README.md) | **简体中文**
 
-章鱼简谱（OctoPus）是一款桌面简谱编辑器，以 JPS（Jianpu Script）作为乐谱源格式，可实时生成 SVG
-预览。程序也支持将简谱图片和 PDF 识别为可编辑的 JPS 草稿，并导出为 SVG、PDF、PNG 或 JPEG。
+**OctoPus：Oct（八度）+ Pus（简谱）= 终极简谱编辑器。**
 
-手动设置的 SemVer 应用版本保存在 `VERSION` 文件中。“关于”对话框会显示该版本、OctoPus
-产品 Git 历史中的提交数，以及构建所用产品提交的短 SHA。标语为“章鱼简谱：玩转八度，轻松制谱”。
+章鱼简谱（OctoPus）是一款桌面简谱编辑器。乐谱使用 JPS（Jianpu Script）编写，并实时渲染为 SVG
+预览。程序还可以将简谱图片和 PDF 文件识别为可编辑的 JPS 草稿，并将乐谱导出为 SVG、PDF、PNG 或 JPEG。
 
 ## 项目背景
 
-章鱼简谱采用[番茄简谱](http://zhipu.lezhi99.com)的 JPS 格式，独立实现解析和乐谱排版，
-并以匹配其渲染输出为目标。程序增加了 6/8、9/8、12/8 拍号下的音符自动分组，以及图片和 PDF 识谱功能。
-
-本生产仓库包含应用、打包配置、离线 Python 引擎和 JPS 示例。测试、审计、参考输出和开发工具
-位于独立的 OctoPus-dev 仓库。
+章鱼简谱采用[番茄简谱](http://zhipu.lezhi99.com)的 JPS 格式，并通过独立的解析器和乐谱渲染器，
+力求匹配番茄简谱的渲染效果。程序还增加了 6/8、9/8 和 12/8 拍号下的音符自动分组，以及图片和 PDF 识谱功能。
 
 ## 功能
 
 - 编辑 JPS 乐谱，并实时预览排版结果。
-- 在 6/8、9/8、12/8 拍号中按附点四分音符拍自动分组音符；可使用 JPS `~`、`^` 自定义连接与拆分。
-- 将 JPG、PNG 和 PDF 乐谱图片识别为 JPS 草稿。识谱结果提供原稿区域提示，运行中的任务可取消。
-- 导出 SVG、PDF、PNG 或 JPEG；光栅图像支持 96 和 300 DPI。
-- 使用布局菜单选择普通或转录布局；各面板支持最大化、还原和关闭，关闭后保留内容。
-- 使用快捷键，或通过 Python 命令行批量导出文件夹。
+- 将 JPG 或 PNG 乐谱图片及 PDF 文件识别为可编辑的 JPS 草稿。
+- 将乐谱导出为 SVG、PDF、PNG 或 JPEG。位图导出支持 96 和 300 DPI。
+- 提供普通和识谱两种布局。
 
 ## 识谱
 
 图片和 PDF 识谱使用 RapidOCR 与 ONNX Runtime。识别结果为待校对草稿，使用前应与原稿核对。
-较小、模糊或相互重叠的记号可能遗漏或误识别。当音符编号匹配度较低，或渲染结果与原稿差异较大时，
+较小、模糊或相互重叠的记号可能遗漏或误识别。当音符编号匹配度较低，或渲染草稿与原稿差异较大时，
 程序会生成复查提示。提示可定位到相关原稿区域；在能够对应的情况下，也会定位到相应音符。
 
 ## 后续计划
 
-- 提高图片和 PDF 识谱准确率。
-- 增加音频试听、MIDI 导出，以及 LilyPond 和 MusicXML 导出。
+- 长期持续提高图片和 PDF 识谱的准确率。
+- 增加音频播放、MIDI 导出，以及 LilyPond 和 MusicXML 导出。
 - 支持导入 MusicXML 并转换为 JPS。
-- 支持识别五线谱图片和 PDF 并转换为 JPS。
 
 ## 用户手册
 
-在程序中选择 **帮助 → 用户手册**，或阅读[中英文离线手册](docs/user-manual/index.html)。手册介绍
-编辑流程、支持的 JPS 记谱和当前限制，随安装包和便携版附带。另有[英文 PDF](docs/PDF/OctoPus-User-Manual-en.pdf)
-和[中文 PDF](docs/PDF/OctoPus-User-Manual-zh-CN.pdf)。在桌面程序中点击 PDF 链接会打开保存对话框；在浏览器中则直接下载。
+在程序中选择 **帮助 → 用户手册**，或阅读[中英文离线手册](docs/user-manual/index.html)。手册介绍编辑流程、
+支持的 JPS 记谱和当前限制，并随安装包和便携版附带。另有[英文 PDF](docs/PDF/OctoPus-User-Manual-en.pdf)
+和[中文 PDF](docs/PDF/OctoPus-User-Manual-zh-CN.pdf)。在桌面程序中点击手册的 PDF 链接会打开保存对话框；
+在浏览器中则会下载 PDF。
+
+JPS 源格式规范见 [Tomato JPS Spec](https://github.com/yetist/jianpu-spec)，章鱼简谱使用该规范处理 JPS 输入。
 
 ## 源码构建
 
@@ -80,20 +76,17 @@ Linux x86_64：
 ```
 
 Windows：运行 `dist/<target>/portable/` 中的 `octopus.exe`。请保留完整的便携版目录，其中包含程序资源、
-Python 引擎和乐谱示例。Linux 需要 GTK/WebKit 运行库和 Poppler 工具；Windows 需要 WebView2。
+Python 引擎和乐谱示例。Linux 需要主机上的 GTK/WebKit 运行库和 Poppler 工具；Windows 需要 WebView2。
 
 ## 字体
 
-字体角色优先使用已配置的系统字体；系统字体不可用时，改用随附的、附有许可证的内置替代字体。
+对于每种字体角色，程序会优先使用已配置的系统字体；如果不可用，则回退到随附的许可合规字体。
 可在**偏好设置**中配置字体。PDF 导出会嵌入字体；外部 SVG 查看器需要能够访问乐谱引用的字体。
-字体对应关系、替换规则和许可证见[字体指南](src/octopus/assets/fonts/README.zh-CN.md)。
+字体对应关系、替换规则和许可证详情见[字体指南](src/octopus/assets/fonts/README.zh-CN.md)。
 
-## 仓库内容
+## 免责声明
 
-- `src/octopus/` 和 `ui/`：应用源码及离线 Python 引擎。
-- `docs/user-manual/index.html`：随程序附带的中英文用户手册。
-- `docs/THIRD_PARTY_NOTICES.md`：OCR 模型、RapidOCR 和 ONNX Runtime 的许可说明。
-- `samples/jps_files/`：66 个打包乐谱示例，包括《小星星》。
-- OctoPus-dev：测试、审计、参考输出和开发工具。
+章鱼简谱基于 GNU 通用公共许可证第 3 版发布。本软件免费提供，作者不作任何形式的担保，亦不承担因使用本软件
+所导致的任何直接或间接损失。
 
-章鱼简谱基于 GNU 通用公共许可证第 3 版发布，本软件为免费分享，作者不承诺任何形式的担保，亦不承担因使用本软件所导致的任何直接或间接损失。完整文本见 [LICENSE](LICENSE)，并随 Python 发行包和桌面程序资源分发。
+本软件使用 AI 辅助编程开发，后续维护也将采用同样的方式。
