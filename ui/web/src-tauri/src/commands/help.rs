@@ -1,10 +1,14 @@
 use jps_document_io::file_exports::{publish_export_pages, ExportFormat};
 use serde::{Deserialize, Serialize};
-use std::fs;
+#[cfg(target_os = "linux")]
+use std::ffi::OsStr;
+use std::fs::{self, DirEntry};
 use std::future::Future;
+use std::io;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex as StdMutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::async_runtime::Mutex;
 #[cfg(not(debug_assertions))]
@@ -24,6 +28,8 @@ const UPDATE_RETRY_COOLDOWN: Duration = Duration::from_secs(60);
 const MAX_UPDATE_RETRY_COOLDOWN: Duration = Duration::from_secs(60 * 60);
 
 static UPDATE_CHECK_CACHE: OnceLock<UpdateCheckCache> = OnceLock::new();
+static MANUAL_STAGING: OnceLock<StdMutex<Option<(PathBuf, PathBuf)>>> = OnceLock::new();
+static MANUAL_STAGING_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -148,20 +154,174 @@ fn open_manual(app: &AppHandle, language: &str) -> Result<(), String> {
         .map_err(|error| format!("could not open user manual: {error}"))
 }
 
-fn manual_html_path(_app: &AppHandle, language: &str) -> Result<PathBuf, String> {
-    let filename = manual_filename(language);
+fn manual_docs_path(_app: &AppHandle) -> Result<PathBuf, String> {
     #[cfg(debug_assertions)]
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../build/pdfjs-assets/docs/user-manual")
-        .join(filename);
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../build/pdfjs-assets/docs");
     #[cfg(not(debug_assertions))]
     let path = _app
         .path()
-        .resolve(
-            crate::resource_relative(&format!("docs/user-manual/{filename}")),
-            BaseDirectory::Resource,
-        )
+        .resolve(crate::resource_relative("docs"), BaseDirectory::Resource)
         .map_err(|error| format!("could not locate bundled user manual: {error}"))?;
+    if !path.is_dir() {
+        return Err(format!(
+            "bundled user manual resources are missing: {}",
+            path.display()
+        ));
+    }
+    Ok(path)
+}
+
+#[cfg(target_os = "linux")]
+fn path_is_beneath(path: &Path, directory: &Path) -> bool {
+    path.strip_prefix(directory)
+        .is_ok_and(|relative| !relative.as_os_str().is_empty())
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn validated_appimage_docs_root(
+    appimage: Option<&OsStr>,
+    appdir: Option<&OsStr>,
+    executable: &Path,
+    resource_root: &Path,
+) -> Option<PathBuf> {
+    appimage?;
+    let appdir = Path::new(appdir?).canonicalize().ok()?;
+    let executable = executable.canonicalize().ok()?;
+    let resource_root = resource_root.canonicalize().ok()?;
+    if appdir.is_dir()
+        && executable.is_file()
+        && resource_root.is_dir()
+        && path_is_beneath(&executable, &appdir)
+        && path_is_beneath(&resource_root, &appdir)
+    {
+        Some(resource_root)
+    } else {
+        None
+    }
+}
+
+fn running_appimage_docs_root(resource_root: &Path) -> Option<PathBuf> {
+    #[cfg(target_os = "linux")]
+    {
+        let executable = std::env::current_exe().ok()?;
+        validated_appimage_docs_root(
+            std::env::var_os("APPIMAGE").as_deref(),
+            std::env::var_os("APPDIR").as_deref(),
+            &executable,
+            resource_root,
+        )
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = resource_root;
+        None
+    }
+}
+
+fn copy_directory_contents(source: &Path, destination: &Path) -> io::Result<()> {
+    let mut entries = fs::read_dir(source)?.collect::<Result<Vec<DirEntry>, _>>()?;
+    entries.sort_by_key(DirEntry::file_name);
+    for entry in entries {
+        let source_path = entry.path();
+        let destination_path = destination.join(entry.file_name());
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            fs::create_dir(&destination_path)?;
+            copy_directory_contents(&source_path, &destination_path)?;
+        } else if file_type.is_file() {
+            fs::copy(&source_path, &destination_path)?;
+        } else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "unsupported manual resource entry: {}",
+                    source_path.display()
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn copy_manual_docs(source: &Path, destination: &Path) -> io::Result<()> {
+    if !source.is_dir() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("manual resource directory is missing: {}", source.display()),
+        ));
+    }
+    fs::create_dir(destination)?;
+    if let Err(error) = copy_directory_contents(source, destination) {
+        return match fs::remove_dir_all(destination) {
+            Ok(()) => Err(error),
+            Err(cleanup_error) => Err(io::Error::new(
+                cleanup_error.kind(),
+                format!("{error}; could not remove incomplete manual copy: {cleanup_error}"),
+            )),
+        };
+    }
+    Ok(())
+}
+
+fn manual_staging_candidate() -> PathBuf {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let sequence = MANUAL_STAGING_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!(
+        "octopus-manual-{}-{timestamp}-{sequence}",
+        std::process::id()
+    ))
+}
+
+fn stage_manual_docs(source: &Path) -> Result<PathBuf, String> {
+    let source = source
+        .canonicalize()
+        .map_err(|error| format!("could not locate bundled manual resources: {error}"))?;
+    let cache = MANUAL_STAGING.get_or_init(|| StdMutex::new(None));
+    let mut cached = cache.lock().unwrap_or_else(|error| error.into_inner());
+    if let Some((cached_source, cached_destination)) = cached.as_ref() {
+        if cached_source == &source
+            && cached_destination.is_dir()
+            && cached_destination.join("user-manual/en.html").is_file()
+        {
+            return Ok(cached_destination.clone());
+        }
+    }
+    *cached = None;
+
+    for _ in 0..16 {
+        let destination = manual_staging_candidate();
+        match copy_manual_docs(&source, &destination) {
+            Ok(()) => {
+                *cached = Some((source, destination.clone()));
+                return Ok(destination);
+            }
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(format!(
+                    "could not stage bundled user manual in the system temporary directory: {error}"
+                ));
+            }
+        }
+    }
+    Err("could not create a unique user manual staging directory".into())
+}
+
+pub(crate) fn manual_html_path_from_root(resource_root: &Path, language: &str) -> PathBuf {
+    resource_root
+        .join("user-manual")
+        .join(manual_filename(language))
+}
+
+fn manual_html_path(app: &AppHandle, language: &str) -> Result<PathBuf, String> {
+    let resource_root = manual_docs_path(app)?;
+    let path = if let Some(appimage_root) = running_appimage_docs_root(&resource_root) {
+        manual_html_path_from_root(&stage_manual_docs(&appimage_root)?, language)
+    } else {
+        manual_html_path_from_root(&resource_root, language)
+    };
     if !path.is_file() {
         return Err(format!(
             "bundled user manual is missing: {}",
