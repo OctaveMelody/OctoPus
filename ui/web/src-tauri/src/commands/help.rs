@@ -14,7 +14,6 @@ use tauri::async_runtime::Mutex;
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
 use tauri::AppHandle;
-#[cfg(not(debug_assertions))]
 use tauri::Manager;
 use tauri::WebviewWindow;
 use tauri_plugin_dialog::DialogExt;
@@ -218,6 +217,44 @@ fn running_appimage_docs_root(resource_root: &Path) -> Option<PathBuf> {
     }
 }
 
+pub(crate) fn manual_docs_match(source: &Path, candidate: &Path) -> io::Result<bool> {
+    let source_type = fs::symlink_metadata(source)?.file_type();
+    let candidate_type = fs::symlink_metadata(candidate)?.file_type();
+    if !source_type.is_dir() || !candidate_type.is_dir() {
+        return Ok(false);
+    }
+
+    let mut source_entries = fs::read_dir(source)?.collect::<Result<Vec<DirEntry>, _>>()?;
+    let mut candidate_entries = fs::read_dir(candidate)?.collect::<Result<Vec<DirEntry>, _>>()?;
+    source_entries.sort_by_key(DirEntry::file_name);
+    candidate_entries.sort_by_key(DirEntry::file_name);
+    if source_entries.len() != candidate_entries.len() {
+        return Ok(false);
+    }
+
+    for (source_entry, candidate_entry) in source_entries.iter().zip(&candidate_entries) {
+        if source_entry.file_name() != candidate_entry.file_name() {
+            return Ok(false);
+        }
+        let source_path = source_entry.path();
+        let candidate_path = candidate_entry.path();
+        let source_type = source_entry.file_type()?;
+        let candidate_type = candidate_entry.file_type()?;
+        if source_type.is_dir() && candidate_type.is_dir() {
+            if !manual_docs_match(&source_path, &candidate_path)? {
+                return Ok(false);
+            }
+        } else if source_type.is_file() && candidate_type.is_file() {
+            if fs::read(source_path)? != fs::read(candidate_path)? {
+                return Ok(false);
+            }
+        } else {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 fn copy_directory_contents(source: &Path, destination: &Path) -> io::Result<()> {
     let mut entries = fs::read_dir(source)?.collect::<Result<Vec<DirEntry>, _>>()?;
     entries.sort_by_key(DirEntry::file_name);
@@ -263,22 +300,56 @@ pub(crate) fn copy_manual_docs(source: &Path, destination: &Path) -> io::Result<
     Ok(())
 }
 
-fn manual_staging_candidate() -> PathBuf {
+pub(crate) fn manual_staging_base(home_dir: &Path) -> PathBuf {
+    home_dir.join("OctoPus").join("manual")
+}
+
+pub(crate) fn find_matching_manual_docs(
+    source: &Path,
+    staging_base: &Path,
+) -> io::Result<Option<PathBuf>> {
+    let mut entries = fs::read_dir(staging_base)?.collect::<Result<Vec<DirEntry>, _>>()?;
+    entries.sort_by_key(DirEntry::file_name);
+    for entry in entries {
+        if !entry
+            .file_name()
+            .to_string_lossy()
+            .starts_with("octopus-manual-")
+            || !entry.file_type()?.is_dir()
+        {
+            continue;
+        }
+        let candidate = entry.path();
+        if manual_docs_match(source, &candidate).unwrap_or(false) {
+            return Ok(Some(candidate));
+        }
+    }
+    Ok(None)
+}
+
+fn manual_staging_candidate(base: &Path) -> PathBuf {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
     let sequence = MANUAL_STAGING_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!(
+    base.join(format!(
         "octopus-manual-{}-{timestamp}-{sequence}",
         std::process::id()
     ))
 }
 
-fn stage_manual_docs(source: &Path) -> Result<PathBuf, String> {
+pub(crate) fn stage_manual_docs(source: &Path, home_dir: &Path) -> Result<PathBuf, String> {
     let source = source
         .canonicalize()
         .map_err(|error| format!("could not locate bundled manual resources: {error}"))?;
+    let base = manual_staging_base(home_dir);
+    fs::create_dir_all(&base).map_err(|error| {
+        format!(
+            "could not create user manual staging directory {}: {error}",
+            base.display()
+        )
+    })?;
     let cache = MANUAL_STAGING.get_or_init(|| StdMutex::new(None));
     let mut cached = cache.lock().unwrap_or_else(|error| error.into_inner());
     if let Some((cached_source, cached_destination)) = cached.as_ref() {
@@ -290,9 +361,18 @@ fn stage_manual_docs(source: &Path) -> Result<PathBuf, String> {
         }
     }
     *cached = None;
+    if let Some(destination) = find_matching_manual_docs(&source, &base).map_err(|error| {
+        format!(
+            "could not scan prior user manual copies in {}: {error}",
+            base.display()
+        )
+    })? {
+        *cached = Some((source, destination.clone()));
+        return Ok(destination);
+    }
 
     for _ in 0..16 {
-        let destination = manual_staging_candidate();
+        let destination = manual_staging_candidate(&base);
         match copy_manual_docs(&source, &destination) {
             Ok(()) => {
                 *cached = Some((source, destination.clone()));
@@ -301,7 +381,8 @@ fn stage_manual_docs(source: &Path) -> Result<PathBuf, String> {
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
             Err(error) => {
                 return Err(format!(
-                    "could not stage bundled user manual in the system temporary directory: {error}"
+                    "could not stage bundled user manual under {}: {error}",
+                    base.display()
                 ));
             }
         }
@@ -318,7 +399,11 @@ pub(crate) fn manual_html_path_from_root(resource_root: &Path, language: &str) -
 fn manual_html_path(app: &AppHandle, language: &str) -> Result<PathBuf, String> {
     let resource_root = manual_docs_path(app)?;
     let path = if let Some(appimage_root) = running_appimage_docs_root(&resource_root) {
-        manual_html_path_from_root(&stage_manual_docs(&appimage_root)?, language)
+        let home_dir = app
+            .path()
+            .home_dir()
+            .map_err(|error| format!("could not locate user home for manual staging: {error}"))?;
+        manual_html_path_from_root(&stage_manual_docs(&appimage_root, &home_dir)?, language)
     } else {
         manual_html_path_from_root(&resource_root, language)
     };
