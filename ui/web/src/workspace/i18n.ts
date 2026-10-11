@@ -76,8 +76,7 @@ export const messages = {
     aboutTitle: "About OctoPus",
     aboutVersionAndBuild: (version: string, build: string) => `Version: ${version}, Build: ${build}`,
     aboutDescription: "OctoPus: Oct(Octave) + Pus (JianPu) = The ultimate numbered notation editor.",
-    aboutDisclaimer: "OctoPus is being developed and will be maintained using AI-assisted coding "
-      + "(sometimes called ‘vibe coding’).",
+    aboutDisclaimer: "OctoPus is being developed and will be maintained using AI-assisted coding.",
     done: "OK",
     exportMenu: "Export",
     exportOptions: "Export options",
@@ -364,7 +363,7 @@ export const messages = {
     aboutTitle: "关于章鱼简谱",
     aboutVersionAndBuild: (version: string, build: string) => `版本：${version}，构建：${build}`,
     aboutDescription: "章鱼简谱：玩转八度，轻松制谱",
-    aboutDisclaimer: "章鱼简谱正在通过 AI 辅助编程（vibe coding）开发，并将继续以此方式维护。",
+    aboutDisclaimer: "章鱼简谱正在通过 AI 辅助编程开发，并将继续以此方式维护。",
     done: "确定",
     exportMenu: "导出",
     exportOptions: "导出选项",
