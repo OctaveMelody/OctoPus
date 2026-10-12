@@ -78,12 +78,6 @@ Linux x86_64 下，运行：
 Windows 下，运行 `dist/<target>/portable/` 中的 `octopus.exe`。请保留完整的便携版目录，其中包含程序资源、
 Python 引擎和示例乐谱。Linux 依赖系统中的 GTK/WebKit 运行库和 Poppler 工具；Windows 需要 WebView2。
 
-## 字体
-
-字体可按用途分别设置。程序会优先使用**偏好设置**中指定的系统字体；若该字体不可用，则改用随应用附带、
-获得相应使用许可的字体。导出 PDF 时，字体会嵌入文件；使用外部 SVG 查看器时，需确保查看器能访问
-乐谱所用字体。字体映射、回退机制和许可信息详见[字体指南](src/octopus/assets/fonts/README.zh-CN.md)。
-
 ## 免责声明
 
 章鱼简谱基于 GNU 通用公共许可证第 3 版发布。本软件免费提供，作者不提供任何形式的担保，也不对因使用本软件

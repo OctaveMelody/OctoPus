@@ -90,14 +90,6 @@ On Windows, run `octopus.exe` in `dist/<target>/portable/`. Keep the entire port
 together; it contains the application resources, Python worker and score examples. Linux requires
 the host GTK/WebKit runtime libraries and Poppler tools. Windows requires WebView2.
 
-## Fonts
-
-For each font role, OctoPus uses the configured system font when available and otherwise falls back
-to a bundled font with a compatible license. Configure font preferences in **Preferences**. PDF
-exports embed fonts; external SVG viewers require access to the fonts referenced by the score. See
-the [font guide](src/octopus/assets/fonts/README.md) for font mappings, fallback behavior and
-license details.
-
 ## Disclaimer
 
 OctoPus is released under the GNU General Public License, version 3. This software is provided free
