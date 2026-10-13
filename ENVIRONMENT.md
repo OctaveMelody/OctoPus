@@ -9,7 +9,7 @@ read development tests, audit packages, instructions or environments from OctoPu
 
 - `pyproject.toml`: Python package metadata, dependency declarations and optional extras.
 - `uv.lock`: exact dependency versions; use `uv sync --locked` for reproducible installation.
-- `.python-version`, `.node-version`, `rust-toolchain.toml`: toolchain versions.
+- `.python-version`, `.node-version`, `.npm-version`, `rust-toolchain.toml`: toolchain versions.
 - `scripts/`: executable environment setup helpers.
 - `.venv/`, `ui/web/node_modules/`: ignored, repository-local dependency installations.
 
@@ -25,10 +25,11 @@ The export lists third-party dependencies; install this repository itself separa
 `python -m pip install --no-deps -e .` in your chosen virtual environment. Regenerate the export
 after lock changes. See [uv project structure](https://docs.astral.sh/uv/guides/projects/).
 
-Production setup: `python3 scripts/setup.py`. After setup, use the production virtual
-environment for release packaging: `.venv/bin/python build.py` on Linux/macOS or
-`.venv/Scripts/python.exe build.py` on Windows. This keeps source-side package checks aligned
-with the dependencies collected into the frozen worker.
+Production setup: `python3 scripts/setup.py` on Linux or `py scripts/setup.py` on Windows. After
+setup, run `python3 scripts/build_portable.py` on Linux or `py scripts/build_portable.py` on
+Windows. The launcher locates the repository and its production virtual environment, so it also
+works when called by full path from another working directory. This keeps source-side package
+checks aligned with the dependencies collected into the frozen worker.
 
 ## Locked dependencies
 
@@ -38,29 +39,18 @@ with the dependencies collected into the frozen worker.
   `rapidocr==3.9.2` and `onnxruntime==1.30.0`. The worker and UI use this provider directly; there
   is no per-user backend setting.
 - Worker freezing: `desktop-build` extra, PyInstaller 6.22.3.
-- Node.js 22.23.3 (`.node-version`), npm 10.9.9; frontend `ui/web/package-lock.json`.
+- Node.js 22.23.3 (`.node-version`), npm 10.9.9 (`.npm-version`); frontend
+  `ui/web/package-lock.json`.
 - Rust 1.98.1 (`rust-toolchain.toml`), Cargo lock `ui/Cargo.lock`.
 - Tauri CLI 2.11.5: `cargo install tauri-cli --version 2.11.5 --locked`.
 - uv 0.12.21 was used to prepare/validate these locks. uv is a host setup tool.
 
-Host tools may be installed globally or in a workspace tool directory on PATH. Python `.venv`,
+Host tools may be installed globally or in a workspace tool directory on PATH. The builder finds
+tools by command name and does not assume a machine-specific installation directory. On Windows it
+uses the standard Visual Studio locator to load the x64 compiler environment when needed; on Linux
+it checks the required desktop development libraries before compiling. Python `.venv`,
 frontend `ui/web/node_modules`, and all `build/`/`dist/` outputs belong to this repository and
 are ignored. A fresh clone can use ordinary installed host tools without the development repo.
-
-## This workspace's shared tools (Linux)
-
-From this production directory, activate the already installed workspace tools directly;
-no development script or environment is needed:
-
-```sh
-export PATH="$PWD/../.tools/bin:$PWD/../.tools/node-v22.23.3-linux-x64/bin:$PWD/../.tools/cargo/bin:$PATH"
-export RUSTUP_HOME="$PWD/../.tools/rustup"
-export CARGO_HOME="$PWD/../.tools/cargo"
-export UV_CACHE_DIR="$PWD/../.tools/uv-cache"
-export npm_config_cache="$PWD/../.tools/npm-cache"
-```
-
-For a separate clone using normally installed host tools, omit this activation block.
 
 ## Linux host packages
 
@@ -117,9 +107,13 @@ change the version. Use it only when a distribution intentionally omits that men
 ## Build packages
 
 During development, build only the portable by default. Do not build installers or other
-variants unless the user explicitly asks for them. Install the pinned Tauri CLI, then run
-`.venv/bin/python build.py` on Linux or `.venv/Scripts/python.exe build.py` on native Windows.
-Omitting `--bundles` selects portable-only mode. Rust/PyInstaller target architecture must
+variants unless the user explicitly asks for them. Run `python3 scripts/build_portable.py` on
+Linux or `py scripts/build_portable.py` on Windows. Use `--bundles deb` on Linux or
+`--bundles nsis` / `--bundles msi` on Windows only when an installer is explicitly needed.
+Omitting `--bundles` selects portable-only mode. The launcher uses the pinned repository
+environment; the builder checks Python, Node/npm, Rust/Cargo, Tauri CLI, and native system
+prerequisites before beginning the build. It builds the frontend and worker first, then invokes
+Tauri once with its nested prebuild hook disabled. Rust/PyInstaller target architecture must
 match the native Python host; worker cross-compilation is unsupported. macOS packaging is
 deferred.
 
@@ -136,17 +130,19 @@ the production script from OctoPus-dev does not use OctoPus-dev's commit count o
 OctoPus-dev alone therefore do not alter the production version or build identity. Fetch full
 product Git history; shallow repositories are rejected because they cannot produce the complete
 commit count. A dirty product checkout can change the binary without changing its commit-based
-identity, so commit product-source changes before creating a release build. Use `build.py` for
-packaging; calling Tauri directly bypasses this version and build-number generation.
+identity, so commit product-source changes before creating a release build. Use
+`scripts/build_portable.py` for packaging; calling Tauri directly bypasses this version and
+build-number generation.
 
 For an explicitly requested installer build, pass the desired Tauri bundle type, such as
 `--bundles deb` on Linux or `--bundles nsis` / `--bundles msi` on native Windows (with Microsoft
 C++ Build Tools and WebView2 installed). `build.py` builds the frontend/worker/native app under
 `build/`, places the checked portable tree under `dist/<target-triple>/portable/`, and copies
-requested installers to `dist/<target-triple>/`. The portable builder preserves its previous
-output until the worker, fonts, glyphs, manual, examples and license checks pass. Each repository
-has its own locks; update them intentionally with `uv lock`/npm/Cargo and validate the resulting
-change.
+requested installers to `dist/<target-triple>/`. Directory publication retries transient access
+errors, falls back to copying the verified staged tree, and restores the previous output on
+failure. The portable builder preserves its previous output until the worker, fonts, glyphs,
+manual, examples and license checks pass. Each repository has its own locks; update them
+intentionally with `uv lock`/npm/Cargo and validate the resulting change.
 
 ## Release fonts
 
@@ -160,11 +156,11 @@ production portable builds. Reference font files stay outside Git. See the [font
 
 ## Portable production testing
 
-Every native `build.py` build also publishes an untracked portable tree under
-`dist/<target-triple>/portable/`, alongside installation packages. Linux builds include a Debian
-bundle to obtain the matching resource layout, even when another bundle type is requested.
-The builder verifies worker/font/glyph assets, a Chinese render, example bytes and the packaged user manual before replacing
-the portable output. `portable.previous/` retains the last successful portable build.
+Every native build publishes an untracked portable tree under
+`dist/<target-triple>/portable/`. Installation packages are produced only when `--bundles` is
+specified. The builder verifies worker/font/glyph assets, a Chinese render, example bytes and the
+packaged user manual before replacing the portable output. `portable.previous/` retains the last
+successful portable build.
 
 On Linux, run from any working directory:
 

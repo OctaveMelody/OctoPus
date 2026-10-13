@@ -238,10 +238,6 @@ export function App() {
           && typeof capabilities.png_export === "boolean"
         ) {
           setEngineCapabilities(capabilities);
-          setPreferences(current => ({ ...current, fontSources: Object.fromEntries(
-            Object.entries(current.fontSources).map(([role, source]) =>
-              [role, capabilities.fonts?.[role]?.available ? source : "fallback"])
-          ) }));
         }
       })
       .catch(() => {});
@@ -675,6 +671,10 @@ export function App() {
           )}
         </nav>
         <div className="workspace-actions">
+          {preferences.displaySamplesLibrary && (
+            <button disabled={isSaving || referenceOperationBusy}
+              onClick={() => requestAction("examples")} type="button">{copy.examples}</button>
+          )}
           {documentOpen && (
             <PageSettings
               config={score.pageConfig}

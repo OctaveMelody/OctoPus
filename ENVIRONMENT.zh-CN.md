@@ -9,7 +9,7 @@ OctoPus-dev 中的开发测试、审计依赖、行为说明或开发环境。
 
 - `pyproject.toml`：Python 包元数据、依赖声明和可选依赖组。
 - `uv.lock`：精确依赖版本；使用 `uv sync --locked` 实现可复现安装。
-- `.python-version`、`.node-version`、`rust-toolchain.toml`：工具链版本。
+- `.python-version`、`.node-version`、`.npm-version`、`rust-toolchain.toml`：工具链版本。
 - `scripts/`：可执行的环境准备辅助脚本。
 - `.venv/`、`ui/web/node_modules/`：仓库内的依赖安装目录，由 Git 忽略。
 
@@ -24,9 +24,10 @@ uv export --locked --extra transcription --no-emit-project --output-file /tmp/oc
 `python -m pip install --no-deps -e .` 安装本仓库。锁定文件变更后应重新导出。
 参见 [uv 项目结构](https://docs.astral.sh/uv/guides/projects/)。
 
-生产环境准备：`python3 scripts/setup.py`。准备完成后，请使用生产虚拟环境打包：Linux/macOS
-运行 `.venv/bin/python build.py`，Windows 运行 `.venv/Scripts/python.exe build.py`。这样源码侧
-检查与冻结引擎收集的依赖保持一致。
+Linux 使用 `python3 scripts/setup.py`，Windows 使用 `py scripts/setup.py` 准备生产环境。准备
+完成后，Linux 运行 `python3 scripts/build_portable.py`，Windows 运行
+`py scripts/build_portable.py`。启动器会自行定位仓库和生产虚拟环境，也可在其他工作目录通过
+完整脚本路径调用。这样源码侧检查与冻结引擎收集的依赖保持一致。
 
 ## 锁定依赖
 
@@ -36,7 +37,8 @@ uv export --locked --extra transcription --no-emit-project --output-file /tmp/oc
   `rapidocr==3.9.2` 和 `onnxruntime==1.30.0`。工作进程和界面直接使用该引擎，不提供
   后端切换设置。
 - 引擎冻结打包：`desktop-build` 可选依赖组，PyInstaller 6.22.3。
-- Node.js 22.23.3（`.node-version`）、npm 10.9.9；前端锁定文件为 `ui/web/package-lock.json`。
+- Node.js 22.23.3（`.node-version`）、npm 10.9.9（`.npm-version`）；前端锁定文件为
+  `ui/web/package-lock.json`。
 - Rust 1.98.1（`rust-toolchain.toml`），Cargo 锁定文件为 `ui/Cargo.lock`。
 - Tauri CLI 2.11.5：`cargo install tauri-cli --version 2.11.5 --locked`。
 - 准备和验证这些锁定文件时使用 uv 0.12.21；uv 属于主机环境工具。
@@ -44,20 +46,6 @@ uv export --locked --extra transcription --no-emit-project --output-file /tmp/oc
 主机工具可全局安装，也可放在 PATH 中的工作区工具目录。Python `.venv`、前端
 `ui/web/node_modules` 及全部 `build/`、`dist/` 输出属于本仓库，均由 Git 忽略。
 全新克隆可直接使用已安装的常规主机工具，无需开发仓库。
-
-## 本工作区的共享工具（Linux）
-
-从生产仓库目录直接启用工作区中已有的工具，无需开发脚本或开发环境：
-
-```sh
-export PATH="$PWD/../.tools/bin:$PWD/../.tools/node-v22.23.3-linux-x64/bin:$PWD/../.tools/cargo/bin:$PATH"
-export RUSTUP_HOME="$PWD/../.tools/rustup"
-export CARGO_HOME="$PWD/../.tools/cargo"
-export UV_CACHE_DIR="$PWD/../.tools/uv-cache"
-export npm_config_cache="$PWD/../.tools/npm-cache"
-```
-
-若是独立克隆，且主机工具已按常规方式安装，请跳过此步骤。
 
 ## Linux 系统依赖包
 
@@ -112,10 +100,12 @@ uv run --locked octopus batch-export scores --out-dir images --format png --dpi 
 未明确指定类型的构建请求仅构建生产版，包括便携版可执行程序。只有明确要求时才构建
 开发版可执行程序；开发版构建说明保留在支持仓库中。
 
-先安装锁定版本的 Tauri CLI，再于 Linux 运行 `.venv/bin/python build.py --bundles deb`。
-Windows 原生环境使用 `.venv/Scripts/python.exe build.py --bundles nsis` 或 `--bundles msi`，并安装
-Microsoft C++ Build Tools 和 WebView2。Rust/PyInstaller 目标架构必须与运行 Python 的
-主机架构一致；不支持引擎交叉编译。macOS 打包暂未实现。
+Linux 运行 `python3 scripts/build_portable.py`；Windows 运行 `py scripts/build_portable.py`。
+只有明确需要安装包时才在 Linux 使用 `--bundles deb`，或在 Windows 使用 `--bundles nsis`
+或 `--bundles msi`。该启动器使用仓库锁定的环境；构建器会在编译前检查 Python、Node/npm、
+Rust/Cargo、Tauri CLI 和系统依赖。它先构建前端与引擎，再调用 Tauri，并关闭本次调用中的
+嵌套预构建钩子。Windows 需要 Microsoft C++ Build Tools 和 WebView2；Rust/PyInstaller
+目标架构必须与运行 Python 的主机一致，不支持引擎交叉编译。macOS 打包暂未实现。
 
 手动设置的应用版本是仓库根目录 `VERSION` 文件中的 SemVer 值，不带开头的 `v`。当前版本为
 `1.0.0-beta`，对应已指定的 `v1.0-Beta`。发布时应有意更新 `VERSION`；Git 标签和当前时间
@@ -126,12 +116,12 @@ Microsoft C++ Build Tools 和 WebView2。Rust/PyInstaller 目标架构必须与�
 短 SHA 用于标识确切的产品提交。`build.py` 始终相对于脚本所在目录读取 Git 元数据，因此从
 OctoPus-dev 调用生产构建脚本时，不会使用 OctoPus-dev 的提交数或 SHA；仅修改 OctoPus-dev
 不会改变生产版本或构建标识。必须获取产品仓库完整 Git 历史；浅克隆会被拒绝，因为无法计算
-完整提交数。产品工作树中的未提交更改可能改变二进制文件，却不会改变基于提交的标识；发布构建前请先提交产品代码。打包请使用 `build.py`；直接调用 Tauri 会绕过版本和构建号生成。
+完整提交数。产品工作树中的未提交更改可能改变二进制文件，却不会改变基于提交的标识；发布构建前请先提交产品代码。打包请使用 `scripts/build_portable.py`；直接调用 Tauri 会绕过版本和构建号生成。
 
 `build.py` 在 `build/` 下构建前端、引擎和原生应用，将安装包复制到
-`dist/<target-triple>/`。引擎构建程序保留原有输出，直到新引擎通过字形检查、协议握手及
-渲染冒烟测试后才替换。每个仓库拥有独立的锁定文件；有意更新时使用 `uv lock`、npm 或
-Cargo，并验证更新结果。
+`dist/<target-triple>/`。目录发布会对临时访问错误进行有限重试，必要时复制已验证的暂存文件，
+并在失败时恢复上一个输出。引擎通过字形检查、协议握手及渲染冒烟测试后才替换原有输出。
+每个仓库拥有独立的锁定文件；有意更新时使用 `uv lock`、npm 或 Cargo，并验证更新结果。
 
 ## 发布字体
 
@@ -145,9 +135,8 @@ Cargo，并验证更新结果。
 
 ## 生产便携版测试
 
-每次原生 `build.py` 构建均在 `dist/<target-triple>/portable/` 下生成不纳入 Git 的
-便携版目录，并同时生成安装包。即使请求其他安装包类型，Linux 构建也会包含 Debian 包，
-用于取得匹配的资源布局。替换便携版前，构建程序会验证引擎、字体、字形资源、中文渲染、
+每次原生构建均在 `dist/<target-triple>/portable/` 下生成不纳入 Git 的便携版目录。只有
+明确传入 `--bundles` 才会额外生成安装包。替换便携版前，构建程序会验证引擎、字体、字形资源、中文渲染、
 示例文件内容及打包的用户手册。`portable.previous/` 保留上一次成功生成的便携版。
 
 Linux 可从任意工作目录运行，以下路径按生产仓库根目录给出：

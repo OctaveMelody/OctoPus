@@ -50,8 +50,8 @@ which OctoPus uses for JPS input.
 
 ## Build from source
 
-See [environment instructions](ENVIRONMENT.md) for runtime and build requirements. Source builds
-require Python 3.11+, uv, Node.js 20.19+ with npm, Rust 1.92+ and Tauri CLI 2.11.5. Run the setup
+See [environment instructions](ENVIRONMENT.md) for runtime and build requirements. Production
+builds use the pinned Python, Node/npm and Rust versions plus Tauri CLI 2.11.5. Run the setup
 script from the repository root:
 
 ```sh
@@ -62,18 +62,21 @@ Linux builds also require GTK/WebKit development packages and Poppler tools; see
 [Linux prerequisites](ENVIRONMENT.md#linux-host-packages). Build on the target operating system.
 The Python worker is not cross-compiled.
 
-Build a Linux package and portable application with:
+Build a Linux portable application with:
 
 ```sh
-python3 build.py --bundles deb
+python3 scripts/build_portable.py
 ```
 
-On Windows, use a native Windows build environment:
+On Windows, build the portable application with:
 
 ```powershell
-python build.py --bundles nsis
-# Or: python build.py --bundles msi
+py scripts\build_portable.py
 ```
+
+The same launcher accepts `--bundles deb` on Linux or `--bundles nsis` / `--bundles msi` on
+Windows when an installer is explicitly needed. It locates the repository from its script path,
+validates build prerequisites, and can be called from any working directory.
 
 Packages and the portable application are written to a platform-specific subdirectory of `dist/`.
 Temporary build files are written to `build/`.

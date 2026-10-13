@@ -6,8 +6,9 @@ its development tools, or its working tree.
 
 ## Source of truth and sync with OctoPus-dev
 
-OctoPus-dev's `AGENTS.md` directs production builds to this repository's `build.py`; its default
-is the production portable build. Its `scripts/build-dev.sh` creates a separate development
+OctoPus-dev's `AGENTS.md` directs production builds to this repository's
+`scripts/build_portable.py`, which defaults to a production portable build and delegates to
+`build.py`. Its `scripts/build-dev.sh` creates a separate development
 executable and is not the release build. Follow the production `ENVIRONMENT.md` and the commands
 below even when OctoPus-dev is unavailable. Do not build production from a dev checkout, a linked
 source tree, or an experimental cross-compilation script.
@@ -51,15 +52,17 @@ Build natively on Windows 10 or later, x64. Do not cross-compile the Python work
 
 - Git with full product history (shallow clones cannot generate the production build number).
 - Visual Studio 2022 Build Tools with **Desktop development with C++**, MSVC v143, and a
-  Windows 10/11 SDK. Open an x64 Native Tools or Developer PowerShell for Visual Studio 2022 so
-  `cl.exe` and the SDK linker are on `PATH`.
+  Windows 10/11 SDK. The production builder locates Visual Studio with `vswhere` and initializes
+  its x64 environment; an x64 Native Tools or Developer PowerShell also works.
 - Microsoft Edge WebView2 Evergreen Runtime.
 - Python 3.12, uv 0.12.21, Node.js 22.23.3 with npm 10.9.9, and Rust/Cargo 1.98.1. The version
-  pins are recorded in `.python-version`, `.node-version`, and `rust-toolchain.toml`;
+  pins are recorded in `.python-version`, `.node-version`, `.npm-version`, and
+  `rust-toolchain.toml`;
   `ui/web/package-lock.json` and `ui/Cargo.lock` pin their dependencies.
 - Tauri CLI 2.11.5, installed from its locked Cargo sources.
 
-Check versions in the same Developer PowerShell used for the build:
+The build launcher checks the pinned versions. Run these commands manually only when diagnosing
+a host setup:
 
 ```powershell
 python --version
@@ -89,23 +92,26 @@ repository's manifests. Do not replace it with `uv sync` against OctoPus-dev or 
 
 ## Build the production application
 
-From the repository root in the same Developer PowerShell:
+From the repository root (or pass the full script path from any working directory):
 
 ```powershell
 # Default, matching OctoPus-dev's production-only default:
-.venv\Scripts\python.exe build.py
+py scripts\build_portable.py
 
 # Only when an installer is explicitly required:
-.venv\Scripts\python.exe build.py --bundles nsis
+py scripts\build_portable.py --bundles nsis
 # MSI is also supported: --bundles msi
 ```
 
 The default creates the portable application. The NSIS command additionally creates the x64
 Windows installer. Outputs are under `dist\x86_64-pc-windows-msvc\`; build intermediates are
 under `build\`. Keep the complete `portable` directory together when moving or testing it.
-Use `build.py`, not `cargo tauri build` directly: `build.py` checks assets, reads and validates
-the manually assigned SemVer from `VERSION`, and calculates the product-commit build number
-before invoking Tauri.
+Use `scripts/build_portable.py`, not `cargo tauri build` directly. The launcher finds the
+repository and its virtual environment regardless of the current directory. The production
+builder discovers tools through `PATH` (and initializes Visual Studio on Windows), verifies
+pinned tool versions and system prerequisites, builds the frontend and worker once, then compiles
+Tauri with the prebuild hook disabled for that invocation. It validates assets, the manually
+assigned SemVer from `VERSION`, and the product-commit build number before compiling.
 
 ## Bit-for-bit parity with OctoPus-dev
 

@@ -42,8 +42,8 @@ JPS 格式规范见 [Tomato JPS Spec](https://github.com/yetist/jianpu-spec)。�
 
 ## 源码构建
 
-运行环境和构建要求请参阅[环境说明](ENVIRONMENT.zh-CN.md)。从源码构建需要 Python 3.11+、uv、Node.js 20.19+
-（含 npm）、Rust 1.92+ 和 Tauri CLI 2.11.5。在项目根目录运行环境配置脚本：
+运行环境和构建要求请参阅[环境说明](ENVIRONMENT.zh-CN.md)。生产构建使用锁定的 Python、Node/npm、Rust
+版本和 Tauri CLI 2.11.5。在项目根目录运行环境配置脚本：
 
 ```sh
 python3 scripts/setup.py
@@ -52,18 +52,20 @@ python3 scripts/setup.py
 Linux 构建还需要 GTK/WebKit 开发包和 Poppler 工具，详见 [Linux 系统依赖](ENVIRONMENT.zh-CN.md#linux-系统依赖包)。
 请在目标系统上构建；Python 引擎无法交叉编译。
 
-构建 Linux 安装包和便携版：
+构建 Linux 便携版：
 
 ```sh
-python3 build.py --bundles deb
+python3 scripts/build_portable.py
 ```
 
-请在 Windows 本机环境下构建：
+Windows 便携版构建：
 
 ```powershell
-python build.py --bundles nsis
-# 或：python build.py --bundles msi
+py scripts\build_portable.py
 ```
+
+如明确需要安装包，Linux 可加 `--bundles deb`，Windows 可加 `--bundles nsis` 或
+`--bundles msi`。启动器会从脚本位置定位仓库并检查构建依赖，因此可在任意工作目录调用。
 
 安装包和便携版会生成在 `dist/` 下对应平台的子目录中；临时构建文件位于 `build/`。
 

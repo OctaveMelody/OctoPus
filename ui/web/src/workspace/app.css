@@ -354,14 +354,22 @@ h2 { margin: 0; font-size: 14px; }
 .reference-drop-active { outline: 3px solid #408699; outline-offset: -3px; }
 .reference-drop-hint { position: absolute; z-index: 30; inset: 52px 12px auto; pointer-events: none; border: 1px solid #408699; border-radius: 8px; padding: 16px; background: #effafd; color: #14394a; text-align: center; font-size: 14px; box-shadow: 0 4px 16px #17233b24; }
 
-.preferences-language { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4d5868; }
-.preferences-language select { width: auto; min-width: 0; min-height: 30px; padding: 4px 7px; border: 1px solid #d1d7e0; border-radius: 6px; color: #344258; background: #fff; font: inherit; }
-.preferences-fonts { display: grid; gap: 7px; margin: 12px 0; }
-.preferences-fonts fieldset { margin: 0; border: 1px solid #d9dee7; border-radius: 6px; }
-.preferences-fonts label { display: flex; align-items: center; gap: 8px; padding: 3px; font-size: 13px; }
-.preferences-fonts label span { margin-left: auto; text-align: right; color: #687385; }
-.preferences-fonts label:has(input:disabled) { color: #9299a3; }
-.preferences-fonts label:has(input:disabled) span { color: inherit; }
+.preferences-section { min-width: 0; margin: 0; border: 1px solid #d9dee7; border-radius: 8px; padding: 12px; }
+.preferences-section + .preferences-section { margin-top: 10px; }
+.preferences-section legend { padding: 0 6px; color: #4d5868; font-size: 13px; font-weight: 600; }
+.preferences-language { display: grid; gap: 7px; color: #4d5868; font-size: 13px; }
+.preferences-language-options { display: flex; flex-wrap: wrap; gap: 16px; }
+.preferences-language-options label { display: flex; align-items: center; gap: 7px; }
+.preferences-checkbox { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: #4d5868; }
+.preferences-font-section > p { margin: 0 0 8px; }
+.preferences-font-table-wrap { max-width: 100%; overflow-x: auto; }
+.preferences-fonts { width: 100%; border-collapse: collapse; font-size: 13px; }
+.preferences-fonts th, .preferences-fonts td { border-bottom: 1px solid #e3e7ed; padding: 7px 9px; text-align: left; }
+.preferences-fonts thead th { color: #586477; background: #f5f7fa; font-weight: 650; white-space: nowrap; }
+.preferences-fonts tbody th { font-weight: 600; }
+.preferences-font-choice { display: flex; min-height: 30px; align-items: center; gap: 7px; color: #4d5868; cursor: pointer; }
+.preferences-font-choice > span { color: #687385; }
+.preferences-font-unavailable { color: #9299a3; font-size: 11px; }
 
 .preferences-actions button { border-color: #b8cce3; color: #305477; background: #edf5ff; }
 .preferences-actions button:hover { background: #dfecfb; }

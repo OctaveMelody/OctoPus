@@ -17,6 +17,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
+from build_support import publish_directory
+
 ROOT = Path(__file__).resolve().parent
 TARGET_DIR = ROOT / "build"
 OUTPUT_DIR = TARGET_DIR / "desktop-engine" / "octopus-engine"
@@ -328,16 +330,7 @@ def _publish_bundle(bundle: Path, output_dir: Path) -> None:
     previous = staging_root / "previous"
     try:
         shutil.copytree(bundle, staged, symlinks=True)
-        if output_dir.exists():
-            output_dir.replace(previous)
-        try:
-            staged.replace(output_dir)
-        except BaseException:
-            if previous.exists():
-                previous.replace(output_dir)
-            raise
-        if previous.exists():
-            shutil.rmtree(previous)
+        publish_directory(staged, output_dir, previous, retain_backup=False)
     finally:
         # A failed rollback must leave its backup available for recovery.
         if not previous.exists():
