@@ -100,12 +100,14 @@ py scripts\build_portable.py
 
 # Only when an installer is explicitly required:
 py scripts\build_portable.py --bundles nsis
-# MSI is also supported: --bundles msi
 ```
 
-The default creates the portable application. The NSIS command additionally creates the x64
-Windows installer. Outputs are under `dist\x86_64-pc-windows-msvc\`; build intermediates are
-under `build\`. Keep the complete `portable` directory together when moving or testing it.
+The default creates the portable application and a ZIP named
+`OctoPus_{version}_x64_win64_portable.zip`. The NSIS command additionally creates a setup file
+named `OctoPus_{version}_x64_win64_setup.exe`. Linux AppImages use
+`OctoPus_{version}_{arch}_linux.AppImage`; the architecture label is `x64` or `arm64`. Outputs are
+under `dist\<target-triple>\`; build intermediates are under `build\`. Keep the complete
+`portable` directory together when moving or testing it.
 Use `scripts/build_portable.py`, not `cargo tauri build` directly. The launcher finds the
 repository and its virtual environment regardless of the current directory. The production
 builder discovers tools through `PATH` (and initializes Visual Studio on Windows), verifies

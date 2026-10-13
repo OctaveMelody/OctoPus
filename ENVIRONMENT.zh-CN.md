@@ -101,11 +101,26 @@ uv run --locked octopus batch-export scores --out-dir images --format png --dpi 
 开发版可执行程序；开发版构建说明保留在支持仓库中。
 
 Linux 运行 `python3 scripts/build_portable.py`；Windows 运行 `py scripts/build_portable.py`。
-只有明确需要安装包时才在 Linux 使用 `--bundles deb`，或在 Windows 使用 `--bundles nsis`
-或 `--bundles msi`。该启动器使用仓库锁定的环境；构建器会在编译前检查 Python、Node/npm、
+只有明确需要安装包时才在 Linux 使用 `--bundles appimage`，或在 Windows 使用 `--bundles nsis`。
+其他安装包格式不会由此构建器发布。该启动器使用仓库锁定的环境；构建器会在编译前检查 Python、Node/npm、
 Rust/Cargo、Tauri CLI 和系统依赖。它先构建前端与引擎，再调用 Tauri，并关闭本次调用中的
 嵌套预构建钩子。Windows 需要 Microsoft C++ Build Tools 和 WebView2；Rust/PyInstaller
 目标架构必须与运行 Python 的主机一致，不支持引擎交叉编译。macOS 打包暂未实现。
+
+Linux x86_64 AppImage 使用
+`python3 scripts/build_portable.py --bundles appimage`。如果 Tauri 已生成 AppDir 但无法完成打包，
+构建器会使用缓存的 AppImage runtime 和 appimagetool。失败后只重试打包时，运行
+`python3 scripts/build_portable.py --package-appimage-only`；原构建若指定了 `--target`，这里也使用相同参数。
+续打命令会检查 AppDir 是否对应当前生产提交。本地反复构建可添加 `--incremental`，让 Cargo
+复用 release 编译数据，但会占用更多磁盘。冻结引擎的 PyInstaller 缓存保留在
+`build/desktop-engine/pyinstaller-cache`；构建环境改变后可删除该目录以强制重新分析。
+
+发布文件统一命名为 `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}`，其中架构为 `x64` 或
+`arm64`，系统为 `win64` 或 `linux`。Linux AppImage 不带 purpose 后缀，例如
+`OctoPus_1.0.0-beta_x64_linux.AppImage`。Windows 构建会生成便携 ZIP，例如
+`OctoPus_1.0.0-beta_x64_win64_portable.zip`；使用 `--bundles nsis` 时还会生成安装程序，例如
+`OctoPus_1.0.0-beta_x64_win64_setup.exe`。检查通过的
+`dist/<target-triple>/portable/` 目录仍会保留，供本机启动和检查。
 
 手动设置的应用版本是仓库根目录 `VERSION` 文件中的 SemVer 值，不带开头的 `v`。当前版本为
 `1.0.0-beta`，对应已指定的 `v1.0-Beta`。发布时应有意更新 `VERSION`；Git 标签和当前时间
@@ -118,7 +133,8 @@ OctoPus-dev 调用生产构建脚本时，不会使用 OctoPus-dev 的提交数�
 不会改变生产版本或构建标识。必须获取产品仓库完整 Git 历史；浅克隆会被拒绝，因为无法计算
 完整提交数。产品工作树中的未提交更改可能改变二进制文件，却不会改变基于提交的标识；发布构建前请先提交产品代码。打包请使用 `scripts/build_portable.py`；直接调用 Tauri 会绕过版本和构建号生成。
 
-`build.py` 在 `build/` 下构建前端、引擎和原生应用，将安装包复制到
+Linux 使用 `--bundles appimage`，Windows 使用 `--bundles nsis` 来请求对应安装包。
+`build.py` 在 `build/` 下构建前端、引擎和原生应用，并按上述命名规则将安装包发布到
 `dist/<target-triple>/`。目录发布会对临时访问错误进行有限重试，必要时复制已验证的暂存文件，
 并在失败时恢复上一个输出。引擎通过字形检查、协议握手及渲染冒烟测试后才替换原有输出。
 每个仓库拥有独立的锁定文件；有意更新时使用 `uv lock`、npm 或 Cargo，并验证更新结果。
@@ -135,8 +151,9 @@ OctoPus-dev 调用生产构建脚本时，不会使用 OctoPus-dev 的提交数�
 
 ## 生产便携版测试
 
-每次原生构建均在 `dist/<target-triple>/portable/` 下生成不纳入 Git 的便携版目录。只有
-明确传入 `--bundles` 才会额外生成安装包。替换便携版前，构建程序会验证引擎、字体、字形资源、中文渲染、
+每次原生构建均在 `dist/<target-triple>/portable/` 下生成不纳入 Git 的便携版目录；Windows
+还会生成命名规范中的便携 ZIP。只有明确传入 `--bundles` 才会额外生成安装包。替换便携版前，
+构建程序会验证引擎、字体、字形资源、中文渲染、
 示例文件内容及打包的用户手册。`portable.previous/` 保留上一次成功生成的便携版。
 
 Linux 可从任意工作目录运行，以下路径按生产仓库根目录给出：

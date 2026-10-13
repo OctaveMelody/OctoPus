@@ -74,12 +74,16 @@ On Windows, build the portable application with:
 py scripts\build_portable.py
 ```
 
-The same launcher accepts `--bundles deb` on Linux or `--bundles nsis` / `--bundles msi` on
-Windows when an installer is explicitly needed. It locates the repository from its script path,
-validates build prerequisites, and can be called from any working directory.
+The same launcher accepts `--bundles appimage` on Linux or `--bundles nsis` on Windows when a
+package is explicitly needed. It locates the repository from its script path, validates build
+prerequisites, and can be called from any working directory.
 
-Packages and the portable application are written to a platform-specific subdirectory of `dist/`.
-Temporary build files are written to `build/`.
+Windows builds also create a portable ZIP by default. Published files follow
+`OctoPus_{version}_{arch}_{os}_{purpose}.{ext}`: Windows portable ZIPs end in
+`_x64_win64_portable.zip`, Windows setup executables in `_x64_win64_setup.exe`, and Linux AppImages
+in `_x64_linux.AppImage` with no purpose suffix. Architecture may be `x64` or `arm64`. The checked
+portable application directory stays under `dist/<target-triple>/portable/`; build intermediates
+stay under `build/`.
 
 ## Run the portable application
 

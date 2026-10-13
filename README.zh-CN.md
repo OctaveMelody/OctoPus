@@ -64,10 +64,13 @@ Windows 便携版构建：
 py scripts\build_portable.py
 ```
 
-如明确需要安装包，Linux 可加 `--bundles deb`，Windows 可加 `--bundles nsis` 或
-`--bundles msi`。启动器会从脚本位置定位仓库并检查构建依赖，因此可在任意工作目录调用。
+如明确需要安装包，Linux 可加 `--bundles appimage`，Windows 可加 `--bundles nsis`。启动器会从脚本位置定位仓库并检查构建依赖，因此可在任意工作目录调用。
 
-安装包和便携版会生成在 `dist/` 下对应平台的子目录中；临时构建文件位于 `build/`。
+Windows 构建默认还会生成便携 ZIP。发布文件统一使用
+`OctoPus_{version}_{arch}_{os}_{purpose}.{ext}`：Windows 便携 ZIP 以
+`_x64_win64_portable.zip` 结尾，Windows 安装程序以 `_x64_win64_setup.exe` 结尾，Linux
+AppImage 以 `_x64_linux.AppImage` 结尾且不带 purpose。架构可为 `x64` 或 `arm64`。检查通过的
+便携版目录仍位于 `dist/<target-triple>/portable/`；临时构建文件位于 `build/`。
 
 ## 运行便携版
 

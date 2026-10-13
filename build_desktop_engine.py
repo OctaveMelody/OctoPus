@@ -346,6 +346,11 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
         raise RuntimeError("refusing to write desktop engine through a symlinked Cargo target")
     if output_dir.is_symlink() or output_dir.parent.is_symlink():
         raise RuntimeError("refusing to replace a symlinked desktop engine output")
+    cache_dir = output_dir.parent / "pyinstaller-cache"
+    work_path = cache_dir / "work"
+    spec_path = cache_dir / "spec"
+    if any(path.is_symlink() for path in (cache_dir, work_path, spec_path)):
+        raise RuntimeError("refusing to use a symlinked PyInstaller cache")
 
     if platform.system() not in {"Windows", "Linux"}:
         raise RuntimeError("desktop engine packaging currently supports Windows and Linux only")
@@ -377,6 +382,8 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
     )
 
     target_dir.mkdir(parents=True, exist_ok=True)
+    work_path.mkdir(parents=True, exist_ok=True)
+    spec_path.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".desktop-engine-build-", dir=target_dir) as work:
         work_dir = Path(work)
         dist_dir = work_dir / "dist"
@@ -385,16 +392,15 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             "-m",
             "PyInstaller",
             "--noconfirm",
-            "--clean",
             "--onedir",
             "--name",
             "octopus-engine",
             "--distpath",
             str(dist_dir),
             "--workpath",
-            str(work_dir / "work"),
+            str(work_path),
             "--specpath",
-            str(work_dir),
+            str(spec_path),
             "--paths",
             str(repository_root),
             "--paths",

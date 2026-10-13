@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import tomllib
+import zipfile
 from pathlib import Path
 
 from build_support import environment_with_tools, find_executable, publish_directory
@@ -19,7 +20,14 @@ from build_support import environment_with_tools, find_executable, publish_direc
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "ui" / "web"
 BUILD = ROOT / "build" / "cargo"
-PACKAGE_SUFFIXES = {".appimage", ".deb", ".dmg", ".exe", ".msi"}
+PACKAGE_SUFFIXES = {".appimage", ".exe"}
+ARTIFACT_ARCHES = {"x86_64": "x64", "aarch64": "arm64"}
+APPIMAGE_RUNTIME_ARCHES = {
+    "x86_64": "x86_64",
+    "aarch64": "aarch64",
+    "i686": "i386",
+    "armv7": "armhf",
+}
 SEMVER_VERSION = re.compile(
     r"^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)"
     r"(?:-(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
@@ -59,6 +67,202 @@ def _tauri_build_command_for(cargo: str, bundles: str | None) -> list[str]:
     else:
         command.append("--no-bundle")
     return command
+
+
+def _artifact_filename(
+    version: str, target_triple: str, system: str, purpose: str | None
+) -> str:
+    try:
+        arch = ARTIFACT_ARCHES[target_triple.split("-", 1)[0]]
+    except KeyError as error:
+        raise RuntimeError(f"artifact naming does not support {target_triple}") from error
+    if system == "Windows" and purpose == "portable":
+        os_name, extension = "win64", ".zip"
+    elif system == "Windows" and purpose == "setup":
+        os_name, extension = "win64", ".exe"
+    elif system == "Linux" and purpose is None:
+        os_name, extension = "linux", ".AppImage"
+    else:
+        raise RuntimeError(f"unsupported artifact type for {system}: {purpose!r}")
+    purpose_suffix = f"_{purpose}" if purpose else ""
+    return f"OctoPus_{version}_{arch}_{os_name}{purpose_suffix}{extension}"
+
+
+def _create_portable_zip(source: Path, destination: Path) -> Path:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(source.rglob("*")):
+            if path.is_file():
+                archive.write(path, path.relative_to(source).as_posix())
+    if not destination.is_file() or destination.stat().st_size == 0:
+        raise RuntimeError(f"portable archive was not created: {destination}")
+    return destination
+
+
+def _appimage_paths(
+    target: str | None, version: str, target_triple: str
+) -> tuple[Path, Path, Path, Path]:
+    config = json.loads((WEB / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
+    product_name = config["productName"]
+    bundle_dir = BUILD / (target or "") / "release/bundle/appimage"
+    app_dir = bundle_dir / f"{product_name}.AppDir"
+    package = bundle_dir / _artifact_filename(version, target_triple, "Linux", None)
+    identity = bundle_dir / ".octopus-build.json"
+    return bundle_dir, app_dir, package, identity
+
+
+def _prepare_appimage_app_dir(app_dir: Path) -> None:
+    required = (
+        app_dir / "AppRun",
+        app_dir / "OctoPus.desktop",
+        app_dir / ".DirIcon",
+        app_dir / "usr/bin/octopus",
+        app_dir / "usr/share/applications/OctoPus.desktop",
+        app_dir / "usr/share/icons/hicolor/512x512/apps/octopus.png",
+        app_dir / "usr/lib/OctoPus/LICENSE",
+        app_dir / "usr/lib/OctoPus/engine/octopus-engine",
+        app_dir / "usr/lib/OctoPus/examples",
+        app_dir / "usr/lib/OctoPus/docs",
+        app_dir / "usr/lib/OctoPus/fonts",
+    )
+    missing = [path for path in required if not path.exists()]
+    if missing:
+        raise RuntimeError(
+            "The staged AppImage directory is incomplete: "
+            + ", ".join(path.relative_to(app_dir).as_posix() for path in missing)
+        )
+    ldd = find_executable("ldd")
+    if ldd:
+        dependencies = subprocess.run(
+            [ldd, str(app_dir / "usr/bin/octopus")],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        missing_dependencies = [
+            line.strip() for line in dependencies.stdout.splitlines() if "not found" in line
+        ]
+        if dependencies.returncode or missing_dependencies:
+            raise RuntimeError(
+                "The staged AppImage has unresolved native dependencies: "
+                + "; ".join(missing_dependencies or [dependencies.stderr.strip()])
+            )
+
+    icon_alias = app_dir / "octopus.png"
+    icon_target = "usr/share/icons/hicolor/512x512/apps/octopus.png"
+    if icon_alias.is_symlink():
+        if os.readlink(icon_alias) != icon_target:
+            raise RuntimeError(f"unexpected AppImage icon alias: {icon_alias}")
+    elif not icon_alias.exists():
+        icon_alias.symlink_to(icon_target)
+    elif not icon_alias.is_file():
+        raise RuntimeError(f"unexpected AppImage icon entry: {icon_alias}")
+
+
+def _cached_appimage_tooling(target_triple: str) -> tuple[Path, Path]:
+    try:
+        runtime_arch = APPIMAGE_RUNTIME_ARCHES[target_triple.split("-", 1)[0]]
+    except KeyError as error:
+        raise RuntimeError(f"AppImage fallback does not support {target_triple}") from error
+    appimagetool = ROOT / "build/cache/squashfs-root/usr/bin/appimagetool"
+    runtime = ROOT / f"build/cache/tauri/runtime-{runtime_arch}"
+    missing = [path for path in (appimagetool, runtime) if not path.is_file()]
+    if missing:
+        raise RuntimeError(
+            "Cached AppImage fallback tools are missing: "
+            + ", ".join(str(path) for path in missing)
+        )
+    return appimagetool, runtime
+
+
+def _package_appimage(app_dir: Path, package: Path, target_triple: str) -> Path:
+    _prepare_appimage_app_dir(app_dir)
+    appimagetool, runtime = _cached_appimage_tooling(target_triple)
+    package.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".appimage-package-", dir=package.parent) as work:
+        staged = Path(work) / package.name
+        subprocess.run(
+            [
+                str(appimagetool),
+                "--no-appstream",
+                "--runtime-file",
+                str(runtime),
+                str(app_dir),
+                str(staged),
+            ],
+            check=True,
+        )
+        if not staged.is_file() or staged.stat().st_size == 0:
+            raise RuntimeError(f"appimagetool did not create {staged}")
+        os.replace(staged, package)
+    return package
+
+
+def _write_appimage_identity(
+    identity_path: Path, version: str, build_number: str, target_triple: str
+) -> None:
+    commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
+    identity_path.write_text(
+        json.dumps(
+            {
+                "version": version,
+                "build": build_number,
+                "commit": commit,
+                "target": target_triple,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _package_staged_appimage(target: str | None) -> Path:
+    if platform.system() != "Linux":
+        raise RuntimeError("staged AppImage packaging is supported on Linux only")
+    if platform.machine().lower() not in {"x86_64", "amd64"}:
+        raise RuntimeError("the cached AppImage runtime is available for Linux x86_64 only")
+    version, _, _ = build_metadata()
+    bundle_dir = BUILD / (target or "") / "release/bundle/appimage"
+    identity_path = bundle_dir / ".octopus-build.json"
+    if not identity_path.is_file():
+        raise RuntimeError(
+            f"No failed AppImage build is staged at {bundle_dir}; run "
+            "build.py --bundles appimage first"
+        )
+    identity = json.loads(identity_path.read_text(encoding="utf-8"))
+    if not isinstance(identity, dict):
+        raise RuntimeError(f"Invalid staged AppImage identity: {identity_path}")
+    current_commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
+    if (
+        identity.get("version") != version
+        or identity.get("commit") != current_commit
+        or (target and identity.get("target") != target)
+        or identity.get("target") != "x86_64-unknown-linux-gnu"
+    ):
+        raise RuntimeError("The staged AppImage belongs to a different production revision")
+    _, app_dir, package, _ = _appimage_paths(target, version, identity["target"])
+    destination = ROOT / "dist" / identity["target"] / package.name
+    return _package_appimage(app_dir, destination, identity["target"])
+
+
+def _linux_appimage_environment(environment: dict[str, str]) -> dict[str, str]:
+    result = dict(environment)
+    shapely_libraries = (
+        ROOT / "build/desktop-engine/octopus-engine/_internal/shapely.libs"
+    )
+    if shapely_libraries.is_dir():
+        paths = [str(shapely_libraries)]
+        paths.extend(
+            path for path in result.get("LD_LIBRARY_PATH", "").split(os.pathsep)
+            if path and path != str(shapely_libraries)
+        )
+        result["LD_LIBRARY_PATH"] = os.pathsep.join(paths)
+    return result
 
 
 def _windows_developer_environment(environment: dict[str, str]) -> dict[str, str]:
@@ -271,7 +475,12 @@ def _toolchain_environment() -> tuple[dict[str, str], dict[str, str]]:
     return environment, commands
 
 
-def publish_portable(destination: Path, release: Path, system: str) -> Path:
+def publish_portable(
+    destination: Path,
+    release: Path,
+    system: str,
+    portable_archive_name: str | None = None,
+) -> Path:
     """Stage executable/resources together and preserve the last successful portable build."""
     from build_desktop_engine import (
         _check_font_assets,
@@ -328,9 +537,16 @@ def publish_portable(destination: Path, release: Path, system: str) -> Path:
             if not copied_manual.is_file() or copied_manual.read_bytes() != manual.read_bytes():
                 raise RuntimeError(f"portable user manual missing/corrupt: {manual.name}")
         _check_project_license(resources)
+        staged_archive = None
+        if portable_archive_name:
+            staged_archive = _create_portable_zip(
+                staged, Path(work) / portable_archive_name
+            )
         # Retain the predecessor until a later build replaces it with the then-current tree.
         previous = destination / "portable.previous"
         publish_directory(staged, portable, previous, retain_backup=True)
+        if staged_archive:
+            os.replace(staged_archive, destination / portable_archive_name)
     return portable / executable.relative_to(staged)
 
 
@@ -341,7 +557,39 @@ def main() -> None:
         help="Tauri bundle type(s); omit to build only the portable executable",
     )
     parser.add_argument("--target", help="installed Rust target triple for this host")
+    parser.add_argument(
+        "--package-appimage-only",
+        action="store_true",
+        help="finalize an AppDir left by a failed AppImage build without recompiling",
+    )
+    parser.add_argument(
+        "--incremental",
+        action="store_true",
+        help="enable Cargo incremental compilation for faster local rebuilds",
+    )
     args = parser.parse_args()
+    requested_bundles = {
+        bundle.strip() for bundle in (args.bundles or "").split(",") if bundle.strip()
+    }
+    allowed_bundles = (
+        {"appimage"} if platform.system() == "Linux"
+        else {"nsis"} if platform.system() == "Windows"
+        else set()
+    )
+    unsupported_bundles = requested_bundles - allowed_bundles
+    if unsupported_bundles:
+        parser.error(
+            "supported package types are Linux appimage and Windows nsis; "
+            f"unsupported: {', '.join(sorted(unsupported_bundles))}"
+        )
+    if args.package_appimage_only:
+        if args.bundles or args.incremental:
+            parser.error("--package-appimage-only cannot be combined with build options")
+        try:
+            print(_package_staged_appimage(args.target))
+        except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
+            parser.error(str(error))
+        return
     if platform.system() not in {"Linux", "Windows"}:
         parser.error("portable builds currently support Linux and Windows")
 
@@ -429,12 +677,33 @@ def main() -> None:
     if bundle_output.exists():
         shutil.rmtree(bundle_output)
     print("==> Compiling the native desktop application", flush=True)
-    subprocess.run(command, cwd=WEB, env={
+    native_environment = {
         **environment,
         "CARGO_TARGET_DIR": str(BUILD),
         "VITE_APP_VERSION": version,
         "VITE_BUILD_NUMBER": f"{build_number} ({build_commit})",
-    }, check=True)
+    }
+    if args.incremental:
+        native_environment["CARGO_INCREMENTAL"] = "1"
+    appimage_fallback = platform.system() == "Linux" and requested_bundles == {"appimage"}
+    if appimage_fallback:
+        native_environment = _linux_appimage_environment(native_environment)
+    try:
+        subprocess.run(command, cwd=WEB, env=native_environment, check=True)
+    except subprocess.CalledProcessError:
+        if not appimage_fallback:
+            raise
+        _, app_dir, package, identity_path = _appimage_paths(
+            args.target, version, target_triple
+        )
+        if not app_dir.is_dir():
+            raise
+        _write_appimage_identity(identity_path, version, build_number, target_triple)
+        print(
+            "Tauri AppImage finalization failed; using cached appimagetool and runtime.",
+            flush=True,
+        )
+        _package_appimage(app_dir, package, target_triple)
 
     triple = target_triple
     bundles = BUILD / (args.target or "") / "release" / "bundle"
@@ -448,11 +717,38 @@ def main() -> None:
     destination = ROOT / "dist" / triple
     destination.mkdir(parents=True, exist_ok=True)
     for package in packages:
-        copied = destination / package.name
-        shutil.copy2(package, copied)
+        suffix = package.suffix.lower()
+        if suffix == ".appimage":
+            purpose = None
+        elif suffix == ".exe":
+            purpose = "setup"
+        else:
+            raise RuntimeError(f"Tauri created an unsupported package artifact: {package.name}")
+        canonical_name = _artifact_filename(
+            version, target_triple, platform.system(), purpose
+        )
+        canonical_package = package.with_name(canonical_name)
+        if canonical_package != package:
+            os.replace(package, canonical_package)
+        copied = destination / canonical_name
+        shutil.copy2(canonical_package, copied)
         print(copied)
     print(f"Version: {version}, Build: {build_number}, Commit: {build_commit}")
-    print(publish_portable(destination, bundles.parent, platform.system()))
+    portable_archive_name = (
+        _artifact_filename(version, target_triple, "Windows", "portable")
+        if platform.system() == "Windows"
+        else None
+    )
+    print(
+        publish_portable(
+            destination,
+            bundles.parent,
+            platform.system(),
+            portable_archive_name,
+        )
+    )
+    if portable_archive_name:
+        print(destination / portable_archive_name)
 
 
 if __name__ == "__main__":

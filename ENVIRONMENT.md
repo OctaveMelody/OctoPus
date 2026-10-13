@@ -108,14 +108,33 @@ change the version. Use it only when a distribution intentionally omits that men
 
 During development, build only the portable by default. Do not build installers or other
 variants unless the user explicitly asks for them. Run `python3 scripts/build_portable.py` on
-Linux or `py scripts/build_portable.py` on Windows. Use `--bundles deb` on Linux or
-`--bundles nsis` / `--bundles msi` on Windows only when an installer is explicitly needed.
+Linux or `py scripts/build_portable.py` on Windows. Use `--bundles appimage` on Linux or
+`--bundles nsis` on Windows only when a package is explicitly needed. Other bundle formats are
+not published by this builder.
 Omitting `--bundles` selects portable-only mode. The launcher uses the pinned repository
 environment; the builder checks Python, Node/npm, Rust/Cargo, Tauri CLI, and native system
 prerequisites before beginning the build. It builds the frontend and worker first, then invokes
 Tauri once with its nested prebuild hook disabled. Rust/PyInstaller target architecture must
 match the native Python host; worker cross-compilation is unsupported. macOS packaging is
 deferred.
+
+For a Linux x86_64 AppImage, use
+`python3 scripts/build_portable.py --bundles appimage`. If Tauri leaves a staged AppDir but cannot
+finalize it, the builder uses the cached AppImage runtime and appimagetool. To retry only final
+packaging after such a failure, run
+`python3 scripts/build_portable.py --package-appimage-only` (include the same `--target` if the
+original build specified one). The resume command checks that the staged AppDir matches the current
+production commit. Use `--incremental` on local rebuilds to
+let Cargo reuse release compilation data; it uses more disk. The frozen worker's PyInstaller cache
+is retained under `build/desktop-engine/pyinstaller-cache`; remove that directory to force a clean
+worker analysis after changing the build environment.
+
+Published files use `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}` with `x64` or `arm64` and
+`win64` or `linux`. Linux AppImages omit the purpose suffix, for example
+`OctoPus_1.0.0-beta_x64_linux.AppImage`. Windows builds create a portable ZIP such as
+`OctoPus_1.0.0-beta_x64_win64_portable.zip`; `--bundles nsis` also creates a setup executable such
+as `OctoPus_1.0.0-beta_x64_win64_setup.exe`. The checked `dist/<target-triple>/portable/` tree is
+kept for local launch and inspection.
 
 The manually assigned app version is the single SemVer value in the repository-root `VERSION`
 file. Store it without a leading `v`; the current value is `1.0.0-beta`, normalized from the
@@ -134,13 +153,13 @@ identity, so commit product-source changes before creating a release build. Use
 `scripts/build_portable.py` for packaging; calling Tauri directly bypasses this version and
 build-number generation.
 
-For an explicitly requested installer build, pass the desired Tauri bundle type, such as
-`--bundles deb` on Linux or `--bundles nsis` / `--bundles msi` on native Windows (with Microsoft
-C++ Build Tools and WebView2 installed). `build.py` builds the frontend/worker/native app under
-`build/`, places the checked portable tree under `dist/<target-triple>/portable/`, and copies
-requested installers to `dist/<target-triple>/`. Directory publication retries transient access
-errors, falls back to copying the verified staged tree, and restores the previous output on
-failure. The portable builder preserves its previous output until the worker, fonts, glyphs,
+For an explicitly requested package, pass `--bundles appimage` on Linux or `--bundles nsis` on
+native Windows (with Microsoft C++ Build Tools and WebView2 installed). `build.py` builds the
+frontend/worker/native app under `build/`, places the checked portable tree under
+`dist/<target-triple>/portable/`, and publishes packages in `dist/<target-triple>/` using the
+filename convention above. Directory publication retries transient access errors, falls back to
+copying the verified staged tree, and restores the previous output on failure. The portable
+builder preserves its previous output until the worker, fonts, glyphs,
 manual, examples and license checks pass. Each repository has its own locks; update them
 intentionally with `uv lock`/npm/Cargo and validate the resulting change.
 
@@ -158,7 +177,8 @@ production portable builds. Reference font files stay outside Git. See the [font
 
 Every native build publishes an untracked portable tree under
 `dist/<target-triple>/portable/`. Installation packages are produced only when `--bundles` is
-specified. The builder verifies worker/font/glyph assets, a Chinese render, example bytes and the
+specified; Windows builds also create the named portable ZIP. The builder verifies
+worker/font/glyph assets, a Chinese render, example bytes and the
 packaged user manual before replacing the portable output. `portable.previous/` retains the last
 successful portable build.
 
