@@ -108,12 +108,14 @@ Rust/Cargo、Tauri CLI 和系统依赖。它先构建前端与引擎，再调用
 目标架构必须与运行 Python 的主机一致，不支持引擎交叉编译。macOS 打包暂未实现。
 
 Linux x86_64 AppImage 使用
-`python3 scripts/build_portable.py --bundles appimage`。如果 Tauri 已生成 AppDir 但无法完成打包，
-构建器会使用缓存的 AppImage runtime 和 appimagetool。失败后只重试打包时，运行
+`python3 scripts/build_portable.py --bundles appimage`。linuxdeploy 完成部署后，如果 AppImage
+打包阶段无法下载 runtime，构建器会使用缓存的 runtime 和 appimagetool。部署诊断保存在
+`build/cargo/appimage-build.log`；其他部署错误会停止构建。失败后只重试打包时，运行
 `python3 scripts/build_portable.py --package-appimage-only`；原构建若指定了 `--target`，这里也使用相同参数。
-续打命令会检查 AppDir 是否对应当前生产提交。本地反复构建可添加 `--incremental`，让 Cargo
+续打命令要求 AppDir 已通过完整部署检查且对应当前生产提交；旧的未验证暂存记录需要重新完整构建。
+本地反复构建可添加 `--incremental`，让 Cargo
 复用 release 编译数据，但会占用更多磁盘。冻结引擎的 PyInstaller 缓存保留在
-`build/desktop-engine/pyinstaller-cache`；构建环境改变后可删除该目录以强制重新分析。
+`build/pyinstaller-cache`；构建环境改变后可删除该目录以强制重新分析。
 
 发布文件统一命名为 `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}`，其中架构为 `x64` 或
 `arm64`，系统为 `win64` 或 `linux`。Linux AppImage 不带 purpose 后缀，例如
@@ -121,6 +123,7 @@ Linux x86_64 AppImage 使用
 `OctoPus_1.0.0-beta_x64_win64_portable.zip`；使用 `--bundles nsis` 时还会生成安装程序，例如
 `OctoPus_1.0.0-beta_x64_win64_setup.exe`。检查通过的
 `dist/<target-triple>/portable/` 目录仍会保留，供本机启动和检查。
+Windows ZIP 发布会重试临时文件共享锁；重试仍失败时，恢复上一个便携目录并保留原有 ZIP。
 
 手动设置的应用版本是仓库根目录 `VERSION` 文件中的 SemVer 值，不带开头的 `v`。当前版本为
 `1.0.0-beta`，对应已指定的 `v1.0-Beta`。发布时应有意更新 `VERSION`；Git 标签和当前时间

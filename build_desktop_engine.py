@@ -15,9 +15,8 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
-from PIL import Image, ImageDraw
-
 from build_support import publish_directory
+from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent
 TARGET_DIR = ROOT / "build"
@@ -346,7 +345,7 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
         raise RuntimeError("refusing to write desktop engine through a symlinked Cargo target")
     if output_dir.is_symlink() or output_dir.parent.is_symlink():
         raise RuntimeError("refusing to replace a symlinked desktop engine output")
-    cache_dir = output_dir.parent / "pyinstaller-cache"
+    cache_dir = target_dir / "pyinstaller-cache"
     work_path = cache_dir / "work"
     spec_path = cache_dir / "spec"
     if any(path.is_symlink() for path in (cache_dir, work_path, spec_path)):
@@ -414,7 +413,10 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
             "--collect-all",
             "onnxruntime",
         ]
-        command.extend(("--exclude-module", "playwright", str(entry_point)))
+        # PyInstaller appends __main__ during analysis; include it now to keep cache inputs stable.
+        command.extend((
+            "--exclude-module", "playwright", "--exclude-module", "__main__", str(entry_point)
+        ))
         completed = subprocess.run(command, text=True, capture_output=True, check=False)
         if completed.returncode != 0:
             raise RuntimeError(

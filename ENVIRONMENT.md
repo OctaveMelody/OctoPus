@@ -119,14 +119,17 @@ match the native Python host; worker cross-compilation is unsupported. macOS pac
 deferred.
 
 For a Linux x86_64 AppImage, use
-`python3 scripts/build_portable.py --bundles appimage`. If Tauri leaves a staged AppDir but cannot
-finalize it, the builder uses the cached AppImage runtime and appimagetool. To retry only final
+`python3 scripts/build_portable.py --bundles appimage`. If linuxdeploy completes deployment but
+AppImage finalization cannot download its runtime, the builder uses the cached AppImage runtime
+and appimagetool. Deployment diagnostics are saved in `build/cargo/appimage-build.log`; other
+deployment failures stop the build. To retry only final
 packaging after such a failure, run
 `python3 scripts/build_portable.py --package-appimage-only` (include the same `--target` if the
-original build specified one). The resume command checks that the staged AppDir matches the current
-production commit. Use `--incremental` on local rebuilds to
+original build specified one). The resume command requires a verified complete deployment matching
+the current production commit; older unverified staging records require a full build. Use
+`--incremental` on local rebuilds to
 let Cargo reuse release compilation data; it uses more disk. The frozen worker's PyInstaller cache
-is retained under `build/desktop-engine/pyinstaller-cache`; remove that directory to force a clean
+is retained under `build/pyinstaller-cache`; remove that directory to force a clean
 worker analysis after changing the build environment.
 
 Published files use `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}` with `x64` or `arm64` and
@@ -135,6 +138,8 @@ Published files use `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}` with `x64` o
 `OctoPus_1.0.0-beta_x64_win64_portable.zip`; `--bundles nsis` also creates a setup executable such
 as `OctoPus_1.0.0-beta_x64_win64_setup.exe`. The checked `dist/<target-triple>/portable/` tree is
 kept for local launch and inspection.
+Windows ZIP publication retries transient sharing locks. If it still fails, the previous portable
+tree is restored and the existing ZIP is retained.
 
 The manually assigned app version is the single SemVer value in the repository-root `VERSION`
 file. Store it without a leading `v`; the current value is `1.0.0-beta`, normalized from the

@@ -15,7 +15,13 @@ import tomllib
 import zipfile
 from pathlib import Path
 
-from build_support import environment_with_tools, find_executable, publish_directory
+from build_support import (
+    environment_with_tools,
+    find_executable,
+    publish_directory,
+    remove_tree,
+    retry_filesystem,
+)
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "ui" / "web"
@@ -114,6 +120,8 @@ def _appimage_paths(
 def _prepare_appimage_app_dir(app_dir: Path) -> None:
     required = (
         app_dir / "AppRun",
+        app_dir / "AppRun.wrapped",
+        app_dir / "apprun-hooks/linuxdeploy-plugin-gtk.sh",
         app_dir / "OctoPus.desktop",
         app_dir / ".DirIcon",
         app_dir / "usr/bin/octopus",
@@ -131,6 +139,13 @@ def _prepare_appimage_app_dir(app_dir: Path) -> None:
             "The staged AppImage directory is incomplete: "
             + ", ".join(path.relative_to(app_dir).as_posix() for path in missing)
         )
+    for helper in (
+        "WebKitNetworkProcess",
+        "WebKitWebProcess",
+        "injected-bundle/libwebkit2gtkinjectedbundle.so",
+    ):
+        if not any(path.is_file() for path in app_dir.glob(f"usr/**/webkit2gtk-4.1/{helper}")):
+            raise RuntimeError(f"The staged AppImage is missing WebKit runtime file: {helper}")
     ldd = find_executable("ldd")
     if ldd:
         dependencies = subprocess.run(
@@ -157,6 +172,41 @@ def _prepare_appimage_app_dir(app_dir: Path) -> None:
         icon_alias.symlink_to(icon_target)
     elif not icon_alias.is_file():
         raise RuntimeError(f"unexpected AppImage icon entry: {icon_alias}")
+
+
+def _run_appimage_build(command: list[str], environment: dict[str, str]) -> None:
+    """Retain linuxdeploy's diagnostics so failure recovery can verify its deployment phase."""
+    log_path = BUILD / "appimage-build.log"
+    print(f"AppImage deployment diagnostics: {log_path}", flush=True)
+    with log_path.open("w", encoding="utf-8") as log:
+        with subprocess.Popen(
+            command, cwd=WEB, env=environment, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+        ) as process:
+            assert process.stdout is not None
+            for line in process.stdout:
+                log.write(line)
+                progress = line.lstrip().startswith((
+                    "Info ", "Bundling ", "Compiling ", "Finished ", "Built application",
+                    "Error ", "error:", "warning:",
+                ))
+                if progress or "ERROR:" in line or "Failed to download runtime" in line:
+                    print(line, end="", flush=True)
+            returncode = process.wait()
+    if returncode:
+        raise subprocess.CalledProcessError(
+            returncode, command, output=log_path.read_text(encoding="utf-8")
+        )
+
+
+def _appimage_runtime_download_failed(output: object, app_dir: Path) -> bool:
+    if not isinstance(output, str):
+        return False
+    packaging_started = any(
+        "Running command:" in line and "appimagetool" in line and str(app_dir) in line
+        for line in output.splitlines()
+    )
+    return packaging_started and "Failed to download runtime file" in output
 
 
 def _cached_appimage_tooling(target_triple: str) -> tuple[Path, Path]:
@@ -211,6 +261,7 @@ def _write_appimage_identity(
                 "build": build_number,
                 "commit": commit,
                 "target": target_triple,
+                "deployment_complete": True,
             },
             indent=2,
         )
@@ -235,6 +286,8 @@ def _package_staged_appimage(target: str | None) -> Path:
     identity = json.loads(identity_path.read_text(encoding="utf-8"))
     if not isinstance(identity, dict):
         raise RuntimeError(f"Invalid staged AppImage identity: {identity_path}")
+    if identity.get("deployment_complete") is not True:
+        raise RuntimeError("No verified complete AppImage deployment is staged; run a full build")
     current_commit = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
     ).strip()
@@ -544,9 +597,34 @@ def publish_portable(
             )
         # Retain the predecessor until a later build replaces it with the then-current tree.
         previous = destination / "portable.previous"
+        had_portable = portable.exists()
         publish_directory(staged, portable, previous, retain_backup=True)
         if staged_archive:
-            os.replace(staged_archive, destination / portable_archive_name)
+            archive = destination / staged_archive.name
+            try:
+                retry_filesystem(
+                    lambda: os.replace(staged_archive, archive), f"publish portable ZIP {archive}"
+                )
+            except OSError as archive_error:
+                try:
+                    if had_portable:
+                        publish_directory(
+                            previous, portable, Path(work) / "failed-portable", retain_backup=False
+                        )
+                    else:
+                        remove_tree(portable)
+                except (OSError, RuntimeError) as rollback_error:
+                    recovery = (
+                        f"The previous directory is preserved at {previous}."
+                        if had_portable else "There was no previous portable directory."
+                    )
+                    raise RuntimeError(
+                        f"Portable ZIP publication failed and directory rollback failed: "
+                        f"{rollback_error}. {recovery}"
+                    ) from archive_error
+                raise RuntimeError(
+                    f"Could not publish portable ZIP {archive}; previous portable output restored."
+                ) from archive_error
     return portable / executable.relative_to(staged)
 
 
@@ -688,16 +766,22 @@ def main() -> None:
     appimage_fallback = platform.system() == "Linux" and requested_bundles == {"appimage"}
     if appimage_fallback:
         native_environment = _linux_appimage_environment(native_environment)
+        # Two verbose flags make Tauri retain linuxdeploy stderr, including the finalizer phase.
+        command.extend(("--verbose", "--verbose"))
     try:
-        subprocess.run(command, cwd=WEB, env=native_environment, check=True)
-    except subprocess.CalledProcessError:
+        if appimage_fallback:
+            _run_appimage_build(command, native_environment)
+        else:
+            subprocess.run(command, cwd=WEB, env=native_environment, check=True)
+    except subprocess.CalledProcessError as error:
         if not appimage_fallback:
             raise
         _, app_dir, package, identity_path = _appimage_paths(
             args.target, version, target_triple
         )
-        if not app_dir.is_dir():
+        if not app_dir.is_dir() or not _appimage_runtime_download_failed(error.output, app_dir):
             raise
+        _prepare_appimage_app_dir(app_dir)
         _write_appimage_identity(identity_path, version, build_number, target_triple)
         print(
             "Tauri AppImage finalization failed; using cached appimagetool and runtime.",
