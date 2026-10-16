@@ -163,8 +163,32 @@ fn svg_options_for_fonts(
     release: bool,
     root: &Path,
 ) -> Result<usvg::Options<'static>, DocumentIoError> {
+    svg_options_for_policy(font_policy_for_target(release, std::env::consts::OS), root)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FontPolicy {
+    Reference,
+    LinuxRelease,
+    SystemOnly,
+}
+
+fn font_policy_for_target(release: bool, target_os: &str) -> FontPolicy {
+    if !release {
+        FontPolicy::Reference
+    } else if target_os == "linux" {
+        FontPolicy::LinuxRelease
+    } else {
+        FontPolicy::SystemOnly
+    }
+}
+
+fn svg_options_for_policy(
+    policy: FontPolicy,
+    root: &Path,
+) -> Result<usvg::Options<'static>, DocumentIoError> {
     let mut font_database = usvg::fontdb::Database::new();
-    {
+    if matches!(policy, FontPolicy::Reference | FontPolicy::LinuxRelease) {
         let manifest: serde_json::Value =
             serde_json::from_slice(&std::fs::read(root.join("manifest.json"))?)
                 .map_err(|_| DocumentIoError::ExportConversionFailed)?;
@@ -186,13 +210,16 @@ fn svg_options_for_fonts(
         font_database.set_sans_serif_family("Noto Sans SC");
         font_database.set_serif_family("Noto Serif SC");
     }
-    font_database.load_system_fonts();
+    if matches!(policy, FontPolicy::Reference | FontPolicy::SystemOnly) {
+        font_database.load_system_fonts();
+    }
     Ok(usvg::Options {
-        font_family: if release {
-            "Noto Sans SC".into()
-        } else {
-            "Times New Roman".into()
-        },
+        font_family: match policy {
+            FontPolicy::Reference => "Times New Roman",
+            FontPolicy::LinuxRelease => "Noto Sans SC",
+            FontPolicy::SystemOnly => "sans-serif",
+        }
+        .into(),
         fontdb: Arc::new(font_database),
         ..Default::default()
     })
@@ -292,20 +319,85 @@ mod tests {
         vec![SVG_PAGE.to_owned()]
     }
 
+    fn bundled_font_directory() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../src/octopus/assets/fonts")
+    }
+
     #[test]
     fn external_fonts_fail_when_missing_or_corrupt() {
         let directory = tempfile::tempdir().unwrap();
-        assert!(super::svg_options_for_fonts(true, directory.path()).is_err());
+        assert!(
+            super::svg_options_for_policy(super::FontPolicy::LinuxRelease, directory.path())
+                .is_err()
+        );
         std::fs::write(directory.path().join("bad.ttf"), b"corrupt").unwrap();
         let face = serde_json::json!({"file": "bad.ttf", "sha256": "0".repeat(64)});
         let manifest = serde_json::json!({"faces": vec![face; 13]});
         std::fs::write(directory.path().join("manifest.json"), manifest.to_string()).unwrap();
-        assert!(super::svg_options_for_fonts(true, directory.path()).is_err());
+        assert!(
+            super::svg_options_for_policy(super::FontPolicy::LinuxRelease, directory.path())
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn release_font_policy_is_platform_specific() {
+        use super::FontPolicy;
+
+        assert_eq!(
+            super::font_policy_for_target(false, "windows"),
+            FontPolicy::Reference
+        );
+        assert_eq!(
+            super::font_policy_for_target(true, "linux"),
+            FontPolicy::LinuxRelease
+        );
+        assert_eq!(
+            super::font_policy_for_target(true, "windows"),
+            FontPolicy::SystemOnly
+        );
+        assert_eq!(
+            super::font_policy_for_target(true, "macos"),
+            FontPolicy::SystemOnly
+        );
+    }
+
+    #[test]
+    fn system_only_export_does_not_require_a_bundle_manifest() {
+        let directory = tempfile::tempdir().unwrap();
+
+        let options =
+            super::svg_options_for_policy(super::FontPolicy::SystemOnly, directory.path())
+                .expect("system-only export must not read a bundled manifest");
+
+        assert_eq!(options.font_family, "sans-serif");
+        let family = options
+            .fontdb
+            .faces()
+            .flat_map(|face| face.families.iter().map(|family| family.0.as_str()))
+            .find(|family| {
+                !family.is_empty()
+                    && family.chars().all(|character| {
+                        character.is_ascii_alphanumeric() || matches!(character, ' ' | '-')
+                    })
+            })
+            .expect("the host supplies at least one system font");
+        let svg = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="60"><text x="10" y="40" font-family="{family}" font-size="16">System font</text></svg>"#
+        );
+        let pdf = super::export_pdf_with_options(&[svg], options).unwrap();
+        assert!(pdf
+            .windows(b"/FontFile".len())
+            .any(|item| item == b"/FontFile"));
     }
 
     #[test]
     fn release_database_includes_fallback_faces() {
-        let options = super::svg_options_for_profile(true).unwrap();
+        let options = super::svg_options_for_policy(
+            super::FontPolicy::LinuxRelease,
+            &bundled_font_directory(),
+        )
+        .unwrap();
         let families: Vec<_> = options
             .fontdb
             .faces()
@@ -335,9 +427,12 @@ mod tests {
             "Microsoft YaHei",
             "&quot;Zhuque Fangsong (technical preview)&quot;",
         );
-        let pdf =
-            super::export_pdf_with_options(&[svg], super::svg_options_for_profile(true).unwrap())
-                .unwrap();
+        let options = super::svg_options_for_policy(
+            super::FontPolicy::LinuxRelease,
+            &bundled_font_directory(),
+        )
+        .unwrap();
+        let pdf = super::export_pdf_with_options(&[svg], options).unwrap();
         let name = b"ZhuqueFangsong-Regular";
         assert!(pdf.windows(name.len()).any(|item| item == name));
     }
