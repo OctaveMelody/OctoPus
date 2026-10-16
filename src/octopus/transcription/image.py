@@ -96,6 +96,18 @@ class PageObservation:
     excluded_regions: tuple[Box, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class _PreparedImage:
+    """Keep source and enlarged working coordinates distinct throughout recognition."""
+
+    source_gray: Image.Image
+    source_components: list[Component]
+    working_gray: Image.Image
+    working_components: list[Component]
+    working_excluded: tuple[Box, ...]
+    scale: int
+
+
 def _qr_regions(gray: Image.Image) -> tuple[Box, ...]:
     """Locate a non-score QR panel using the OCR extra's existing OpenCV dependency."""
     try:
@@ -693,7 +705,8 @@ def _compact_accompaniment_group(
                for center in centers for support in support_x)
 
 
-def recognize_image(path: Path) -> PageObservation:
+def _prepare_image(path: Path) -> _PreparedImage:
+    """Read and scale the page while retaining its original image and components."""
     source_gray = _read_page(path)
     excluded = _qr_regions(source_gray)
     components = _score_components(source_gray, excluded)
@@ -709,6 +722,17 @@ def recognize_image(path: Path) -> PageObservation:
             for box in excluded
         )
         components = _score_components(gray, excluded)
+    return _PreparedImage(source_gray, source_components, gray, components, excluded, scale)
+
+
+def _recognize_working_rows(
+    prepared: _PreparedImage,
+) -> tuple[PageObservation, int] | None:
+    """Keep digit recovery and row/overlay ownership together in working coordinates."""
+    gray, components, excluded, scale = (
+        prepared.working_gray, prepared.working_components,
+        prepared.working_excluded, prepared.scale,
+    )
     trusted = [
         (component, match)
         for component in components
@@ -764,9 +788,7 @@ def recognize_image(path: Path) -> PageObservation:
         if match is not None:
             candidates.append((component, match))
     if not candidates:
-        return PageObservation(*source_gray.size, (), 0, excluded_regions=tuple(
-            _source_box(box, scale) for box in excluded
-        ))
+        return None
     heights = Counter(round(component.height / 3) * 3 for component, _ in candidates)
     digit_height = (
         trusted_height if trusted_rows else
@@ -961,118 +983,153 @@ def recognize_image(path: Path) -> PageObservation:
         unresolved_braces=unresolved_braces,
         excluded_regions=excluded,
     )
-    def with_ornaments(row: MusicRow, height: int) -> MusicRow:
-        boxes = tuple(note.box for note in row.notes)
-        graces = row_graces(boxes, components, gray)
-        notes = row.notes
-        unresolved_marks = row.unresolved_marks
-        if graces:
-            # Keep the scale and baseline used when the row's main modifiers were read.
-            row_y = sum((note.box[1] + note.box[3]) / 2 for note in notes) / len(notes)
-            grace_marks = {
-                component.box for component in components
-                if any(
-                    left <= (component.box[0] + component.box[2]) / 2 <= right
-                    and top <= component.center_y <= bottom
-                    for left, top, right, bottom in (grace.box for grace in graces)
-                )
-            }
-            score_marks = [
-                component for component in components
-                if abs(component.center_y - row_y) <= height * 1.6
-                and component.box not in grace_marks
-            ]
-            notes = tuple(replace(note, duration_dots=note_modifiers(
-                note.box, score_marks, height, gray if scale > 1 else None,
-                min(([notes[index + 1].box[0]] if index + 1 < len(notes) else [])
-                    + [x for x in row.barlines if x > note.box[2]], default=None),
-            )[2]) for index, note in enumerate(notes))
-            unresolved_marks = tuple(mark for mark in unresolved_marks if mark not in grace_marks)
-        return replace(
-            row,
-            notes=notes,
-            unresolved_marks=unresolved_marks,
-            graces=graces,
-            endings=row_endings(boxes, row.barlines, components, gray, graces),
-        )
+    return page, digit_height
 
-    page = replace(
+
+def _row_with_working_ornaments(
+    row: MusicRow, height: int, prepared: _PreparedImage,
+) -> MusicRow:
+    gray, components, scale = (
+        prepared.working_gray, prepared.working_components, prepared.scale,
+    )
+    boxes = tuple(note.box for note in row.notes)
+    graces = row_graces(boxes, components, gray)
+    notes = row.notes
+    unresolved_marks = row.unresolved_marks
+    if graces:
+        # Keep the scale and baseline used when the row's main modifiers were read.
+        row_y = sum((note.box[1] + note.box[3]) / 2 for note in notes) / len(notes)
+        grace_marks = {
+            component.box for component in components
+            if any(
+                left <= (component.box[0] + component.box[2]) / 2 <= right
+                and top <= component.center_y <= bottom
+                for left, top, right, bottom in (grace.box for grace in graces)
+            )
+        }
+        score_marks = [
+            component for component in components
+            if abs(component.center_y - row_y) <= height * 1.6
+            and component.box not in grace_marks
+        ]
+        notes = tuple(replace(note, duration_dots=note_modifiers(
+            note.box, score_marks, height, gray if scale > 1 else None,
+            min(([notes[index + 1].box[0]] if index + 1 < len(notes) else [])
+                + [x for x in row.barlines if x > note.box[2]], default=None),
+        )[2]) for index, note in enumerate(notes))
+        unresolved_marks = tuple(mark for mark in unresolved_marks if mark not in grace_marks)
+    return replace(
+        row,
+        notes=notes,
+        unresolved_marks=unresolved_marks,
+        graces=graces,
+        endings=row_endings(boxes, row.barlines, components, gray, graces),
+    )
+
+
+def _add_working_ornaments(
+    page: PageObservation, digit_height: int, prepared: _PreparedImage,
+) -> PageObservation:
+    """Attach grace and ending marks before converting working coordinates."""
+    return replace(
         page,
-        rows=tuple(with_ornaments(row, digit_height) for row in page.rows),
+        rows=tuple(_row_with_working_ornaments(row, digit_height, prepared) for row in page.rows),
         bz_overlays=tuple(
-            replace(overlay, row=with_ornaments(overlay.row, round(median(
+            replace(overlay, row=_row_with_working_ornaments(overlay.row, round(median(
                 note.box[3] - note.box[1] for note in overlay.row.notes
-            ))))
+            )), prepared))
             for overlay in page.bz_overlays
         ),
     )
-    page = _source_coordinates(page, scale, source_gray.size)
 
-    def with_slurs(row: MusicRow) -> MusicRow:
-        notes = tuple(note.box for note in row.notes)
-        height = median(box[3] - box[1] for box in notes)
-        others = tuple(other.box for other in (*page.rows, *(bz.row for bz in page.bz_overlays))
-                       if other is not row)
-        symbols = symbol_decorations(source_gray, notes, source_components, other_rows=others)
-        symbol_regions = tuple(symbol.box for symbol in symbols)
-        marks = [component for component in source_components if not any(
-            left <= (component.box[0] + component.box[2]) / 2 <= right
-            and top <= component.center_y <= bottom
-            for left, top, right, bottom in symbol_regions
-        )]
-        parts, core = curve_core_parts(marks, source_gray, row.box[1], height)
-        working_marks = [component for component in components if not any(
-            left <= (component.box[0] + component.box[2]) / (2 * scale) <= right
-            and top <= component.center_y / scale <= bottom
-            for left, top, right, bottom in symbol_regions
-        )] if symbols else []
-        recovered_notes = []
-        for index, note in enumerate(row.notes):
-            owned = tuple(symbol.token for symbol in symbols if symbol.note_index == index)
-            # Tiny dots were read in the enlarged working image. Keep that scale when
-            # excluding a fermata's dot, or a genuine two-pixel octave disappears.
-            working_box = cast(Box, tuple(coordinate * scale for coordinate in note.box))
-            octave = (note_modifiers(working_box, working_marks, round(height * scale))[0]
-                      if owned
-                      else note.octave or note_modifiers(
-                          note.box, parts, round(height), duration_gray=core,
-                      )[0])
-            recovered_notes.append(replace(
-                note, octave=octave, decorations=tuple(dict.fromkeys((*note.decorations, *owned))),
-            ))
-        unresolved = tuple(box for box in row.unresolved_marks if not any(
-            left <= (box[0] + box[2]) / 2 <= right
-            and top <= (box[1] + box[3]) / 2 <= bottom
-            for left, top, right, bottom in symbol_regions
+
+def _row_with_source_marks(
+    row: MusicRow, page: PageObservation, prepared: _PreparedImage,
+) -> MusicRow:
+    source_gray, source_components = prepared.source_gray, prepared.source_components
+    components, scale = prepared.working_components, prepared.scale
+    notes = tuple(note.box for note in row.notes)
+    height = median(box[3] - box[1] for box in notes)
+    others = tuple(other.box for other in (*page.rows, *(bz.row for bz in page.bz_overlays))
+                   if other is not row)
+    symbols = symbol_decorations(source_gray, notes, source_components, other_rows=others)
+    symbol_regions = tuple(symbol.box for symbol in symbols)
+    marks = [component for component in source_components if not any(
+        left <= (component.box[0] + component.box[2]) / 2 <= right
+        and top <= component.center_y <= bottom
+        for left, top, right, bottom in symbol_regions
+    )]
+    parts, core = curve_core_parts(marks, source_gray, row.box[1], height)
+    working_marks = [component for component in components if not any(
+        left <= (component.box[0] + component.box[2]) / (2 * scale) <= right
+        and top <= component.center_y / scale <= bottom
+        for left, top, right, bottom in symbol_regions
+    )] if symbols else []
+    recovered_notes = []
+    for index, note in enumerate(row.notes):
+        owned = tuple(symbol.token for symbol in symbols if symbol.note_index == index)
+        # Tiny dots were read in the enlarged working image. Keep that scale when
+        # excluding a fermata's dot, or a genuine two-pixel octave disappears.
+        working_box = cast(Box, tuple(coordinate * scale for coordinate in note.box))
+        octave = (note_modifiers(working_box, working_marks, round(height * scale))[0]
+                  if owned
+                  else note.octave or note_modifiers(
+                      note.box, parts, round(height), duration_gray=core,
+                  )[0])
+        recovered_notes.append(replace(
+            note, octave=octave, decorations=tuple(dict.fromkeys((*note.decorations, *owned))),
         ))
-        music = tuple(sorted((*notes, *row_sustains(notes, unresolved))))
-        ending_boxes = tuple(segment.box for segment in row.endings)
-        hairpins = row_hairpins(source_gray, notes, marks, other_rows=others, music_boxes=music)
-        slur_marks = [component for component in marks if not any(
-            component.box[2] > left and component.box[0] < right
-            and top - height * 0.2 <= component.center_y <= bottom + height * 0.35
-            for left, top, right, bottom in others
-        ) and not any(
-            component.box[0] < right and component.box[2] > left
-            and component.box[1] < bottom and component.box[3] > top
-            for left, top, right, bottom in ending_boxes
-        ) and not any(
-            left <= component.box[0] and component.box[2] <= right
-            and top <= component.center_y <= bottom
-            for left, top, right, bottom in (pin.box for pin in hairpins)
-        )]
-        slurs = row_slurs(notes, row.box[1], height, slur_marks, source_gray, row.barlines)
-        return replace(
-            row,
-            notes=tuple(recovered_notes), unresolved_marks=unresolved,
-            slurs=slurs,
-            parentheses=row_parentheses(music, height, marks, source_gray),
-            hairpins=hairpins, decoration_regions=(*symbol_regions, *(pin.box for pin in hairpins)),
-        )
-
+    unresolved = tuple(box for box in row.unresolved_marks if not any(
+        left <= (box[0] + box[2]) / 2 <= right
+        and top <= (box[1] + box[3]) / 2 <= bottom
+        for left, top, right, bottom in symbol_regions
+    ))
+    music = tuple(sorted((*notes, *row_sustains(notes, unresolved))))
+    ending_boxes = tuple(segment.box for segment in row.endings)
+    hairpins = row_hairpins(source_gray, notes, marks, other_rows=others, music_boxes=music)
+    slur_marks = [component for component in marks if not any(
+        component.box[2] > left and component.box[0] < right
+        and top - height * 0.2 <= component.center_y <= bottom + height * 0.35
+        for left, top, right, bottom in others
+    ) and not any(
+        component.box[0] < right and component.box[2] > left
+        and component.box[1] < bottom and component.box[3] > top
+        for left, top, right, bottom in ending_boxes
+    ) and not any(
+        left <= component.box[0] and component.box[2] <= right
+        and top <= component.center_y <= bottom
+        for left, top, right, bottom in (pin.box for pin in hairpins)
+    )]
+    slurs = row_slurs(notes, row.box[1], height, slur_marks, source_gray, row.barlines)
     return replace(
-        page, rows=tuple(with_slurs(row) for row in page.rows),
+        row,
+        notes=tuple(recovered_notes), unresolved_marks=unresolved,
+        slurs=slurs,
+        parentheses=row_parentheses(music, height, marks, source_gray),
+        hairpins=hairpins, decoration_regions=(*symbol_regions, *(pin.box for pin in hairpins)),
+    )
+
+
+def _add_source_marks(page: PageObservation, prepared: _PreparedImage) -> PageObservation:
+    """Use source geometry and preserve working ink for symbol-owned octave dots."""
+    return replace(
+        page, rows=tuple(_row_with_source_marks(row, page, prepared) for row in page.rows),
         bz_overlays=tuple(
-            replace(overlay, row=with_slurs(overlay.row)) for overlay in page.bz_overlays
+            replace(overlay, row=_row_with_source_marks(overlay.row, page, prepared))
+            for overlay in page.bz_overlays
         ),
     )
+
+
+def recognize_image(path: Path) -> PageObservation:
+    """Recognize rows and marks in stages, returning original-image coordinates."""
+    prepared = _prepare_image(path)
+    recognized = _recognize_working_rows(prepared)
+    if recognized is None:
+        return PageObservation(*prepared.source_gray.size, (), 0, excluded_regions=tuple(
+            _source_box(box, prepared.scale) for box in prepared.working_excluded
+        ))
+    page, digit_height = recognized
+    page = _add_working_ornaments(page, digit_height, prepared)
+    page = _source_coordinates(page, prepared.scale, prepared.source_gray.size)
+    return _add_source_marks(page, prepared)
