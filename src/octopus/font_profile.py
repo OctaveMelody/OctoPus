@@ -1,4 +1,4 @@
-"""Explicit reference fonts for source tests and bundled fonts for release workers."""
+"""Resolve source/reference assets and platform fonts for bundle-free desktop releases."""
 
 from __future__ import annotations
 
@@ -52,30 +52,107 @@ _MAC_ROLES: dict[str, tuple[str, tuple[str, ...]]] = {
     "fangsong": ("STFangsong", ("STFangsong.ttf",)),
 }
 
+_WINDOWS_FONT_FILES: dict[str, tuple[str, ...]] = {
+    "Microsoft YaHei": ("msyh.ttc", "msyh.ttf"),
+    "Microsoft YaHei UI": ("msyh.ttc", "msyh.ttf"),
+    "SimHei": ("simhei.ttf",),
+    "FangSong": ("simfang.ttf", "fangsong.ttf"),
+    "SimSun": ("simsun.ttc", "simsun.ttf"),
+    "KaiTi": ("simkai.ttf", "kaiti.ttf"),
+    "DengXian": ("Deng.ttf", "Dengb.ttf"),
+}
+
+_MAC_FONT_FILES = {family: filenames for family, filenames in _MAC_ROLES.values()}
+
+_WINDOWS_ROLE_CANDIDATES: dict[str, tuple[str, ...]] = {
+    "heiti-1": ("Microsoft YaHei", "Microsoft YaHei UI", "DengXian", "SimHei"),
+    "heiti-2": ("SimHei", "Microsoft YaHei", "DengXian"),
+    "songti": ("SimSun", "Microsoft YaHei", "SimHei"),
+    "kaiti": ("KaiTi", "SimSun", "Microsoft YaHei"),
+    "fangsong": ("FangSong", "SimSun", "Microsoft YaHei"),
+}
+
+_MAC_ROLE_CANDIDATES: dict[str, tuple[str, ...]] = {
+    "heiti-1": ("PingFang SC", "Heiti SC", "Songti SC"),
+    "heiti-2": ("Heiti SC", "PingFang SC", "Songti SC"),
+    "songti": ("Songti SC", "PingFang SC", "Heiti SC"),
+    "kaiti": ("Kaiti SC", "PingFang SC", "Songti SC"),
+    "fangsong": ("STFangsong", "Songti SC", "PingFang SC"),
+}
+
+_GENERIC_FAMILIES = {
+    "heiti-1": "sans-serif",
+    "heiti-2": "sans-serif",
+    "songti": "serif",
+    "kaiti": "serif",
+    "fangsong": "serif",
+}
+
 
 def preferred_system_family(role: str) -> str:
     return _MAC_ROLES[role][0] if sys.platform == "darwin" else _FONT_ROLES[role][0]
 
 
-def selected_system_fonts() -> list[tuple[str, Path]]:
-    result = []
+def selected_system_fonts(*, require_truetype: bool = False) -> list[tuple[str, Path]]:
+    if release_profile() and sys.platform == "linux":
+        return []
+    result: list[tuple[str, Path]] = []
     for role in _FONT_ROLES:
-        family = preferred_system_family(role)
-        path = system_font_path(family)
-        if path is not None:
-            result.append((family, path))
+        resolved = _resolve_system_role(role, require_truetype=require_truetype)
+        if resolved is not None and resolved not in result:
+            result.append(resolved)
     return result
+
+
+def _bundled_fonts_enabled() -> bool:
+    """Source profiles retain repository assets; frozen releases bundle them only on Linux."""
+    return not getattr(sys, "frozen", False) or sys.platform == "linux"
+
+
+def _system_role_candidates(role: str) -> tuple[str, ...]:
+    if sys.platform == "darwin":
+        preferred = preferred_system_family(role)
+        alternatives = (family for family in _MAC_ROLE_CANDIDATES[role] if family != preferred)
+        return (preferred, *alternatives)
+    if sys.platform == "win32":
+        preferred = preferred_system_family(role)
+        return (
+            preferred,
+            *(family for family in _WINDOWS_ROLE_CANDIDATES[role] if family != preferred),
+        )
+    return (preferred_system_family(role),)
+
+
+def _resolve_system_role(
+    role: str,
+    *,
+    require_truetype: bool = False,
+) -> tuple[str, Path] | None:
+    """Choose an installed preferred family, then a compatible OS family for the role."""
+    for family in _system_role_candidates(role):
+        path = system_font_path(family)
+        if path is None:
+            continue
+        if require_truetype:
+            try:
+                face = font_face(path, family)
+            except OSError:
+                continue
+            if face is None or face[1]:
+                continue
+        return family, path
+    return None
 
 
 @cache
 def system_font_path(family: str) -> Path | None:
     """Locate an installed matching family, never accept fontconfig's substitute."""
     if sys.platform == "darwin":
-        entry = next((entry for entry in _MAC_ROLES.values() if entry[0] == family), None)
-        if entry is None:
+        filenames = _MAC_FONT_FILES.get(family)
+        if filenames is None:
             return None
         for root in mac_font_roots():
-            candidates = [root / name for name in entry[1]]
+            candidates = [root / name for name in filenames]
             candidates.extend(
                 path
                 for path in root.glob("*")
@@ -90,18 +167,25 @@ def system_font_path(family: str) -> Path | None:
                         continue
         return None
     role = next((entry for entry in _FONT_ROLES.values() if entry[0] == family), None)
-    if role is None:
-        return None
     if sys.platform == "win32":
+        filenames = _WINDOWS_FONT_FILES.get(family)
+        if filenames is None:
+            return None
         roots = [Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"]
         if os.environ.get("LOCALAPPDATA"):
             roots.append(Path(os.environ["LOCALAPPDATA"]) / "Microsoft/Windows/Fonts")
         for root in roots:
-            for filename in role[2]:
+            for filename in filenames:
                 path = root / filename
                 if path.is_file():
-                    return path
+                    try:
+                        if font_face(path, family) is not None:
+                            return path
+                    except (OSError, ValueError):
+                        continue
     else:
+        if role is None:
+            return None
         try:
             result = subprocess.check_output(
                 ["fc-match", "-f", "%{family}|%{file}", family],
@@ -119,22 +203,48 @@ def system_font_path(family: str) -> Path | None:
 
 def role_family(role: str, sources: dict[str, str] | None = None) -> str:
     _, fallback, _ = _FONT_ROLES[role]
-    system = preferred_system_family(role)
-    if (sources or {}).get(role) != "fallback" and system_font_path(system) is not None:
-        return system
-    return fallback
+    force_bundle = (sources or {}).get(role) == "fallback"
+    if release_profile() and sys.platform == "linux":
+        force_bundle = True
+    if not force_bundle:
+        resolved = _resolve_system_role(role)
+        if resolved is not None:
+            return resolved[0]
+    if _bundled_fonts_enabled():
+        return fallback
+    return _GENERIC_FAMILIES[role]
 
 
 def system_font_availability() -> dict[str, dict[str, str | bool]]:
-    """Report exact host families, independently for every selectable role."""
-    return {
-        role: {
-            "family": preferred_system_family(role),
-            "fallback": entry[1],
-            "available": system_font_path(preferred_system_family(role)) is not None,
+    """Report preferred and effective families, independently for every selectable role."""
+    result: dict[str, dict[str, str | bool]] = {}
+    linux_bundle = release_profile() and sys.platform == "linux"
+    for role, entry in _FONT_ROLES.items():
+        preferred = preferred_system_family(role)
+        preferred_available = not linux_bundle and system_font_path(preferred) is not None
+        resolved = (
+            None if linux_bundle else _resolve_system_role(role)
+        )
+        if linux_bundle:
+            bundled_fonts()  # Fail the handshake rather than reporting missing release assets.
+            effective = entry[1]
+            source = "bundled"
+        elif resolved is not None:
+            effective = resolved[0]
+            source = "system" if preferred_available else "system-fallback"
+        else:
+            effective = entry[1] if _bundled_fonts_enabled() else _GENERIC_FAMILIES[role]
+            source = "bundled" if _bundled_fonts_enabled() else "generic-fallback"
+        result[role] = {
+            "family": preferred,
+            "fallback": effective,
+            "resolved_family": effective,
+            "available": preferred_available,
+            "preferred_available": preferred_available,
+            "resolved": resolved is not None or source == "bundled",
+            "source": source,
         }
-        for role, entry in _FONT_ROLES.items()
-    }
+    return result
 
 
 def release_profile() -> bool:
@@ -170,7 +280,20 @@ def release_family(family: str, sources: dict[str, str] | None = None) -> str:
         return role_family(role, sources)
     canonical = {name.casefold(): name for name in _RELEASE_FAMILIES}
     if first.casefold() in canonical:
-        return canonical[first.casefold()]
+        selected = canonical[first.casefold()]
+        if _bundled_fonts_enabled():
+            return selected
+        family_roles = {
+            "noto sans sc": "heiti-2",
+            "noto serif sc": "songti",
+            "liberation sans": "heiti-1",
+            "lxgw wenkai": "kaiti",
+            "simzhisong": "songti",
+            "lxgw neo xihei": "heiti-2",
+            "misans": "heiti-1",
+            "zhuque fangsong (technical preview)": "fangsong",
+        }
+        return role_family(family_roles[first.casefold()], sources)
     if first.casefold() in {"simsun", "nsimsun", "serif"}:
         return role_family("songti", sources)
     if first.casefold() in {"arial", "liberation sans"}:
@@ -195,7 +318,7 @@ def apply_svg_fonts(svg: str, sources: dict[str, str] | None = None) -> str:
         re.IGNORECASE,
     ):
         return svg
-    bundled_fonts()  # Fail explicitly when release assets are missing/corrupt.
+    bundled_fonts()  # Strictly verifies Linux release assets; is empty for bundle-free releases.
 
     def rewrite_attribute(match: re.Match[str]) -> str:
         name, equal, quote, value, closing = match.groups()
@@ -218,20 +341,19 @@ def apply_svg_fonts(svg: str, sources: dict[str, str] | None = None) -> str:
     coverage = font_coverage(include_system=sources is not None)
 
     def contains(family: str, text: str) -> bool:
-        return all(char.isspace() or ord(char) in coverage[family] for char in text)
+        glyphs = coverage.get(family)
+        return glyphs is not None and all(char.isspace() or ord(char) in glyphs for char in text)
 
     def fallback_text(match: re.Match[str]) -> str:
         text = html.unescape(_SVG_TAG.sub("", match[1]))
         element = match[0]
         for family in coverage:
             if family in element and not contains(family, text):
+                replacements = ["Noto Sans SC", "Noto Serif SC"]
+                replacements.extend(family for family, _ in selected_system_fonts())
                 replacement = next(
-                    (
-                        candidate
-                        for candidate in ("Noto Sans SC", "Noto Serif SC")
-                        if contains(candidate, text)
-                    ),
-                    "Noto Sans SC",
+                    (candidate for candidate in replacements if contains(candidate, text)),
+                    family,
                 )
 
                 # Restrict replacement to font attributes/styles, never visible text/metadata.
@@ -265,6 +387,8 @@ def apply_svg_fonts(svg: str, sources: dict[str, str] | None = None) -> str:
 
 @lru_cache(maxsize=1)
 def bundled_fonts() -> tuple[tuple[str, str, str, Path], ...]:
+    if not _bundled_fonts_enabled():
+        return ()
     root = (
         Path(sys.executable).resolve().parent.parent / "fonts"
         if getattr(sys, "frozen", False)
@@ -282,12 +406,17 @@ def bundled_fonts() -> tuple[tuple[str, str, str, Path], ...]:
 
 @lru_cache(maxsize=1)
 def font_coverage(include_system: bool = False) -> dict[str, frozenset[int]]:
-    root = bundled_fonts()[0][3].parent
-    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
-    coverage = {
-        family: frozenset(code for start, end in ranges for code in range(start, end + 1))
-        for family, ranges in manifest["coverage"].items()
-    }
+    faces = bundled_fonts()
+    coverage: dict[str, frozenset[int]] = {}
+    if faces:
+        root = faces[0][3].parent
+        manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+        coverage.update(
+            {
+                family: frozenset(code for start, end in ranges for code in range(start, end + 1))
+                for family, ranges in manifest["coverage"].items()
+            }
+        )
     if release_profile() or include_system:
         for family, path in selected_system_fonts():
             if path.is_file():
@@ -308,7 +437,7 @@ class RasterFontOptions(TypedDict, total=False):
 def raster_font_options() -> RasterFontOptions:
     paths = [str(face[3]) for face in bundled_fonts()]
     paths.extend(str(path) for _, path in selected_system_fonts())
-    if not release_profile():
+    if not release_profile() or sys.platform != "linux":
         return {"skip_system_fonts": False, "font_files": paths}
     return {
         "skip_system_fonts": True,
@@ -358,7 +487,7 @@ def register_pdf_fonts() -> None:
     # Extract the chosen face temporarily, retaining its outlines and metadata.
     with tempfile.TemporaryDirectory(prefix="octopus-pdf-font-") as work:
         extracted: dict[tuple[Path, int], Path] = {}
-        for family, path in selected_system_fonts():
+        for family, path in selected_system_fonts(require_truetype=True):
             for weight in ("normal", "bold"):
                 style_path = path
                 if family == "Microsoft YaHei" and weight == "bold":
@@ -399,14 +528,23 @@ def register_pdf_fonts() -> None:
 
 
 def apply_pdf_font_fallbacks(svg: str) -> str:
-    """ReportLab cannot embed CFF; native macOS PDF exports retain the selected face."""
+    """Use an embeddable local face when ReportLab cannot handle an installed CFF outline."""
     fallback = {}
     for role in _FONT_ROLES:
-        family = preferred_system_family(role)
-        path = system_font_path(family)
-        face = font_face(path, family) if path is not None else None
-        if face is not None and face[1]:
+        resolved = _resolve_system_role(role)
+        if resolved is None:
+            continue
+        family, path = resolved
+        face = font_face(path, family)
+        if face is None or not face[1]:
+            continue
+        if _bundled_fonts_enabled():
             fallback[family] = _FONT_ROLES[role][1]
+            continue
+        embeddable = _resolve_system_role(role, require_truetype=True)
+        if embeddable is None:
+            raise ValueError(f"Python PDF export requires a TrueType font for {family}")
+        fallback[family] = embeddable[0]
 
     def rewrite(match: re.Match[str]) -> str:
         name, equal, quote, value, closing = match.groups()
