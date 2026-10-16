@@ -37,17 +37,28 @@ def font_face(
     candidates: list[tuple[int, int, bool, frozenset[int]]] = []
     try:
         for index, font in enumerate(fonts):
-            names = {
-                name.toUnicode().casefold() for name in font["name"].names if name.nameID in {1, 16}
-            }
-            if family.casefold() not in names:
+            try:
+                names = {
+                    name.toUnicode().casefold()
+                    for name in font["name"].names
+                    if name.nameID in {1, 16}
+                }
+                if family.casefold() not in names:
+                    continue
+                actual_weight = font["OS/2"].usWeightClass if "OS/2" in font else 400
+                actual_italic = bool(font["OS/2"].fsSelection & 1) if "OS/2" in font else False
+                rank = abs(actual_weight - weight) + (1000 if actual_italic != italic else 0)
+                candidates.append(
+                    (
+                        rank,
+                        index,
+                        "CFF " in font or "CFF2" in font,
+                        frozenset(font.getBestCmap() or {}),
+                    )
+                )
+            except (TTLibError, KeyError, OSError, ValueError):
+                # A damaged face should not prevent another installed face from being selected.
                 continue
-            actual_weight = font["OS/2"].usWeightClass if "OS/2" in font else 400
-            actual_italic = bool(font["OS/2"].fsSelection & 1) if "OS/2" in font else False
-            rank = abs(actual_weight - weight) + (1000 if actual_italic != italic else 0)
-            candidates.append(
-                (rank, index, "CFF " in font or "CFF2" in font, frozenset(font.getBestCmap() or {}))
-            )
         if not candidates:
             return None
         _, index, cff, coverage = min(candidates, key=lambda item: (item[0], item[1]))
