@@ -105,8 +105,8 @@ def selected_system_fonts(*, require_truetype: bool = False) -> list[tuple[str, 
 
 
 def _bundled_fonts_enabled() -> bool:
-    """Source profiles retain repository assets; frozen releases bundle them only on Linux."""
-    return not getattr(sys, "frozen", False) or sys.platform == "linux"
+    """Reference source keeps assets; release profiles bundle them only on Linux."""
+    return not release_profile() or sys.platform == "linux"
 
 
 def _system_role_candidates(role: str) -> tuple[str, ...]:
