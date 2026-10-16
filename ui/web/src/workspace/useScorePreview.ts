@@ -17,11 +17,10 @@ import {
 } from "./source-mapping.js";
 import type { DocumentSnapshot, PageCache, PageRenderResponse, PreviewQueue,
   PreviewRequest, RenderDiagnostic, RenderDiagnostics, RenderedPage, SourceAnchor, Status,
-  WorkspaceCopy, FontSources } from "./types";
+  WorkspaceCopy } from "./types";
 
 export function useScorePreview({ score, currentDocument, documentOpen, recoveryReady, copy,
-  setStatus, editorController, revealEditor, fontSources, fontGeneration = 0 }: {
-  fontSources?: FontSources;
+  setStatus, editorController, revealEditor, fontGeneration = 0 }: {
   fontGeneration?: number;
   score: DocumentSnapshot;
   currentDocument: RefObject<DocumentSnapshot>;
@@ -157,7 +156,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
               name: requestedDocument.name,
               code: requestedDocument.source,
               customCode: requestedDocument.customCode,
-              pageConfig: { ...requestedDocument.pageConfig, ...(fontSources ? { _font_sources: fontSources } : {}) },
+              pageConfig: requestedDocument.pageConfig,
               pageIndex,
             },
           });
@@ -207,7 +206,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
       queue.dispose();
       if (previewQueue.current === queue) previewQueue.current = null;
     };
-  }, [JSON.stringify(fontSources), fontGeneration]);
+  }, [fontGeneration]);
 
   useEffect(() => {
     if (!documentOpen) return;
@@ -218,7 +217,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
       && cache.pages.has(selectedPage)
     ) return;
     previewQueue.current?.request({ document: score, pageIndex: selectedPage }, { immediate: true });
-  }, [documentOpen, score.id, revision, selectedPage, JSON.stringify(fontSources), fontGeneration]);
+  }, [documentOpen, score.id, revision, selectedPage, fontGeneration]);
 
   useEffect(() => {
     if (!currentPage) return;

@@ -1,7 +1,15 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-export type MenuAction = { label: string; title?: string; disabled?: boolean; group?: string; selected?: boolean; run(): void };
+export type MenuAction = {
+  label: string;
+  title?: string;
+  disabled?: boolean;
+  group?: string;
+  selected?: boolean;
+  checked?: boolean;
+  run(): void;
+};
 
 /** Portal menus remain visible outside narrow, scrolling panel headings. */
 export function ActionMenu({ label, title, actions }: {
@@ -73,8 +81,9 @@ export function ActionMenu({ label, title, actions }: {
       {actions.map((action, index) => <Fragment key={action.label}>
         {action.group && action.group !== actions[index - 1]?.group &&
           <div className="action-menu-group" role="presentation">{action.group}</div>}
-        <button role={action.selected === undefined ? "menuitem" : "menuitemradio"}
-        aria-checked={action.selected} type="button"
+        <button role={action.checked !== undefined ? "menuitemcheckbox"
+          : action.selected === undefined ? "menuitem" : "menuitemradio"}
+        aria-checked={action.checked ?? action.selected} type="button"
         title={action.title} disabled={action.disabled} onClick={() => {
           setOpen(false);
           trigger.current?.focus();

@@ -166,7 +166,9 @@ def _render_page(payload: dict[str, Any]) -> dict[str, Any]:
     svg, layout = render_score_model_page_with_layout(model, page_index)
     svg, custom_markup_omitted = add_safe_custom_page_markup(model, page_index, svg)
     font_roles = font_roles_in_svg(svg)
-    svg = apply_svg_fonts(svg, payload.get("page_config", {}).get("_font_sources"))
+    # Legacy per-machine font-source overrides are ignored; the worker's active
+    # platform policy selects installed or bundled faces automatically.
+    svg = apply_svg_fonts(svg)
     events = [
         {
             "event_index": item.event.index,

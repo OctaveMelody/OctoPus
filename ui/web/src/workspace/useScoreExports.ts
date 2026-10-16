@@ -8,7 +8,6 @@ import type {
   ExportFormat,
   ExportStatus,
   WorkspaceCopy,
-  FontSources,
 } from "./types";
 
 function exportFormatName(
@@ -36,8 +35,7 @@ export function exportStatusText(status: ExportStatus, copy: WorkspaceCopy): str
   );
 }
 
-export function useScoreExports({ score, currentDocument, documentOpen, copyRef, fontSources }: {
-  fontSources?: FontSources;
+export function useScoreExports({ score, currentDocument, documentOpen, copyRef }: {
   score: DocumentSnapshot;
   currentDocument: RefObject<DocumentSnapshot>;
   documentOpen: boolean;
@@ -69,7 +67,7 @@ export function useScoreExports({ score, currentDocument, documentOpen, copyRef,
         name: snapshot.name,
         code: snapshot.source,
         customCode: snapshot.customCode,
-        pageConfig: { ...snapshot.pageConfig, ...(fontSources ? { _font_sources: fontSources } : {}) },
+        pageConfig: snapshot.pageConfig,
       };
       const suggestedPath = snapshot.suggestedPath ?? snapshot.path;
       const receipt = format === "svg"

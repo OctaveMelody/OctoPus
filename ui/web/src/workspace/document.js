@@ -1,6 +1,14 @@
 /** @typedef {{id: string, name: string, path: string | null, suggestedPath: string | null, source: string, savedSource: string, savedFileText: string | null, wrapperFields: Record<string, unknown>, customCode: string, pageConfig: Record<string, unknown>, savedPageConfig: Record<string, unknown>, jsonWrapped: boolean, revision: number, saveSequence: number}} DocumentSession */
 /** @typedef {{documentId: string, revision: number, saveSequence: number, name: string, path: string | null, suggestedPath: string | null, source: string, wrapperFields: Record<string, unknown>, pageConfig: Record<string, unknown>, pageConfigChanged: boolean, jsonWrapped: boolean}} SaveSnapshot */
 
+/** @param {Record<string, unknown>} pageConfig */
+function withoutRetiredFontSources(pageConfig) {
+  if (!Object.hasOwn(pageConfig, "_font_sources")) return pageConfig;
+  const normalized = { ...pageConfig };
+  delete normalized._font_sources;
+  return normalized;
+}
+
 /** @param {{id: string, name: string, source: string, path?: string | null, suggestedPath?: string | null, savedSource?: string, savedFileText?: string | null, wrapperFields?: Record<string, unknown>, customCode?: string, pageConfig?: Record<string, unknown>, savedPageConfig?: Record<string, unknown>, jsonWrapped?: boolean, revision?: number}} input @returns {DocumentSession} */
 export function createDocumentSession({
   id,
@@ -26,6 +34,8 @@ export function createDocumentSession({
   ) {
     throw new TypeError("document identity, name and source are required");
   }
+  const normalizedPageConfig = withoutRetiredFontSources(pageConfig);
+  const normalizedSavedPageConfig = withoutRetiredFontSources(savedPageConfig);
   return {
     id,
     name,
@@ -36,8 +46,8 @@ export function createDocumentSession({
     savedFileText,
     wrapperFields,
     customCode,
-    pageConfig,
-    savedPageConfig,
+    pageConfig: normalizedPageConfig,
+    savedPageConfig: normalizedSavedPageConfig,
     jsonWrapped,
     revision,
     saveSequence: 0,
@@ -52,8 +62,9 @@ export function updateDocumentSource(document, source) {
 
 /** @param {DocumentSession} document @param {Record<string, unknown>} pageConfig @returns {DocumentSession} */
 export function updateDocumentPageConfig(document, pageConfig) {
-  if (samePageConfig(pageConfig, document.pageConfig)) return document;
-  return { ...document, pageConfig, revision: document.revision + 1 };
+  const normalizedPageConfig = withoutRetiredFontSources(pageConfig);
+  if (samePageConfig(normalizedPageConfig, document.pageConfig)) return document;
+  return { ...document, pageConfig: normalizedPageConfig, revision: document.revision + 1 };
 }
 
 /** @param {DocumentSession} document @param {{documentId: string, revision: number}} snapshot */

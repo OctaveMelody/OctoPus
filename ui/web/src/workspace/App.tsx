@@ -132,11 +132,8 @@ export function App() {
     return start && end ? [{code: issue.code, message: issue.detail, severity: "warning",
       span: {start: {...start, offset: issue.source_start}, end: {...end, offset: issue.source_end}}}] : [];
   }) : [];
-  const outputFontSources = Object.fromEntries(Object.entries(preferences.fontSources).map(
-    ([role, source]) => [role, engineCapabilities.fonts?.[role]?.available ? source : "fallback"],
-  ));
   const { isExporting, currentExportStatus, startExport } = useScoreExports({
-    score, currentDocument, documentOpen, copyRef, fontSources: outputFontSources });
+    score, currentDocument, documentOpen, copyRef });
   const referenceAssets = useReferenceAssets({ currentDocument, recoverySequence,
     currentRecoveryDraft, copyRef, setStatus, setActiveDialog, setDialogError, setPreferences,
     externalImportBusy: () => closeRequestPending.current || !recoveryReadyRef.current
@@ -148,7 +145,7 @@ export function App() {
 
   const preview = useScorePreview({ score, currentDocument, documentOpen, recoveryReady, copy,
     setStatus, editorController, revealEditor: () => revealPane("editor"),
-    fontSources: outputFontSources, fontGeneration });
+    fontGeneration });
   const { handleEditorCursor, resetPreview, sourceChanged } = preview;
   useRecoveryPersistence(lifecycle, referenceAssets, setStatus);
 
@@ -773,9 +770,22 @@ export function App() {
               run: () => changeLayout("T1")},
             {label: copy.transcriptionComparison, group: copy.transcriptionMode, selected: layout === "T2",
               run: () => changeLayout("T2")},
+            {label: copy.showSamplesLibrary, group: copy.workspaceControls,
+              checked: preferences.displaySamplesLibrary,
+              run: () => setPreferences(current => ({
+                ...current, displaySamplesLibrary: !current.displaySamplesLibrary,
+              }))},
           ]} />
-          <button disabled={isSaving || referenceOperationBusy}
-            onClick={() => setActiveDialog("preferences")} type="button">{copy.preferences}</button>
+          <button className="language-switch" type="button"
+            aria-label={preferences.language === "en" ? copy.switchToChinese : copy.switchToEnglish}
+            title={preferences.language === "en" ? copy.switchToChinese : copy.switchToEnglish}
+            onClick={() => setPreferences(current => ({
+              ...current, language: current.language === "en" ? "zh-CN" : "en",
+            }))}>
+            <span lang={preferences.language === "en" ? "zh-CN" : "en"}>
+              {preferences.language === "en" ? "中文" : "English"}
+            </span>
+          </button>
           <button
             disabled={isSaving || referenceOperationBusy}
             onClick={requestNativeClose}
@@ -844,7 +854,7 @@ export function App() {
 
       </section>
       <LifecycleDialogs lifecycle={lifecycle} referenceAssets={referenceAssets} copy={copy}
-        preferences={preferences} setPreferences={setPreferences} fonts={engineCapabilities.fonts}
+        preferences={preferences} fonts={engineCapabilities.fonts}
         fontPolicy={fontPolicy} fontPlatform={fontPlatform} fontStatusError={fontStatusError}
         fontHelpError={fontHelpError} fontRefreshing={fontRefreshing}
         fontBusy={isExporting} fontRoles={activeFontRoles}

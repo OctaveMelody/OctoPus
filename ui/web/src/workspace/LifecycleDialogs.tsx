@@ -1,5 +1,3 @@
-import type { Dispatch, SetStateAction } from "react";
-import { PreferencesForm } from "./PreferencesForm";
 import type { DocumentLifecycle } from "./useDocumentLifecycle";
 import type { useReferenceAssets } from "./useReferenceAssets";
 import type { WorkspaceCopy, WorkspacePreferences, FontAvailability,
@@ -7,7 +5,7 @@ import type { WorkspaceCopy, WorkspacePreferences, FontAvailability,
 import type { HelpDestination } from "./help-actions.js";
 import { fontFamilyNames } from "./i18n";
 
-export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences, setPreferences,
+export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences,
   fonts, fontPolicy = "reference", fontPlatform = "other", fontStatusError = "",
   fontHelpError = "", fontRefreshing = false, fontBusy = false, fontRoles = null,
   onRefreshFonts, openFontHelp }: {
@@ -15,7 +13,6 @@ export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences
   referenceAssets: ReturnType<typeof useReferenceAssets>;
   copy: WorkspaceCopy;
   preferences: WorkspacePreferences;
-  setPreferences: Dispatch<SetStateAction<WorkspacePreferences>>;
   fonts?: FontAvailability;
   fontPolicy?: "reference" | "bundled" | "system";
   fontPlatform?: "windows" | "macos" | "linux" | "other";
@@ -80,9 +77,6 @@ export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences
         }}
         ref={dialogRef}
       >
-        {activeDialog === "preferences" && <PreferencesForm copy={copy}
-          preferences={preferences} fonts={fonts}
-          onChange={setPreferences} onClose={() => setActiveDialog(null)} />}
         {activeDialog === "fonts" && (
           <section>
             <h2 id="lifecycle-dialog-title">{copy.fontStatusTitle}</h2>
