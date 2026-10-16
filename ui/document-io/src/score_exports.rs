@@ -371,24 +371,40 @@ mod tests {
                 .expect("system-only export must not read a bundled manifest");
 
         assert_eq!(options.font_family, "sans-serif");
-        let family = options
+        let cjk_family = options
             .fontdb
             .faces()
             .flat_map(|face| face.families.iter().map(|family| family.0.as_str()))
-            .find(|family| {
-                !family.is_empty()
-                    && family.chars().all(|character| {
-                        character.is_ascii_alphanumeric() || matches!(character, ' ' | '-')
+            .find(|family| family.starts_with("Noto Sans CJK"));
+        let family = cjk_family
+            .or_else(|| {
+                options
+                    .fontdb
+                    .faces()
+                    .flat_map(|face| face.families.iter().map(|family| family.0.as_str()))
+                    .find(|family| {
+                        !family.is_empty()
+                            && family.chars().all(|character| {
+                                character.is_ascii_alphanumeric() || matches!(character, ' ' | '-')
+                            })
                     })
             })
             .expect("the host supplies at least one system font");
+        let text = if cjk_family.is_some() {
+            "简谱中文"
+        } else {
+            "System font"
+        };
         let svg = format!(
-            r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="60"><text x="10" y="40" font-family="{family}" font-size="16">System font</text></svg>"#
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="60"><text x="10" y="40" font-family="{family}" font-size="16">{text}</text></svg>"#
         );
         let pdf = super::export_pdf_with_options(&[svg], options).unwrap();
         assert!(pdf
             .windows(b"/FontFile".len())
             .any(|item| item == b"/FontFile"));
+        assert!(pdf
+            .windows(b"/ToUnicode".len())
+            .any(|item| item == b"/ToUnicode"));
     }
 
     #[test]
