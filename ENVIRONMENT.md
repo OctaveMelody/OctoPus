@@ -64,9 +64,12 @@ sudo apt-get install -y build-essential pkg-config libwebkit2gtk-4.1-dev libgtk-
 
 An installed Debian application uses the package-manager-resolved GTK/WebKit/runtime libraries
 and `poppler-utils`; its bundled Python worker needs no separate Python installation. Retain
-its neighboring engine/examples/docs resources. Bundled fonts cover the supported rendering roles;
-Microsoft YaHei/SimHei/SimSun/Arial are needed for authoritative corpus comparisons, which live
-in development. Font replacement changes rendering and is not proof of reference parity.
+its neighboring engine/examples/docs resources. Linux production packages include the verified
+score-font set. Windows/macOS desktop builds use installed OS fonts and compatible installed
+substitutes without the 13 application score-font faces. The offline manual carries small Noto
+Sans SC subsets separately. Microsoft YaHei/SimHei/SimSun/Arial are needed for authoritative
+corpus comparisons, which live in development. Font replacement changes rendering and is not
+proof of reference parity.
 
 ## Setup and run from source
 
@@ -170,13 +173,14 @@ intentionally with `uv lock`/npm/Cargo and validate the resulting change.
 
 ## Release fonts
 
-Pinned font assets and their OFL, IPA and Xiaomi MiSans licenses are in src/octopus/assets/fonts/. Packaging verifies their
-hashes and stages them beside the worker for preview and native/Python export. Builds need no font download
-or system font installation. See [font asset guide](src/octopus/assets/fonts/README.md).
-The source engine defaults to reference fonts; use `OCTOPUS_FONT_PROFILE=release` for release-policy
-checks. Packaged workers/native exports prefer the configured installed OS families independently
-for each role, then use bundled substitutions when a family is missing. This also applies to
-production portable builds. Reference font files stay outside Git. See the [font tables](README.md#fonts).
+Pinned font assets and their OFL, IPA and Xiaomi MiSans licenses are in
+`src/octopus/assets/fonts/`. Linux release packaging verifies their hashes and stages them
+beside the worker for preview and native export. Windows/macOS desktop packaging omits the 13
+application score-font faces; its native resolver uses preferred installed families and
+compatible installed substitutes. The two small Noto Sans SC manual subsets and PDF.js standard
+fonts are separate documentation/import resources. See the [font asset guide](src/octopus/assets/fonts/README.md).
+The source engine retains its reference profile; use `OCTOPUS_FONT_PROFILE=release` for Linux
+release-policy checks. Reference font files stay outside Git.
 
 ## Portable production testing
 
@@ -196,13 +200,14 @@ On Linux, run from any working directory:
 On Windows, run `dist/<target-triple>/portable/octopus.exe`. Keep the complete portable
 folder together. Linux still requires the host GTK/WebKit libraries and Poppler tools; Windows
 requires WebView2. This is an application-local production testing tree, not a static OS runtime.
-Both build/ and dist/ are ignored by Git. Fonts are bundled and no font installation is needed.
+Both build/ and dist/ are ignored by Git. Linux portable includes its verified score-font set;
+Windows portable uses installed system fonts and compatible installed substitutes without the
+13 application score-font faces.
 
-Release packaging keeps fallback fonts outside the executable. Linux resources live in
-`usr/lib/OctoPus/`; Windows uses `lib/OctoPus/` beside `octopus.exe`; the macOS resource
-configuration uses `Contents/Resources/lib/OctoPus/` (native macOS builds remain pending).
-The shared `fonts/` directory contains all fallback/backup faces, manifest and licenses.
-Both preview and Python exports use this directory; keep the complete portable tree together.
-OS Preference remains the default, with per-role Free Fallback when unavailable or selected.
+The Linux release font directory is `usr/lib/OctoPus/fonts/`, next to the worker and its
+manifest/license resources. Windows/macOS desktop packages do not stage that directory or
+application score-font faces. Source/CLI builds continue to use repository assets where their
+font profile requires them. Keep the complete Linux portable tree together. The offline manual's
+small Noto subsets and PDF.js standard fonts are not score-font payloads.
 Bundled OCR packages and default model attributions are listed in
 [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md).

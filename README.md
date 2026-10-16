@@ -48,6 +48,16 @@ The manual's PDF links open a save dialog in the desktop app and download the PD
 For the source format specification, see [Tomato JPS Spec](https://github.com/yetist/jianpu-spec),
 which OctoPus uses for JPS input.
 
+## Fonts
+
+Windows and macOS desktop builds use the preferred fonts installed on the system and compatible
+installed substitutes when a preferred family is missing. Use **Help → Fonts** for official
+installation instructions or to check again. These desktop builds do not bundle the application's
+13 score-font faces. Linux portable and AppImage builds use the verified score-font set shipped
+with the application directly. The offline manual includes only small Noto Sans SC subsets; these
+are separate from the score-font set. The [font asset guide](src/octopus/assets/fonts/README.md)
+lists platform mappings, font licenses and build behavior.
+
 ## Build from source
 
 See [environment instructions](ENVIRONMENT.md) for runtime and build requirements. Production

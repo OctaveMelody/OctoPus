@@ -40,6 +40,14 @@
 
 JPS 格式规范见 [Tomato JPS Spec](https://github.com/yetist/jianpu-spec)。本程序的 JPS 输入格式遵循该规范。
 
+## 字体
+
+Windows 和 macOS 桌面版本优先使用系统已安装的对应字体；首选字族缺失时使用兼容的已安装替代字体。
+可通过**帮助 → 字体**查看官方安装说明或重新检查。这两个平台的桌面包不包含程序的 13 种乐谱字体。
+Linux 便携版和 AppImage 直接使用随程序提供并经过验证的乐谱字体集。离线手册仅附少量独立的
+Noto Sans SC 子集，不属于乐谱字体集。请参阅[字体资源说明](src/octopus/assets/fonts/README.zh-CN.md)
+了解平台映射、字体许可与打包方式。
+
 ## 源码构建
 
 运行环境和构建要求请参阅[环境说明](ENVIRONMENT.zh-CN.md)。生产构建使用锁定的 Python、Node/npm、Rust

@@ -59,9 +59,10 @@ sudo apt-get install -y build-essential pkg-config libwebkit2gtk-4.1-dev libgtk-
 
 通过 Debian 包安装后，应用使用包管理器安装的 GTK/WebKit 运行库及 `poppler-utils`；
 内置 Python 引擎无需另行安装 Python。请保留相邻的 engine/examples/docs 资源。
-内置字体覆盖受支持的字体选项；开发仓库中的权威参考语料对比需要安装
-Microsoft YaHei、SimHei、SimSun 和 Arial。替换字体会改变渲染结果，不能据此证明
-与参考输出一致。
+Linux 生产包包含经过验证的乐谱字体集。Windows/macOS 桌面版不包含 13 种程序乐谱字体，
+而是使用已安装的操作系统字体及兼容的已安装替代字体。离线手册另带少量 Noto Sans SC 子集。
+开发仓库中的权威参考语料对比需要安装 Microsoft YaHei、SimHei、SimSun 和 Arial。
+替换字体会改变渲染结果，不能据此证明与参考输出一致。
 
 ## 环境准备与源码运行
 
@@ -144,13 +145,12 @@ Linux 使用 `--bundles appimage`，Windows 使用 `--bundles nsis` 来请求对
 
 ## 发布字体
 
-锁定的字体资源及 OFL、IPA、小米 MiSans 许可证位于 `src/octopus/assets/fonts/`。
-打包程序验证其哈希，并将字体用于引擎、预览和原生导出器。构建无需下载字体或安装
-系统字体。参见[字体资源指南](src/octopus/assets/fonts/README.md)。
-源码引擎默认使用参考字体；通过 `OCTOPUS_FONT_PROFILE=release` 启用发布版字体策略检查。
-打包后的引擎和原生导出器按每种字体选项分别优先使用配置对应的已安装系统字体，缺失时
-使用内置替代字体；生产便携版同样如此。参考字体文件不纳入 Git。
-参见[字体对应表](README.zh-CN.md#字体)。
+固定版本的字体资源及其 OFL、IPA 和小米 MiSans 许可位于 `src/octopus/assets/fonts/`。
+Linux 发布包会校验哈希，并将字体放在工作进程旁供预览及原生导出使用。Windows/macOS 桌面包
+不包含 13 种程序乐谱字体；其原生解析器使用首选已安装字族和兼容的已安装替代字体。两种少量
+Noto Sans SC 手册子集及 PDF.js 标准字体属于独立的文档/导入资源。参见[字体资源说明]
+(src/octopus/assets/fonts/README.zh-CN.md)。源码引擎保留参考配置；可设置
+`OCTOPUS_FONT_PROFILE=release` 执行 Linux 发布策略检查。参考字体文件不纳入 Git。
 
 ## 生产便携版测试
 
@@ -168,12 +168,12 @@ Linux 可从任意工作目录运行，以下路径按生产仓库根目录给�
 Windows 运行 `dist/<target-triple>/portable/octopus.exe`。请保持便携版目录完整。
 Linux 仍需要主机 GTK/WebKit 库和 Poppler 工具；Windows 需要 WebView2。
 这是带应用本地资源的生产测试版本，并非静态打包整个操作系统运行环境。
-`build/` 和 `dist/` 均由 Git 忽略。字体已内置，无需另外安装字体。
+`build/` 和 `dist/` 均由 Git 忽略。Linux 便携版包含经过验证的乐谱字体集；Windows 便携版
+使用系统字体及兼容的已安装替代字体，不包含 13 种程序乐谱字体。
 
-发布包不将替代字体嵌入可执行文件。Linux 资源位于 `usr/lib/OctoPus/`；
-Windows 在 `octopus.exe` 旁使用 `lib/OctoPus/`；macOS 资源配置使用
-`Contents/Resources/lib/OctoPus/`（macOS 原生构建仍待支持）。共享的 `fonts/`
-目录包含所有替代及备份字体、清单和许可证，预览与 Python 导出共同使用。
-请保持便携目录完整。默认仍优先使用操作系统字体，缺失或手动选择时使用免费替代字体。
+Linux 发布字体目录为工作进程旁的 `usr/lib/OctoPus/fonts/`，并带有清单和许可资源。
+Windows/macOS 桌面包不暂存该目录或程序乐谱字体。源码/CLI 在所选字体配置需要时继续使用
+仓库内资源。请保持 Linux 便携目录完整。离线手册的少量 Noto 子集和 PDF.js 标准字体并非
+乐谱字体资源。
 打包 OCR 模型、RapidOCR 和 ONNX Runtime 的许可与归属说明见
 [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)。

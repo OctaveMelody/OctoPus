@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import html
+import importlib
 import json
 import os
 import re
@@ -208,6 +209,46 @@ def system_font_path(family: str) -> Path | None:
                             return path
                     except (OSError, ValueError):
                         continue
+        # Windows can register per-user or supplemental fonts under arbitrary filenames.
+        # The standard-name fast path above is cheap, but it must not decide that a family is
+        # absent when the installed-font registry points to a differently named face.
+        try:
+            winreg = importlib.import_module("winreg")
+        except ImportError:
+            return None
+        registry_key = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
+        for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            try:
+                key = winreg.OpenKey(hive, registry_key)
+            except OSError:
+                continue
+            try:
+                index = 0
+                while True:
+                    try:
+                        name, value, _ = winreg.EnumValue(key, index)
+                    except OSError:
+                        break
+                    index += 1
+                    if family.casefold() not in str(name).casefold():
+                        continue
+                    value = os.path.expandvars(str(value))
+                    registered_path = Path(value)
+                    candidates = (
+                        (registered_path,)
+                        if registered_path.is_absolute()
+                        else tuple(root / registered_path for root in roots)
+                    )
+                    for path in candidates:
+                        if not path.is_file():
+                            continue
+                        try:
+                            if font_face(path, family) is not None:
+                                return path
+                        except (OSError, ValueError):
+                            continue
+            finally:
+                winreg.CloseKey(key)
     else:
         if role is None:
             return None
