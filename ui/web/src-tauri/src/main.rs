@@ -151,6 +151,7 @@ fn main() {
             exports::export_score,
             exports::export_svg,
             engine::get_engine_capabilities,
+            engine::refresh_engine_capabilities,
             documents::list_jps_documents,
             engine::load_document,
             documents::open_jps_file,

@@ -13,7 +13,8 @@ import { LifecycleDialogs } from "./LifecycleDialogs";
 import { InformationDialog } from "./InformationDialog";
 import { PageSettings } from "./PageSettings";
 import { ReferencePanel } from "../reference/ReferencePanel";
-import { messages } from "./i18n";
+import { fontFamilyNames, messages } from "./i18n";
+import { fontNoticeKey as getFontNoticeKey, missingPreferredFonts, usedFontRoles } from "./font-status.js";
 import brandMark from "./octopus.svg";
 import {useDocumentLifecycle, useRecoveryPersistence} from "./useDocumentLifecycle";
 import {getStorage} from "./workspace-storage.js";
@@ -40,7 +41,7 @@ import {
   updateDocumentPageConfig,
   updateDocumentSource,
 } from "./document.js";
-import { getEngineCapabilities } from "./native-files.js";
+import { getEngineCapabilities, refreshEngineCapabilities } from "./native-files.js";
 import {
   selectReferenceImage,
   updateReferenceView,
@@ -77,6 +78,13 @@ export function App() {
     ocr: false,
     png_export: false,
   });
+  const [fontStatusError, setFontStatusError] = useState("");
+  const [fontHelpError, setFontHelpError] = useState("");
+  const [fontRefreshing, setFontRefreshing] = useState(false);
+  const [fontGeneration, setFontGeneration] = useState(0);
+  const [dismissedFontNoticeKey, setDismissedFontNoticeKey] = useState("");
+  const fontRequestSequence = useRef(0);
+  const fontRefreshInFlight = useRef(false);
   const [transcriptionIssues, setTranscriptionIssues] = useState<TranscriptionIssue[]>([]);
   const [reviewSource, setReviewSource] = useState<{id: string; source: string; context: TranscriptionContext} | null>(null);
   const [reviewRegion, setReviewRegion] = useState<{id: string; boxes: number[][]; serial: number} | null>(null);
@@ -139,7 +147,8 @@ export function App() {
     importReferences, updateReferences } = referenceAssets;
 
   const preview = useScorePreview({ score, currentDocument, documentOpen, recoveryReady, copy,
-    setStatus, editorController, revealEditor: () => revealPane("editor"), fontSources: outputFontSources });
+    setStatus, editorController, revealEditor: () => revealPane("editor"),
+    fontSources: outputFontSources, fontGeneration });
   const { handleEditorCursor, resetPreview, sourceChanged } = preview;
   useRecoveryPersistence(lifecycle, referenceAssets, setStatus);
 
@@ -228,20 +237,8 @@ export function App() {
   }, [preferences.language]);
 
   useEffect(() => {
-    let active = true;
-    void Promise.resolve()
-      .then(() => getEngineCapabilities())
-      .then((capabilities) => {
-        if (
-          active
-          && typeof capabilities.ocr === "boolean"
-          && typeof capabilities.png_export === "boolean"
-        ) {
-          setEngineCapabilities(capabilities);
-        }
-      })
-      .catch(() => {});
-    return () => { active = false; };
+    if (window.__TAURI__) void requestFontCapabilities(false);
+    return () => { fontRequestSequence.current += 1; };
   }, []);
 
   useEffect(() => {
@@ -265,6 +262,84 @@ export function App() {
   function revealPane(pane: PaneId) {
     setHiddenPanes(current => current.filter(hidden => hidden !== pane));
     setFocusPane(current => current && current !== pane ? pane : current);
+  }
+
+  async function requestFontCapabilities(refresh: boolean) {
+    if (refresh && (fontRefreshInFlight.current || isExporting)) return;
+    const sequence = ++fontRequestSequence.current;
+    if (refresh) {
+      fontRefreshInFlight.current = true;
+      setFontRefreshing(true);
+      setFontStatusError("");
+    }
+    try {
+      const capabilities = refresh
+        ? await refreshEngineCapabilities()
+        : await getEngineCapabilities();
+      if (sequence !== fontRequestSequence.current) return;
+      if (typeof capabilities.ocr !== "boolean"
+        || typeof capabilities.png_export !== "boolean") {
+        throw new Error(copy.fontRefreshFailed);
+      }
+      setEngineCapabilities({
+        ...capabilities,
+        font_policy: capabilities.font_policy ?? "reference",
+        font_platform: capabilities.font_platform ?? "other",
+      });
+      setFontStatusError("");
+      if (refresh) setFontGeneration(generation => generation + 1);
+    } catch (error) {
+      if (sequence === fontRequestSequence.current) {
+        setFontStatusError(error instanceof Error ? error.message : String(error));
+      }
+    } finally {
+      if (refresh && sequence === fontRequestSequence.current) {
+        fontRefreshInFlight.current = false;
+        setFontRefreshing(false);
+      }
+    }
+  }
+
+  async function openFontHelp(destination: HelpDestination) {
+    try {
+      await openHelpDestination(destination, preferences.language);
+      setFontHelpError("");
+    } catch (error) {
+      setFontHelpError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  const fontPolicy = engineCapabilities.font_policy ?? "reference";
+  const fontPlatform = engineCapabilities.font_platform ?? "other";
+  const activeFontRoles = usedFontRoles(preview.currentPageCache);
+  const missingFonts = activeFontRoles
+    ? missingPreferredFonts(engineCapabilities.fonts).filter(([role]) => activeFontRoles.includes(role))
+    : [];
+  const fontNoticeKey = getFontNoticeKey(fontPolicy, fontPlatform, missingFonts);
+  const showFontNotice = fontPolicy === "system"
+    && documentOpen
+    && activeFontRoles !== null
+    && missingFonts.length > 0
+    && !preferences.fontNoticeDismissals.includes(fontNoticeKey)
+    && dismissedFontNoticeKey !== fontNoticeKey
+    && lifecycle.activeDialog === null
+    && informationDialog === null;
+
+  function dismissFontNoticeForRun() {
+    setDismissedFontNoticeKey(fontNoticeKey);
+  }
+
+  function dismissFontNoticePermanently() {
+    setPreferences(current => ({
+      ...current,
+      fontNoticeDismissals: [...current.fontNoticeDismissals, fontNoticeKey],
+    }));
+    dismissFontNoticeForRun();
+  }
+
+  function showFontDetails() {
+    setFontHelpError("");
+    setActiveDialog("fonts");
   }
 
   function changeLayout(nextLayout: LayoutId) {
@@ -613,35 +688,36 @@ export function App() {
             <summary>{copy.exportMenu}</summary>
             <div aria-label={copy.exportOptions} className="export-menu-items">
               <button
-                disabled={!documentOpen || isSaving || isExporting || referenceOperationBusy}
+                disabled={!documentOpen || isSaving || isExporting || fontRefreshing || referenceOperationBusy}
                 onClick={(event) => startExport(event, "svg")}
                 type="button"
               >
                 {copy.exportSvg}
               </button>
               <button
-                disabled={!documentOpen || isSaving || isExporting || referenceOperationBusy}
+                disabled={!documentOpen || isSaving || isExporting || fontRefreshing || referenceOperationBusy}
                 onClick={(event) => startExport(event, "pdf")}
                 type="button"
               >
                 {copy.exportPdf}
               </button>
               <button
-                disabled={!documentOpen || isSaving || isExporting || referenceOperationBusy}
+                disabled={!documentOpen || isSaving || isExporting || fontRefreshing || referenceOperationBusy}
                 onClick={(event) => startExport(event, "jpg", 96)}
                 type="button"
               >
                 {copy.exportJpg}
               </button>
               <button
-                disabled={!documentOpen || isSaving || isExporting || referenceOperationBusy}
+                disabled={!documentOpen || isSaving || isExporting || fontRefreshing || referenceOperationBusy}
                 onClick={(event) => startExport(event, "jpg", 300)}
                 type="button"
               >
                 {copy.exportJpg300}
               </button>
               {[96, 300].map(dpi => <button key={`png-${dpi}`}
-                disabled={!documentOpen || isSaving || isExporting || referenceOperationBusy || !engineCapabilities.png_export}
+                disabled={!documentOpen || isSaving || isExporting || fontRefreshing
+                  || referenceOperationBusy || !engineCapabilities.png_export}
                 onClick={event => startExport(event, "png", dpi as 96 | 300)} type="button">
                 {dpi === 96 ? copy.exportPng : copy.exportPng300}
               </button>)}
@@ -654,6 +730,7 @@ export function App() {
             {label: copy.userManual, run: () => { void openHelp("manual"); }},
             {label: copy.reportIssues, run: () => { void openHelp("issues"); }},
             {label: copy.submitRequests, run: () => { void openHelp("requests"); }},
+            {label: copy.fontStatusTitle, run: showFontDetails},
             ...(import.meta.env.VITE_UPDATE_CHECK_ENABLED === "false" ? [] : [
               {label: copy.checkForUpdate, disabled: checkingUpdate, run: () => { void checkUpdates(); }},
             ]),
@@ -708,6 +785,48 @@ export function App() {
           </button>
         </div>
       </header>
+      {fontStatusError && (
+        <aside aria-live="polite" className="font-notice font-notice-error" role="status">
+          <p>{copy.fontStatusUnknown} {fontStatusError}</p>
+          <div className="font-notice-actions">
+            <button disabled={fontRefreshing || isExporting}
+              onClick={() => { void requestFontCapabilities(true); }} type="button">
+              {fontRefreshing ? copy.fontRefreshing : copy.fontRefresh}
+            </button>
+            <button onClick={showFontDetails} type="button">{copy.fontStatusTitle}</button>
+          </div>
+        </aside>
+      )}
+      {showFontNotice && (
+        <aside aria-labelledby="font-notice-title" className="font-notice" role="status">
+          <div>
+            <h2 id="font-notice-title">{copy.fontNoticeTitle}</h2>
+            <p>{copy.fontNoticeMessage}</p>
+            <ul className="font-status-list">
+              {missingFonts.map(([role, font]) => {
+                const roleLabel = role === "heiti-1" ? copy.fontHeiTi1
+                  : role === "heiti-2" ? copy.fontHeiTi2
+                  : role === "songti" ? copy.fontSongTi
+                  : role === "kaiti" ? copy.fontKaiTi : copy.fontFangSong;
+                return <li key={role}>{copy.fontMissingRole(
+                  roleLabel,
+                  fontFamilyNames[preferences.language][font.family] ?? font.family,
+                  fontFamilyNames[preferences.language][font.fallback] ?? font.fallback,
+                )}</li>;
+              })}
+            </ul>
+          </div>
+          <div className="font-notice-actions">
+            <button className="primary-button" onClick={showFontDetails} type="button">
+              {copy.fontInstallInstructions}
+            </button>
+            <button onClick={dismissFontNoticeForRun} type="button">{copy.fontContinue}</button>
+            <button onClick={dismissFontNoticePermanently} type="button">
+              {copy.fontDontAskAgain}
+            </button>
+          </div>
+        </aside>
+      )}
       <section
         aria-label={copy.workspace}
         className={`workspace layout-${layout}${hiddenPanes.length ? " panels-reduced" : ""}${focusPane ? ` focus-${focusPane}` : ""}`}
@@ -725,7 +844,12 @@ export function App() {
 
       </section>
       <LifecycleDialogs lifecycle={lifecycle} referenceAssets={referenceAssets} copy={copy}
-        preferences={preferences} setPreferences={setPreferences} fonts={engineCapabilities.fonts} />
+        preferences={preferences} setPreferences={setPreferences} fonts={engineCapabilities.fonts}
+        fontPolicy={fontPolicy} fontPlatform={fontPlatform} fontStatusError={fontStatusError}
+        fontHelpError={fontHelpError} fontRefreshing={fontRefreshing}
+        fontBusy={isExporting} fontRoles={activeFontRoles}
+        onRefreshFonts={() => { void requestFontCapabilities(true); }}
+        openFontHelp={openFontHelp} />
       <InformationDialog kind={informationDialog} dialogRef={informationDialogRef} copy={copy}
         checkingUpdate={checkingUpdate} updateResult={updateResult} updateError={updateError}
         browserError={browserError} onClose={() => setInformationDialog(null)} openHelp={openHelp}

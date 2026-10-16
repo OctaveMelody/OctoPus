@@ -4,15 +4,28 @@ import type { DocumentLifecycle } from "./useDocumentLifecycle";
 import type { useReferenceAssets } from "./useReferenceAssets";
 import type { WorkspaceCopy, WorkspacePreferences, FontAvailability,
   NewScoreFields } from "./types";
+import type { HelpDestination } from "./help-actions.js";
+import { fontFamilyNames } from "./i18n";
 
 export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences, setPreferences,
-  fonts }: {
+  fonts, fontPolicy = "reference", fontPlatform = "other", fontStatusError = "",
+  fontHelpError = "", fontRefreshing = false, fontBusy = false, fontRoles = null,
+  onRefreshFonts, openFontHelp }: {
   lifecycle: DocumentLifecycle;
   referenceAssets: ReturnType<typeof useReferenceAssets>;
   copy: WorkspaceCopy;
   preferences: WorkspacePreferences;
   setPreferences: Dispatch<SetStateAction<WorkspacePreferences>>;
   fonts?: FontAvailability;
+  fontPolicy?: "reference" | "bundled" | "system";
+  fontPlatform?: "windows" | "macos" | "linux" | "other";
+  fontStatusError?: string;
+  fontHelpError?: string;
+  fontRefreshing?: boolean;
+  fontBusy?: boolean;
+  fontRoles?: string[] | null;
+  onRefreshFonts(): void;
+  openFontHelp(destination: HelpDestination): void;
 }) {
   const {activeDialog, activeDialogRef, dialogRef, dialogError, setDialogError,
     setActiveDialog, newFileName, setNewFileName, newScoreFields, setNewScoreFields,
@@ -23,6 +36,18 @@ export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences
   const {pendingReferenceImport, isHandlingReferenceChoice, chooseReferenceImport} = referenceAssets;
   const visibleExamples = examples.filter(document =>
     document.name.toLowerCase().includes(exampleFilter.trim().toLowerCase()));
+  const fontRoleLabels = [
+    ["heiti-1", copy.fontHeiTi1],
+    ["heiti-2", copy.fontHeiTi2],
+    ["songti", copy.fontSongTi],
+    ["kaiti", copy.fontKaiTi],
+    ["fangsong", copy.fontFangSong],
+  ] as const;
+  const activeRoleSet = fontRoles === null ? null : new Set(fontRoles);
+  const missingFonts = activeRoleSet === null ? [] : fontRoleLabels.filter(
+    ([role]) => activeRoleSet.has(role) && fonts?.[role]?.available === false,
+  );
+  const familyName = (name: string) => fontFamilyNames[preferences.language][name] ?? name;
   return (
       <dialog
         aria-labelledby="lifecycle-dialog-title"
@@ -58,6 +83,55 @@ export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences
         {activeDialog === "preferences" && <PreferencesForm copy={copy}
           preferences={preferences} fonts={fonts}
           onChange={setPreferences} onClose={() => setActiveDialog(null)} />}
+        {activeDialog === "fonts" && (
+          <section>
+            <h2 id="lifecycle-dialog-title">{copy.fontStatusTitle}</h2>
+            <p>{fontPolicy === "system" ? copy.fontPolicySystem
+              : fontPolicy === "bundled" ? copy.fontPolicyBundled : copy.fontPolicyReference}</p>
+            {fontStatusError && <p role="alert">{copy.fontRefreshFailed} {fontStatusError}</p>}
+            {fontHelpError && <p role="alert">{fontHelpError}</p>}
+            {fontPolicy === "system" && fontRoles === null
+              && <p role="status">{copy.fontStatusScorePending}</p>}
+            {fontPolicy === "system" && fontRoles?.length === 0
+              && <p role="status">{copy.fontNoRoleFonts}</p>}
+            {fontPolicy === "system" && fontRoles !== null && fontRoles.length > 0 && !fonts
+              && <p role="status">{copy.fontStatusUnknown}</p>}
+            {fontPolicy === "system" && fontRoles !== null && fontRoles.length > 0
+              && fonts && missingFonts.length === 0
+              && <p role="status">{copy.fontAllAvailable}</p>}
+            {fontPolicy === "system" && missingFonts.length > 0 && (
+              <ul className="font-status-list">
+                {missingFonts.map(([role, label]) => {
+                  const status = fonts?.[role];
+                  return <li key={role}>{copy.fontMissingRole(
+                    label, familyName(status?.family ?? label), familyName(status?.fallback ?? "sans-serif"),
+                  )}</li>;
+                })}
+              </ul>
+            )}
+            {fontPolicy === "system" && fontPlatform === "windows" && (
+              <p><a href="https://support.microsoft.com/en-us/windows/experience/personalization/manage-fonts-in-windows"
+                onClick={event => {
+                  event.preventDefault();
+                  openFontHelp("windows-fonts");
+                }}>{copy.fontWindowsInstall}</a></p>
+            )}
+            {fontPolicy === "system" && fontPlatform === "macos" && (
+              <p><a href="https://support.apple.com/en-gb/guide/font-book/fntbk1000/mac"
+                onClick={event => {
+                  event.preventDefault();
+                  openFontHelp("macos-fonts");
+                }}>{copy.fontMacosInstall}</a></p>
+            )}
+            <div className="dialog-actions">
+              <button autoFocus className="primary-button" disabled={fontRefreshing || fontBusy}
+                onClick={onRefreshFonts} type="button">
+                {fontRefreshing ? copy.fontRefreshing : copy.fontRefresh}
+              </button>
+              <button onClick={() => setActiveDialog(null)} type="button">{copy.fontClose}</button>
+            </div>
+          </section>
+        )}
         {activeDialog === "dirty" && (
           <section>
             <h2 id="lifecycle-dialog-title">{copy.unsavedTitle}</h2>

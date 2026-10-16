@@ -244,6 +244,15 @@ impl EngineSupervisor {
             .clone())
     }
 
+    /// Restart the worker so its process-local font discovery and coverage caches are fresh.
+    pub fn refresh_capabilities(&mut self) -> Result<Value, String> {
+        if self.shutdown.load(Ordering::Acquire) {
+            return Err("engine shut down".into());
+        }
+        self.process.take();
+        self.capabilities()
+    }
+
     pub fn shutdown_signal(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.shutdown)
     }
@@ -714,7 +723,7 @@ mod tests {
     use std::io::{BufReader, Cursor, ErrorKind};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
-    use std::time::{Duration, Instant};
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     const FAKE_ENGINE: &str = r#"
 import json, os, subprocess, sys, time
@@ -783,11 +792,54 @@ for line in sys.stdin:
         sys.exit(0)
 "#;
 
+    const REFRESH_FAKE_ENGINE: &str = r#"
+import json, pathlib, sys
+mode, state_path = sys.argv[1:3]
+state_path = pathlib.Path(state_path)
+count = int(state_path.read_text()) if state_path.exists() else 0
+count += 1
+state_path.write_text(str(count))
+operations = ["handshake", "load_document", "render", "parse", "export_svg", "render_page", "serialize_document", "transcribe"]
+for line in sys.stdin:
+    request = json.loads(line)
+    response = {
+        "protocol_version": request["protocol_version"],
+        "engine_generation": f"refresh-{count}",
+        "request_id": request["request_id"],
+        "document_id": request["document_id"],
+        "document_revision": request["document_revision"],
+        "status": "ok",
+        "result": {
+            "operations": operations,
+            "custom_svg_display": True,
+            "ocr": False,
+            "png_export": True,
+            "font_policy": "system",
+            "font_platform": "windows",
+            "fonts": {"heiti-1": {"family": "Microsoft YaHei", "fallback": "Arial", "available": count > 1}}
+        } if request["operation"] == "handshake" else {}
+    }
+    if mode == "fail-once" and count == 2 and request["operation"] == "handshake":
+        response.update(status="error", error={"code": "render_failed", "message": "font refresh failed"})
+        response.pop("result")
+    print(json.dumps(response), flush=True)
+"#;
+
     fn fake_engine(mode: &str) -> EngineSupervisor {
         let interpreter = if cfg!(windows) { "python" } else { "python3" };
         EngineSupervisor::test_command(
             interpreter,
             &["-u", "-c", FAKE_ENGINE, mode],
+            Duration::from_secs(2),
+        )
+    }
+
+    fn font_refresh_engine(mode: &str, state_path: &std::path::Path) -> EngineSupervisor {
+        let interpreter = if cfg!(windows) { "python" } else { "python3" };
+        let state_path = state_path.to_string_lossy();
+        EngineSupervisor::test_command(
+            interpreter,
+            &["-u", "-c", REFRESH_FAKE_ENGINE, mode, &state_path],
             Duration::from_secs(2),
         )
     }
@@ -805,6 +857,38 @@ for line in sys.stdin:
 
     fn assert_reaped(child: &Arc<Mutex<WorkerProcess>>) {
         assert!(child.lock().unwrap().child.try_wait().unwrap().is_some());
+    }
+
+    #[test]
+    fn refreshing_capabilities_restarts_worker_and_allows_retry_after_failed_probe() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let state_path = std::env::temp_dir().join(format!(
+            "octopus-font-refresh-{}-{nonce}.txt",
+            std::process::id()
+        ));
+        let mut engine = font_refresh_engine("fail-once", &state_path);
+
+        assert!(
+            !engine.capabilities().unwrap()["fonts"]["heiti-1"]["available"]
+                .as_bool()
+                .unwrap()
+        );
+        let previous_child = Arc::clone(&engine.process.as_ref().unwrap().child);
+        let error = engine.refresh_capabilities().unwrap_err();
+        assert!(error.contains("font refresh failed"));
+        assert_reaped(&previous_child);
+        assert!(engine.process.is_none());
+
+        let refreshed = engine.capabilities().unwrap();
+        assert!(refreshed["fonts"]["heiti-1"]["available"]
+            .as_bool()
+            .unwrap());
+        assert_eq!(std::fs::read_to_string(&state_path).unwrap(), "3");
+        drop(engine);
+        std::fs::remove_file(state_path).unwrap();
     }
 
     #[cfg(target_os = "linux")]

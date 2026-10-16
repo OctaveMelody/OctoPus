@@ -38,6 +38,8 @@ pub(crate) enum HelpDestination {
     Requests,
     Home,
     Releases,
+    WindowsFonts,
+    MacosFonts,
 }
 
 pub(crate) fn project_url(destination: &HelpDestination) -> Option<String> {
@@ -47,6 +49,12 @@ pub(crate) fn project_url(destination: &HelpDestination) -> Option<String> {
         HelpDestination::Requests => format!("{PROJECT}/pulls"),
         HelpDestination::Home => PROJECT.into(),
         HelpDestination::Releases => format!("{PROJECT}/releases"),
+        HelpDestination::WindowsFonts => {
+            "https://support.microsoft.com/en-us/windows/experience/personalization/manage-fonts-in-windows".into()
+        }
+        HelpDestination::MacosFonts => {
+            "https://support.apple.com/en-gb/guide/font-book/fntbk1000/mac".into()
+        }
     })
 }
 
@@ -576,6 +584,8 @@ mod tests {
             HelpDestination::Requests,
             HelpDestination::Home,
             HelpDestination::Releases,
+            HelpDestination::WindowsFonts,
+            HelpDestination::MacosFonts,
         ];
         for destination in destinations {
             let url = project_url(&destination).expect("external Help destination has a URL");

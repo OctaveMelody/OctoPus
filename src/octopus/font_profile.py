@@ -87,6 +87,31 @@ _GENERIC_FAMILIES = {
     "kaiti": "serif",
     "fangsong": "serif",
 }
+_FONT_ROLE_ALIASES = {
+    "heiti": "heiti-2",
+    "heiti-1": "heiti-1",
+    "heiti-2": "heiti-2",
+    "sans-serif": "heiti-2",
+    "sans": "heiti-2",
+    "黑体": "heiti-2",
+    "黑体-1": "heiti-1",
+    "黑体-2": "heiti-2",
+    "microsoft yahei": "heiti-1",
+    "microsoft yahei ui": "heiti-1",
+    "微软雅黑": "heiti-1",
+    "simhei": "heiti-2",
+    "宋体": "songti",
+    "simsun": "songti",
+    "nsimsun": "songti",
+    "serif": "songti",
+    "fangsong": "fangsong",
+    "楷体": "kaiti",
+    "仿宋": "fangsong",
+}
+for _role, (_family, _fallback, _files) in _FONT_ROLES.items():
+    _FONT_ROLE_ALIASES[_family.casefold()] = _role
+for _role, (_family, _files) in _MAC_ROLES.items():
+    _FONT_ROLE_ALIASES[_family.casefold()] = _role
 
 
 def preferred_system_family(role: str) -> str:
@@ -247,6 +272,23 @@ def system_font_availability() -> dict[str, dict[str, str | bool]]:
     return result
 
 
+def font_roles_in_svg(svg: str) -> list[str]:
+    """Return symbolic score-font roles requested by rendered text, if recognized."""
+    roles: set[str] = set()
+    for tag in _SVG_TAG.findall(svg):
+        for attribute in _ATTRIBUTE.finditer(tag):
+            name, _, _, value, _ = attribute.groups()
+            requests = [value] if name.casefold() == "font-family" else []
+            if name.casefold() == "style":
+                requests.extend(match.group(2) for match in _FAMILY_STYLE.finditer(value))
+            for request in requests:
+                first = html.unescape(request).split(",", 1)[0].strip().strip("\"'").casefold()
+                role = _FONT_ROLE_ALIASES.get(first)
+                if role is not None:
+                    roles.add(role)
+    return sorted(roles)
+
+
 def release_profile() -> bool:
     # Frozen workers always use application policy, including installed OS font preference.
     if getattr(sys, "frozen", False):
@@ -255,6 +297,22 @@ def release_profile() -> bool:
     if profile not in {"reference", "release"}:
         raise ValueError("OCTOPUS_FONT_PROFILE must be reference or release")
     return profile == "release"
+
+
+def font_runtime_status() -> dict[str, str]:
+    """Identify the active platform font policy for the desktop UI."""
+    platform = {
+        "win32": "windows",
+        "darwin": "macos",
+        "linux": "linux",
+    }.get(sys.platform, "other")
+    if not release_profile():
+        policy = "reference"
+    elif platform == "linux":
+        policy = "bundled"
+    else:
+        policy = "system"
+    return {"policy": policy, "platform": platform}
 
 
 def release_family(family: str, sources: dict[str, str] | None = None) -> str:

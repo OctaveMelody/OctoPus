@@ -4,7 +4,7 @@
 /** @typedef {{documentId: string, revision: number, pageCount: number, filenames: string[], customMarkupOmitted: boolean}} SvgExportReceipt */
 /** @typedef {"pdf" | "jpg" | "png"} ScoreExportFormat */
 /** @typedef {{documentId: string, revision: number, format: ScoreExportFormat, dpi: number | null, pageCount: number, filenames: string[], customMarkupOmitted: boolean}} ScoreExportReceipt */
-/** @typedef {{ocr: boolean, png_export: boolean, fonts?: Record<string, {family: string, fallback: string, available: boolean}>}} EngineCapabilities */
+/** @typedef {{ocr: boolean, png_export: boolean, font_policy?: "reference" | "bundled" | "system", font_platform?: "windows" | "macos" | "linux" | "other", fonts?: Record<string, {family: string, fallback: string, available: boolean}>}} EngineCapabilities */
 /** @typedef {{id: string, path: string, name: string, mimeType: "image/png" | "image/jpeg", byteLength: number, width: number, height: number, orientation: number}} StagedReferenceImage */
 /** @typedef {{id: string, path: string, name: string, byteLength: number, sha256: string}} StagedReferencePdf */
 /** @typedef {{images: StagedReferenceImage[], pdfs: StagedReferencePdf[], order: string[]}} StagedReferenceAssets */
@@ -162,6 +162,11 @@ export function destroyNativeWindow() {
 /** @returns {Promise<EngineCapabilities>} */
 export function getEngineCapabilities() {
   return invokeNative("get_engine_capabilities", {});
+}
+
+/** @returns {Promise<EngineCapabilities>} */
+export function refreshEngineCapabilities() {
+  return invokeNative("refresh_engine_capabilities", {});
 }
 
 /** @param {SaveJpsDocumentOptions} options @returns {Promise<string | null>} */

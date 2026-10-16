@@ -20,8 +20,9 @@ import type { DocumentSnapshot, PageCache, PageRenderResponse, PreviewQueue,
   WorkspaceCopy, FontSources } from "./types";
 
 export function useScorePreview({ score, currentDocument, documentOpen, recoveryReady, copy,
-  setStatus, editorController, revealEditor, fontSources }: {
+  setStatus, editorController, revealEditor, fontSources, fontGeneration = 0 }: {
   fontSources?: FontSources;
+  fontGeneration?: number;
   score: DocumentSnapshot;
   currentDocument: RefObject<DocumentSnapshot>;
   documentOpen: boolean;
@@ -34,6 +35,8 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
   const copyRef = useRef(copy);
   copyRef.current = copy;
   const revision = score.revision;
+  const fontGenerationRef = useRef(fontGeneration);
+  fontGenerationRef.current = fontGeneration;
   const renderStarted = useRef(0);
   const renderElapsed = useRef<number | undefined>(undefined);
   const previewQueue = useRef<PreviewQueue | null>(null);
@@ -44,8 +47,10 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
   const sourceOffsetMapRef = useRef(sourceOffsetMap);
   sourceOffsetMapRef.current = sourceOffsetMap;
   const [pageCache, setPageCache] = useState<PageCache | null>(null);
+  const [pageCacheGeneration, setPageCacheGeneration] = useState(fontGeneration);
   const [selectedPage, setSelectedPage] = useState(0);
-  const currentPageCache = pageCache?.documentId === score.id && pageCache.revision === revision
+  const currentPageCache = pageCacheGeneration === fontGeneration
+    && pageCache?.documentId === score.id && pageCache.revision === revision
     ? pageCache
     : null;
   const currentPage = currentPageCache?.pages.get(selectedPage) ?? null;
@@ -65,6 +70,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
     documentId: string;
     revision: number;
     page: number;
+    fontGeneration: number;
     rendered: RenderedPage;
   } | null>(null);
   useEffect(() => {
@@ -112,13 +118,17 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
     }
   }
 
-  function acceptRenderedPage(requested: PreviewRequest, page: RenderedPage) {
+  function acceptRenderedPage(requested: PreviewRequest, page: RenderedPage,
+    requestedFontGeneration: number) {
     if (
+      fontGenerationRef.current !== requestedFontGeneration
+      ||
       currentDocument.current.id !== requested.document.id
       || currentDocument.current.revision !== requested.document.revision
     ) return;
     const next = cacheRenderedPage(pageCacheRef.current, requested.document, page);
     pageCacheRef.current = next;
+    setPageCacheGeneration(requestedFontGeneration);
     setPageCache(next);
     if (selectedPageRef.current >= page.page_count) {
       const clamped = page.page_count - 1;
@@ -129,8 +139,12 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
   }
 
   useEffect(() => {
+    const queueFontGeneration = fontGeneration;
     pageCacheRef.current = null;
     setPageCache(null);
+    setPageCacheGeneration(-1);
+    setDisplayedPreview(null);
+    setPreviewUrl("");
     const queue = createLatestPreviewQueue<PreviewRequest, RenderedPage>(
       (request: PreviewRequest, report, isLatest) => {
         const invokePage = (requestedDocument: DocumentSnapshot, pageIndex: number) => {
@@ -152,12 +166,14 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
       },
       {
         isCurrent: ({ document }) => (
+          fontGenerationRef.current === queueFontGeneration
+          &&
           currentDocument.current.id === document.id
           && currentDocument.current.revision === document.revision
         ),
         onStart: () => {renderStarted.current = performance.now(); renderElapsed.current = undefined; setStatus({kind: "rendering"});},
         onProgress: (request, page) => {
-          acceptRenderedPage(request, page);
+          acceptRenderedPage(request, page, queueFontGeneration);
           setStatus({kind: "rendering", completed: pageCacheRef.current?.pages.size ?? 0, pages: page.page_count});
         },
         onResult: (_request, page) => {
@@ -191,7 +207,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
       queue.dispose();
       if (previewQueue.current === queue) previewQueue.current = null;
     };
-  }, [JSON.stringify(fontSources)]);
+  }, [JSON.stringify(fontSources), fontGeneration]);
 
   useEffect(() => {
     if (!documentOpen) return;
@@ -202,7 +218,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
       && cache.pages.has(selectedPage)
     ) return;
     previewQueue.current?.request({ document: score, pageIndex: selectedPage }, { immediate: true });
-  }, [documentOpen, score.id, revision, selectedPage, JSON.stringify(fontSources)]);
+  }, [documentOpen, score.id, revision, selectedPage, JSON.stringify(fontSources), fontGeneration]);
 
   useEffect(() => {
     if (!currentPage) return;
@@ -212,6 +228,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
       documentId: score.id,
       revision,
       page: selectedPage,
+      fontGeneration,
       rendered: currentPage,
     });
   }, [currentPage, score.id, revision, selectedPage]);
@@ -219,7 +236,8 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
   const previewIsCurrent = currentPage !== null
     && displayedPreview?.documentId === score.id
     && displayedPreview.revision === revision
-    && displayedPreview.page === selectedPage;
+    && displayedPreview.page === selectedPage
+    && displayedPreview.fontGeneration === fontGeneration;
   useEffect(() => {
     // An unchanged cached SVG does not fire another load event after Refresh.
     const image = previewImageRef.current;
@@ -353,6 +371,7 @@ export function useScorePreview({ score, currentDocument, documentOpen, recovery
 
   function previewImageSettled(failed: boolean) {
     if (displayedPreview
+      && displayedPreview.fontGeneration === fontGenerationRef.current
       && currentDocument.current.id === displayedPreview.documentId
       && currentDocument.current.revision === displayedPreview.revision
       && selectedPageRef.current === displayedPreview.page) {

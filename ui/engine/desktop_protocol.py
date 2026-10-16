@@ -15,7 +15,12 @@ from octopus.export.svg import (
     sanitize_export_pages,
     sanitize_export_svg_xml,
 )
-from octopus.font_profile import apply_svg_fonts, system_font_availability
+from octopus.font_profile import (
+    apply_svg_fonts,
+    font_roles_in_svg,
+    font_runtime_status,
+    system_font_availability,
+)
 from octopus.jps import JpsDocument, jps_key, load_jps_text, serialize_jps
 from octopus.normalization.types import ScoreModel
 from octopus.parser.grammar import parse_document
@@ -160,6 +165,7 @@ def _render_page(payload: dict[str, Any]) -> dict[str, Any]:
         raise PageOutOfRangeError(len(model.pages))
     svg, layout = render_score_model_page_with_layout(model, page_index)
     svg, custom_markup_omitted = add_safe_custom_page_markup(model, page_index, svg)
+    font_roles = font_roles_in_svg(svg)
     svg = apply_svg_fonts(svg, payload.get("page_config", {}).get("_font_sources"))
     events = [
         {
@@ -194,6 +200,7 @@ def _render_page(payload: dict[str, Any]) -> dict[str, Any]:
         "page_width": layout.metrics.width,
         "page_height": layout.metrics.height,
         "svg": svg,
+        "font_roles": font_roles,
         "source_offset_unit": "codepoint",
         "events": events,
         "lyrics": lyrics,
@@ -375,6 +382,7 @@ def dispatch(
         if request["operation"] == "handshake":
             if request["payload"]:
                 raise ProtocolError("handshake payload must be empty")
+            font_status = font_runtime_status()
             result = {
                 "operations": [
                     "handshake",
@@ -392,6 +400,8 @@ def dispatch(
                 "ocr": _ocr_available(),
                 "png_export": True,
                 "fonts": system_font_availability(),
+                "font_policy": font_status["policy"],
+                "font_platform": font_status["platform"],
             }
         else:
             operation = request["operation"]

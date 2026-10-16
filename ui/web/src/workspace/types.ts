@@ -19,7 +19,7 @@ export type FocusPane = PaneId | null;
 
 export type LifecycleAction = "new" | "open" | "examples" | "close-document" | "exit" | "transcribe-new";
 
-export type DialogKind = "new" | "dirty" | "settings-dirty" | "examples" | "recovery" | "reference-import" | "preferences" | null;
+export type DialogKind = "new" | "dirty" | "settings-dirty" | "examples" | "recovery" | "reference-import" | "preferences" | "fonts" | null;
 
 export type CatalogKind = "example" | "working-copy";
 
@@ -50,12 +50,15 @@ export type RenderDiagnostic = {
   recovery?: string;
 };
 
+export type FontRole = "heiti-1" | "heiti-2" | "songti" | "kaiti" | "fangsong";
+
 export type RenderedPage = {
   page_index: number;
   page_count: number;
   page_width: number;
   page_height: number;
   svg: string;
+  font_roles?: FontRole[];
   source_offset_unit: "codepoint";
   events: Array<{
     event_index: number;
@@ -116,6 +119,8 @@ export type FontSources = WorkspacePreferences["fontSources"];
 export type EngineCapabilities = {
   ocr: boolean;
   png_export: boolean;
+  font_policy?: "reference" | "bundled" | "system";
+  font_platform?: "windows" | "macos" | "linux" | "other";
   fonts?: FontAvailability;
 };
 

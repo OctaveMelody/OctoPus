@@ -2,7 +2,8 @@
 /** @typedef {{start: SourcePosition, end: SourcePosition}} SourceSpan */
 /** @typedef {{event_index: number, event_kind: string, source_span: SourceSpan, voice: number, row: number, slot: number, x: number, y: number}} PageEvent */
 /** @typedef {{source_spans: SourceSpan[], voice: number, row: number, slot: number, verse: number, annotation: boolean, x: number, y: number}} PageLyric */
-/** @typedef {{page_index: number, page_count: number, page_width: number, page_height: number, svg: string, source_offset_unit: "codepoint", events: PageEvent[], lyrics: PageLyric[], diagnostics: {code: string, message: string, severity: string}[], custom_markup_omitted: boolean}} RenderedPage */
+/** @typedef {"heiti-1" | "heiti-2" | "songti" | "kaiti" | "fangsong"} FontRole */
+/** @typedef {{page_index: number, page_count: number, page_width: number, page_height: number, svg: string, font_roles?: FontRole[], source_offset_unit: "codepoint", events: PageEvent[], lyrics: PageLyric[], diagnostics: {code: string, message: string, severity: string}[], custom_markup_omitted: boolean}} RenderedPage */
 /** @typedef {{status: "ok" | "error", result?: RenderedPage, error?: {code: string, message: string, page_count?: number}}} PageResponse */
 /** @typedef {{documentId: string, revision: number, pageCount: number, pages: Map<number, RenderedPage>}} PageCache */
 
@@ -110,6 +111,8 @@ function unwrapPage(response, pageIndex) {
     || !page.lyrics.every(isLyricAnchor)
     || !Array.isArray(page.diagnostics)
     || !page.diagnostics.every(isDiagnostic)
+    || (page.font_roles !== undefined && (!Array.isArray(page.font_roles)
+      || !page.font_roles.every(role => ["heiti-1", "heiti-2", "songti", "kaiti", "fangsong"].includes(role))))
     || typeof page.custom_markup_omitted !== "boolean"
   ) {
     throw new Error("The renderer returned an invalid page result.");
