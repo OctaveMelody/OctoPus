@@ -105,6 +105,41 @@ def _check_font_assets(bundle: Path) -> None:
             )
 
 
+def _check_no_application_font_assets(bundle: Path) -> None:
+    """Reject score-font payloads in a system-font-only worker or frontend."""
+    source = ROOT / "src/octopus/assets/fonts"
+    source_manifest = (source / "manifest.json").read_bytes()
+    face_hashes = {entry["sha256"] for entry in json.loads(source_manifest)["faces"]}
+    source_manifests = [
+        path for path in bundle.rglob("manifest.json") if path.read_bytes() == source_manifest
+    ]
+    unexpected_faces = [
+        path for path in bundle.rglob("*")
+        if path.is_file() and path.suffix.lower() in {".ttf", ".otf", ".woff", ".woff2"}
+        and "docs/user-manual/assets" not in path.relative_to(bundle).as_posix()
+        and hashlib.sha256(path.read_bytes()).hexdigest() in face_hashes
+    ]
+    explicit_roots = (
+        bundle / "fonts",
+        bundle / "octopus/assets/fonts",
+        bundle / "_internal/octopus/assets/fonts",
+        bundle / "lib/OctoPus/fonts",
+        bundle / "usr/lib/OctoPus/fonts",
+        bundle / "Contents/Resources/lib/OctoPus/fonts",
+    )
+    existing_roots = [path for path in explicit_roots if path.exists()]
+    if source_manifests or unexpected_faces or existing_roots:
+        found = sorted({
+            *(path.relative_to(bundle).as_posix() for path in source_manifests),
+            *(path.relative_to(bundle).as_posix() for path in unexpected_faces),
+            *(path.relative_to(bundle).as_posix() for path in existing_roots),
+        })
+        raise RuntimeError(
+            "system-font-only build contains application score-font assets: "
+            + ", ".join(found[:8])
+        )
+
+
 def _check_project_license(bundle: Path, source: Path = ROOT / "LICENSE") -> None:
     copied = bundle / "LICENSE"
     if not copied.is_file() or copied.read_bytes() != source.read_bytes():
@@ -345,10 +380,12 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
         raise RuntimeError("refusing to write desktop engine through a symlinked Cargo target")
     if output_dir.is_symlink() or output_dir.parent.is_symlink():
         raise RuntimeError("refusing to replace a symlinked desktop engine output")
-    cache_dir = target_dir / "pyinstaller-cache"
+    font_policy = "linux-bundled" if platform.system() == "Linux" else "system-fonts-only"
+    cache_root = target_dir / "pyinstaller-cache"
+    cache_dir = cache_root / f"{sys.platform}-{font_policy}"
     work_path = cache_dir / "work"
     spec_path = cache_dir / "spec"
-    if any(path.is_symlink() for path in (cache_dir, work_path, spec_path)):
+    if any(path.is_symlink() for path in (cache_root, cache_dir, work_path, spec_path)):
         raise RuntimeError("refusing to use a symlinked PyInstaller cache")
 
     if platform.system() not in {"Windows", "Linux"}:
@@ -427,9 +464,12 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
         _check_glyph_assets(bundle, glyph_dir)
         shutil.copy2(repository_root / "LICENSE", bundle / "LICENSE")
         _check_project_license(bundle, repository_root / "LICENSE")
-        font_dir = dist_dir / "fonts"
-        shutil.copytree(repository_root / "src/octopus/assets/fonts", font_dir)
-        _check_font_assets(font_dir)
+        if platform.system() == "Linux":
+            font_dir = dist_dir / "fonts"
+            shutil.copytree(repository_root / "src/octopus/assets/fonts", font_dir)
+            _check_font_assets(font_dir)
+        else:
+            _check_no_application_font_assets(dist_dir)
         _smoke_test(bundle, render_request)
         _publish_bundle(dist_dir, output_dir.parent)
 

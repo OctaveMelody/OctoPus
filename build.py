@@ -118,6 +118,8 @@ def _appimage_paths(
 
 
 def _prepare_appimage_app_dir(app_dir: Path) -> None:
+    from build_desktop_engine import _check_font_assets
+
     required = (
         app_dir / "AppRun",
         app_dir / "AppRun.wrapped",
@@ -139,6 +141,7 @@ def _prepare_appimage_app_dir(app_dir: Path) -> None:
             "The staged AppImage directory is incomplete: "
             + ", ".join(path.relative_to(app_dir).as_posix() for path in missing)
         )
+    _check_font_assets(app_dir / "usr/lib/OctoPus/fonts")
     for helper in (
         "WebKitNetworkProcess",
         "WebKitWebProcess",
@@ -538,6 +541,7 @@ def publish_portable(
     from build_desktop_engine import (
         _check_font_assets,
         _check_glyph_assets,
+        _check_no_application_font_assets,
         _check_project_license,
         _request,
         _smoke_test,
@@ -566,11 +570,14 @@ def publish_portable(
         if not manual_docs.is_dir():
             raise RuntimeError("prepared manual resources are missing")
         shutil.copytree(manual_docs, resources / "docs")
-        shutil.copytree(ROOT / "src/octopus/assets/fonts", resources / "fonts")
         if not executable.is_file():
             raise RuntimeError("portable output is missing the native executable")
         bundle = resources / "engine"
-        _check_font_assets(resources / "fonts")
+        if system == "Linux":
+            shutil.copytree(ROOT / "src/octopus/assets/fonts", resources / "fonts")
+            _check_font_assets(resources / "fonts")
+        else:
+            _check_no_application_font_assets(staged)
         _check_glyph_assets(bundle)
         _smoke_test(bundle, _request("portable-render", "render", 1, {
             "name": "portable-check.jps", "code": "B: 简谱你好\nQ: 1 2 3 4 |",
@@ -711,7 +718,7 @@ def main() -> None:
 
     BUILD.mkdir(parents=True, exist_ok=True)
 
-    frontend_command = [tools["npm"], "run", "build", "--", "--mode", "desktop"]
+    frontend_command = [tools["npm"], "run", "build:desktop:frontend"]
     print("==> Building the desktop frontend", flush=True)
     subprocess.run(
         frontend_command,
@@ -726,6 +733,9 @@ def main() -> None:
     frontend_entry = ROOT / "build" / "frontend" / "index.html"
     if not frontend_entry.is_file():
         raise RuntimeError(f"Frontend build did not produce {frontend_entry}")
+    from build_desktop_engine import _check_no_application_font_assets
+
+    _check_no_application_font_assets(BUILD / "frontend")
 
     engine_environment = {
         **environment,
