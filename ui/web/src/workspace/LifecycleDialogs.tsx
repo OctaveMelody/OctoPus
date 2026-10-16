@@ -104,7 +104,7 @@ export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences
               </ul>
             )}
             {fontPolicy === "system" && fontPlatform === "windows" && (
-              <p><a href="https://support.microsoft.com/en-us/windows/experience/personalization/manage-fonts-in-windows"
+              <p><a href="https://learn.microsoft.com/en-us/windows/deployment/windows-missing-fonts"
                 onClick={event => {
                   event.preventDefault();
                   openFontHelp("windows-fonts");
