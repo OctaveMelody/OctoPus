@@ -28,9 +28,30 @@ class Component:
 
 
 def connected_components(gray: Image.Image, threshold: int = 160) -> list[Component]:
-    """Find eight-connected dark marks without a computer-vision dependency."""
+    """Find eight-connected dark marks, with a dependency-free fallback."""
     width, height = gray.size
     data = gray.tobytes()
+    try:
+        import cv2
+        import numpy as np
+    except ImportError:
+        pass
+    else:
+        label_components = getattr(cv2, "connectedComponentsWithStatsWithAlgorithm", None)
+        algorithm = getattr(cv2, "CCL_SAUF", None)
+        if label_components is not None and algorithm is not None and len(data) == width * height:
+            # SAUF keeps the original raster-scan component order.
+            foreground = np.frombuffer(data, dtype=np.uint8).reshape(height, width) < threshold
+            count, _, stats, _ = label_components(
+                np.ascontiguousarray(foreground, dtype=np.uint8),
+                8, cv2.CV_32S, algorithm,
+            )
+            return [
+                Component((int(left), int(top), int(left + box_width), int(top + box_height)),
+                          int(area))
+                for left, top, box_width, box_height, area in stats[1:count]
+            ]
+
     seen = bytearray(len(data))
     found: list[Component] = []
     for y in range(height):
