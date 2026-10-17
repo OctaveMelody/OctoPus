@@ -27,15 +27,9 @@ from .glyphs import (
     match_page_digit,
     page_digit_templates,
 )
-from .marks import (
-    curve_core_parts,
-    note_modifiers,
-    row_parentheses,
-    row_slurs,
-    row_sustains,
-    vertical_bend,
-)
+from .marks import note_modifiers, row_parentheses, row_sustains, vertical_bend
 from .ornaments import EndingSegment, GraceGroup, row_endings, row_graces, voice_components
+from .slurs import curve_core_parts, row_slurs
 from .text import TextMergeConflict, TextSpan, image_digit, music_characters
 from .voices import (
     DsbOverlay,

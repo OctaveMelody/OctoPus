@@ -11,7 +11,7 @@ from PIL import Image
 
 from .components import Box, Component, connected_components
 from .glyphs import classify_digit
-from .marks import _left_curve_rise
+from .slurs import _left_curve_rise
 from .text import image_digit
 
 
