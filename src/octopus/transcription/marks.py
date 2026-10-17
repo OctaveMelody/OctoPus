@@ -250,6 +250,8 @@ def _faint_curve_bridges(
     band = gray.crop((0, upper, gray.width, row_top - max(1, round(height * 0.2))))
 
     def source_parts(threshold: int, inset: int = 0) -> list[Component]:
+        if inset >= band.height:
+            return []
         local = band.crop((0, inset, band.width, band.height))
         return [Component((part.box[0], part.box[1] + upper + inset,
                            part.box[2], part.box[3] + upper + inset), part.area)
