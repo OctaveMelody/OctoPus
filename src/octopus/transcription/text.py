@@ -5,8 +5,10 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 from functools import lru_cache
+from math import isfinite
 from pathlib import Path
 from typing import Any, cast
+from unicodedata import normalize
 from xml.etree import ElementTree
 
 from PIL import Image, ImageOps
@@ -37,6 +39,34 @@ class TextSpan:
     @property
     def height(self) -> int:
         return self.box[3] - self.box[1]
+
+
+@dataclass(frozen=True, slots=True)
+class TextMergeConflict:
+    """Conflicting PDF text readings retained for page-level review."""
+
+    native_spans: tuple[TextSpan, ...]
+    ocr_span: TextSpan
+
+    @property
+    def box(self) -> Box:
+        spans = (*self.native_spans, self.ocr_span)
+        return (
+            min(span.box[0] for span in spans),
+            min(span.box[1] for span in spans),
+            max(span.box[2] for span in spans),
+            max(span.box[3] for span in spans),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class TextMergeResult:
+    """Resolved page text plus the source spans used to make that decision."""
+
+    spans: tuple[TextSpan, ...]
+    conflicts: tuple[TextMergeConflict, ...]
+    native_spans: tuple[TextSpan, ...]
+    ocr_spans: tuple[TextSpan, ...]
 
 
 @lru_cache(maxsize=1)
@@ -592,19 +622,139 @@ def scale_pdf_text(spans: tuple[TextSpan, ...], width: int, height: int) -> tupl
     )
 
 
+def _text_key(value: str) -> str:
+    """Normalize whitespace for comparison without changing punctuation or output."""
+    return "".join(character for character in normalize("NFC", value) if not character.isspace())
+
+
+def _span_order(
+    span: TextSpan,
+) -> tuple[int, int, int, int, str, float, tuple[float, ...], tuple[float, ...]]:
+    left, top, right, bottom = span.box
+    return (
+        top, left, bottom, right, span.text, -_confidence_rank(span),
+        span.character_centers, span.lyric_baselines,
+    )
+
+
+def _overlaps_text_region(first: TextSpan, second: TextSpan) -> bool:
+    """Require a shared baseline and overlap across at least half of each smaller axis."""
+    first_left, first_top, first_right, first_bottom = first.box
+    second_left, second_top, second_right, second_bottom = second.box
+    first_width, second_width = first_right - first_left, second_right - second_left
+    first_height, second_height = first_bottom - first_top, second_bottom - second_top
+    if min(first_width, second_width, first_height, second_height) <= 0:
+        return False
+    horizontal = max(0, min(first_right, second_right) - max(first_left, second_left))
+    vertical = max(0, min(first_bottom, second_bottom) - max(first_top, second_top))
+    return horizontal * 2 >= min(first_width, second_width) and vertical * 2 >= min(
+        first_height, second_height,
+    )
+
+
+def _confidence_rank(span: TextSpan) -> float:
+    return span.confidence if isfinite(span.confidence) else float("-inf")
+
+
+def _deduplicate_native(spans: tuple[TextSpan, ...]) -> list[TextSpan]:
+    """Collapse repeated native words only when both text and boxes overlap."""
+    unique: list[TextSpan] = []
+    for candidate in sorted(spans, key=_span_order):
+        key = _text_key(candidate.text)
+        if key and any(
+            key == _text_key(existing.text) and _overlaps_text_region(candidate, existing)
+            for existing in unique
+        ):
+            continue
+        unique.append(candidate)
+    return unique
+
+
+def _covered_ocr_reading(
+    candidate: TextSpan, native: tuple[TextSpan, ...],
+) -> tuple[bool, str]:
+    """Return the OCR characters whose centers fall inside associated native boxes."""
+    if len(candidate.character_centers) != len(candidate.text) or not candidate.text:
+        return False, ""
+    covered = [
+        index for index, center in enumerate(candidate.character_centers)
+        if any(span.box[0] <= center < span.box[2] for span in native)
+    ]
+    return True, "".join(candidate.text[index] for index in covered)
+
+
+def _prefer_ocr_spans(spans: list[TextSpan], candidate: TextSpan) -> None:
+    """Avoid duplicate OCR detections while preserving distinct overlapping readings."""
+    candidate_key = _text_key(candidate.text)
+    for index, existing in enumerate(spans):
+        if not _overlaps_text_region(candidate, existing):
+            continue
+        existing_key = _text_key(existing.text)
+        if not candidate_key or not existing_key:
+            continue
+        if existing_key == candidate_key:
+            if _confidence_rank(candidate) > _confidence_rank(existing):
+                spans[index] = candidate
+            return
+        if existing_key in candidate_key:
+            spans[index] = candidate
+            return
+        if candidate_key in existing_key:
+            return
+    spans.append(candidate)
+
+
 def merge_text(
     native: tuple[TextSpan, ...], ocr: tuple[TextSpan, ...]
-) -> tuple[TextSpan, ...]:
-    """Keep native words where they cover OCR boxes; add raster-only marks."""
-    merged = list(native)
-    for candidate in ocr:
-        left, top, right, bottom = candidate.box
-        area = max(1, (right - left) * (bottom - top))
-        covered = sum(
-            max(0, min(right, word.box[2]) - max(left, word.box[0]))
-            * max(0, min(bottom, word.box[3]) - max(top, word.box[1]))
-            for word in native
+) -> TextMergeResult:
+    """Resolve overlapping PDF/OCR text by reading agreement and line geometry."""
+    remaining_native = _deduplicate_native(native)
+    selected_ocr: list[TextSpan] = []
+    conflicts: list[TextMergeConflict] = []
+
+    for candidate in sorted(ocr, key=_span_order):
+        associated = tuple(
+            span for span in remaining_native if _overlaps_text_region(span, candidate)
         )
-        if covered < area * 0.25:
-            merged.append(candidate)
-    return tuple(merged)
+        if not associated:
+            _prefer_ocr_spans(selected_ocr, candidate)
+            continue
+
+        ordered_native = tuple(sorted(associated, key=_span_order))
+        native_key = _text_key("".join(span.text for span in ordered_native))
+        ocr_key = _text_key(candidate.text)
+        if not ocr_key:
+            continue
+        if not native_key:
+            _prefer_ocr_spans(selected_ocr, candidate)
+            continue
+        if native_key == ocr_key:
+            continue
+        if ocr_key in native_key:
+            # A shorter raster reading cannot replace the complete native phrase.
+            continue
+
+        centers_available, covered_reading = _covered_ocr_reading(candidate, ordered_native)
+        if centers_available:
+            if _text_key(covered_reading) == native_key:
+                remaining_native = [
+                    span for span in remaining_native if span not in ordered_native
+                ]
+                _prefer_ocr_spans(selected_ocr, candidate)
+                continue
+        elif native_key in ocr_key:
+            remaining_native = [
+                span for span in remaining_native if span not in ordered_native
+            ]
+            _prefer_ocr_spans(selected_ocr, candidate)
+            continue
+
+        conflicts.append(TextMergeConflict(ordered_native, candidate))
+
+    merged = (*remaining_native, *selected_ocr)
+    return TextMergeResult(
+        tuple(sorted(merged, key=_span_order)),
+        tuple(conflicts),
+        native,
+        ocr,
+    )

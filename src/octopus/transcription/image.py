@@ -36,7 +36,7 @@ from .marks import (
     vertical_bend,
 )
 from .ornaments import EndingSegment, GraceGroup, row_endings, row_graces, voice_components
-from .text import TextSpan, image_digit, music_characters
+from .text import TextMergeConflict, TextSpan, image_digit, music_characters
 from .voices import (
     DsbOverlay,
     VoiceGroup,
@@ -100,6 +100,9 @@ class PageObservation:
     bz_overlays: tuple[BzOverlay, ...] = ()
     unresolved_braces: tuple[Box, ...] = ()
     excluded_regions: tuple[Box, ...] = ()
+    native_text_spans: tuple[TextSpan, ...] | None = None
+    ocr_text_spans: tuple[TextSpan, ...] | None = None
+    text_merge_conflicts: tuple[TextMergeConflict, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

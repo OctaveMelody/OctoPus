@@ -598,6 +598,12 @@ def _score_text(page: PageObservation) -> PageObservation:
     )
 
 
+def _text_issue_excerpt(value: str) -> str:
+    normalized = " ".join(value.split())
+    excerpt = normalized if len(normalized) <= 80 else normalized[:79] + "…"
+    return repr(excerpt)
+
+
 def _compile(pages: tuple[PageObservation, ...]) -> Draft:
     source = ["# Image transcription draft; review the adjacent .issues.json before use."]
     pages, ignored_margins = filter_document_margins(pages)
@@ -615,6 +621,16 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
                 "non_score_graphics_ignored", page_number,
                 "Excluded QR graphics and their adjacent publishing panel from transcription.",
                 page.excluded_regions,
+            ))
+        for conflict in page.text_merge_conflicts:
+            native_reading = " ".join(span.text for span in conflict.native_spans)
+            native_excerpt = _text_issue_excerpt(native_reading)
+            ocr_excerpt = _text_issue_excerpt(conflict.ocr_span.text)
+            issues.append(Issue(
+                "pdf_text_conflict", page_number,
+                f"PDF text reads {native_excerpt}, while image OCR reads {ocr_excerpt}. "
+                "Kept the PDF reading provisionally; verify the marked region.",
+                (conflict.box,),
             ))
         if page_number == 1:
             head = extract_headers(
@@ -884,7 +900,8 @@ def _pdf_pages(
             words = native_text[page_number - 1] if page_number <= len(native_text) else ()
             native_spans = scale_pdf_text(words, observation.width, observation.height)
             ocr_spans = image_text(image_path)
-            text_spans = merge_text(native_spans, ocr_spans or ())
+            merged_text = merge_text(native_spans, ocr_spans or ())
+            text_spans = merged_text.spans
             original_spans = text_spans
             if not native_spans and ocr_spans is not None:
                 text_spans = _lyric_baseline_text(image_path, observation, text_spans)
@@ -897,7 +914,12 @@ def _pdf_pages(
             )
             observations.append(
                 _performance_text(image_path, _score_text(replace(
-                    observation, text_spans=text_spans, text_source=text_source,
+                    observation,
+                    text_spans=text_spans,
+                    text_source=text_source,
+                    native_text_spans=merged_text.native_spans,
+                    ocr_text_spans=ocr_spans,
+                    text_merge_conflicts=merged_text.conflicts,
                 )), original_spans)
             )
             image_path.unlink()
