@@ -11,6 +11,9 @@ from PIL import Image
 from .components import Component
 from .text import image_digit
 
+MIN_NOTE_DIGIT_HEIGHT = 16
+MAX_DIGIT_HEIGHT = 75
+
 GLYPHS = Path(__file__).resolve().parents[1] / "assets" / "glyphs"
 NORMALIZED_SIZE = (24, 36)
 DigitMatch = tuple[str, float, bool]
@@ -127,7 +130,7 @@ def classify_digit(
 ) -> DigitMatch | None:
     """Return a digit only when its shape beats competing digit classes."""
     height = component.height
-    if not ((6 if grace else 16) <= height <= 75
+    if not ((6 if grace else MIN_NOTE_DIGIT_HEIGHT) <= height <= MAX_DIGIT_HEIGHT
             and height * 0.2 <= component.width <= height):
         return None
     if component.area < max(8 if grace else 18, height):

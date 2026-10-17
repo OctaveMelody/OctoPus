@@ -17,6 +17,8 @@ from .accompaniment import bracketed_row_centers, compact_accompaniment_owner
 from .components import Box, Component, connected_components
 from .decorations import Hairpin, row_hairpins, symbol_decorations
 from .glyphs import (
+    MAX_DIGIT_HEIGHT,
+    MIN_NOTE_DIGIT_HEIGHT,
     DigitMatch,
     classify_accidental,
     classify_digit,
@@ -45,6 +47,10 @@ from .voices import (
 
 MAX_PAGE_PIXELS = 40_000_000
 MIN_WORKING_GLYPH_HEIGHT = 24
+# Leave room below the classifier gate for resize and component-boundary variation.
+MAX_WORKING_GLYPH_HEIGHT = MAX_DIGIT_HEIGHT - 2
+MAX_WORKING_REDUCTION = 4
+MIN_OVERSIZED_ROW_GLYPHS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,14 +104,61 @@ class PageObservation:
 
 @dataclass(frozen=True, slots=True)
 class _PreparedImage:
-    """Keep source and enlarged working coordinates distinct throughout recognition."""
+    """Keep source and normalized working frames distinct through recognition."""
 
     source_gray: Image.Image
     source_components: list[Component]
     working_gray: Image.Image
     working_components: list[Component]
     working_excluded: tuple[Box, ...]
-    scale: int
+    transform: _CoordinateTransform
+
+
+@dataclass(frozen=True, slots=True)
+class _CoordinateTransform:
+    """Map half-open boxes between source and the actual resized working raster."""
+
+    source_size: tuple[int, int]
+    working_size: tuple[int, int]
+
+    @property
+    def scale_x(self) -> float:
+        return self.working_size[0] / self.source_size[0]
+
+    @property
+    def scale_y(self) -> float:
+        return self.working_size[1] / self.source_size[1]
+
+    @property
+    def is_identity(self) -> bool:
+        return self.source_size == self.working_size
+
+    def to_source_x(self, x: float) -> int:
+        return round(x / self.scale_x)
+
+    def to_source_y(self, y: float) -> int:
+        return round(y / self.scale_y)
+
+    def to_source_float_x(self, x: float) -> float:
+        return x / self.scale_x
+
+    def to_source_float_y(self, y: float) -> float:
+        return y / self.scale_y
+
+    def to_source_box(self, box: Box) -> Box:
+        return (
+            floor(box[0] / self.scale_x), floor(box[1] / self.scale_y),
+            ceil(box[2] / self.scale_x), ceil(box[3] / self.scale_y),
+        )
+
+    def to_working_box(self, box: Box) -> Box:
+        return (
+            floor(box[0] * self.scale_x), floor(box[1] * self.scale_y),
+            ceil(box[2] * self.scale_x), ceil(box[3] * self.scale_y),
+        )
+
+    def to_working_height(self, height: int | float) -> int:
+        return round(height * self.scale_y)
 
 
 def _qr_regions(gray: Image.Image) -> tuple[Box, ...]:
@@ -148,68 +201,127 @@ def _score_components(
     ]
 
 
-def _working_scale(components: list[Component], width: int, height: int) -> int:
+def _has_supported_digit_row(gray: Image.Image, components: list[Component]) -> bool:
+    candidates = [
+        (component, match)
+        for component in components
+        if (match := classify_digit(gray, component, allow_ocr=False)) is not None
+    ]
+    if not candidates:
+        return False
+    height = round(median(component.height for component, _ in candidates))
+    for group in _groups(candidates, height):
+        if (len(group) < 3
+                or max(component.box[2] for component, _ in group)
+                - min(component.box[0] for component, _ in group) < gray.width * 0.12):
+            continue
+        return True
+    return False
+
+
+def _oversized_glyph_height(components: list[Component], width: int) -> int | None:
+    glyphs = [
+        component for component in components
+        if component.height > MAX_DIGIT_HEIGHT
+        and component.height * 0.2 <= component.width <= component.height
+        and component.area >= component.height
+    ]
+    if not glyphs:
+        return None
+    heights = Counter(round(component.height / 3) * 3 for component in glyphs)
+    glyph_height, _ = heights.most_common(1)[0]
+    matching = [
+        component for component in glyphs
+        if abs(component.height - glyph_height) <= max(3, glyph_height * 0.12)
+    ]
+    groups: list[list[Component]] = []
+    for component in sorted(matching, key=lambda item: item.box[3]):
+        if groups and component.box[3] - groups[-1][0].box[3] <= max(7, glyph_height * 0.75):
+            groups[-1].append(component)
+        else:
+            groups.append([component])
+    for group in groups:
+        if (len(group) < MIN_OVERSIZED_ROW_GLYPHS
+                or max(component.box[2] for component in group)
+                - min(component.box[0] for component in group) < width * 0.12):
+            continue
+        return glyph_height
+    return None
+
+
+def _working_scale(components: list[Component], width: int, height: int,
+                   gray: Image.Image) -> float:
     shapes = Counter(
         component.height for component in components
-        if 8 <= component.height <= 75
+        if 8 <= component.height <= MAX_DIGIT_HEIGHT
         and component.height * 0.2 <= component.width <= component.height
         and component.area >= max(18, component.height)
     )
-    if not shapes:
-        return 1
-    glyph_height, count = shapes.most_common(1)[0]
-    if count < 12 or glyph_height >= 16:
-        return 1
-    scale = min(4, ceil(MIN_WORKING_GLYPH_HEIGHT / glyph_height))
-    while width * height * scale * scale > MAX_PAGE_PIXELS:
-        scale -= 1
-    return scale
+    if shapes:
+        glyph_height, count = shapes.most_common(1)[0]
+        if count >= 12 and glyph_height < MIN_NOTE_DIGIT_HEIGHT:
+            scale = min(4, ceil(MIN_WORKING_GLYPH_HEIGHT / glyph_height))
+            while width * height * scale * scale > MAX_PAGE_PIXELS:
+                scale -= 1
+            if scale > 1:
+                return float(scale)
+    oversized_height = _oversized_glyph_height(components, width)
+    if oversized_height is None:
+        return 1.0
+    if _has_supported_digit_row(gray, components):
+        return 1.0
+    return max(1 / MAX_WORKING_REDUCTION, MAX_WORKING_GLYPH_HEIGHT / oversized_height)
 
 
-def _source_box(box: Box, scale: int) -> Box:
-    return (
-        floor(box[0] / scale), floor(box[1] / scale),
-        ceil(box[2] / scale), ceil(box[3] / scale),
-    )
-
-
-def _source_row(row: MusicRow, scale: int) -> MusicRow:
+def _source_row(row: MusicRow, transform: _CoordinateTransform) -> MusicRow:
     return replace(
         row,
-        notes=tuple(replace(note, box=_source_box(note.box, scale)) for note in row.notes),
-        barlines=tuple(round(x / scale) for x in row.barlines),
-        box=_source_box(row.box, scale),
-        unresolved_marks=tuple(_source_box(box, scale) for box in row.unresolved_marks),
-        graces=tuple(replace(group, box=_source_box(group.box, scale)) for group in row.graces),
-        endings=tuple(replace(frame, box=_source_box(frame.box, scale)) for frame in row.endings),
+        notes=tuple(
+            replace(note, box=transform.to_source_box(note.box)) for note in row.notes
+        ),
+        barlines=tuple(transform.to_source_x(x) for x in row.barlines),
+        box=transform.to_source_box(row.box),
+        unresolved_marks=tuple(
+            transform.to_source_box(box) for box in row.unresolved_marks
+        ),
+        graces=tuple(
+            replace(group, box=transform.to_source_box(group.box)) for group in row.graces
+        ),
+        endings=tuple(
+            replace(frame, box=transform.to_source_box(frame.box)) for frame in row.endings
+        ),
     )
 
 
-def _source_coordinates(
-    page: PageObservation, scale: int, size: tuple[int, int]
-) -> PageObservation:
-    if scale == 1:
+def _source_coordinates(page: PageObservation,
+                        transform: _CoordinateTransform) -> PageObservation:
+    if transform.is_identity:
         return page
     return replace(
-        page,
-        width=size[0], height=size[1],
-        rows=tuple(_source_row(row, scale) for row in page.rows),
+        page, width=transform.source_size[0], height=transform.source_size[1],
+        rows=tuple(_source_row(row, transform) for row in page.rows),
         voice_groups=tuple(
-            replace(group, box=_source_box(group.box, scale)) for group in page.voice_groups
+            replace(group, box=transform.to_source_box(group.box))
+            for group in page.voice_groups
         ),
         dsb_overlays=tuple(
             replace(
-                overlay, box=_source_box(overlay.box, scale),
-                closing_x=round(overlay.closing_x / scale)
+                overlay, box=transform.to_source_box(overlay.box),
+                closing_x=transform.to_source_x(overlay.closing_x)
                 if overlay.closing_x is not None else None,
             )
             for overlay in page.dsb_overlays
         ),
         bz_overlays=tuple(
-            replace(overlay, row=_source_row(overlay.row, scale)) for overlay in page.bz_overlays
+            replace(overlay, row=_source_row(overlay.row, transform))
+            for overlay in page.bz_overlays
         ),
-        unresolved_braces=tuple(_source_box(box, scale) for box in page.unresolved_braces),
-        excluded_regions=tuple(_source_box(box, scale) for box in page.excluded_regions),
+        unresolved_braces=tuple(
+            transform.to_source_box(box) for box in page.unresolved_braces
+        ),
+        excluded_regions=tuple(
+            transform.to_source_box(box) for box in page.excluded_regions
+        ),
     )
 
 
@@ -706,33 +818,36 @@ def _compact_accompaniment_group(
 
 
 def _prepare_image(path: Path) -> _PreparedImage:
-    """Read and scale the page while retaining its original image and components."""
+    """Read and normalize a page while retaining its original image and components."""
     source_gray = _read_page(path)
     excluded = _qr_regions(source_gray)
     components = _score_components(source_gray, excluded)
     source_components = components
-    scale = _working_scale(components, *source_gray.size)
+    scale = _working_scale(
+        components, source_gray.width, source_gray.height, source_gray,
+    )
+    working_size = (
+        max(1, round(source_gray.width * scale)),
+        max(1, round(source_gray.height * scale)),
+    )
+    transform = _CoordinateTransform(source_gray.size, working_size)
     gray = source_gray
-    if scale > 1:
-        gray = source_gray.resize(
-            (source_gray.width * scale, source_gray.height * scale), Image.Resampling.LANCZOS
-        )
-        excluded = tuple(
-            (box[0] * scale, box[1] * scale, box[2] * scale, box[3] * scale)
-            for box in excluded
-        )
+    if not transform.is_identity:
+        gray = source_gray.resize(working_size, Image.Resampling.LANCZOS)
+        excluded = tuple(transform.to_working_box(box) for box in excluded)
         components = _score_components(gray, excluded)
-    return _PreparedImage(source_gray, source_components, gray, components, excluded, scale)
+    return _PreparedImage(source_gray, source_components, gray, components, excluded, transform)
 
 
 def _recognize_working_rows(
     prepared: _PreparedImage,
 ) -> tuple[PageObservation, int] | None:
     """Keep digit recovery and row/overlay ownership together in working coordinates."""
-    gray, components, excluded, scale = (
+    gray, components, excluded, transform = (
         prepared.working_gray, prepared.working_components,
-        prepared.working_excluded, prepared.scale,
+        prepared.working_excluded, prepared.transform,
     )
+    resized = not transform.is_identity
     trusted = [
         (component, match)
         for component in components
@@ -763,7 +878,8 @@ def _recognize_working_rows(
     ]
     fallback_heights = Counter(
         round(component.height / 3) * 3 for component in components
-        if not trusted_rows and 16 <= component.height <= 75
+        if not trusted_rows
+        and MIN_NOTE_DIGIT_HEIGHT <= component.height <= MAX_DIGIT_HEIGHT
         and component.height * 0.2 <= component.width <= component.height
         and component.area >= max(18, component.height)
     )
@@ -843,7 +959,7 @@ def _recognize_working_rows(
         group.sort(key=lambda pair: pair[0].box[0])
         local_branch = _by_local_brace(group, components, gray.width, digit_height)
         row = _music_row(
-            group, components, digit_height, gray, joined_underlines=scale > 1,
+            group, components, digit_height, gray, joined_underlines=resized,
             barline_candidates=barline_candidates,
         )
         candidate_rows.append(row)
@@ -885,7 +1001,7 @@ def _recognize_working_rows(
                 group.extend(recovered)
                 candidates.extend(recovered)
             candidate = _music_row(
-                group, components, digit_height, gray, joined_underlines=scale > 1,
+                group, components, digit_height, gray, joined_underlines=resized,
                 accompaniment=True, barline_candidates=barline_candidates,
             )
             compact_overlays.append((rows[owner], candidate))
@@ -966,7 +1082,7 @@ def _recognize_working_rows(
             continue
         small = _music_row(
             group, components, round(digit_height * 0.78), gray,
-            joined_underlines=scale > 1, barline_candidates=barline_candidates,
+            joined_underlines=resized, barline_candidates=barline_candidates,
         )
         y = (small.box[1] + small.box[3]) / 2
         anchors = [
@@ -989,8 +1105,8 @@ def _recognize_working_rows(
 def _row_with_working_ornaments(
     row: MusicRow, height: int, prepared: _PreparedImage,
 ) -> MusicRow:
-    gray, components, scale = (
-        prepared.working_gray, prepared.working_components, prepared.scale,
+    gray, components, transform = (
+        prepared.working_gray, prepared.working_components, prepared.transform,
     )
     boxes = tuple(note.box for note in row.notes)
     graces = row_graces(boxes, components, gray)
@@ -1013,7 +1129,7 @@ def _row_with_working_ornaments(
             and component.box not in grace_marks
         ]
         notes = tuple(replace(note, duration_dots=note_modifiers(
-            note.box, score_marks, height, gray if scale > 1 else None,
+            note.box, score_marks, height, gray if not transform.is_identity else None,
             min(([notes[index + 1].box[0]] if index + 1 < len(notes) else [])
                 + [x for x in row.barlines if x > note.box[2]], default=None),
         )[2]) for index, note in enumerate(notes))
@@ -1047,7 +1163,7 @@ def _row_with_source_marks(
     row: MusicRow, page: PageObservation, prepared: _PreparedImage,
 ) -> MusicRow:
     source_gray, source_components = prepared.source_gray, prepared.source_components
-    components, scale = prepared.working_components, prepared.scale
+    components, transform = prepared.working_components, prepared.transform
     notes = tuple(note.box for note in row.notes)
     height = median(box[3] - box[1] for box in notes)
     others = tuple(other.box for other in (*page.rows, *(bz.row for bz in page.bz_overlays))
@@ -1061,17 +1177,19 @@ def _row_with_source_marks(
     )]
     parts, core = curve_core_parts(marks, source_gray, row.box[1], height)
     working_marks = [component for component in components if not any(
-        left <= (component.box[0] + component.box[2]) / (2 * scale) <= right
-        and top <= component.center_y / scale <= bottom
+        left <= transform.to_source_float_x((component.box[0] + component.box[2]) / 2) <= right
+        and top <= transform.to_source_float_y(component.center_y) <= bottom
         for left, top, right, bottom in symbol_regions
     )] if symbols else []
     recovered_notes = []
     for index, note in enumerate(row.notes):
         owned = tuple(symbol.token for symbol in symbols if symbol.note_index == index)
-        # Tiny dots were read in the enlarged working image. Keep that scale when
+        # Tiny dots were read in the working image. Keep that scale when
         # excluding a fermata's dot, or a genuine two-pixel octave disappears.
-        working_box = cast(Box, tuple(coordinate * scale for coordinate in note.box))
-        octave = (note_modifiers(working_box, working_marks, round(height * scale))[0]
+        working_box = transform.to_working_box(note.box)
+        octave = (note_modifiers(
+            working_box, working_marks, transform.to_working_height(height),
+        )[0]
                   if owned
                   else note.octave or note_modifiers(
                       note.box, parts, round(height), duration_gray=core,
@@ -1127,9 +1245,9 @@ def recognize_image(path: Path) -> PageObservation:
     recognized = _recognize_working_rows(prepared)
     if recognized is None:
         return PageObservation(*prepared.source_gray.size, (), 0, excluded_regions=tuple(
-            _source_box(box, prepared.scale) for box in prepared.working_excluded
+            prepared.transform.to_source_box(box) for box in prepared.working_excluded
         ))
     page, digit_height = recognized
     page = _add_working_ornaments(page, digit_height, prepared)
-    page = _source_coordinates(page, prepared.scale, prepared.source_gray.size)
+    page = _source_coordinates(page, prepared.transform)
     return _add_source_marks(page, prepared)
