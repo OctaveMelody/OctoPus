@@ -13,6 +13,7 @@ from pathlib import Path
 from statistics import median
 
 from . import text
+from .components import Box
 from .decorations import decoration_token, text_decorations
 from .headers import extract_headers, printed_key_span, stacked_meter_span
 from .image import MusicRow, PageObservation, _read_page, recognize_image
@@ -21,6 +22,7 @@ from .margins import filter_document_margins
 from .marks import row_sustains
 from .review import RowBinding, finite_confidence, note_confidence_findings, render_back_findings
 from .text import (
+    TextMergeResult,
     TextSpan,
     image_annotation_text,
     image_lyric_text,
@@ -91,6 +93,15 @@ class Draft:
             ensure_ascii=False,
             indent=2,
         ) + "\n"
+
+
+@dataclass(frozen=True, slots=True)
+class _LyricRecovery:
+    """Page text and localized lyric crops selected for one recovery attempt."""
+
+    text_spans: tuple[TextSpan, ...]
+    note_height: float | None
+    lyrics: tuple[TextSpan, ...] | None
 
 
 def _bar_marks(
@@ -376,47 +387,15 @@ def _header_spans(
 def _lyric_baseline_text(
     path: Path, page: PageObservation, spans: tuple[TextSpan, ...]
 ) -> tuple[TextSpan, ...]:
-    if not page.rows:
-        return spans
-    bz_duplicates = _bz_duplicate_text_spans(page, spans)
-    spans = tuple(span for span in spans if span not in bz_duplicates)
-    note_height = median(note.box[3] - note.box[1] for row in page.rows for note in row.notes)
-    merged_lyrics = any(
-        span.height >= note_height * 1.8
-        and span.box[2] - span.box[0] < span.height
-        and sum("\u3400" <= char <= "\u9fff" for char in span.text) >= 2
-        and any(row.box[3] < span.center_y < row.box[3] + note_height * 4.6
-                for row in page.rows)
-        for span in spans
+    recovery = _lyric_recovery(path, page, spans)
+    spans, note_height, lyrics = (
+        recovery.text_spans, recovery.note_height, recovery.lyrics,
     )
-    if (page.dsb_overlays or page.unresolved_braces
-            or page.bz_overlays and not page.voice_groups):
+    if not lyrics or note_height is None:
         return spans
-    if page.voice_groups and not any(
-        any("\u3400" <= char <= "\u9fff" for char in span.text)
-        and span.center_y > page.rows[0].box[3] for span in spans
-    ):
-        return spans
-    if note_height >= 16:
-        # Large merged lyric rows need crops only when whole-page OCR exceeds its safe size.
-        ocr_limit = getattr(text._ocr_engine(), "max_side_len", 2000)
-        if not merged_lyrics or max(page.width, page.height) <= ocr_limit:
-            return spans
-    lyrics = image_lyric_text(
-        path, tuple(row.box for row in page.rows), small_page=note_height < 16,
-        recover_sparse=bool(page.voice_groups),
-    )
-    if not lyrics:
-        return spans
-    lyric_duplicates = _bz_duplicate_text_spans(page, lyrics)
-    lyrics = tuple(span for span in lyrics if span not in lyric_duplicates)
     if page.voice_groups:
         # Crops can also contain the next voice's digits or performance marks.
         # Replace only corroborated lyric baselines, retaining all other text.
-        lyrics = tuple(span for span in lyrics if span.confidence >= 0.72
-                       and any("\u3400" <= char <= "\u9fff" for char in span.text)
-                       and all("\u3400" <= char <= "\u9fff" or char.isspace()
-                               or char in "，。！？、,.!?；;：:" for char in span.text))
         def same_baseline(first: TextSpan, second: TextSpan) -> bool:
             return (abs(first.center_y - second.center_y)
                     <= max(9, min(first.height, second.height) * 0.42)
@@ -465,6 +444,117 @@ def _lyric_baseline_text(
     return (
         *(span for span in spans if span.box[3] < page.rows[0].box[1]),
         *lyrics,
+    )
+
+
+def _lyric_recovery(
+    path: Path, page: PageObservation, spans: tuple[TextSpan, ...],
+) -> _LyricRecovery:
+    if not page.rows:
+        return _LyricRecovery(spans, None, None)
+    bz_duplicates = _bz_duplicate_text_spans(page, spans)
+    spans = tuple(span for span in spans if span not in bz_duplicates)
+    note_height = median(note.box[3] - note.box[1] for row in page.rows for note in row.notes)
+    merged_lyrics = any(
+        span.height >= note_height * 1.8
+        and span.box[2] - span.box[0] < span.height
+        and sum("\u3400" <= char <= "\u9fff" for char in span.text) >= 2
+        and any(row.box[3] < span.center_y < row.box[3] + note_height * 4.6
+                for row in page.rows)
+        for span in spans
+    )
+    if (page.dsb_overlays or page.unresolved_braces
+            or page.bz_overlays and not page.voice_groups):
+        return _LyricRecovery(spans, note_height, None)
+    if page.voice_groups and not any(
+        any("\u3400" <= char <= "\u9fff" for char in span.text)
+        and span.center_y > page.rows[0].box[3] for span in spans
+    ):
+        return _LyricRecovery(spans, note_height, None)
+    if note_height >= 16:
+        # Large merged lyric rows need crops only when whole-page OCR exceeds its safe size.
+        ocr_limit = getattr(text._ocr_engine(), "max_side_len", 2000)
+        if not merged_lyrics or max(page.width, page.height) <= ocr_limit:
+            return _LyricRecovery(spans, note_height, None)
+    lyrics = image_lyric_text(
+        path, tuple(row.box for row in page.rows), small_page=note_height < 16,
+        recover_sparse=bool(page.voice_groups),
+    )
+    if not lyrics:
+        return _LyricRecovery(spans, note_height, None)
+    lyric_duplicates = _bz_duplicate_text_spans(page, lyrics)
+    lyrics = tuple(span for span in lyrics if span not in lyric_duplicates)
+    if page.voice_groups:
+        # Crops can also contain the next voice's digits or performance marks.
+        # Replace only corroborated lyric baselines, retaining all other text.
+        lyrics = tuple(span for span in lyrics if span.confidence >= 0.72
+                       and any("\u3400" <= char <= "\u9fff" for char in span.text)
+                       and all("\u3400" <= char <= "\u9fff" or char.isspace()
+                               or char in "，。！？、,.!?；;：:" for char in span.text))
+    return _LyricRecovery(spans, note_height, lyrics)
+
+
+def _boxes_intersect(first: Box, second: Box) -> bool:
+    return (first[0] < second[2] and second[0] < first[2]
+            and first[1] < second[3] and second[1] < first[3])
+
+
+def _reading_recovered(span: TextSpan, lyrics: tuple[TextSpan, ...]) -> bool:
+    """Whether ordered crop readings account for every character in a page OCR span."""
+    source = text._text_key(span.text)
+    recovered = "".join(
+        text._text_key(lyric.text)
+        for lyric in sorted(lyrics, key=lambda lyric: (lyric.box[1], lyric.box[0]))
+    )
+    if not source or not recovered:
+        return False
+    recovered_chars = iter(recovered)
+    return all(any(candidate == character for candidate in recovered_chars)
+               for character in source)
+
+
+def _pdf_lyric_baseline_text(
+    path: Path, page: PageObservation, spans: tuple[TextSpan, ...],
+) -> TextMergeResult:
+    """Replace page OCR only in crop-owned lyric regions, retaining native text."""
+    recovery = _lyric_recovery(path, page, spans)
+    native = page.native_text_spans or ()
+    original_ocr = page.ocr_text_spans or ()
+    if not recovery.lyrics:
+        return TextMergeResult(
+            spans if native else recovery.text_spans,
+            page.text_merge_conflicts,
+            native,
+            original_ocr,
+        )
+
+    lyrics = recovery.lyrics
+    page_ocr = tuple(
+        span for span in original_ocr
+        if not (
+            any(_boxes_intersect(span.box, lyric.box) for lyric in lyrics)
+            and _reading_recovered(span, lyrics)
+        )
+    )
+    inputs = (*native, *page_ocr, *lyrics)
+    bz_duplicates = set(_bz_duplicate_text_spans(page, inputs))
+    native = tuple(span for span in native if span not in bz_duplicates)
+    page_ocr = tuple(span for span in page_ocr if span not in bz_duplicates)
+    lyrics = tuple(span for span in lyrics if span not in bz_duplicates)
+
+    resolved = merge_text(native, (*page_ocr, *lyrics))
+    existing_conflicts = tuple(
+        conflict for conflict in page.text_merge_conflicts
+        if not (
+            any(_boxes_intersect(conflict.box, lyric.box) for lyric in recovery.lyrics)
+            and _reading_recovered(conflict.ocr_span, recovery.lyrics)
+        )
+    )
+    return TextMergeResult(
+        resolved.spans,
+        tuple(dict.fromkeys((*existing_conflicts, *resolved.conflicts))),
+        page.native_text_spans or (),
+        page.ocr_text_spans or (),
     )
 
 
@@ -903,24 +993,37 @@ def _pdf_pages(
             merged_text = merge_text(native_spans, ocr_spans or ())
             text_spans = merged_text.spans
             original_spans = text_spans
-            if not native_spans and ocr_spans is not None:
-                text_spans = _lyric_baseline_text(image_path, observation, text_spans)
-            if page_number == 1:
-                text_spans = _header_spans(image_path, observation, text_spans)
             text_source = (
                 "pdf_text+ocr" if native_spans and ocr_spans is not None
                 else "pdf_text" if native_spans else "ocr" if ocr_spans is not None
                 else "unavailable"
             )
-            observations.append(
-                _performance_text(image_path, _score_text(replace(
-                    observation,
+            page_observation = replace(
+                observation,
+                text_spans=text_spans,
+                text_source=text_source,
+                native_text_spans=merged_text.native_spans,
+                ocr_text_spans=ocr_spans,
+                text_merge_conflicts=merged_text.conflicts,
+            )
+            if ocr_spans is not None:
+                lyric_text = _pdf_lyric_baseline_text(
+                    image_path, page_observation, text_spans,
+                )
+                text_spans = lyric_text.spans
+                page_observation = replace(
+                    page_observation,
                     text_spans=text_spans,
-                    text_source=text_source,
-                    native_text_spans=merged_text.native_spans,
-                    ocr_text_spans=ocr_spans,
-                    text_merge_conflicts=merged_text.conflicts,
-                )), original_spans)
+                    text_merge_conflicts=lyric_text.conflicts,
+                )
+            if page_number == 1:
+                text_spans = _header_spans(image_path, page_observation, text_spans)
+            observations.append(
+                _performance_text(
+                    image_path,
+                    _score_text(replace(page_observation, text_spans=text_spans)),
+                    original_spans,
+                )
             )
             image_path.unlink()
             if progress:
