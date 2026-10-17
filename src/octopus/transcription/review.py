@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 
 from octopus.model import normalize_code
@@ -12,6 +11,7 @@ from octopus.render.svg import render_score_model_page_with_layout
 
 from .components import Box
 from .image import PageObservation
+from .results import RowBinding, finite_confidence
 
 LOW_NOTE_CONFIDENCE = 0.90
 _NOTES = {MusicTokenKind.NOTE, MusicTokenKind.REST}
@@ -26,19 +26,6 @@ class ReviewFinding:
     confidence: float | None = None
     source_start: int | None = None
     source_end: int | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class RowBinding:
-    page: int
-    row: int
-    source_line: int
-    simple: bool
-
-
-def finite_confidence(value: float) -> float:
-    """Export a finite agreement score; it is not a calibrated probability."""
-    return min(1.0, max(0.0, value)) if math.isfinite(value) else 0.0
 
 
 def note_confidence_findings(
