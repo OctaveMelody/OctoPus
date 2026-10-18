@@ -115,33 +115,48 @@ def _joined_underline_and_dot(
     if not (
         component.width >= digit_height * 1.3
         and component.height <= digit_height * 0.6
-        and 0 < component.box[1] - bottom <= digit_height * 0.5
         and _overlap(left, right, component.box[0], component.box[2]) >= (right - left) * 0.65
     ):
         return 0, False
     pixels = gray.load()
     assert pixels is not None
-    horizontal_rows = [
+    columns = [(x, [y for y in range(component.box[1], component.box[3])
+                    if cast(int, pixels[x, y]) < 160])
+               for x in range(component.box[0], component.box[2])]
+    columns = [(x, ys) for x, ys in columns if ys]
+    local_ink = [y for x, ys in columns if left <= x < right for y in ys]
+    if not local_ink or not 0 <= min(local_ink) - bottom <= digit_height * 0.5:
+        return 0, False
+    wide_rows = [
         y for y in range(component.box[1], component.box[3])
         if sum(cast(int, pixels[x, y]) < 160 for x in range(component.box[0], component.box[2]))
         >= component.width * 0.7
     ]
-    if not horizontal_rows:
+    if not wide_rows:
         return 0, False
-    line_count = 1 + sum(
-        right_y - left_y > 1
-        for left_y, right_y in zip(horizontal_rows, horizontal_rows[1:], strict=False)
-    )
+    horizontal_rows = []
+    for y in range(component.box[1], component.box[3]):
+        if (sum(cast(int, pixels[x, y]) < 160
+                for x in range(max(left, component.box[0]), min(right, component.box[2])))
+                < (right - left) * 0.65):
+            continue
+        start = component.box[0]
+        for x in range(component.box[0], component.box[2] + 1):
+            if x < component.box[2] and cast(int, pixels[x, y]) < 160:
+                continue
+            if x - start >= max(10, round((right - left) * 0.65)):
+                horizontal_rows.append(y)
+                break
+            start = x + 1
+    horizontal_rows = horizontal_rows or wide_rows
+    line_count = max(1 + sum(right_y - left_y > 1
+                            for left_y, right_y in zip(rows, rows[1:], strict=False))
+                     for rows in (wide_rows, horizontal_rows))
     center = (left + right) / 2
     radius = max(4, (right - left) * 0.35)
-    dot_rows = [
-        y for y in range(horizontal_rows[-1] + 1, component.box[3])
-        if any(
-            cast(int, pixels[x, y]) < 160
-            for x in range(max(component.box[0], round(center - radius)),
-                           min(component.box[2], round(center + radius) + 1))
-        )
-    ]
+    # Only ink below the local last tier is a dot; tilted tails and short tiers remain beams.
+    dot_rows = {y for x, ys in columns if abs(x - center) <= radius for y in ys
+                if y > max(horizontal_rows[-1], wide_rows[-1])}
     return line_count, len(dot_rows) >= 2
 
 
@@ -273,7 +288,7 @@ def note_modifiers(
             dots_below.append(component)
         elif (
             round_dot and 0 < c_left - right <= digit_height * 0.8
-            and abs((c_top + c_bottom - top - bottom) / 2) <= digit_height * 0.25
+            and top + (bottom - top) * 0.25 <= component.center_y <= bottom
             and (right_limit is None or c_right < right_limit)
             and not any(
                 other.box != component.box
@@ -289,7 +304,7 @@ def note_modifiers(
         elif (
             0 < c_top - bottom <= line_reach
             and component.height <= max(4, digit_height * 0.17)
-            and component.width >= max(10, round((right - left) * 0.8))
+            and component.width >= max(10, round((right - left) * 0.65))
             and _overlap(left, right, c_left, c_right) >= (right - left) * 0.65
         ):
             lines.append(component)

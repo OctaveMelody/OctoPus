@@ -684,10 +684,15 @@ def _recover_row_digits(
 ) -> list[tuple[Component, DigitMatch]]:
     """Recover unresolved row ink without changing already accepted note glyphs."""
     height = round(median(component.height for component, _ in group))
-    center_y = sum(component.center_y for component, _ in group) / len(group)
+    xs = [(component.box[0] + component.box[2]) / 2 for component, _ in group]
+    ys = [component.center_y for component, _ in group]
+    center_y = sum(ys) / len(ys)
+    slope, intercept = linear_regression(xs, ys) if len(set(xs)) > 1 else (0, ys[0])
     unresolved = [component for component in components
                   if component.box not in claimed
-                  and abs(component.center_y - center_y) <= height * 0.3
+                  and min(abs(component.center_y - center_y),
+                          abs(component.center_y - (slope * (component.box[0] + component.box[2])
+                                                    / 2 + intercept))) <= height * 0.3
                   and abs(component.height - height) <= max(3, height * 0.12)
                   and height * 0.2 <= component.width <= height * 6]
     if not unresolved:
@@ -699,7 +704,9 @@ def _recover_row_digits(
         )) is not None:
             found.append((component, page_match))
             claimed.add(component.box)
-    unresolved = [component for component in unresolved if component.box not in claimed]
+    # Page-font matches can follow tilt; uncorroborated OCR keeps its existing row band.
+    unresolved = [component for component in unresolved if component.box not in claimed
+                  and abs(component.center_y - center_y) <= height * 0.3]
     if not unresolved:
         return found
     top = min(component.box[1] for component, _ in group)

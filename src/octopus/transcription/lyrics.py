@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, replace
+from statistics import linear_regression, median
 
 from .components import Box
 from .image import MusicRow, PageObservation
@@ -17,6 +18,7 @@ _PAGINATION = re.compile(
     r"(?:第\s*\d+\s*页\s*)?共\s*\d+\s*页|第\s*\d+\s*页|page\s+\d+(?:\s+of\s+\d+)?",
     re.I,
 )
+_MIN_BASELINE_TOLERANCE = 9
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,7 +201,17 @@ def extract_lyrics(
         next_index = max(continuation.upper, continuation.lower) + 1
     next_top = page.rows[next_index].box[1] if next_index < len(page.rows) else page.height
     top = after.box[3] + max(7, digit_height * 0.18)
-    bottom = min(next_top - 7, after.box[3] + digit_height * 4.6)
+    ordinary_bottom = min(next_top - 7, after.box[3] + digit_height * 4.6)
+    bottom = next_top - 7
+    xs = [(note.box[0] + note.box[2]) / 2 for note in after.notes]
+    ys = [(note.box[1] + note.box[3]) / 2 for note in after.notes]
+    slope = linear_regression(xs, ys).slope if len(set(xs)) > 1 else 0
+    # Smaller drift already fits one lyric band and can reflect unequal numeral ink heights.
+    if abs(slope) * (max(xs) - min(xs)) <= _MIN_BASELINE_TOLERANCE:
+        slope = 0
+
+    def baseline(span: TextSpan) -> float:
+        return span.center_y - slope * span.center_x
     # A right-aligned footer touching the page edge is outside the lyric band.
     spans = [
         span
@@ -220,15 +232,27 @@ def extract_lyrics(
     ]
     bands: list[list[TextSpan]] = []
     for span in sorted((span for span in spans if not span.lyric_baselines),
-                       key=lambda value: value.center_y):
-        if bands and abs(span.center_y - bands[-1][0].center_y) <= max(
-            9, min(span.height, bands[-1][0].height) * 0.42
+                       key=baseline):
+        if bands and abs(baseline(span) - baseline(bands[-1][0])) <= max(
+            _MIN_BASELINE_TOLERANCE, min(span.height, bands[-1][0].height) * 0.42
         ):
             bands[-1].append(span)
         else:
             bands.append([span])
     drafts = []
+    previous_band: list[TextSpan] = []
     for band in bands:
+        # Additional verses need a continuous lyric baseline, bounded by the next music row.
+        if min(span.center_y for span in band) >= ordinary_bottom:
+            syllables = [word for span in band for word, _ in _lyric_units(span)
+                         if not word.startswith('"')]
+            if (not syllables or len(syllables) > len(alignment_row.notes)
+                    or not previous_band
+                    or baseline(band[0]) - baseline(previous_band[0])
+                    > min(median(span.height for span in band),
+                          median(span.height for span in previous_band)) * 1.5):
+                continue
+        previous_band = list(band)
         band.extend(span for span in spans if any(
             abs(baseline - band[0].center_y) <= digit_height * 0.5
             for baseline in span.lyric_baselines
