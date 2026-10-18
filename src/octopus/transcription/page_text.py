@@ -14,6 +14,7 @@ from .decorations import decoration_token, text_decorations
 from .headers import extract_headers, printed_key_span, stacked_meter_span
 from .image import MusicRow, PageObservation, _read_page
 from .text import (
+    MIN_TEXT_SPAN_CONFIDENCE,
     TextMergeResult,
     TextSpan,
     image_annotation_text,
@@ -158,7 +159,8 @@ def _lyric_recovery(
     if page.voice_groups:
         # Crops can also contain the next voice's digits or performance marks.
         # Replace only corroborated lyric baselines, retaining all other text.
-        lyrics = tuple(span for span in lyrics if span.confidence >= 0.72
+        lyrics = tuple(span for span in lyrics
+                       if span.confidence >= MIN_TEXT_SPAN_CONFIDENCE
                        and any("\u3400" <= char <= "\u9fff" for char in span.text)
                        and all("\u3400" <= char <= "\u9fff" or char.isspace()
                                or char in "，。！？、,.!?；;：:" for char in span.text))
@@ -238,7 +240,11 @@ def _performance_text(
     gray = _read_page(path)
     all_rows = (*page.rows, *(bz.row for bz in page.bz_overlays))
     cropped = image_annotation_text(path, tuple(row.box for row in all_rows)) or ()
-    candidates = tuple(dict.fromkeys((*page.text_spans, *original, *cropped)))
+    # A valid performance mark can conflict with a native lyric glyph during
+    # page-text reconciliation. Keep raw OCR available for geometric ownership.
+    candidates = tuple(dict.fromkeys((
+        *page.text_spans, *(page.ocr_text_spans or ()), *original, *cropped,
+    )))
     bz_duplicates = _bz_duplicate_text_spans(page, candidates)
     duplicate_boxes = tuple(span.box for span in bz_duplicates)
     candidates = tuple(span for span in candidates if (

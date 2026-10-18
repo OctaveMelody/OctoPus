@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 
 from .components import Box
 from .image import MusicRow, PageObservation
-from .text import TextSpan
+from .text import MIN_TEXT_SPAN_CONFIDENCE, TextSpan
 
 _DYNAMICS = {"ppp", "pp", "p", "mp", "mf", "f", "ff", "fff", "rit", "dim", "cresc", "d.s", "d.c"}
 _PERFORMER = re.compile(r"[（(]\s*([女男合])\s*[）)]")
@@ -204,7 +204,7 @@ def extract_lyrics(
     spans = [
         span
         for span in page.text_spans
-        if span.confidence >= 0.72
+        if span.confidence >= MIN_TEXT_SPAN_CONFIDENCE
         and (span.height >= digit_height * 0.58 or span.text == "一" and span.confidence >= 0.95)
         and top <= span.center_y < bottom
         and _is_lyric_text(span.text)

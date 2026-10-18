@@ -18,6 +18,7 @@ from .marks import vertical_bend
 from .session_artifacts import track_session_artifact
 
 _XHTML = "{http://www.w3.org/1999/xhtml}"
+MIN_TEXT_SPAN_CONFIDENCE = 0.72
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,7 +165,8 @@ def image_text(path: Path) -> tuple[TextSpan, ...] | None:
         ys = [point[1] for point in corners]
         box = (round(min(xs)), round(min(ys)), round(max(xs)), round(max(ys)))
         word, score = str(text), float(confidence)
-        if len(word) == 1 and "\u3400" <= word <= "\u9fff" and 0.72 <= score < 0.9:
+        if (len(word) == 1 and "\u3400" <= word <= "\u9fff"
+                and MIN_TEXT_SPAN_CONFIDENCE <= score < 0.9):
             crop = ImageOps.expand(rgb.crop(box), border=round((box[3] - box[1]) / 2),
                                    fill="white")
             refined, _ = _ocr_call(engine, crop, use_det=False, use_cls=False)
@@ -353,7 +355,7 @@ def image_lyric_text(
                 recovered_count = sum("\u3400" <= char <= "\u9fff"
                                       for item in recovered or [] for char in str(item[1]))
                 if recovered_count == len(glyph_columns) and all(
-                    float(item[2]) >= 0.72 for item in recovered or []
+                    float(item[2]) >= MIN_TEXT_SPAN_CONFIDENCE for item in recovered or []
                     if any("\u3400" <= char <= "\u9fff" for char in str(item[1]))
                 ):
                     result = recovered
@@ -652,6 +654,18 @@ def _overlaps_text_region(first: TextSpan, second: TextSpan) -> bool:
     )
 
 
+def _ocr_character_overlaps_native(candidate: TextSpan, native: TextSpan) -> bool:
+    """Use OCR character positions when a word box only clips a native glyph edge."""
+    if len(candidate.character_centers) != len(candidate.text) or not candidate.text:
+        return False
+    vertical = max(0, min(candidate.box[3], native.box[3])
+                   - max(candidate.box[1], native.box[1]))
+    if vertical * 2 < min(candidate.height, native.height):
+        return False
+    return any(native.box[0] <= center < native.box[2]
+               for center in candidate.character_centers)
+
+
 def _confidence_rank(span: TextSpan) -> float:
     return span.confidence if isfinite(span.confidence) else float("-inf")
 
@@ -714,7 +728,10 @@ def merge_text(
 
     for candidate in sorted(ocr, key=_span_order):
         associated = tuple(
-            span for span in remaining_native if _overlaps_text_region(span, candidate)
+            span for span in remaining_native if (
+                _overlaps_text_region(span, candidate)
+                or _ocr_character_overlaps_native(candidate, span)
+            )
         )
         if not associated:
             _prefer_ocr_spans(selected_ocr, candidate)
@@ -732,6 +749,9 @@ def merge_text(
             continue
         if ocr_key in native_key:
             # A shorter raster reading cannot replace the complete native phrase.
+            continue
+        if candidate.confidence < MIN_TEXT_SPAN_CONFIDENCE:
+            conflicts.append(TextMergeConflict(ordered_native, candidate))
             continue
 
         centers_available, covered_reading = _covered_ocr_reading(candidate, ordered_native)
