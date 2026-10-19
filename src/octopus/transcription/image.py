@@ -5,11 +5,10 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, replace
 from functools import cache
-from itertools import product
 from math import ceil, floor
 from pathlib import Path
 from statistics import linear_regression, median
-from typing import cast
+from typing import NamedTuple, cast
 
 from PIL import Image, ImageOps
 
@@ -158,6 +157,13 @@ class _CoordinateTransform:
 
     def to_working_height(self, height: int | float) -> int:
         return round(height * self.scale_y)
+
+
+class _DigitPartition(NamedTuple):
+    minimum_similarity: float
+    total_similarity: float
+    separation_score: int
+    cuts: tuple[int, ...]
 
 
 def _qr_regions(gray: Image.Image) -> tuple[Box, ...]:
@@ -669,8 +675,7 @@ def _split_digit_cluster(
     left, upper, right, lower = component.box
     pixels = gray.load()
     assert pixels is not None
-    # shortcut: splits at most four touching digits, use dynamic programming for larger clusters.
-    if not 1 <= len(owned) <= 4 or component.width > height and len(owned) < 2:
+    if not owned or component.width > height and len(owned) < 2:
         return []
     seams = []
     for a, b in zip(owned, owned[1:], strict=False):
@@ -699,18 +704,59 @@ def _split_digit_cluster(
             return None, 0.0
         return piece, digit_shape_similarity(gray, piece, digit)
 
-    def fit(cuts: tuple[int, ...]) -> tuple[float, float, int]:
-        bounds = (left, *cuts, right)
-        scores = [piece_at(digit, start, end)[1]
-                  for (digit, _, _), start, end in zip(
-                      owned, bounds, bounds[1:], strict=False)]
-        return (min(scores), sum(scores), -sum(
-            cast(int, pixels[x, y]) < 160 for x in cuts for y in range(upper, lower)
-        ))
+    # Keep only nondominated partial partitions. Each OCR character owns one
+    # pixel slice; the page-font shape score validates the full partition.
+    # This remains tractable for long connected runs without a fixed note-count cap.
+    def retain(frontier: list[_DigitPartition], candidate: _DigitPartition) -> None:
+        if any(
+            old.minimum_similarity >= candidate.minimum_similarity
+            and old.total_similarity >= candidate.total_similarity
+            and old.separation_score >= candidate.separation_score
+            for old in frontier
+        ):
+            return
+        frontier[:] = [old for old in frontier if not (
+            candidate.minimum_similarity >= old.minimum_similarity
+            and candidate.total_similarity >= old.total_similarity
+            and candidate.separation_score >= old.separation_score
+        )]
+        frontier.append(candidate)
 
-    cuts = max(product(*seams), key=fit)
-    if fit(cuts)[0] < 0.6:
+    states: dict[int, list[_DigitPartition]] = {
+        left: [_DigitPartition(1.0, 0.0, 0, ())],
+    }
+    for index, (digit, _, _) in enumerate(owned):
+        final = index == len(owned) - 1
+        ends = (right,) if final else seams[index]
+        updated: dict[int, list[_DigitPartition]] = {}
+        for start, frontier in states.items():
+            for end in ends:
+                if end <= start:
+                    continue
+                piece, similarity = piece_at(digit, start, end)
+                if piece is None:
+                    continue
+                cut_score = 0 if final else -sum(
+                    cast(int, pixels[end, y]) < 160 for y in range(upper, lower)
+                )
+                for state in frontier:
+                    candidate = _DigitPartition(
+                        min(state.minimum_similarity, similarity),
+                        state.total_similarity + similarity,
+                        state.separation_score + cut_score,
+                        state.cuts if final else (*state.cuts, end),
+                    )
+                    retain(updated.setdefault(end, []), candidate)
+        states = updated
+        if not states:
+            return []
+
+    best = max(states.get(right, ()), key=lambda state: (
+        state.minimum_similarity, state.total_similarity, state.separation_score,
+    ), default=None)
+    if best is None or best.minimum_similarity < 0.6:
         return []
+    cuts = best.cuts
     bounds = (left, *cuts, right)
     pieces = []
     for (digit, score, _), start, end in zip(owned, bounds, bounds[1:], strict=False):
@@ -737,7 +783,7 @@ def _recover_row_digits(
                           abs(component.center_y - (slope * (component.box[0] + component.box[2])
                                                     / 2 + intercept))) <= height * 0.3
                   and abs(component.height - height) <= max(3, height * 0.12)
-                  and height * 0.2 <= component.width <= height * 6]
+                  and height * 0.2 <= component.width <= gray.width]
     if not unresolved:
         return []
     found = []
@@ -767,6 +813,8 @@ def _recover_row_digits(
         left, upper, right, lower = component.box
         owned = [(digit, score, center) for digit, score, center in characters
                  if left <= center < right]
+        if len(owned) > 1 and component.width > height * len(owned) * 1.6:
+            continue
         if component.width <= height and len(owned) > 1:
             single = [item for item in owned
                       if digit_shape_similarity(gray, component, item[0]) >= 0.6]

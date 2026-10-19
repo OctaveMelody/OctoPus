@@ -52,14 +52,12 @@ def _direction_tokens(value: str) -> tuple[str, ...]:
 def _embedded_direction_spans(
     span: TextSpan,
 ) -> tuple[_DirectionReading, ...]:
-    """Isolate a direction beside lyric text when OCR returned character centers."""
-    if len(span.character_centers) != len(span.text):
-        return ()
+    """Isolate a direction beside lyric text using observed or estimated positions."""
     normalized = unicodedata.normalize("NFKC", span.text)
     if len(normalized) != len(span.text):
         return ()
     found = []
-    centers = span.character_centers
+    centers = _character_centers(span)
     matches = tuple(_DIRECTION_PATTERN.finditer(normalized))
     has_navigation_target = any(
         token in {"ds", "dc."}
@@ -235,9 +233,34 @@ def remove_attached_direction_text(
     retained = []
     for span in spans:
         consumed = sorted(set(ranges.get(span, ())))
+        projected = []
+        if not consumed:
+            centers = _character_centers(span)
+            for source in sources:
+                source_text = source.span.text[source.start:source.end]
+                source_tokens = _direction_tokens(source_text)
+                if not any(token in {"ds", "dc."} for token in source_tokens):
+                    continue
+                for match in _DIRECTION_PATTERN.finditer(span.text):
+                    match_tokens = _direction_tokens(match.group())
+                    if (len(match_tokens) != 1 or match_tokens[0] not in {"ds", "dc."}
+                            or match_tokens[0] not in source_tokens):
+                        continue
+                    start, end = match.span()
+                    left = (round((centers[start - 1] + centers[start]) / 2)
+                            if start else span.box[0])
+                    right = (round((centers[end - 1] + centers[end]) / 2)
+                             if end < len(centers) else span.box[2])
+                    overlap = max(0, min(right, source.span.box[2])
+                                  - max(left, source.span.box[0]))
+                    if overlap >= (right - left) * 0.5:
+                        projected.append((start, end))
+            consumed = sorted(set(projected))
         if not consumed:
             retained.append(span)
             continue
+        if len(span.character_centers) != len(span.text):
+            span = replace(span, character_centers=_character_centers(span))
         merged: list[list[int]] = []
         for start, end in consumed:
             if merged and start <= merged[-1][1]:
@@ -277,3 +300,24 @@ def _text_slice(span: TextSpan, start: int, end: int) -> TextSpan | None:
         span.text[start:end], (left, span.box[1], right, span.box[3]), span.confidence,
         centers[start:end], span.lyric_baselines,
     )
+
+
+def _character_centers(span: TextSpan) -> tuple[float, ...]:
+    """Estimate positioned characters for word-level OCR using script widths."""
+    if len(span.character_centers) == len(span.text):
+        return span.character_centers
+    weights = tuple(
+        1.0 if unicodedata.east_asian_width(character) in {"W", "F"} else
+        0.55 if character.isalnum() else 0.35
+        for character in span.text
+    )
+    total = sum(weights)
+    if not total:
+        return ()
+    width = span.box[2] - span.box[0]
+    position = 0.0
+    centers = []
+    for weight in weights:
+        centers.append(span.box[0] + width * (position + weight / 2) / total)
+        position += weight
+    return tuple(centers)

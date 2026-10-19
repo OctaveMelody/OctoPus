@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 from functools import lru_cache
 from pathlib import Path
+from typing import cast
 
 from PIL import Image
 
@@ -108,7 +109,41 @@ def match_page_digit(
 
 def classify_mordent(gray: Image.Image, component: Component) -> bool:
     candidate = _normalized_black_pixels(gray.crop(component.box))
-    return _similarity(candidate, _glyph_template("boyinfu_shang1")) >= 0.78
+    return (_similarity(candidate, _glyph_template("boyinfu_shang1")) >= 0.78
+            or _wavy_mordent_stroke(gray, component))
+
+
+def _wavy_mordent_stroke(gray: Image.Image, component: Component) -> bool:
+    """Recognize a short multi-turn ornament when small raster ink misses the template."""
+    left, top, right, bottom = component.box
+    width, height = right - left, bottom - top
+    if height <= 0 or width < height * 1.2:
+        return False
+    pixels = gray.load()
+    assert pixels is not None
+    centers: list[tuple[int, float]] = []
+    occupied = 0
+    for x in range(left, right):
+        ink = [y for y in range(top, bottom) if cast(int, pixels[x, y]) < 160]
+        if not ink or len(ink) > max(3, height * 0.4):
+            continue
+        occupied += 1
+        centers.append((x, sum(ink) / len(ink)))
+    if occupied < width * 0.7:
+        return False
+    ordinates = [center for _, center in centers]
+    if max(ordinates) - min(ordinates) < max(2, height * 0.25):
+        return False
+    directions: list[int] = []
+    for (left_x, left_y), (right_x, right_y) in zip(centers, centers[1:], strict=False):
+        if right_x - left_x > max(2, round(width * 0.12)):
+            continue
+        delta = right_y - left_y
+        if abs(delta) >= max(1, height * 0.06):
+            direction = 1 if delta > 0 else -1
+            if not directions or directions[-1] != direction:
+                directions.append(direction)
+    return sum(a != b for a, b in zip(directions, directions[1:], strict=False)) >= 2
 
 
 def classify_accidental(gray: Image.Image, component: Component) -> str | None:

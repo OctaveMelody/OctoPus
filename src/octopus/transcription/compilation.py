@@ -18,7 +18,7 @@ from .text import TextSpan
 
 _KEY_TEXT = re.compile(r"1\s*[=＝]\s*([b♭#♯$]?)([A-Ga-g])\s*([#♯$♭]?)")
 _METER_TEXT = re.compile(r"(?<!\d)(\d{1,2})\s*[/／]\s*(\d{1,2})(?!\d)")
-_TEMPO_TEXT = re.compile(r"[Jj♩♪]?\s*[=＝:]\s*(\d{2,3})")
+_TEMPO_TEXT = re.compile(r"(?:[A-Za-z]|[♩♪𝅘𝅥𝅘𝅥𝅮])?\s*[=＝:]\s*(\d{2,3})(?!\d)")
 _LOCAL_KEY_TEXT = re.compile(r"转\s*1\s*[=＝]", re.IGNORECASE)
 _SCORE_DIRECTION_TEXT = re.compile(
     r"(?<![A-Za-z])D\s*[.．]?\s*[SC]\s*[.．]?(?![A-Za-z])", re.IGNORECASE,
@@ -476,7 +476,7 @@ def _text_ownership_issues(page: PageObservation, page_number: int) -> list[Issu
         nearby = any(
             span.box[0] <= row.box[2] + max(48, row.box[3] - row.box[1])
             and span.box[2] >= row.box[0] - max(48, row.box[3] - row.box[1])
-            and span.box[1] <= row.box[3] + max(48, row.box[3] - row.box[1]) * 3
+            and span.box[1] <= row.box[3] + max(48, row.box[3] - row.box[1]) * 4.6
             and span.box[3] >= row.box[1] - max(48, row.box[3] - row.box[1]) * 1.25
             for row in page.rows
         )

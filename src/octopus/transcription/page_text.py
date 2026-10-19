@@ -34,6 +34,63 @@ class _LyricRecovery:
     lyrics: tuple[TextSpan, ...] | None
 
 
+def _same_lyric_baseline(first: TextSpan, second: TextSpan, height: float) -> bool:
+    baseline_gap = abs(first.center_y - second.center_y)
+    horizontal_gap = max(first.box[0] - second.box[2], second.box[0] - first.box[2], 0)
+    return (baseline_gap <= max(9, min(first.height, second.height) * 0.42)
+            and horizontal_gap <= height * 0.8)
+
+
+def _contains_in_order(source: str, reading: str) -> bool:
+    characters = iter(reading)
+    return bool(source) and all(any(candidate == char for candidate in characters)
+                                 for char in source)
+
+
+def _merge_lyric_readings(
+    spans: tuple[TextSpan, ...], lyrics: tuple[TextSpan, ...],
+    first_music_top: int, height: float,
+) -> tuple[TextSpan, ...]:
+    """Prefer a crop reading only when baseline and OCR evidence support it."""
+    retained: set[TextSpan] = set()
+    rejected_crops: set[TextSpan] = set()
+    for span in spans:
+        if span.box[3] < first_music_top or not any(char.isalpha() for char in span.text):
+            continue
+        related = tuple(sorted(
+            (lyric for lyric in lyrics if _same_lyric_baseline(span, lyric, height)),
+            key=lambda lyric: lyric.box[0],
+        ))
+        if not related:
+            retained.add(span)
+            continue
+        original = text._text_key(span.text)
+        recovered = "".join(text._text_key(lyric.text) for lyric in related)
+        recovered_left = min(lyric.box[0] for lyric in related)
+        recovered_right = max(lyric.box[2] for lyric in related)
+        horizontal_coverage = max(
+            0, min(span.box[2], recovered_right) - max(span.box[0], recovered_left),
+        ) / max(1, span.box[2] - span.box[0])
+        crop_is_better = (
+            (_contains_in_order(original, recovered)
+             and min(lyric.confidence for lyric in related) >= span.confidence)
+            or (original == recovered and any(lyric.character_centers for lyric in related))
+            or (horizontal_coverage >= 0.8
+                and all(lyric.confidence > span.confidence for lyric in related))
+        )
+        if crop_is_better:
+            continue
+        retained.add(span)
+        rejected_crops.update(lyric for lyric in related if (
+            lyric.box[0] < span.box[2] and span.box[0] < lyric.box[2]
+        ))
+    return (
+        *(span for span in spans if span in retained or span.box[3] < first_music_top
+          or not any(char.isalpha() for char in span.text)),
+        *(lyric for lyric in lyrics if lyric not in rejected_crops),
+    )
+
+
 def _header_spans(
     path: Path, page: PageObservation, spans: tuple[TextSpan, ...]
 ) -> tuple[TextSpan, ...]:
@@ -115,10 +172,7 @@ def _lyric_baseline_text(
             )),
             *lyrics,
         )
-    return (
-        *(span for span in spans if span.box[3] < page.rows[0].box[1]),
-        *lyrics,
-    )
+    return _merge_lyric_readings(spans, lyrics, page.rows[0].box[1], note_height)
 
 
 def _lyric_recovery(
@@ -132,7 +186,7 @@ def _lyric_recovery(
     merged_lyrics = any(
         span.height >= note_height * 1.8
         and span.box[2] - span.box[0] < span.height
-        and sum("\u3400" <= char <= "\u9fff" for char in span.text) >= 2
+        and sum(char.isalpha() for char in span.text) >= 2
         and any(row.box[3] < span.center_y < row.box[3] + note_height * 4.6
                 for row in page.rows)
         for span in spans
@@ -141,14 +195,28 @@ def _lyric_recovery(
             or page.bz_overlays and not page.voice_groups):
         return _LyricRecovery(spans, note_height, None)
     if page.voice_groups and not any(
-        any("\u3400" <= char <= "\u9fff" for char in span.text)
+        any(char.isalpha() for char in span.text)
         and span.center_y > page.rows[0].box[3] for span in spans
     ):
         return _LyricRecovery(spans, note_height, None)
+    crop_has_lyric_reading = any(
+        any(char.isalpha() for char in span.text)
+        and any(
+            row.box[3] < span.center_y < row.box[3] + note_height * 4.6
+            and span.box[0] < row.box[2] + note_height
+            and span.box[2] > row.box[0] - note_height
+            for row in page.rows
+        )
+        for span in spans
+    )
     if note_height >= 16:
-        # Large merged lyric rows need crops only when whole-page OCR exceeds its safe size.
-        ocr_limit = getattr(text._ocr_engine(), "max_side_len", 2000)
-        if not merged_lyrics or max(page.width, page.height) <= ocr_limit:
+        if page.native_text_spans is not None:
+            # Keep the existing PDF gate: native text stays authoritative unless
+            # whole-page OCR merges lyrics on a page beyond its safe side length.
+            ocr_limit = getattr(text._ocr_engine(), "max_side_len", 2000)
+            if not merged_lyrics or max(page.width, page.height) <= ocr_limit:
+                return _LyricRecovery(spans, note_height, None)
+        elif not merged_lyrics and not crop_has_lyric_reading:
             return _LyricRecovery(spans, note_height, None)
     lyrics = image_lyric_text(
         path, tuple(row.box for row in page.rows), small_page=note_height < 16,

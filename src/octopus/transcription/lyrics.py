@@ -243,12 +243,15 @@ def extract_lyrics(
     drafts = []
     previous_band: list[TextSpan] = []
     for band in bands:
+        syllables = [word for span in band for word, _ in _lyric_units(span)
+                     if not word.startswith('"')]
+        # A line with more sung units than available note slots is likely prose,
+        # a credit, or an OCR merge; leave it for text-ownership review.
+        if not syllables or len(syllables) > len(alignment_row.notes):
+            continue
         # Additional verses need a continuous lyric baseline, bounded by the next music row.
         if min(span.center_y for span in band) >= ordinary_bottom:
-            syllables = [word for span in band for word, _ in _lyric_units(span)
-                         if not word.startswith('"')]
-            if (not syllables or len(syllables) > len(alignment_row.notes)
-                    or not previous_band
+            if (not previous_band
                     or baseline(band[0]) - baseline(previous_band[0])
                     > min(median(span.height for span in band),
                           median(span.height for span in previous_band)) * 1.5):

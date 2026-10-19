@@ -15,7 +15,7 @@ from .text import TextSpan, image_digit
 
 _KEY = re.compile(r"1\s*[=＝]\s*([b♭#♯$]?)([A-Ga-g])\s*([#♯$♭]?)")
 _METER = re.compile(r"(?<!\d)(\d{1,2})\s*[/／]\s*(\d{1,2})(?!\d)")
-_TEMPO = re.compile(r"[Jj♩♪]?\s*[=＝:]\s*(\d{2,3})")
+_TEMPO = re.compile(r"(?:[A-Za-z]|[♩♪𝅘𝅥𝅘𝅥𝅮])?\s*[=＝:]\s*(\d{2,3})(?!\d)")
 _NUMBER = re.compile(r"[Xx]\s*[:：=]\s*(\d+)")
 
 
@@ -280,12 +280,16 @@ def extract_headers(
             lines.append(f"P: {top.text}/{bottom.text}")
             used.update(digits)
 
-    tempo = next((span for span in candidates if _TEMPO.fullmatch(span.text.strip())), None)
-    if tempo is not None:
-        match = _TEMPO.fullmatch(tempo.text.strip())
-        assert match is not None
-        lines.append(f"J: {match.group(1)}")
-        used.add(tempo)
+    tempo_rows = []
+    for row in _text_rows(candidates):
+        for end in range(1, len(row) + 1):
+            match = _TEMPO.match(_join(row[:end]))
+            if match is None:
+                continue
+            lines.append(f"J: {match.group(1)}")
+            used.update(row[:end])
+            tempo_rows.append(row[:end])
+            break
 
     number = next((span for span in candidates if _NUMBER.fullmatch(span.text.strip())), None)
     if number is not None:
@@ -302,13 +306,15 @@ def extract_headers(
         center = sum(span.center_x for span in row) / len(row)
         if center >= width * 0.72:
             suffix = next((end for end in ("词曲", "词", "曲") if text.endswith(end)), "")
-            credit = f"{text[:-len(suffix)].strip()} {suffix}" if suffix else text
-            lines.append(f"Z: {credit}")
-            used.update(row)
+            if not any(character.isdecimal() for character in text):
+                credit = f"{text[:-len(suffix)].strip()} {suffix}" if suffix else text
+                lines.append(f"Z: {credit}")
+                used.update(row)
         elif width * 0.3 <= center <= width * 0.7 and not _KEY.search(text):
             lines.append(f"B: {text}")
             used.update(row)
-        elif center <= width * 0.3 and text and not text[0].isdigit() and tempo is None:
+        elif (center <= width * 0.3 and text and not text[0].isdigit()
+              and not tempo_rows):
             lines.append(f"J: {text}")
             used.update(row)
 
