@@ -7,16 +7,16 @@ from dataclasses import dataclass, replace
 from statistics import linear_regression, median
 
 from .components import Box
+from .decorations import score_text_kind
 from .image import MusicRow, PageObservation
 from .text import MIN_TEXT_SPAN_CONFIDENCE, TextSpan
 
 _DYNAMICS = {
     "ppp", "pp", "p", "mp", "mf", "f", "ff", "fff", "rit", "dim", "cresc",
-    "d.s", "d.c", "fine", "d.s. fine", "d.c. fine",
+    "d.s", "d.c", "d.s. fine", "d.c. fine",
 }
 _PERFORMER = re.compile(r"[（(]\s*([女男合])\s*[）)]")
 _ANNOTATION = re.compile(r"[（(]\s*[女男合]\s*[）)]|[①-⑳]|(?<!\d)\d+[.．](?!\d)")
-_RETURN = re.compile(r"\s*(?:D\s*[.]\s*[SC]\s*[.:]?(?:\s*Fine\.?)?|Fine\.?)\s*$", re.I)
 _PAGINATION = re.compile(
     r"(?:第\s*\d+\s*页\s*)?共\s*\d+\s*页|第\s*\d+\s*页|page\s+\d+(?:\s+of\s+\d+)?",
     re.I,
@@ -33,7 +33,7 @@ class LyricDraft:
 
 def _is_lyric_text(value: str) -> bool:
     text = value.strip()
-    return text.lower().rstrip(".．") not in _DYNAMICS and (
+    return score_text_kind(text) is None and text.lower().rstrip(".．") not in _DYNAMICS and (
         any("\u3400" <= character <= "\u9fff" for character in text)
         or _ANNOTATION.fullmatch(text) is not None
         or sum(character.isalpha() for character in text) >= 2
@@ -47,9 +47,7 @@ def _lyric_units(span: TextSpan) -> list[tuple[str, float]]:
     if any("\u3400" <= character <= "\u9fff" for character in text) or _ANNOTATION.fullmatch(text):
         units: list[tuple[str, float]] = []
         width = span.box[2] - span.box[0]
-        lyric_end = _RETURN.search(text)
-        lyric_text = text[:lyric_end.start()] if lyric_end else text
-        for match in re.finditer(_ANNOTATION.pattern + "|.", lyric_text):
+        for match in re.finditer(_ANNOTATION.pattern + "|.", text):
             word = match.group()
             if word.isspace():
                 continue

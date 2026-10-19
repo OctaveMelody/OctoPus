@@ -109,7 +109,7 @@ def _inside_fermata_dot(dot: Component, components: list[Component], digit_width
 
 def _joined_underline_and_dot(
     note: Box, component: Component, gray: Image.Image, digit_height: int
-) -> tuple[int, bool]:
+) -> tuple[int, bool, tuple[float, ...]]:
     """Read a shallow underline blob whose low octave dots touch the stroke."""
     left, _, right, bottom = note
     if not (
@@ -117,7 +117,7 @@ def _joined_underline_and_dot(
         and component.height <= digit_height * 0.6
         and _overlap(left, right, component.box[0], component.box[2]) >= (right - left) * 0.65
     ):
-        return 0, False
+        return 0, False, ()
     pixels = gray.load()
     assert pixels is not None
     columns = [(x, [y for y in range(component.box[1], component.box[3])
@@ -126,14 +126,14 @@ def _joined_underline_and_dot(
     columns = [(x, ys) for x, ys in columns if ys]
     local_ink = [y for x, ys in columns if left <= x < right for y in ys]
     if not local_ink or not 0 <= min(local_ink) - bottom <= digit_height * 0.5:
-        return 0, False
+        return 0, False, ()
     wide_rows = [
         y for y in range(component.box[1], component.box[3])
         if sum(cast(int, pixels[x, y]) < 160 for x in range(component.box[0], component.box[2]))
         >= component.width * 0.7
     ]
     if not wide_rows:
-        return 0, False
+        return 0, False, ()
     horizontal_rows = []
     for y in range(component.box[1], component.box[3]):
         if (sum(cast(int, pixels[x, y]) < 160
@@ -148,6 +148,25 @@ def _joined_underline_and_dot(
                 horizontal_rows.append(y)
                 break
             start = x + 1
+    local_rows = set(horizontal_rows)
+    minimum_local_run = max(2, round((right - left) * 0.65))
+    for y in wide_rows:
+        run_start = None
+        longest_run = 0
+        for x in range(max(left, component.box[0]), min(right, component.box[2])):
+            if cast(int, pixels[x, y]) < 210:
+                run_start = x if run_start is None else run_start
+                longest_run = max(longest_run, x - run_start + 1)
+            else:
+                run_start = None
+        if longest_run >= minimum_local_run:
+            local_rows.add(y)
+    local_bands: list[list[int]] = []
+    for y in sorted(local_rows):
+        if not local_bands or y > local_bands[-1][-1] + 1:
+            local_bands.append([])
+        local_bands[-1].append(y)
+    local_centers = tuple((band[0] + band[-1]) / 2 for band in local_bands)
     horizontal_rows = horizontal_rows or wide_rows
     line_count = max(1 + sum(right_y - left_y > 1
                             for left_y, right_y in zip(rows, rows[1:], strict=False))
@@ -157,13 +176,13 @@ def _joined_underline_and_dot(
     # Only ink below the local last tier is a dot; tilted tails and short tiers remain beams.
     dot_rows = {y for x, ys in columns if abs(x - center) <= radius for y in ys
                 if y > max(horizontal_rows[-1], wide_rows[-1])}
-    return line_count, len(dot_rows) >= 2
+    return line_count, len(dot_rows) >= 2, local_centers
 
 
-def _joined_duration_lines(
+def _joined_duration_bands(
     note: Box, component: Component, gray: Image.Image, digit_height: int,
     barlines: tuple[int, ...], threshold: int = 160,
-) -> int:
+) -> list[list[tuple[int, int, int]]] | None:
     """Separate long, thin stroke bands while ignoring bridges between scanned beams."""
     left, _, right, bottom = note
     if not (
@@ -173,7 +192,7 @@ def _joined_duration_lines(
         and 0 < component.box[1] - bottom <= digit_height * 0.72
         and _overlap(left, right, component.box[0], component.box[2]) >= (right - left) * 0.65
     ):
-        return 0
+        return None
     pixels = gray.load()
     assert pixels is not None
     stroke_rows: list[tuple[int, int, int]] = []
@@ -205,11 +224,65 @@ def _joined_duration_lines(
             bands[index - 1].extend(bands.pop(index))
     if any(len(band) > max(4, digit_height * 0.17) for band in bands) and threshold == 160:
         # Dark cores can separate beams whose grey scan bridges join at the ordinary cutoff.
-        return _joined_duration_lines(note, component, gray, digit_height, barlines, threshold // 2)
+        return _joined_duration_bands(note, component, gray, digit_height, barlines, threshold // 2)
     if (not spans_component or not 1 <= len(bands) <= 4
             or any(len(band) > max(4, digit_height * 0.17) for band in bands)):
+        return None
+    return bands
+
+
+def _joined_duration_lines(
+    note: Box, component: Component, gray: Image.Image, digit_height: int,
+    barlines: tuple[int, ...], threshold: int = 160,
+) -> int:
+    bands = _joined_duration_bands(note, component, gray, digit_height, barlines, threshold)
+    return len(bands) if bands is not None else 0
+
+
+def _local_duration_tiers(
+    note: Box, gray: Image.Image, digit_height: int, barlines: tuple[int, ...],
+    required: int, confirmed_centers: tuple[float, ...] = (),
+) -> int:
+    """Count joined beam tiers only where their own bands reach the note."""
+    left, _, right, bottom = note
+    top = min(gray.height, bottom + 1)
+    # Joined beams can continue below the first-tier search window. The candidate
+    # itself must start nearby and remain compact in _joined_duration_bands.
+    lower = min(gray.height, bottom + round(digit_height * 1.32) + 1)
+    if lower <= top or right <= left:
         return 0
-    return len(bands)
+    minimum_columns = max(2, round((right - left) * 0.12))
+    supported_centers: list[float] = []
+    for center in confirmed_centers:
+        if not any(abs(center - previous) <= max(1, digit_height * 0.1)
+                   for previous in supported_centers):
+            supported_centers.append(center)
+    crop_box = (
+        max(0, left - digit_height * 3), top,
+        min(gray.width, right + digit_height * 3), lower,
+    )
+    for component in connected_components(gray.crop(crop_box), 210):
+        box = (component.box[0] + crop_box[0], component.box[1] + crop_box[1],
+               component.box[2] + crop_box[0], component.box[3] + crop_box[1])
+        candidate = Component(box, component.area)
+        for threshold in (160, 210):
+            joined = _joined_duration_bands(
+                note, candidate, gray, digit_height, barlines, threshold,
+            )
+            if joined is None:
+                continue
+            for band in joined:
+                first, last = band[0][0], band[-1][0]
+                if any(
+                    sum(cast(int, gray.getpixel((x, y))) < 210 for x in range(left, right))
+                    >= minimum_columns
+                    for y in range(first, last + 1)
+                ):
+                    center = (first + last) / 2
+                    if not any(abs(center - previous) <= max(1, digit_height * 0.1)
+                               for previous in supported_centers):
+                        supported_centers.append(center)
+    return min(required, len(supported_centers))
 
 
 def note_modifiers(
@@ -225,6 +298,8 @@ def note_modifiers(
     duration_dots: list[Component] = []
     lines: list[Component] = []
     joined_lines = 0
+    bridged_lines = 0
+    joined_local_centers: list[float] = []
     joined_dot_boxes: set[Box] = set()
     used_joined: set[Box] = set()
     bridged: set[Box] = set()
@@ -248,9 +323,12 @@ def note_modifiers(
                 if any(box[0] < bar < box[2] for bar in barlines):
                     continue
                 fused = Component(box, line.area + stub.area)
-                count, has_dot = _joined_underline_and_dot(note, fused, gray, digit_height)
+                count, has_dot, _ = _joined_underline_and_dot(
+                    note, fused, gray, digit_height,
+                )
                 if count and not has_dot:
                     joined_lines += count
+                    bridged_lines += count
                     bridged.update((line.box, stub.box))
                     used_joined.update((line.box, stub.box))
                     break
@@ -309,9 +387,12 @@ def note_modifiers(
         ):
             lines.append(component)
         elif gray is not None:
-            count, has_dot = _joined_underline_and_dot(note, component, gray, digit_height)
+            count, has_dot, local_centers = _joined_underline_and_dot(
+                note, component, gray, digit_height,
+            )
             if count:
                 joined_lines += count
+                joined_local_centers.extend(local_centers)
                 if has_dot:
                     joined_dot_boxes.add(component.box)
                 used_joined.add(component.box)
@@ -401,9 +482,15 @@ def note_modifiers(
         for dot in dots_below
     ) for left, top, right, bottom in joined_dot_boxes)
     octave = len(dots_above) - len(dots_below) - int(joined_dot)
+    remaining_joined_lines = joined_lines - bridged_lines
+    if remaining_joined_lines > 0 and duration_gray is not None:
+        joined_lines = bridged_lines + _local_duration_tiers(
+            note, duration_gray, digit_height, barlines, remaining_joined_lines,
+            tuple(joined_local_centers),
+        )
+    slash_count = len(lines) + joined_lines + sum(count for _, _, count in faint_bands)
     used = {
         component.box for component in (*dots_above, *dots_below, *duration_dots, *lines)
     }
     used.update(used_joined)
-    return (octave, len(lines) + joined_lines + sum(count for _, _, count in faint_bands),
-            len(duration_dots), used)
+    return (octave, slash_count, len(duration_dots), used)

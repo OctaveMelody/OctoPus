@@ -106,7 +106,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <li>A PDF is transcribed as a document, not only its displayed page. Review the warnings and each page against the original; collapse warnings when you need editing space.</li>
 <li>Correct uncertain recognition manually. Check octave dots, beams, dotted durations, accidentals, grace notes, slurs, endings and lyrics before saving/exporting.</li>
 </ul>
-<h3>Review an uncertain draft</h3><p>Transcription shows recognized-page progress for a PDF and a <b>Cancel transcription</b> button. Cancel stops the running task and keeps your existing score; an unfinished draft is not inserted. After transcription, expand the review list and choose a finding. The original pane selects its page, zooms toward the reported region and draws amber boxes. Findings with a unique source mapping also select that note in the editor. Low digit agreement adds warning marks to the draft. The agreement score is a classifier comparison, not a calibrated probability or a guarantee of correctness.</p><p>Changing the source clears obsolete note-range marks; scan regions remain useful for manual review. Renamed, removed or replaced references cannot be selected through an old finding. A one-time hint explains dropping a scan/PDF and creating a draft; dismiss it to keep the workspace clear.</p><p>Repeated document headers/footers and isolated page numbers are filtered conservatively outside the music and lyric bands. Render-back checks flag severe note-count, row or spacing mismatches without rewriting uncertain notes. Check all notation manually: these checks do not prove the draft is complete or musically correct.</p>
+<h3>Review an uncertain draft</h3><p>Transcription shows recognized-page progress for a PDF and a <b>Cancel transcription</b> button. Cancel stops the running task and keeps your existing score; an unfinished draft is not inserted. After transcription, expand the review list and choose a finding. The original pane selects its page, zooms toward the reported region and draws amber boxes. Findings with a unique source mapping also select that note in the editor. Low digit agreement adds warning marks to the draft. The agreement score is a classifier comparison, not a calibrated probability or a guarantee of correctness.</p><p>Changing the source clears obsolete note-range marks; scan regions remain useful for manual review. Renamed, removed or replaced references cannot be selected through an old finding. A one-time hint explains dropping a scan/PDF and creating a draft; dismiss it to keep the workspace clear.</p><p>Repeated document headers/footers and isolated page numbers are filtered conservatively outside the music and lyric bands. Review findings also identify continuation-page meter changes, key or tempo changes needing manual handling, unresolved score instructions, and clear measure or voice duration mismatches. These checks and render-back checks for note-count, row or spacing mismatches never rewrite uncertain notes. Check all notation manually: these checks do not prove the draft is complete or musically correct.</p>
 </section>
 <section id="en-layout"><h2>9. Modes, layouts and focus</h2>
 <table><thead><tr><th>Mode/layout</th><th>Use</th></tr>
@@ -403,17 +403,17 @@ C: (~问君@此去几时还，来时@莫徘徊~)</code></pre>
 <table><thead><tr><th>Barline-attached code</th><th>Meaning</th></tr>
 </thead>
 <tbody><tr><td>||&amp;fine</td><td>Fine / 终止</td></tr>
-<tr><td>||&amp;dc</td><td>D.C. / 从头反复</td></tr>
+<tr><td>||&amp;dc.</td><td>D.C. / 从头反复</td></tr>
 <tr><td>||&amp;ds</td><td>D.S. / 从记号反复</td></tr>
-<tr><td>|&amp;ty</td><td>Segno / 大跳记号</td></tr>
-<tr><td>|&amp;hs</td><td>Coda / 花记号</td></tr>
+<tr><td>|&amp;ty</td><td>Coda / 尾声记号</td></tr>
+<tr><td>|&amp;hs</td><td>Segno / 反复跳转记号</td></tr>
 </tbody>
 </table>
 <p>Repeat/navigation marks belong to a barline, not an ordinary note. Use |/ at a row beginning when a barline-attached mark is needed without a visible barline. Use |* to reserve alignment space, especially with mixed single/multiple voices. These marks are printed; playback navigation is not provided.</p>
 <h3>Visible and invisible boundaries</h3>
 <p>Use | for an ordinary boundary, || for the final thin/thick boundary and ||/ for two thin lines. |:, :| and :|: mark repeat starts, ends and combined end/start boundaries. A barline divides music; it does not insert a rest. |/ is invisible and takes no barline width, useful at a row-start ending or navigation mark. |* is invisible but reserves width, useful for aligning a later voice entry. These two hidden forms are not interchangeable.</p>
 <h3>Fine, D.C., D.S., segno and coda</h3>
-<p>Attach &amp;fine, &amp;dc and &amp;ds to a barline to print Fine, D.C. or D.S.; &amp;ty draws the segno and &amp;hs the coda sign. For a row-start sign, create a hidden |/ anchor rather than attaching the code to an unrelated note. A repeat ending label such as &quot;1,2&quot; is separate from a navigation command. The viewer displays these symbols but does not execute a playback route. Check that the written route is musically complete yourself.</p>
+<p>Attach &amp;fine, &amp;dc. and &amp;ds to a barline to print Fine, D.C. or D.S.; &amp;hs draws the segno and &amp;ty the coda sign. For a row-start sign, create a hidden |/ anchor rather than attaching the code to an unrelated note. A repeat ending label such as &quot;1,2&quot; is separate from a navigation command. The viewer displays these symbols but does not execute a playback route. Check that the written route is musically complete yourself.</p>
 <!-- sample:repeat-start:start -->
 <div class="sample-example" id="en-example-repeat-start">
 <h3>A repeat beginning inside a source row</h3><p>The |: occurs after two bars. A repeat boundary is part of the musical flow, not a request for a new source row. The lyric skip markers align unsung notes before the chorus.</p>
@@ -426,11 +426,11 @@ C: 今晚滑@雪真@快乐@把滑雪歌@儿唱。@叮叮当，叮叮当，</code
 <!-- sample:repeat-start:end -->
 <!-- sample:navigation-sign:start -->
 <div class="sample-example" id="en-example-navigation-sign">
-<h3>Segno and a barline meter annotation</h3><p>The last |&amp;ty carries a segno. The preceding |&quot;p:9/8&quot; introduces a local meter. A quoted barline instruction and an ampersand navigation symbol can serve different purposes on the same kind of anchor.</p>
+<h3>Coda and a barline meter annotation</h3><p>The last |&amp;ty carries a coda sign. The preceding |&quot;p:9/8&quot; introduces a local meter. A quoted barline instruction and an ampersand navigation symbol can serve different purposes on the same kind of anchor.</p>
 <p class="sample-provenance">bundled examples: Autumn-Cicada - Fei-Yuqing.jps · source lines 21-22. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="assets/examples/navigation-sign.jps">Download this JPS excerpt</a></p>
 <p class="example-label">JPS source</p><pre><code>Q: 5 3/ 5 3/ | 1&#x27; 6/ 1&#x27; 6/ | 5 5/^ (5/ 6/)~ 5/ |&quot;p:9/8&quot; (4/ 5/)~ 4/ (3. 3.) |&amp;ty
 C: 秋去冬来美景不在，莫教好@春逝@匆匆，</code></pre>
-<figure><img src="assets/examples/navigation-sign-1.png" alt="Segno and a barline meter annotation - 1" loading="eager"><figcaption>Rendered output: Segno and a barline meter annotation</figcaption></figure>
+<figure><img src="assets/examples/navigation-sign-1.png" alt="Coda and a barline meter annotation - 1" loading="eager"><figcaption>Rendered output: Coda and a barline meter annotation</figcaption></figure>
 </div>
 <!-- sample:navigation-sign:end -->
 </section>
@@ -766,7 +766,7 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <li>PDF 按整份文档转录，不只处理当前显示页。阅读提示并逐页对照原稿；需要编辑空间时可折叠提示。</li>
 <li>手动修正不确定结果。保存/导出前核对八度点、减时线、附点、变音、倚音、连音线、跳房子和歌词。</li>
 </ul>
-<h3>校对不确定的草稿</h3><p>PDF 转录显示已识别页数，并提供<b>取消转录</b>按钮。取消会停止当前任务，保留已有乐谱，不插入尚未完成的草稿。转录后展开检查列表并选择一项：原稿面板会选择对应页、放大相关区域并显示琥珀色矩形框。能唯一映射到源码的提示还会选中编辑器中的对应音符。数字匹配度较低时，草稿中显示警告标记。匹配度是分类器的比较分数，并非校准后的概率，也不保证识别正确。</p><p>修改源码后，失效的音符范围标记会清除；原稿区域仍可用于人工校对。旧提示不能选择已被移除或替换的原稿。首次使用的提示说明如何拖入扫描稿/PDF 并生成草稿，可关闭以减少干扰。</p><p>程序保守地过滤乐谱和歌词区域之外的重复页眉页脚及孤立页码。草稿回渲染检查会提示明显的音符数量、行或间距异常，不会据此改写不确定的音符。仍需人工核对所有记号；这些检查不能证明草稿完整或音乐内容正确。</p>
+<h3>校对不确定的草稿</h3><p>PDF 转录显示已识别页数，并提供<b>取消转录</b>按钮。取消会停止当前任务，保留已有乐谱，不插入尚未完成的草稿。转录后展开检查列表并选择一项：原稿面板会选择对应页、放大相关区域并显示琥珀色矩形框。能唯一映射到源码的提示还会选中编辑器中的对应音符。数字匹配度较低时，草稿中显示警告标记。匹配度是分类器的比较分数，并非校准后的概率，也不保证识别正确。</p><p>修改源码后，失效的音符范围标记会清除；原稿区域仍可用于人工校对。旧提示不能选择已被移除或替换的原稿。首次使用的提示说明如何拖入扫描稿/PDF 并生成草稿，可关闭以减少干扰。</p><p>程序保守地过滤乐谱和歌词区域之外的重复页眉页脚及孤立页码。检查提示还会标出续页拍号变化、需手动处理的调性或速度变化、归属不明的演唱指示，以及明显的小节或声部时值不一致。这些检查与音符数量、行或间距的回渲染检查都不会改写不确定音符。仍需人工核对所有记号；这些检查不能证明草稿完整或音乐内容正确。</p>
 </section>
 <section id="zh-CN-layout"><h2>9. 模式、布局与聚焦</h2>
 <table><thead><tr><th>模式/布局</th><th>用途</th></tr>
@@ -1063,17 +1063,17 @@ C: (~问君@此去几时还，来时@莫徘徊~)</code></pre>
 <table><thead><tr><th>小节线后编码</th><th>含义</th></tr>
 </thead>
 <tbody><tr><td>||&amp;fine</td><td>Fine / 终止</td></tr>
-<tr><td>||&amp;dc</td><td>D.C. / 从头反复</td></tr>
+<tr><td>||&amp;dc.</td><td>D.C. / 从头反复</td></tr>
 <tr><td>||&amp;ds</td><td>D.S. / 从记号反复</td></tr>
-<tr><td>|&amp;ty</td><td>Segno / 花跳转记号</td></tr>
-<tr><td>|&amp;hs</td><td>Coda / 花尾音记号</td></tr>
+<tr><td>|&amp;ty</td><td>Coda / 尾声记号</td></tr>
+<tr><td>|&amp;hs</td><td>Segno / 反复跳转记号</td></tr>
 </tbody>
 </table>
 <p>反复/导航记号属于小节线，不是普通音符。行首需要小节线附属记号却不应显示线时用 |/；需要占位对齐时用 |*，尤其是单、多声部混合。程序显示这些指示，但没有播放跳转功能。</p>
 <h3>可见与隐藏边界</h3>
 <p>普通边界用 |，终止细粗线用 ||，双细线用 ||/；|:、:|、:|: 分别为反复起点、终点及合并边界。小节线分隔音乐，不插入休止符。|/ 不可见且不占小节线宽度，可作行首结尾线或跳转记号锚点；|* 不可见但占位，可对齐后进入的声部。两种隐藏线不能任意互换。</p>
 <h3>Fine、D.C.、D.S. 与跳转记号</h3>
-<p>将 &amp;fine、&amp;dc、&amp;ds 附在小节线后，分别显示 Fine、D.C.、D.S.；&amp;ty 画花跳转记号，&amp;hs 画花尾音记号。行首记号宜用隐藏 |/ 作锚点，不要附在无关音后。&quot;1,2&quot; 结尾标签与跳转指令不同。程序显示符号但不执行播放路线，需自行核对反复路径完整性。</p>
+<p>将 &amp;fine、&amp;dc.、&amp;ds 附在小节线后，分别显示 Fine、D.C.、D.S.；&amp;hs 画 Segno 反复跳转记号，&amp;ty 画 Coda 尾声记号。行首记号宜用隐藏 |/ 作锚点，不要附在无关音后。&quot;1,2&quot; 结尾标签与跳转指令不同。程序显示符号但不执行播放路线，需自行核对反复路径完整性。</p>
 <!-- sample:repeat-start:start -->
 <div class="sample-example" id="zh-CN-example-repeat-start">
 <h3>源码行内开始反复</h3><p>|: 位于两个小节之后。反复起点属于音乐内容，不表示必须另起源码行。歌词中的 @ 跳过进入副歌前未唱词的音符。</p>
@@ -1086,11 +1086,11 @@ C: 今晚滑@雪真@快乐@把滑雪歌@儿唱。@叮叮当，叮叮当，</code
 <!-- sample:repeat-start:end -->
 <!-- sample:navigation-sign:start -->
 <div class="sample-example" id="zh-CN-example-navigation-sign">
-<h3>跳转记号与小节线拍号注释</h3><p>末尾 |&amp;ty 带有跳转记号，前面的 |&quot;p:9/8&quot; 显示局部拍号。小节线引号注释与 &amp; 跳转符号虽都依附小节线，含义却不同。</p>
+<h3>尾声记号与小节线拍号注释</h3><p>末尾 |&amp;ty 带有尾声记号，前面的 |&quot;p:9/8&quot; 显示局部拍号。小节线引号注释与 &amp; 跳转符号虽都依附小节线，含义却不同。</p>
 <p class="sample-provenance">示例库：Autumn-Cicada - Fei-Yuqing.jps · 源码行 21-22。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="assets/examples/navigation-sign.jps">下载此 JPS 摘录</a></p>
 <p class="example-label">JPS 源码</p><pre><code>Q: 5 3/ 5 3/ | 1&#x27; 6/ 1&#x27; 6/ | 5 5/^ (5/ 6/)~ 5/ |&quot;p:9/8&quot; (4/ 5/)~ 4/ (3. 3.) |&amp;ty
 C: 秋去冬来美景不在，莫教好@春逝@匆匆，</code></pre>
-<figure><img src="assets/examples/navigation-sign-1.png" alt="跳转记号与小节线拍号注释 - 1" loading="eager"><figcaption>渲染结果: 跳转记号与小节线拍号注释</figcaption></figure>
+<figure><img src="assets/examples/navigation-sign-1.png" alt="尾声记号与小节线拍号注释 - 1" loading="eager"><figcaption>渲染结果: 尾声记号与小节线拍号注释</figcaption></figure>
 </div>
 <!-- sample:navigation-sign:end -->
 </section>

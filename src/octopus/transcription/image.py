@@ -102,9 +102,10 @@ class PageObservation:
 
 @dataclass(frozen=True, slots=True)
 class _PreparedImage:
-    """Keep source and normalized working frames distinct through recognition."""
+    """Keep source pixels and the normalized recognition frames distinct."""
 
     source_gray: Image.Image
+    recognition_gray: Image.Image
     source_components: list[Component]
     working_gray: Image.Image
     working_components: list[Component]
@@ -331,6 +332,47 @@ def _read_page(path: Path) -> Image.Image:
     white = Image.new("RGBA", oriented.size, "white")
     white.alpha_composite(oriented)
     return white.convert("L")
+
+
+def _percentile_bin(histogram: list[int], population: int, percentile: float) -> int:
+    target = population * percentile
+    running = 0
+    for value, count in enumerate(histogram):
+        running += count
+        if running >= target:
+            return value
+    return 255
+
+
+def _normalize_recognition_contrast(gray: Image.Image) -> Image.Image:
+    """Expand compressed print and paper levels when both form distinct modes."""
+    histogram = gray.histogram()
+    population = gray.width * gray.height
+    # Ignore sparse extrema, but skip weak spans and broad upper levels from gradients.
+    low = _percentile_bin(histogram, population, 0.005)
+    high = _percentile_bin(histogram, population, 0.995)
+    # Preserve pages with real black print and white paper; sparse specks still normalize.
+    if (sum(histogram[:2]) >= population * 0.001
+            and sum(histogram[254:]) >= population * 0.005):
+        return gray
+    span = high - low
+    if span < 48 or _percentile_bin(histogram, population, 0.99) \
+            - _percentile_bin(histogram, population, 0.5) > 28:
+        return gray
+
+    dark_end = low + max(1, round(span * 0.2))
+    middle_start = low + round(span * 0.25)
+    middle_end = low + round(span * 0.75)
+    background_start = high - max(16, round(span * 0.15))
+    dark_peak = max(histogram[low:dark_end + 1], default=0)
+    middle = histogram[middle_start:middle_end + 1]
+    middle_level = sum(middle) / max(1, len(middle))
+    background_peak = max(histogram[background_start:high + 1], default=0)
+    if (dark_peak < population * 0.001 or dark_peak < middle_level * 2
+            or background_peak < population * 0.02):
+        return gray
+    # A clear ink mode and a stable paper mode are required before linear stretching.
+    return ImageOps.autocontrast(gray, cutoff=0.5)
 
 
 def _barline(
@@ -823,25 +865,28 @@ def _compact_accompaniment_group(
 
 
 def _prepare_image(path: Path) -> _PreparedImage:
-    """Read and normalize a page while retaining its original image and components."""
+    """Read a page and prepare source-coordinate recognition components."""
     source_gray = _read_page(path)
-    excluded = _qr_regions(source_gray)
-    components = _score_components(source_gray, excluded)
+    recognition_gray = _normalize_recognition_contrast(source_gray)
+    excluded = _qr_regions(recognition_gray)
+    components = _score_components(recognition_gray, excluded)
     source_components = components
     scale = _working_scale(
-        components, source_gray.width, source_gray.height, source_gray,
+        components, recognition_gray.width, recognition_gray.height, recognition_gray,
     )
     working_size = (
-        max(1, round(source_gray.width * scale)),
-        max(1, round(source_gray.height * scale)),
+        max(1, round(recognition_gray.width * scale)),
+        max(1, round(recognition_gray.height * scale)),
     )
-    transform = _CoordinateTransform(source_gray.size, working_size)
-    gray = source_gray
+    transform = _CoordinateTransform(recognition_gray.size, working_size)
+    gray = recognition_gray
     if not transform.is_identity:
-        gray = source_gray.resize(working_size, Image.Resampling.LANCZOS)
+        gray = recognition_gray.resize(working_size, Image.Resampling.LANCZOS)
         excluded = tuple(transform.to_working_box(box) for box in excluded)
         components = _score_components(gray, excluded)
-    return _PreparedImage(source_gray, source_components, gray, components, excluded, transform)
+    return _PreparedImage(
+        source_gray, recognition_gray, source_components, gray, components, excluded, transform,
+    )
 
 
 def _recognize_working_rows(
@@ -1137,6 +1182,7 @@ def _row_with_working_ornaments(
             note.box, score_marks, height, gray if not transform.is_identity else None,
             min(([notes[index + 1].box[0]] if index + 1 < len(notes) else [])
                 + [x for x in row.barlines if x > note.box[2]], default=None),
+            duration_gray=gray,
         )[2]) for index, note in enumerate(notes))
         unresolved_marks = tuple(mark for mark in unresolved_marks if mark not in grace_marks)
     return replace(
@@ -1167,7 +1213,7 @@ def _add_working_ornaments(
 def _row_with_source_marks(
     row: MusicRow, page: PageObservation, prepared: _PreparedImage,
 ) -> MusicRow:
-    source_gray, source_components = prepared.source_gray, prepared.source_components
+    source_gray, source_components = prepared.recognition_gray, prepared.source_components
     components, transform = prepared.working_components, prepared.transform
     notes = tuple(note.box for note in row.notes)
     height = median(box[3] - box[1] for box in notes)

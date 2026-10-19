@@ -10,8 +10,8 @@ from statistics import median
 
 from . import text
 from .components import Box
-from .decorations import decoration_token, text_decorations
-from .directions import attach_score_directions
+from .decorations import decoration_token, ending_title_text, score_text_kind, text_decorations
+from .directions import attach_score_directions, remove_attached_direction_text
 from .headers import extract_headers, printed_key_span, stacked_meter_span
 from .image import MusicRow, PageObservation, _read_page
 from .text import (
@@ -240,7 +240,8 @@ def _performance_text(
     if not page.rows:
         return page
     gray = _read_page(path)
-    all_rows = (*page.rows, *(bz.row for bz in page.bz_overlays))
+    overlay_rows = tuple(bz.row for bz in page.bz_overlays)
+    all_rows = (*page.rows, *overlay_rows)
     cropped = image_annotation_text(path, tuple(row.box for row in all_rows)) or ()
     cropped_directions = image_score_direction_text(
         path, tuple((row.box, row.barlines) for row in page.rows),
@@ -259,13 +260,21 @@ def _performance_text(
                  and any(_box_coverage(span.box, box) >= 0.7 for box in duplicate_boxes))
     ))
     candidates = _score_text(replace(page, text_spans=candidates)).text_spans
-    rows, direction_spans = attach_score_directions(page.rows, candidates)
+    rows, direction_sources = attach_score_directions(
+        page.rows, candidates, page_height=page.height,
+    )
+    rows, score_text_spans = _attach_score_text(rows, candidates)
     consumed: set[TextSpan] = set()
+    decoration_candidates = tuple(
+        span for span in candidates if span not in score_text_spans
+    )
+
+    owned_rows = (*rows, *overlay_rows)
 
     def decorate(row: MusicRow) -> MusicRow:
         found = text_decorations(
-            tuple(note.box for note in row.notes), candidates, gray=gray,
-            other_rows=tuple(other.box for other in all_rows if other is not row),
+            tuple(note.box for note in row.notes), decoration_candidates, gray=gray,
+            other_rows=tuple(other.box for other in owned_rows if other is not row),
         )
         notes = []
         for index, note in enumerate(row.notes):
@@ -284,10 +293,163 @@ def _performance_text(
 
     rows = tuple(decorate(row) for row in rows)
     overlays = tuple(replace(bz, row=decorate(bz.row)) for bz in page.bz_overlays)
-    removed = consumed | set(bz_duplicates) | set(direction_spans)
+    removed = consumed | set(bz_duplicates) | set(score_text_spans)
+    retained = remove_attached_direction_text(page.text_spans, direction_sources)
     return replace(page, rows=rows, bz_overlays=overlays, text_spans=tuple(
-        span for span in page.text_spans if span not in removed
+        span for span in retained if span not in removed
     ))
+
+
+def _attach_score_text(
+    rows: tuple[MusicRow, ...], spans: tuple[TextSpan, ...],
+) -> tuple[tuple[MusicRow, ...], tuple[TextSpan, ...]]:
+    """Attach ending titles and explicit repeat-lyric instructions by geometry."""
+    if not rows:
+        return rows, ()
+    heights = tuple(note.box[3] - note.box[1] for row in rows for note in row.notes)
+    if not heights:
+        return rows, ()
+    height = median(heights)
+    updated = list(rows)
+    consumed: set[TextSpan] = set()
+    attached_titles: dict[tuple[int, int], list[TextSpan]] = {}
+    attached_notes: list[TextSpan] = []
+    for span in spans:
+        kind = score_text_kind(span.text)
+        if kind is None or span.confidence < MIN_TEXT_SPAN_CONFIDENCE:
+            continue
+        if kind == "instruction_candidate":
+            continue
+        if kind == "ending_title":
+            ending_owner = _ending_text_owner(span, tuple(updated), height)
+            if ending_owner is not None:
+                owner_titles = attached_titles.setdefault(ending_owner, [])
+                if any(_same_score_text_reading(span, previous) for previous in owner_titles):
+                    consumed.add(span)
+                    continue
+                row_index, ending_index = ending_owner
+                row = updated[row_index]
+                endings = list(row.endings)
+                ending = endings[ending_index]
+                endings[ending_index] = replace(
+                    ending, label=" ".join(filter(None, (
+                        ending.label, ending_title_text(span.text) or span.text.strip(),
+                    ))),
+                )
+                updated[row_index] = replace(
+                    row, endings=tuple(endings),
+                    decoration_regions=(*row.decoration_regions, span.box),
+                )
+                owner_titles.append(span)
+                consumed.add(span)
+                continue
+        owner = _score_text_owner(span, tuple(updated), height)
+        if owner is None:
+            continue
+        if any(_same_score_text_reading(span, previous) for previous in attached_notes):
+            consumed.add(span)
+            continue
+        row_index, note_index = owner
+        row = updated[row_index]
+        notes = list(row.notes)
+        annotation_text = ending_title_text(span.text) if kind == "ending_title" else None
+        annotation = _quoted_score_text(annotation_text or span.text)
+        notes[note_index] = replace(
+            notes[note_index],
+            annotations=tuple(dict.fromkeys((*notes[note_index].annotations, annotation))),
+        )
+        updated[row_index] = replace(
+            row, notes=tuple(notes), decoration_regions=(*row.decoration_regions, span.box),
+        )
+        attached_notes.append(span)
+        consumed.add(span)
+    return tuple(updated), tuple(consumed)
+
+
+def _same_score_text_reading(first: TextSpan, second: TextSpan) -> bool:
+    """Match overlapping OCR boxes that describe one score-text reading."""
+    first_title = ending_title_text(first.text)
+    second_title = ending_title_text(second.text)
+    same_reading = (
+        first_title is not None and first_title == second_title
+        if first_title is not None or second_title is not None
+        else text._text_key(first.text) == text._text_key(second.text)
+    )
+    if not same_reading:
+        return False
+    overlap = max(0, min(first.box[2], second.box[2]) - max(first.box[0], second.box[0])) * max(
+        0, min(first.box[3], second.box[3]) - max(first.box[1], second.box[1]),
+    )
+    first_area = max(1, (first.box[2] - first.box[0]) * (first.box[3] - first.box[1]))
+    second_area = max(1, (second.box[2] - second.box[0]) * (second.box[3] - second.box[1]))
+    return overlap / min(first_area, second_area) >= 0.8
+
+
+def _quoted_score_text(value: str) -> str:
+    """Use typographic quotes inside the JPS annotation delimiter."""
+    quote_open = True
+    content = []
+    for character in value.strip():
+        if character == '"':
+            content.append("“" if quote_open else "”")
+            quote_open = not quote_open
+        else:
+            content.append(character)
+    return '"' + "".join(content) + '"'
+
+
+def _ending_text_owner(
+    span: TextSpan, rows: tuple[MusicRow, ...], height: float,
+) -> tuple[int, int] | None:
+    candidates = []
+    for row_index, row in enumerate(rows):
+        for ending_index, ending in enumerate(row.endings):
+            left, top, right, bottom = ending.box
+            horizontal_coverage = max(0, min(span.box[2], right) - max(span.box[0], left))
+            horizontal_ratio = horizontal_coverage / max(1, span.box[2] - span.box[0])
+            vertical_gap = max(top - span.box[3], span.box[1] - bottom, 0)
+            if horizontal_ratio >= 0.65 and vertical_gap <= height * 0.35:
+                candidates.append((vertical_gap / height + 1 - horizontal_ratio,
+                                   row_index, ending_index))
+    if not candidates:
+        return None
+    _, row_index, ending_index = min(candidates)
+    return row_index, ending_index
+
+
+def _score_text_owner(
+    span: TextSpan, rows: tuple[MusicRow, ...], height: float,
+) -> tuple[int, int] | None:
+    candidates = []
+    for row_index, row in enumerate(rows):
+        if not row.notes:
+            continue
+        vertical_gap = max(row.box[1] - span.box[3], span.box[1] - row.box[3], 0)
+        if vertical_gap > height * 3.5:
+            continue
+        horizontal_gap = max(row.box[0] - span.box[2], span.box[0] - row.box[2], 0)
+        if horizontal_gap > height * 1.5:
+            continue
+        text_x = (
+            span.character_centers[0]
+            if len(span.character_centers) == len(span.text) and span.character_centers
+            else span.box[0] + min(height * 0.45, (span.box[2] - span.box[0]) / 2)
+        )
+        note_index = min(
+            range(len(row.notes)),
+            key=lambda index: abs((row.notes[index].box[0] + row.notes[index].box[2]) / 2
+                                  - text_x),
+        )
+        note_x = (row.notes[note_index].box[0] + row.notes[note_index].box[2]) / 2
+        note_gap = abs(note_x - text_x)
+        if note_gap > height * 2.5:
+            continue
+        candidates.append((vertical_gap / height + horizontal_gap / height + note_gap / height,
+                           row_index, note_index))
+    if not candidates:
+        return None
+    _, row_index, note_index = min(candidates)
+    return row_index, note_index
 
 
 def _bz_duplicate_text_spans(

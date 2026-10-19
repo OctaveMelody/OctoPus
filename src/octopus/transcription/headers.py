@@ -24,6 +24,7 @@ class HeaderResult:
     lines: tuple[str, ...]
     missing: tuple[str, ...]
     regions: tuple[Box, ...]
+    owned_regions: tuple[Box, ...] = ()
 
 
 def printed_key_span(
@@ -318,4 +319,7 @@ def extract_headers(
         line.startswith(f"{field}:") for line in lines
     ))
     regions = tuple(span.box for span in candidates)
-    return HeaderResult(tuple(lines), missing, regions)
+    return HeaderResult(
+        tuple(lines), missing, regions,
+        tuple(span.box for span in candidates if span in used),
+    )

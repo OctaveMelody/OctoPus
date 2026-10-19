@@ -2,15 +2,31 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import replace
 from statistics import median
 
-from .headers import extract_headers
+from .decorations import decoration_token, score_text_kind
+from .headers import HeaderResult, extract_headers
 from .image import MusicRow, PageObservation
-from .lyrics import extract_lyrics
+from .lyrics import _is_lyric_text, extract_lyrics
 from .margins import filter_document_margins
 from .marks import row_sustains
 from .results import Draft, Issue, RowBinding
+from .text import TextSpan
+
+_KEY_TEXT = re.compile(r"1\s*[=＝]\s*([b♭#♯$]?)([A-Ga-g])\s*([#♯$♭]?)")
+_METER_TEXT = re.compile(r"(?<!\d)(\d{1,2})\s*[/／]\s*(\d{1,2})(?!\d)")
+_TEMPO_TEXT = re.compile(r"[Jj♩♪]?\s*[=＝:]\s*(\d{2,3})")
+_LOCAL_KEY_TEXT = re.compile(r"转\s*1\s*[=＝]", re.IGNORECASE)
+_SCORE_DIRECTION_TEXT = re.compile(
+    r"(?<![A-Za-z])D\s*[.．]?\s*[SC]\s*[.．]?(?![A-Za-z])", re.IGNORECASE,
+)
+_DYNAMIC_TEXT = frozenset({"pp", "p", "mp", "mf", "f", "ff", "fff", "cresc",
+                           "dim", "sf", "fp", "sfp", "tempo", "rit"})
+_HEADER_INSTRUCTION_CUES = re.compile(r"反复|重复|歌词|只|仅|请")
+_HEADER_MANNER_INSTRUCTIONS = frozenset({"轻声", "低声", "高声"})
 
 
 def _bar_marks(
@@ -81,8 +97,8 @@ def _row_marks(
             + ("'" * note.octave if note.octave > 0 else "," * -note.octave)
             + "/" * note.duration_slashes + "." * note.duration_dots
             + "".join("&" + token for token in note.decorations)
-            + "".join(note.annotations)
-            + graces.get(index, ""),
+            + graces.get(index, "")
+            + "".join(note.annotations),
         )
         for index, note in enumerate(row.notes)
     ]
@@ -278,12 +294,240 @@ def _text_issue_excerpt(value: str) -> str:
     return repr(excerpt)
 
 
+def _notation_text_in_music_band(span: TextSpan, page: PageObservation) -> bool:
+    """Recognize OCR-like note glyphs only inside a detected row's music band."""
+    normalized = unicodedata.normalize("NFKC", span.text)
+    characters = tuple(character for character in normalized if character.isalnum())
+    if not characters or any(
+        not character.isdecimal() and character not in "iIoO一" for character in characters
+    ):
+        return False
+    for row in page.rows:
+        if not row.notes:
+            continue
+        note_height = median(note.box[3] - note.box[1] for note in row.notes)
+        left, top, right, bottom = row.box
+        if (
+            left <= span.center_x <= right
+            and top - note_height * 0.25 <= span.center_y <= bottom + note_height * 0.5
+        ):
+            return True
+    return False
+
+
+def _header_values(lines: tuple[str, ...]) -> dict[str, str]:
+    return {
+        line[0]: line[3:].strip()
+        for line in lines
+        if len(line) >= 4 and line[1:3] == ": " and line[0] in {"D", "P", "J"}
+    }
+
+
+def _page_headers(page: PageObservation) -> HeaderResult:
+    """Extract page-start fields without promoting a marked in-score key change."""
+    first_music_top = page.rows[0].box[1] if page.rows else page.height
+    attached_marks = {
+        region for row in (*page.rows, *(item.row for item in page.bz_overlays))
+        for region in row.decoration_regions
+    }
+
+    def is_performer_credit(span: TextSpan) -> bool:
+        text = unicodedata.normalize("NFKC", span.text).strip()
+        if not text.startswith("(") or not text.endswith(")"):
+            return False
+        content = text[1:-1].strip()
+        if score_text_kind(text) != "instruction_candidate" or not content.endswith("演唱"):
+            return False
+        prefix = content.removesuffix("演唱").strip()
+        return (
+            bool(prefix)
+            and not _HEADER_INSTRUCTION_CUES.search(content)
+            and prefix not in _HEADER_MANNER_INSTRUCTIONS
+            and decoration_token(prefix) is None
+        )
+
+    header_spans = tuple(
+        span for span in page.text_spans
+        if not _LOCAL_KEY_TEXT.search(span.text)
+        and (score_text_kind(span.text) is None or is_performer_credit(span))
+        and span.text.strip().casefold().rstrip(".") not in _DYNAMIC_TEXT
+        and not any(
+            max(0, min(span.box[2], region[2]) - max(span.box[0], region[0]))
+            * max(0, min(span.box[3], region[3]) - max(span.box[1], region[1]))
+            >= (span.box[2] - span.box[0]) * (span.box[3] - span.box[1]) * 0.5
+            for region in attached_marks
+        )
+    )
+    return extract_headers(header_spans, page.width, first_music_top)
+
+
+def _header_regions(
+    page: PageObservation,
+    values: dict[str, str],
+    fallback: tuple[tuple[int, int, int, int], ...],
+) -> dict[str, tuple[tuple[int, int, int, int], ...]]:
+    """Return source regions for recognized metadata, not a whole-page warning."""
+    first_music_top = page.rows[0].box[1] if page.rows else page.height
+    candidates = tuple(
+        span for span in page.text_spans
+        if span.confidence >= 0.75 and span.box[3] < first_music_top - 8
+        and not _LOCAL_KEY_TEXT.search(span.text)
+    )
+    result: dict[str, tuple[tuple[int, int, int, int], ...]] = {}
+    for field, value in values.items():
+        if field == "D":
+            spans = tuple(span for span in candidates if _KEY_TEXT.search(span.text))
+        elif field == "P":
+            spans = tuple(span for span in candidates if _METER_TEXT.search(span.text))
+            if not spans:
+                key = next((span for span in candidates if _KEY_TEXT.search(span.text)), None)
+                digits = tuple(
+                    span for span in candidates
+                    if span.text.strip().isdecimal() and key is not None
+                    and key.box[2] - 5 <= span.center_x <= key.box[2] + key.height * 1.7
+                    and abs(span.center_y - key.center_y) <= key.height * 1.2
+                )
+                if len(digits) == 2:
+                    spans = digits
+        else:
+            spans = tuple(
+                span for span in candidates
+                if _TEMPO_TEXT.search(span.text)
+                or span.text.strip() == value and value.casefold() not in _DYNAMIC_TEXT
+            )
+        regions = tuple(span.box for span in spans)
+        result[field] = regions or fallback
+    return result
+
+
+def _continuation_metadata(
+    pages: tuple[PageObservation, ...],
+) -> tuple[dict[int, str], list[Issue]]:
+    """Inspect each page header; only a changed meter has safe local JPS syntax."""
+    meter_at_page_start: dict[int, str] = {}
+    issues: list[Issue] = []
+    active: dict[str, str] = {}
+    for page_number, page in enumerate(pages, start=1):
+        head = _page_headers(page)
+        values = _header_values(head.lines)
+        if page_number == 1:
+            active.update(values)
+            continue
+        regions = _header_regions(page, values, head.regions)
+        for field, value in values.items():
+            previous = active.get(field)
+            if previous == value:
+                continue
+            if field == "P":
+                if page.rows:
+                    meter_at_page_start[page_number] = value
+                    code = "continuation_meter_change_review"
+                    detail = (
+                        f"Continuation page shows meter {value}; serialized it as a hidden "
+                        "row-start meter change. Verify the printed header and attachment."
+                    )
+                else:
+                    code = "continuation_meter_unattached"
+                    detail = (
+                        f"Continuation page shows meter {value}, but no music row was detected "
+                        "to carry the local change. Verify the marked source region."
+                    )
+                issues.append(Issue(
+                    code, page_number, detail, regions[field],
+                ))
+            else:
+                label = "key" if field == "D" else "tempo"
+                detail = (
+                    f"Continuation page shows {label} {value}, while the prior observed "
+                    f"value is {previous or 'unavailable'}. JPS has no supported local "
+                    f"{label}-change syntax here; verify this marked source region."
+                )
+                issues.append(Issue(
+                    "continuation_metadata_unresolved", page_number, detail, regions[field],
+                ))
+            active[field] = value
+    return meter_at_page_start, issues
+
+
+def _text_ownership_issues(page: PageObservation, page_number: int) -> list[Issue]:
+    """Flag high-confidence text near music that no lyric row claimed."""
+    residual: dict[tuple[tuple[int, int, int, int], str], None] = {}
+    claimed: set[tuple[int, int, int, int]] = set()
+    header = _page_headers(page)
+    header_regions = set(header.owned_regions)
+    header_regions.update(
+        region for regions in _header_regions(
+            page, _header_values(header.lines), header.owned_regions,
+        ).values() for region in regions
+    )
+    decoration_regions = {
+        region for row in (*page.rows, *(item.row for item in page.bz_overlays))
+        for region in row.decoration_regions
+    }
+    issues: list[Issue] = []
+    for row_index, _row in enumerate(page.rows):
+        overlay = next((item for item in page.dsb_overlays if item.anchor == row_index), None)
+        lyric_band_after = (
+            overlay.lower if overlay is not None and not overlay.continuation else None
+        )
+        for lyric in extract_lyrics(page, row_index, lyric_band_after):
+            claimed.update(lyric.regions)
+    for span in page.text_spans:
+        nearby = any(
+            span.box[0] <= row.box[2] + max(48, row.box[3] - row.box[1])
+            and span.box[2] >= row.box[0] - max(48, row.box[3] - row.box[1])
+            and span.box[1] <= row.box[3] + max(48, row.box[3] - row.box[1]) * 3
+            and span.box[3] >= row.box[1] - max(48, row.box[3] - row.box[1]) * 1.25
+            for row in page.rows
+        )
+        if span.confidence >= 0.75 and nearby and _SCORE_DIRECTION_TEXT.search(span.text):
+            issues.append(Issue(
+                "score_direction_unresolved", page_number,
+                "Residual D.S./D.C. text is near music but has no accepted terminal-barline owner; "
+                "check the direction and its extent against the scan.", (span.box,),
+            ))
+            continue
+        if (
+            span.confidence < 0.75 or span.box in claimed
+            or span.box in header_regions or span.box in decoration_regions
+        ):
+            continue
+        if not nearby or _notation_text_in_music_band(span, page):
+            continue
+        has_language_text = (
+            any(character.isalpha() for character in unicodedata.normalize("NFKC", span.text))
+            and _is_lyric_text(span.text)
+        )
+        if not (
+            has_language_text
+            or score_text_kind(span.text) is not None
+            or decoration_token(span.text) is not None
+        ):
+            continue
+        residual[span.box, " ".join(span.text.split())] = None
+    issues.extend(Issue(
+        "text_ownership_unresolved", page_number,
+        f"Nearby source text {_text_issue_excerpt(value)} has no clear lyric, structural, "
+        "or performance-mark owner; check its meaning against the scan.", (box,),
+    ) for box, value in residual)
+    return issues
+
+
 def assemble(
     pages: tuple[PageObservation, ...],
 ) -> tuple[Draft, tuple[RowBinding, ...]]:
     source = ["# Image transcription draft; review the adjacent .issues.json before use."]
+    source_pages = pages
     pages, ignored_margins = filter_document_margins(pages)
+    # Margin filtering can discard a repeated continuation header. Keep those
+    # original spans for metadata comparison while using filtered rows and owners.
+    metadata_pages = tuple(
+        replace(page, text_spans=source_page.text_spans)
+        for page, source_page in zip(pages, source_pages, strict=True)
+    )
+    continuation_meters, metadata_issues = _continuation_metadata(metadata_pages)
     issues = _row_cut_issues(pages)
+    issues.extend(metadata_issues)
     issues.extend(Issue(
         "margin_text_ignored", page_number,
         "Excluded isolated margin pagination or a recurring document header/footer.", regions,
@@ -309,11 +553,7 @@ def assemble(
                 (conflict.box,),
             ))
         if page_number == 1:
-            head = extract_headers(
-                page.text_spans,
-                page.width,
-                page.rows[0].box[1] if page.rows else page.height,
-            )
+            head = _page_headers(page)
             source.extend(head.lines)
             issues.append(Issue(
                 "header_fields_review", page_number,
@@ -356,6 +596,9 @@ def assemble(
             for index in ((overlay.lower,) if overlay.standalone
                           else (overlay.upper, overlay.lower))
         }
+        leading_meter_row = next(
+            (index for index in range(len(page.rows)) if index not in branch_rows), None,
+        )
         for dsb in page.dsb_overlays:
             issues.append(Issue(
                 "dsb_overlay_review", page_number,
@@ -431,6 +674,21 @@ def assemble(
                     marks.append((overlay.box[0] - 0.5, block))
                 else:
                     marks.append((overlay.box[0] - 0.5, block))
+            if row_index == leading_meter_row and page_number in continuation_meters:
+                marker = f'|/"p:{continuation_meters[page_number]}"'
+                existing_head = next(
+                    (index for index, (x, token) in enumerate(marks)
+                     if x <= row.box[0] and token == "|/"),
+                    None,
+                )
+                if existing_head is None:
+                    meter_x = row.box[0] - 0.5
+                    if overlay is not None:
+                        meter_x = min(meter_x, overlay.box[0] - 1.0)
+                    marks.append((meter_x, marker))
+                else:
+                    x, token = marks[existing_head]
+                    marks[existing_head] = (x, token + marker[2:])
             music = " ".join(token for _, token in sorted(marks))
             if voice is None or voice == 1:
                 source.append("")
@@ -483,5 +741,6 @@ def assemble(
             "lyrics_coverage_unverified", page_number,
             "Confirm every printed lyric row and its voice ownership."
         ))
+        issues.extend(_text_ownership_issues(page, page_number))
     code = "\n".join(source) + "\n"
     return Draft(code, pages, tuple(issues)), tuple(bindings)

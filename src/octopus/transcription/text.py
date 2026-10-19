@@ -264,7 +264,7 @@ def image_score_direction_text(
     rgb = white.convert("RGB")
     spans: list[TextSpan] = []
     seen: set[Box] = set()
-    for row, barlines in rows:
+    for row_index, (row, barlines) in enumerate(rows):
         if not barlines:
             continue
         height = max(1, row[3] - row[1])
@@ -272,7 +272,13 @@ def image_score_direction_text(
         left = max(0, round(endpoint - height * 4.2))
         top = max(0, round(row[3] - height * 0.2))
         right = min(rgb.width, round(endpoint + height * 2.2))
-        bottom = min(rgb.height, round(row[3] + height * 2.8))
+        next_top = min((other[0][1] for index, other in enumerate(rows)
+                        if index != row_index and other[0][1] >= row[3] - height * 0.25
+                        and other[0][0] < right and other[0][2] > left),
+                       default=rgb.height)
+        bottom = min(
+            rgb.height, round(row[3] + height * 6), round(next_top - height * 0.2),
+        )
         box = (left, top, right, bottom)
         if box in seen or right <= left or bottom <= top:
             continue

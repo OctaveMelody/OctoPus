@@ -2,19 +2,43 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
+from fractions import Fraction
+from statistics import median
 
 from octopus.model import normalize_code
 from octopus.parser import parse_code
-from octopus.parser.ast import MusicLine, MusicTokenKind
+from octopus.parser.ast import HeaderLine, MusicLine, MusicToken, MusicTokenKind
 from octopus.render.svg import render_score_model_page_with_layout
 
 from .components import Box
-from .image import PageObservation
+from .image import MusicRow, PageObservation
 from .results import RowBinding, finite_confidence
 
 LOW_NOTE_CONFIDENCE = 0.90
 _NOTES = {MusicTokenKind.NOTE, MusicTokenKind.REST}
+_VISIBLE_BARS = {"|", "||", "|:", ":|", ":|:", "||/"}
+_TEMP_METER = re.compile(r"p\s*:\s*(\d{1,2})\s*/\s*(\d{1,2})")
+
+
+@dataclass(frozen=True, slots=True)
+class _Measure:
+    duration: Fraction
+    meter: tuple[int, int] | None
+    left_bar: int
+    right_bar: int
+    left_x: int | None
+    right_x: int | None
+    first_for_voice: bool
+    ending: bool
+    uncertain: bool
+
+    @property
+    def expected(self) -> Fraction | None:
+        if self.meter is None or self.meter[1] <= 0:
+            return None
+        return Fraction(self.meter[0] * 4, self.meter[1])
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +99,238 @@ def _spacing_mismatch(observed: tuple[float, ...], rendered: tuple[float, ...]) 
     return bool(errors) and max(errors) > 0.30 and sum(error > 0.20 for error in errors) >= 2
 
 
+def _meter(value: str) -> tuple[int, int] | None:
+    match = re.fullmatch(r"\s*(\d{1,2})\s*/\s*(\d{1,2})\s*", value)
+    if match is None:
+        return None
+    numerator, denominator = (int(part) for part in match.groups())
+    return (numerator, denominator) if numerator > 0 and denominator > 0 else None
+
+
+def _token_duration(token: MusicToken) -> Fraction | None:
+    if token.kind in {MusicTokenKind.NOTE, MusicTokenKind.REST, MusicTokenKind.RHYTHM_NOTE}:
+        return Fraction(
+            2 ** (token.duration_dots + 1) - 1,
+            2 ** (token.duration_slashes + token.duration_dots),
+        )
+    if token.kind == MusicTokenKind.EXTENSION:
+        return Fraction(max(token.raw.count("-"), 1))
+    return None
+
+
+def _measure_regions(row: MusicRow, measure: _Measure) -> tuple[Box, ...]:
+    if measure.left_x is None or measure.right_x is None:
+        return (row.box,)
+    selected = tuple(
+        note.box for note in row.notes
+        if measure.left_x < (note.box[0] + note.box[2]) / 2 < measure.right_x
+    )
+    return selected or (row.box,)
+
+
+def _measure_source_range(line: MusicLine, measure: _Measure) -> tuple[int, int] | None:
+    visible_bars = tuple(
+        index for index, token in enumerate(line.tokens)
+        if token.kind == MusicTokenKind.BARLINE and token.raw in _VISIBLE_BARS
+    )
+    if measure.left_bar >= len(visible_bars) or measure.right_bar >= len(visible_bars):
+        return None
+    tokens = line.tokens[
+        visible_bars[measure.left_bar] + 1:visible_bars[measure.right_bar]
+    ]
+    if not tokens:
+        return None
+    return tokens[0].span.start.offset, tokens[-1].span.end.offset
+
+
+def _line_measures(
+    line: MusicLine,
+    meter: tuple[int, int] | None,
+    completed_by_voice: dict[int, int],
+    row: object | None,
+) -> tuple[tuple[_Measure, ...], tuple[int, int] | None]:
+    measures: list[_Measure] = []
+    visible_bars: list[int] = []
+    visible_bar_count = sum(
+        token.kind == MusicTokenKind.BARLINE and token.raw in _VISIBLE_BARS
+        for token in line.tokens
+    )
+    left_bar: int | None = None
+    duration = Fraction()
+    has_timed_content = False
+    ending = bool(getattr(row, "endings", ()))
+    uncertain = False
+    meter_for_measure = meter
+
+    for index, token in enumerate(line.tokens):
+        if token.kind == MusicTokenKind.BARLINE:
+            if token.raw not in _VISIBLE_BARS:
+                continue
+            right_bar = len(visible_bars)
+            visible_bars.append(index)
+            if left_bar is not None and has_timed_content:
+                left_x = right_x = None
+                row_bars = tuple(sorted(row.barlines)) if isinstance(row, MusicRow) else ()
+                if len(row_bars) == visible_bar_count:
+                    left_x, right_x = row_bars[left_bar], row_bars[right_bar]
+                first = completed_by_voice.get(line.voice, 0) == 0
+                completed_by_voice[line.voice] = completed_by_voice.get(line.voice, 0) + 1
+                measures.append(_Measure(
+                    duration, meter_for_measure, left_bar, right_bar, left_x, right_x,
+                    first, ending, uncertain,
+                ))
+            left_bar = right_bar
+            duration = Fraction()
+            has_timed_content = False
+            ending = bool(getattr(row, "endings", ()))
+            uncertain = False
+            continue
+
+        if token.kind == MusicTokenKind.ANNOTATION:
+            match = _TEMP_METER.search(token.raw)
+            if match is not None:
+                meter = (int(match.group(1)), int(match.group(2)))
+                if meter[0] <= 0 or meter[1] <= 0:
+                    meter = None
+                meter_for_measure = meter
+            continue
+        if token.kind == MusicTokenKind.GRACE_GROUP:
+            continue
+        if token.kind in {MusicTokenKind.BRACKET_START, MusicTokenKind.BRACKET_END}:
+            ending = True
+            continue
+        amount = _token_duration(token)
+        if amount is not None:
+            duration += amount
+            has_timed_content = True
+        elif token.kind in {
+            MusicTokenKind.BLOCK_START,
+            MusicTokenKind.BLOCK_END,
+            MusicTokenKind.HIDDEN_REST,
+            MusicTokenKind.TUPLET_START,
+            MusicTokenKind.UNKNOWN,
+        }:
+            uncertain = True
+            has_timed_content = True
+    return tuple(measures), meter
+
+
+def musical_consistency_findings(
+    code: str, pages: tuple[PageObservation, ...], bindings: tuple[RowBinding, ...],
+) -> tuple[ReviewFinding, ...]:
+    """Flag clear closed-measure and aligned-voice duration mismatches without edits.
+
+    The first complete measure in each voice is exempt for pickups. Only spans between
+    visible barlines are checked, so cut row edges stay silent; volta measures and
+    blocks/tuplets/hidden rests are skipped. Grace groups contribute no main-stream time.
+    """
+    document = parse_code(code)
+    initial_meter = next((
+        _meter(line.value) for line in document.lines
+        if isinstance(line, HeaderLine) and line.prefix == "P"
+    ), None)
+    by_line = {binding.source_line: binding for binding in bindings}
+    by_location = {(binding.page, binding.row): binding for binding in bindings}
+    completed_by_voice: dict[int, int] = {}
+    measures_by_row: dict[tuple[int, int], tuple[_Measure, ...]] = {}
+    lines_by_row: dict[tuple[int, int], MusicLine] = {}
+    active_meter = initial_meter
+    for line in document.lines:
+        if not isinstance(line, MusicLine):
+            continue
+        binding = by_line.get(line.span.start.line)
+        row = None
+        if binding is not None and 1 <= binding.page <= len(pages):
+            page = pages[binding.page - 1]
+            if 0 <= binding.row < len(page.rows):
+                row = page.rows[binding.row]
+        measures, active_meter = _line_measures(line, active_meter, completed_by_voice, row)
+        if binding is not None:
+            key = (binding.page, binding.row)
+            measures_by_row[key] = measures
+            lines_by_row[key] = line
+
+    result: list[ReviewFinding] = []
+    for (page_number, row_index), measures in measures_by_row.items():
+        binding = by_location.get((page_number, row_index))
+        if binding is None or not binding.simple:
+            continue
+        row = pages[page_number - 1].rows[row_index]
+        line = lines_by_row[page_number, row_index]
+        for measure in measures:
+            expected = measure.expected
+            meter = measure.meter
+            if (
+                measure.first_for_voice or measure.ending or measure.uncertain
+                or expected is None or meter is None or measure.duration == expected
+            ):
+                continue
+            source_range = _measure_source_range(line, measure)
+            result.append(ReviewFinding(
+                "measure_duration_review", page_number,
+                f"A closed measure totals {measure.duration} quarter-note beats, while "
+                f"meter {meter[0]}/{meter[1]} calls for {expected}. "
+                "Check the scan; this finding does not change the notes or durations.",
+                _measure_regions(row, measure),
+                source_start=source_range[0] if source_range is not None else None,
+                source_end=source_range[1] if source_range is not None else None,
+            ))
+
+    for page_index, page in enumerate(pages, start=1):
+        for group in page.voice_groups:
+            rows = [
+                index for index in group.rows
+                if (page_index, index) in measures_by_row
+                and 0 <= index < len(page.rows)
+                and (binding := by_location.get((page_index, index))) is not None
+                and binding.simple
+            ]
+            for position, left_index in enumerate(rows):
+                for right_index in rows[position + 1:]:
+                    left_row, right_row = page.rows[left_index], page.rows[right_index]
+                    heights = [
+                        note.box[3] - note.box[1]
+                        for row in (left_row, right_row) for note in row.notes
+                    ]
+                    if not heights:
+                        continue
+                    tolerance = max(3.0, median(heights) * 0.65)
+                    right_measures = measures_by_row[page_index, right_index]
+                    for left_measure in measures_by_row[page_index, left_index]:
+                        expected = left_measure.expected
+                        if (
+                            left_measure.first_for_voice or left_measure.ending
+                            or left_measure.uncertain or expected is None
+                            or left_measure.left_x is None or left_measure.right_x is None
+                        ):
+                            continue
+                        match = next((candidate for candidate in right_measures
+                                      if not candidate.first_for_voice and not candidate.ending
+                                      and not candidate.uncertain
+                                      and candidate.expected == expected
+                                      and candidate.left_x is not None
+                                      and candidate.right_x is not None
+                                      and abs(left_measure.left_x - candidate.left_x) <= tolerance
+                                      and abs(left_measure.right_x - candidate.right_x)
+                                      <= tolerance), None)
+                        if match is None or left_measure.duration == match.duration:
+                            continue
+                        left_voice = lines_by_row[page_index, left_index].voice
+                        right_voice = lines_by_row[page_index, right_index].voice
+                        # The two voice spans are disjoint in JPS source. A single
+                        # offset range would include unrelated lines, so use image regions.
+                        result.append(ReviewFinding(
+                            "cross_voice_measure_duration_review", page_index,
+                            f"Aligned voices Q{left_voice} and Q{right_voice} total "
+                            f"{left_measure.duration} and {match.duration} quarter-note "
+                            f"beats over the same measure. Check both rows against the scan; "
+                            "this finding does not change either voice.",
+                            (*_measure_regions(left_row, left_measure),
+                             *_measure_regions(right_row, match)),
+                        ))
+    return tuple(result)
+
+
 def render_back_findings(
     code: str, pages: tuple[PageObservation, ...], bindings: tuple[RowBinding, ...],
 ) -> tuple[ReviewFinding, ...]:
@@ -84,8 +340,9 @@ def render_back_findings(
     Hidden branches and grace streams have separate ownership and are deliberately not
     compared with a main-row projection. Findings never alter recognized notation.
     """
+    consistency = musical_consistency_findings(code, pages, bindings)
     if not bindings:
-        return ()
+        return consistency
     checking_page = 1
     try:
         model = normalize_code(code)
@@ -103,7 +360,7 @@ def render_back_findings(
             "render_back_unavailable", checking_page,
             f"Draft render consistency could not be checked: {type(error).__name__}. "
             "Review parser diagnostics and the rendered result.",
-        ),)
+        ), *consistency)
     result = []
     for binding in bindings:
         if not binding.simple:
@@ -151,4 +408,4 @@ def render_back_findings(
                     "segmentation; ordinary engraving differences remain possible.",
                     tuple(row.notes[index].box for index in selected),
                 ))
-    return tuple(result)
+    return (*result, *consistency)

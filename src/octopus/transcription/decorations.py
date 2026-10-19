@@ -37,6 +37,15 @@ _ABBREVIATION_FAMILIES = (
     frozenset({"rall", "rallentando"}),
     frozenset({"accel", "accelerando"}),
 )
+_ENDING_TITLE = re.compile(
+    r"(?:[0-9一二三四五六七八九十]+)?(?P<title>(?:结束|结尾)(?:句|段|部分))[.。]?",
+)
+_REPEATED_LYRIC_INSTRUCTION = re.compile(
+    r"(?:反复|重复)(?:时|部分)?(?:只|仅)?(?:唱|演唱)"
+    r"(?:[\"“][^\"“”]{1,24}[\"”])?"
+    r"(?:第?[0-9一二三四五六七八九十]+段)?(?:歌词|歌詞)"
+)
+_INSTRUCTION_CUES = re.compile(r"(?:反复|重复).*(?:唱|歌词)|(?:演奏|演唱|歌词)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +76,30 @@ def decoration_token(value: str) -> str | None:
     if word in _ANNOTATION_WORDS:
         return '"' + lower + '"'
     return None
+
+
+def score_text_kind(value: str) -> str | None:
+    """Recognize short structural titles and explicit repeat-lyric instructions."""
+    normalized = unicodedata.normalize("NFKC", value).strip()
+    content = normalized.strip("()[]{} \t\r\n")
+    if ending_title_text(value) is not None:
+        return "ending_title"
+    if _REPEATED_LYRIC_INSTRUCTION.fullmatch(content):
+        return "performance_instruction"
+    if _INSTRUCTION_CUES.search(content) and (
+        normalized.startswith("(") and normalized.endswith(")")
+        or "反复" in content or "重复" in content
+    ):
+        return "instruction_candidate"
+    return None
+
+
+def ending_title_text(value: str) -> str | None:
+    """Return the canonical title, excluding OCR punctuation and an attached ordinal."""
+    normalized = unicodedata.normalize("NFKC", value).strip()
+    content = normalized.strip("()[]{} \t\r\n")
+    match = _ENDING_TITLE.fullmatch(content)
+    return match.group("title") if match is not None else None
 
 
 def _split_dynamic_annotation(span: TextSpan) -> tuple[TextSpan, ...]:
