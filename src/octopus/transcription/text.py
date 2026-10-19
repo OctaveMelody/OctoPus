@@ -248,6 +248,60 @@ def image_annotation_text(path: Path, rows: tuple[Box, ...]) -> tuple[TextSpan, 
     return tuple(spans)
 
 
+def image_score_direction_text(
+    path: Path, rows: tuple[tuple[Box, tuple[int, ...]], ...],
+) -> tuple[TextSpan, ...] | None:
+    """Read possible navigation labels below row-ending barlines at local scale."""
+    engine = _ocr_engine()
+    if engine is None:
+        return None
+    import numpy as np
+
+    with Image.open(path) as source:
+        oriented = ImageOps.exif_transpose(source).convert("RGBA")
+    white = Image.new("RGBA", oriented.size, "white")
+    white.alpha_composite(oriented)
+    rgb = white.convert("RGB")
+    spans: list[TextSpan] = []
+    seen: set[Box] = set()
+    for row, barlines in rows:
+        if not barlines:
+            continue
+        height = max(1, row[3] - row[1])
+        endpoint = max(barlines)
+        left = max(0, round(endpoint - height * 4.2))
+        top = max(0, round(row[3] - height * 0.2))
+        right = min(rgb.width, round(endpoint + height * 2.2))
+        bottom = min(rgb.height, round(row[3] + height * 2.8))
+        box = (left, top, right, bottom)
+        if box in seen or right <= left or bottom <= top:
+            continue
+        seen.add(box)
+        crop = rgb.crop(box)
+        factor = max(1, min(4, round(60 / height)))
+        crop = crop.resize(
+            (crop.width * factor, crop.height * factor), Image.Resampling.LANCZOS,
+        )
+        result, _ = _ocr_call(
+            engine, np.asarray(crop), return_word_box=True, return_single_char_box=True,
+        )
+        for corners, value, confidence, *details in result or []:
+            word = str(value).strip()
+            if not word:
+                continue
+            xs = [point[0] for point in corners]
+            ys = [point[1] for point in corners]
+            text_box = (
+                round(min(xs) / factor + left), round(min(ys) / factor + top),
+                round(max(xs) / factor + left), round(max(ys) / factor + top),
+            )
+            spans.append(TextSpan(
+                word, text_box, float(confidence),
+                _character_centers(word, details, 1 / factor, left),
+            ))
+    return tuple(spans)
+
+
 def image_lyric_text(
     path: Path, rows: tuple[Box, ...], *, small_page: bool, recover_sparse: bool = False,
 ) -> tuple[TextSpan, ...] | None:

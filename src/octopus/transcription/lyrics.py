@@ -10,10 +10,13 @@ from .components import Box
 from .image import MusicRow, PageObservation
 from .text import MIN_TEXT_SPAN_CONFIDENCE, TextSpan
 
-_DYNAMICS = {"ppp", "pp", "p", "mp", "mf", "f", "ff", "fff", "rit", "dim", "cresc", "d.s", "d.c"}
+_DYNAMICS = {
+    "ppp", "pp", "p", "mp", "mf", "f", "ff", "fff", "rit", "dim", "cresc",
+    "d.s", "d.c", "fine", "d.s. fine", "d.c. fine",
+}
 _PERFORMER = re.compile(r"[（(]\s*([女男合])\s*[）)]")
 _ANNOTATION = re.compile(r"[（(]\s*[女男合]\s*[）)]|[①-⑳]|(?<!\d)\d+[.．](?!\d)")
-_RETURN = re.compile(r"\s*D\s*[.]\s*[SC]\s*[.:]?\s*$", re.I)
+_RETURN = re.compile(r"\s*(?:D\s*[.]\s*[SC]\s*[.:]?(?:\s*Fine\.?)?|Fine\.?)\s*$", re.I)
 _PAGINATION = re.compile(
     r"(?:第\s*\d+\s*页\s*)?共\s*\d+\s*页|第\s*\d+\s*页|page\s+\d+(?:\s+of\s+\d+)?",
     re.I,

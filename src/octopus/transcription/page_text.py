@@ -11,6 +11,7 @@ from statistics import median
 from . import text
 from .components import Box
 from .decorations import decoration_token, text_decorations
+from .directions import attach_score_directions
 from .headers import extract_headers, printed_key_span, stacked_meter_span
 from .image import MusicRow, PageObservation, _read_page
 from .text import (
@@ -19,6 +20,7 @@ from .text import (
     TextSpan,
     image_annotation_text,
     image_lyric_text,
+    image_score_direction_text,
     merge_text,
 )
 
@@ -240,10 +242,14 @@ def _performance_text(
     gray = _read_page(path)
     all_rows = (*page.rows, *(bz.row for bz in page.bz_overlays))
     cropped = image_annotation_text(path, tuple(row.box for row in all_rows)) or ()
+    cropped_directions = image_score_direction_text(
+        path, tuple((row.box, row.barlines) for row in page.rows),
+    ) or ()
     # A valid performance mark can conflict with a native lyric glyph during
     # page-text reconciliation. Keep raw OCR available for geometric ownership.
     candidates = tuple(dict.fromkeys((
         *page.text_spans, *(page.ocr_text_spans or ()), *original, *cropped,
+        *cropped_directions,
     )))
     bz_duplicates = _bz_duplicate_text_spans(page, candidates)
     duplicate_boxes = tuple(span.box for span in bz_duplicates)
@@ -253,6 +259,7 @@ def _performance_text(
                  and any(_box_coverage(span.box, box) >= 0.7 for box in duplicate_boxes))
     ))
     candidates = _score_text(replace(page, text_spans=candidates)).text_spans
+    rows, direction_spans = attach_score_directions(page.rows, candidates)
     consumed: set[TextSpan] = set()
 
     def decorate(row: MusicRow) -> MusicRow:
@@ -275,9 +282,9 @@ def _performance_text(
             *row.decoration_regions, *(item.box for item in found),
         ))
 
-    rows = tuple(decorate(row) for row in page.rows)
+    rows = tuple(decorate(row) for row in rows)
     overlays = tuple(replace(bz, row=decorate(bz.row)) for bz in page.bz_overlays)
-    removed = consumed | set(bz_duplicates)
+    removed = consumed | set(bz_duplicates) | set(direction_spans)
     return replace(page, rows=rows, bz_overlays=overlays, text_spans=tuple(
         span for span in page.text_spans if span not in removed
     ))

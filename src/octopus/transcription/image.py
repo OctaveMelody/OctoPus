@@ -73,6 +73,7 @@ class MusicRow:
     parentheses: tuple[tuple[int, str], ...] = ()
     hairpins: tuple[Hairpin, ...] = ()
     decoration_regions: tuple[Box, ...] = ()
+    score_directions: tuple[tuple[int, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

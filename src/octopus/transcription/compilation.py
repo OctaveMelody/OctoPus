@@ -59,8 +59,11 @@ def _bar_marks(
         left, right = repeats
         token = (":|:" if left and right else ":|" if left else "|:" if right
                  else "||" if len(group) > 1 else "|")
+        directions = "".join(
+            f"&{code}" for anchor, code in row.score_directions if anchor in group
+        )
         ending = "".join(token for anchor, token in endings if anchor in group)
-        marks.append((group[0], token + ending))
+        marks.append((group[0], token + directions + ending))
     return marks
 
 
