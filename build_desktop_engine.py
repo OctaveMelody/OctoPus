@@ -146,6 +146,30 @@ def _check_project_license(bundle: Path, source: Path = ROOT / "LICENSE") -> Non
         raise RuntimeError("project license missing/corrupt")
 
 
+def _check_transcription_runtime() -> None:
+    expected = {
+        "rapidocr": "3.10.0",
+        "onnxruntime": "1.30.0",
+        "opencv-python-headless": "5.0.0.93",
+    }
+    for package, version in expected.items():
+        try:
+            actual = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError as error:
+            raise RuntimeError(f"desktop transcription requires {package}=={version}") from error
+        if actual != version:
+            raise RuntimeError(
+                f"desktop transcription requires {package}=={version}; found {actual}"
+            )
+
+    for package in ("opencv-python", "opencv-contrib-python", "opencv-contrib-python-headless"):
+        try:
+            importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            continue
+        raise RuntimeError(f"desktop transcription must not include {package}")
+
+
 def _prune_non_onnx_rapidocr_backends(bundle: Path) -> None:
     """Keep only RapidOCR's ONNX inference backend in the frozen worker."""
     engines = bundle / "_internal" / "rapidocr" / "inference_engine"
@@ -397,10 +421,7 @@ def build(*, repository_root: Path = ROOT, target_dir: Path = TARGET_DIR) -> Pat
         raise RuntimeError(
             f"PyInstaller {PYINSTALLER_VERSION} is required; found {installed_version}"
         )
-    if importlib.metadata.version("rapidocr") != "3.9.2":
-        raise RuntimeError("desktop transcription requires rapidocr 3.9.2")
-    if importlib.metadata.version("onnxruntime") != "1.30.0":
-        raise RuntimeError("desktop transcription requires ONNX Runtime 1.30.0")
+    _check_transcription_runtime()
     if not entry_point.is_file():
         raise RuntimeError(f"desktop engine entry point is missing: {entry_point}")
 
