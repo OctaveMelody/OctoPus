@@ -47,6 +47,235 @@ def _contains_in_order(source: str, reading: str) -> bool:
                                  for char in source)
 
 
+def _split_stacked_character_spans(
+    spans: tuple[TextSpan, ...], first_music_top: int, height: float,
+) -> tuple[TextSpan, ...]:
+    """Split OCR word boxes when their individual glyph boxes show separate lyric rows."""
+    result: list[TextSpan] = []
+    for span in spans:
+        boxes = span.character_boxes
+        if (span.box[3] <= first_music_top or len(boxes) != len(span.text)
+                or span.lyric_baselines):
+            result.append(span)
+            continue
+        chinese = [index for index, character in enumerate(span.text)
+                   if "\u3400" <= character <= "\u9fff"]
+        if len(chinese) < 2:
+            result.append(span)
+            continue
+        centers = [(box[1] + box[3]) / 2 for box in boxes]
+        tolerance = max(3.0, height * 0.5)
+        groups: list[list[int]] = []
+        for index in sorted(chinese, key=lambda item: centers[item]):
+            prior_center = median(centers[item] for item in groups[-1]) if groups else 0
+            if groups and centers[index] - prior_center <= tolerance:
+                groups[-1].append(index)
+            else:
+                groups.append([index])
+        group_centers = [median(centers[index] for index in group) for group in groups]
+        if (len(groups) < 2 or min(
+            right - left for left, right in zip(
+                group_centers, group_centers[1:], strict=False,
+            )
+        ) < max(7.0, height * 0.65)):
+            result.append(span)
+            continue
+
+        assigned: list[list[int]] = [[] for _ in groups]
+        for index, center in enumerate(centers):
+            group_index = min(
+                range(len(groups)), key=lambda item: abs(center - group_centers[item]),
+            )
+            if abs(center - group_centers[group_index]) > max(height, tolerance * 2):
+                break
+            assigned[group_index].append(index)
+        else:
+            for indices in assigned:
+                indices.sort(key=lambda item: (boxes[item][0] + boxes[item][2]) / 2)
+                if not any("\u3400" <= span.text[index] <= "\u9fff" for index in indices):
+                    continue
+                character_boxes = tuple(boxes[index] for index in indices)
+                result.append(TextSpan(
+                    "".join(span.text[index] for index in indices),
+                    (min(box[0] for box in character_boxes),
+                     min(box[1] for box in character_boxes),
+                     max(box[2] for box in character_boxes),
+                     max(box[3] for box in character_boxes)),
+                    span.confidence,
+                    tuple((box[0] + box[2]) / 2 for box in character_boxes),
+                    (), character_boxes,
+                ))
+            continue
+        result.append(span)
+    return tuple(result)
+
+
+def _character_positions_supported(
+    span: TextSpan, lyrics: tuple[TextSpan, ...], height: float,
+) -> bool:
+    """Confirm a page OCR reading against same-glyph positions in a focused crop."""
+    if len(span.character_centers) != len(span.text):
+        return False
+    crop_characters = tuple(
+        (character, lyric.character_centers[index])
+        for lyric in lyrics if len(lyric.character_centers) == len(lyric.text)
+        for index, character in enumerate(lyric.text)
+        if "\u3400" <= character <= "\u9fff"
+    )
+    source_characters = tuple(
+        (character, span.character_centers[index])
+        for index, character in enumerate(span.text)
+        if "\u3400" <= character <= "\u9fff"
+    )
+    if not source_characters or not crop_characters:
+        return False
+    tolerance = max(5.0, height * 0.4)
+    return all(any(character == candidate and abs(center - candidate_center) <= tolerance
+                   for candidate, candidate_center in crop_characters)
+               for character, center in source_characters)
+
+
+def _reconcile_crop_characters(
+    crops: set[TextSpan], spans: tuple[TextSpan, ...], height: float,
+) -> tuple[tuple[TextSpan, ...], dict[int, set[int]]]:
+    """Resolve overlapping crop glyphs against positioned page OCR characters."""
+    punctuation = "，。！？、,.!?；;：:"
+
+    def lyric_glyph(character: str) -> bool:
+        return "\u3400" <= character <= "\u9fff" or character in punctuation
+
+    def glyph_center_y(span: TextSpan, index: int) -> float:
+        if len(span.character_boxes) == len(span.text):
+            box = span.character_boxes[index]
+            return (box[1] + box[3]) / 2
+        return span.center_y
+
+    ordered = sorted(crops, key=lambda span: (-span.confidence, span.box, span.text))
+    used: set[tuple[int, int]] = set()
+    consumed: dict[int, set[int]] = {}
+    resolved: list[TextSpan] = []
+    tolerance = max(5.0, height * 0.5)
+    for crop in ordered:
+        if len(crop.character_centers) != len(crop.text):
+            resolved.append(crop)
+            continue
+        characters: list[str] = []
+        centers: list[float] = []
+        boxes: list[Box] = []
+        has_boxes = len(crop.character_boxes) == len(crop.text)
+        for index, character in enumerate(crop.text):
+            if not lyric_glyph(character):
+                characters.append(character)
+                centers.append(crop.character_centers[index])
+                if has_boxes:
+                    boxes.append(crop.character_boxes[index])
+                continue
+            crop_y = glyph_center_y(crop, index)
+            candidates = sorted(
+                ((abs(crop.character_centers[index] - span.character_centers[source_index]),
+                  -span.confidence, span, source_index)
+                 for span in spans
+                 if len(span.character_centers) == len(span.text)
+                 and _same_lyric_baseline(span, crop, height)
+                 for source_index, source_character in enumerate(span.text)
+                 if lyric_glyph(source_character)
+                 and abs(crop.character_centers[index]
+                         - span.character_centers[source_index]) <= max(
+                             tolerance,
+                             max(
+                                 crop.character_boxes[index][2]
+                                 - crop.character_boxes[index][0]
+                                 if len(crop.character_boxes) == len(crop.text) else 0,
+                                 span.character_boxes[source_index][2]
+                                 - span.character_boxes[source_index][0]
+                                 if len(span.character_boxes) == len(span.text) else 0,
+                             ) * 0.5,
+                         )
+                 and abs(crop_y - glyph_center_y(span, source_index))
+                 <= max(4.0, height * 0.35)),
+                key=lambda item: (item[0], item[1], item[2].box, item[3]),
+            )
+            available = next((item for item in candidates
+                              if (id(item[2]), item[3]) not in used), None)
+            if candidates and available is None:
+                continue
+            if available is None:
+                characters.append(character)
+                centers.append(crop.character_centers[index])
+                if has_boxes:
+                    boxes.append(crop.character_boxes[index])
+                continue
+            _, _, source, source_index = available
+            used.add((id(source), source_index))
+            consumed.setdefault(id(source), set()).add(source_index)
+            source_character = source.text[source_index]
+            selected = (source_character if source.confidence >= crop.confidence
+                        else character)
+            characters.append(selected)
+            centers.append(
+                source.character_centers[source_index]
+                if source.confidence >= crop.confidence
+                else crop.character_centers[index]
+            )
+            if has_boxes:
+                source_boxes = source.character_boxes
+                boxes.append(source_boxes[source_index]
+                             if source.confidence >= crop.confidence
+                             and len(source_boxes) == len(source.text)
+                             else crop.character_boxes[index])
+        if not characters:
+            continue
+        box = crop.box
+        character_boxes = tuple(boxes) if has_boxes and len(boxes) == len(characters) else ()
+        if character_boxes:
+            box = (min(item[0] for item in character_boxes),
+                   min(item[1] for item in character_boxes),
+                   max(item[2] for item in character_boxes),
+                   max(item[3] for item in character_boxes))
+        resolved.append(TextSpan(
+            "".join(characters), box, crop.confidence, tuple(centers),
+            crop.lyric_baselines, character_boxes,
+        ))
+    return tuple(resolved), consumed
+
+
+def _unconsumed_span_fragments(
+    span: TextSpan, consumed: set[int],
+) -> tuple[TextSpan, ...]:
+    """Keep source characters that no accepted crop replaced."""
+    if not consumed or len(span.character_centers) != len(span.text):
+        return (span,)
+    runs: list[list[int]] = []
+    current: list[int] = []
+    for index in range(len(span.text)):
+        if index in consumed or span.text[index].isspace():
+            if current:
+                runs.append(current)
+                current = []
+            continue
+        current.append(index)
+    if current:
+        runs.append(current)
+    fragments = []
+    for indices in runs:
+        text_value = "".join(span.text[index] for index in indices)
+        centers = tuple(span.character_centers[index] for index in indices)
+        character_boxes = tuple(span.character_boxes[index] for index in indices) \
+            if len(span.character_boxes) == len(span.text) else ()
+        if character_boxes:
+            box = (min(item[0] for item in character_boxes),
+                   min(item[1] for item in character_boxes),
+                   max(item[2] for item in character_boxes),
+                   max(item[3] for item in character_boxes))
+        else:
+            box = span.box
+        fragments.append(TextSpan(
+            text_value, box, span.confidence, centers, span.lyric_baselines,
+            character_boxes,
+        ))
+    return tuple(fragments)
+
+
 def _merge_lyric_readings(
     spans: tuple[TextSpan, ...], lyrics: tuple[TextSpan, ...],
     first_music_top: int, height: float,
@@ -54,6 +283,7 @@ def _merge_lyric_readings(
     """Prefer a crop reading only when baseline and OCR evidence support it."""
     retained: set[TextSpan] = set()
     rejected_crops: set[TextSpan] = set()
+    accepted_crops: set[TextSpan] = set()
     for span in spans:
         if span.box[3] < first_music_top or not any(char.isalpha() for char in span.text):
             continue
@@ -73,22 +303,50 @@ def _merge_lyric_readings(
         ) / max(1, span.box[2] - span.box[0])
         crop_is_better = (
             (_contains_in_order(original, recovered)
-             and min(lyric.confidence for lyric in related) >= span.confidence)
+             and (min(lyric.confidence for lyric in related) >= span.confidence
+                  or _character_positions_supported(span, related, height)))
             or (original == recovered and any(lyric.character_centers for lyric in related))
             or (horizontal_coverage >= 0.8
                 and all(lyric.confidence > span.confidence for lyric in related))
         )
         if crop_is_better:
+            accepted_crops.update(related)
             continue
         retained.add(span)
         rejected_crops.update(lyric for lyric in related if (
             lyric.box[0] < span.box[2] and span.box[0] < lyric.box[2]
         ))
-    return (
-        *(span for span in spans if span in retained or span.box[3] < first_music_top
-          or not any(char.isalpha() for char in span.text)),
-        *(lyric for lyric in lyrics if lyric not in rejected_crops),
+    accepted_spans = tuple(span for span in spans if span in retained
+                           or span.box[3] < first_music_top
+                           or not any(char.isalpha() for char in span.text))
+    selected_crops = {lyric for lyric in lyrics
+                      if lyric not in rejected_crops or lyric in accepted_crops}
+    resolved_crops, consumed = _reconcile_crop_characters(selected_crops, spans, height)
+    # Focused OCR boxes are tight around their recognized text. Suppress conflicting
+    # page glyphs inside an accepted crop even when their centers are too far apart to
+    # pair one-to-one with the crop's character boxes.
+    for crop in accepted_crops:
+        for span in spans:
+            if (len(span.character_centers) != len(span.text)
+                    or not _same_lyric_baseline(span, crop, height)):
+                continue
+            for index, center in enumerate(span.character_centers):
+                source_y = (
+                    (span.character_boxes[index][1] + span.character_boxes[index][3]) / 2
+                    if len(span.character_boxes) == len(span.text) else span.center_y
+                )
+                vertical_margin = max(3.0, height * 0.15)
+                if (crop.box[0] <= center <= crop.box[2]
+                        and crop.box[1] - vertical_margin <= source_y
+                        <= crop.box[3] + vertical_margin
+                        and ("\u3400" <= span.text[index] <= "\u9fff"
+                             or span.text[index] in "，。！？、,.!?；;：:")):
+                    consumed.setdefault(id(span), set()).add(index)
+    source_residuals = tuple(
+        fragment for span in accepted_spans
+        for fragment in _unconsumed_span_fragments(span, consumed.get(id(span), set()))
     )
+    return (*source_residuals, *resolved_crops)
 
 
 def _header_spans(
@@ -124,6 +382,7 @@ def _lyric_baseline_text(
     )
     if not lyrics or note_height is None:
         return spans
+    spans = _split_stacked_character_spans(spans, page.rows[0].box[1], note_height)
     if page.voice_groups:
         # Crops can also contain the next voice's digits or performance marks.
         # Replace only corroborated lyric baselines, retaining all other text.

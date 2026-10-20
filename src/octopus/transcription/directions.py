@@ -299,6 +299,8 @@ def _text_slice(span: TextSpan, start: int, end: int) -> TextSpan | None:
     return TextSpan(
         span.text[start:end], (left, span.box[1], right, span.box[3]), span.confidence,
         centers[start:end], span.lyric_baselines,
+        span.character_boxes[start:end]
+        if len(span.character_boxes) == len(span.text) else (),
     )
 
 

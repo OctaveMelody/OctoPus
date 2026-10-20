@@ -28,6 +28,7 @@ class TextSpan:
     confidence: float
     character_centers: tuple[float, ...] = ()
     lyric_baselines: tuple[float, ...] = ()
+    character_boxes: tuple[Box, ...] = ()
 
     @property
     def center_x(self) -> float:
@@ -148,6 +149,31 @@ def _character_centers(
                  for box in boxes[start:start + len(text)])
 
 
+def _character_boxes(
+    text: str, details: list[object], scale: float = 1.0,
+    offset_x: float = 0.0, offset_y: float = 0.0,
+) -> tuple[Box, ...]:
+    """Keep recognizer glyph geometry so stacked text can be assigned by baseline."""
+    if len(details) < 2:
+        return ()
+    boxes = cast(list[list[list[float]]], details[0])
+    characters = "".join(cast(list[str], details[1]))
+    if characters.strip() != text or len(boxes) != len(characters):
+        return ()
+    start = len(characters) - len(characters.lstrip())
+    result = []
+    for polygon in boxes[start:start + len(text)]:
+        if not polygon:
+            return ()
+        xs = [point[0] for point in polygon]
+        ys = [point[1] for point in polygon]
+        result.append((
+            round(min(xs) * scale + offset_x), round(min(ys) * scale + offset_y),
+            round(max(xs) * scale + offset_x), round(max(ys) * scale + offset_y),
+        ))
+    return tuple(result)
+
+
 def image_text(path: Path) -> tuple[TextSpan, ...] | None:
     """Return None only when the optional OCR dependency is unavailable."""
     engine = _ocr_engine()
@@ -176,7 +202,8 @@ def image_text(path: Path) -> tuple[TextSpan, ...] | None:
                     word, score = candidate, confidence
         spans.append(
             TextSpan(
-                word, box, score, _character_centers(word, details),
+                word, box, score, _character_centers(word, details), (),
+                _character_boxes(word, details),
             )
         )
     return tuple(spans)
@@ -304,6 +331,7 @@ def image_score_direction_text(
             spans.append(TextSpan(
                 word, text_box, float(confidence),
                 _character_centers(word, details, 1 / factor, left),
+                (), _character_boxes(word, details, 1 / factor, left, top),
             ))
     return tuple(spans)
 
@@ -492,6 +520,7 @@ def image_lyric_text(
                     box,
                     float(confidence),
                     centers,
+                    (), _character_boxes(word, details, 1 / factor, crop_left, crop_top),
                 ))
         if not small_page and any(
             any("\u3400" <= char <= "\u9fff" for char in span.text)
@@ -691,11 +720,12 @@ def _text_key(value: str) -> str:
 
 def _span_order(
     span: TextSpan,
-) -> tuple[int, int, int, int, str, float, tuple[float, ...], tuple[float, ...]]:
+) -> tuple[int, int, int, int, str, float, tuple[float, ...], tuple[float, ...],
+           tuple[Box, ...]]:
     left, top, right, bottom = span.box
     return (
         top, left, bottom, right, span.text, -_confidence_rank(span),
-        span.character_centers, span.lyric_baselines,
+        span.character_centers, span.lyric_baselines, span.character_boxes,
     )
 
 
