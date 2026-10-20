@@ -61,6 +61,25 @@ def main() -> None:
     if not args.runtime_only:
         command.extend(("--extra", "desktop-build"))
     subprocess.run(command, cwd=ROOT, env=environment, check=True)
+
+    if os.name == "nt":
+        project_python = ROOT / ".venv" / "Scripts" / "python.exe"
+    else:
+        project_python = ROOT / ".venv" / "bin" / "python"
+    prepare_script = ROOT / "scripts" / "prepare_ocr_models.py"
+    prepare_command = [str(project_python), str(prepare_script)]
+    configured_model_dir = environment.get("OCTOPUS_OCR_MODEL_DIR")
+    if configured_model_dir:
+        prepare_command.extend(("--output-dir", configured_model_dir))
+    try:
+        subprocess.run(prepare_command, cwd=ROOT, env=environment, check=True)
+    except subprocess.CalledProcessError as error:
+        rerun = " ".join(f'"{part}"' for part in prepare_command)
+        raise RuntimeError(
+            "Pinned OCR model preparation failed. Check access to the official model "
+            f"host and rerun: {rerun}"
+        ) from error
+
     if not args.runtime_only:
         subprocess.run(
             [npm, "ci", "--no-audit", "--no-fund"],

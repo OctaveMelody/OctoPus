@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 export type MenuAction = {
@@ -20,6 +20,12 @@ export function ActionMenu({ label, title, actions }: {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const firstFromEnd = useRef(false);
+  const groupedActions: Array<{group: string | null; actions: MenuAction[]}> = [];
+  for (const action of actions) {
+    const previous = groupedActions[groupedActions.length - 1];
+    if (action.group && previous?.group === action.group) previous.actions.push(action);
+    else groupedActions.push({group: action.group ?? null, actions: [action]});
+  }
   useLayoutEffect(() => {
     if (!open || !trigger.current || !menu.current) return;
     const rect = trigger.current.getBoundingClientRect();
@@ -78,17 +84,23 @@ export function ActionMenu({ label, title, actions }: {
           buttons[next]?.focus();
         }
       }}>
-      {actions.map((action, index) => <Fragment key={action.label}>
-        {action.group && action.group !== actions[index - 1]?.group &&
-          <div className="action-menu-group" role="presentation">{action.group}</div>}
-        <button role={action.checked !== undefined ? "menuitemcheckbox"
-          : action.selected === undefined ? "menuitem" : "menuitemradio"}
-        aria-checked={action.checked ?? action.selected} type="button"
-        title={action.title} disabled={action.disabled} onClick={() => {
-          setOpen(false);
-          trigger.current?.focus();
-          action.run();
-        }}>{action.label}</button></Fragment>)}
+      {groupedActions.map(({group, actions: items}, groupIndex) => {
+        const buttons = items.map(action => <button key={action.label}
+          role={action.checked !== undefined ? "menuitemcheckbox"
+            : action.selected === undefined ? "menuitem" : "menuitemradio"}
+          aria-checked={action.checked ?? action.selected} type="button"
+          title={action.title} disabled={action.disabled} onClick={() => {
+            setOpen(false);
+            trigger.current?.focus();
+            action.run();
+          }}>{action.label}</button>);
+        return group
+          ? <div key={`${group}-${groupIndex}`} aria-label={group} role="group">
+              <div className="action-menu-group" role="presentation">{group}</div>
+              {buttons}
+            </div>
+          : buttons;
+      })}
     </div>, document.body)}
   </>;
 }

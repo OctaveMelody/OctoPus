@@ -29,6 +29,7 @@ from octopus.render.svg import (
 )
 from octopus.render.svg_preview import add_safe_custom_page_markup
 from octopus.transcription import transcribe
+from octopus.transcription.ocr_profiles import normalize_ocr_mode
 
 from .validation import (
     MAX_SAFE_INTEGER,
@@ -39,7 +40,7 @@ from .validation import (
     is_integer,
 )
 
-PROTOCOL_VERSION = "1.7.0"
+PROTOCOL_VERSION = "1.8.0"
 MAX_REQUEST_BYTES = 10 * 1024 * 1024
 MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 MAX_REVISION = MAX_SAFE_INTEGER
@@ -136,13 +137,18 @@ def _transcribe(
     payload: dict[str, Any],
     progress: Callable[[int, int, str], None] | None = None,
 ) -> dict[str, Any]:
-    if set(payload) != {"path"} or not isinstance(payload.get("path"), str):
-        raise ProtocolError("transcribe requires a managed reference path")
+    if set(payload) - {"path", "ocr_mode"} or not isinstance(payload.get("path"), str):
+        raise ProtocolError("transcribe requires a managed reference path and optional ocr_mode")
+    try:
+        ocr_mode = normalize_ocr_mode(payload.get("ocr_mode", "default"))
+    except ValueError as exc:
+        raise ProtocolError(str(exc)) from exc
     path = Path(payload["path"])
     if not path.is_absolute() or path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".pdf"}:
         raise ProtocolError("transcribe requires an absolute PNG, JPEG, or PDF path")
-    draft = transcribe(path, progress=progress) if progress else transcribe(path)
+    draft = transcribe(path, ocr_mode=ocr_mode, progress=progress)
     return {
+        "ocr_mode": ocr_mode,
         "jps": draft.jps,
         "issues": [asdict(issue) for issue in draft.issues],
         "page_count": len(draft.pages),

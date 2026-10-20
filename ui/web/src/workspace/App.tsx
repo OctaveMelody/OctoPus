@@ -112,7 +112,7 @@ export function App() {
     recoveryReadyRef, recoverySequence, currentRecoveryDraft, requestAction, requestNativeClose,
     closeRequestPending,
     saveDocument} = lifecycle;
-  const transcription = useTranscriptionSession({currentDocument,
+  const transcription = useTranscriptionSession({currentDocument, ocrMode: preferences.ocrMode,
     getReferences: () => currentReferences.current, copyRef,
     isBusy: mode => closeRequestPending.current || saving.current || referenceAssets.isImporting()
       || (mode === "append" && !documentOpen),
@@ -761,7 +761,7 @@ export function App() {
               wrapped={score.jsonWrapped}
             />
           )}
-          <ActionMenu label={copy.layout} actions={[
+          <ActionMenu label={copy.programSettings} actions={[
             {label: copy.normalSideBySide, group: copy.normalMode, selected: layout === "N1",
               run: () => changeLayout("N1")},
             {label: copy.normalStacked, group: copy.normalMode, selected: layout === "N2",
@@ -775,6 +775,14 @@ export function App() {
               run: () => setPreferences(current => ({
                 ...current, displaySamplesLibrary: !current.displaySamplesLibrary,
               }))},
+            {label: copy.ocrDefault, group: copy.ocrModeGroup,
+              selected: preferences.ocrMode === "default",
+              title: copy.ocrModeHelp,
+              run: () => setPreferences(current => ({ ...current, ocrMode: "default" }))},
+            {label: copy.ocrAccuracy, group: copy.ocrModeGroup,
+              selected: preferences.ocrMode === "accuracy",
+              title: copy.ocrModeHelp,
+              run: () => setPreferences(current => ({ ...current, ocrMode: "accuracy" }))},
           ]} />
           <button className="language-switch" type="button"
             aria-label={preferences.language === "en" ? copy.switchToChinese : copy.switchToEnglish}

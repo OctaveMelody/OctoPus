@@ -3,7 +3,7 @@
 use serde_json::Value;
 use std::io::{self, BufRead, Write};
 
-pub(super) const PROTOCOL_VERSION: &str = "1.7.0";
+pub(super) const PROTOCOL_VERSION: &str = "1.8.0";
 pub(super) const MAX_REQUEST_BYTES: usize = 10 * 1024 * 1024;
 pub(super) const MAX_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
 

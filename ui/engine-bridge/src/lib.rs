@@ -77,6 +77,25 @@ pub struct TranscribeArgs {
     pub document_id: String,
     pub document_revision: u64,
     pub path: String,
+    #[serde(default)]
+    pub ocr_mode: OcrMode,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum OcrMode {
+    #[default]
+    Default,
+    Accuracy,
+}
+
+impl OcrMode {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Default => "default",
+            Self::Accuracy => "accuracy",
+        }
+    }
 }
 
 pub struct EngineSupervisor {
@@ -349,7 +368,7 @@ impl EngineSupervisor {
             args.document_id,
             args.document_revision,
             "transcribe",
-            json!({ "path": args.path }),
+            json!({ "path": args.path, "ocr_mode": args.ocr_mode.as_str() }),
             Duration::from_secs(900),
             Some(cancelled),
             Some(Box::new(progress)),
@@ -717,7 +736,7 @@ fn stop_child(child: &Arc<Mutex<WorkerProcess>>) {
 mod tests {
     use super::process::WorkerProcess;
     use super::{
-        read_bounded_line, validate_response, EngineSupervisor, RenderArgs, TranscribeArgs,
+        read_bounded_line, validate_response, EngineSupervisor, OcrMode, RenderArgs, TranscribeArgs,
     };
     use serde_json::json;
     use std::io::{BufReader, Cursor, ErrorKind};
@@ -767,7 +786,10 @@ for line in sys.stdin:
     elif operation == "parse":
         response["result"] = {"operation": "parse", "diagnostics": [], "source_offset_unit": "codepoint"}
     elif operation == "transcribe":
-        response["result"] = {"payload": request["payload"]}
+        response["result"] = {
+            "payload": request["payload"],
+            "ocr_mode": request["payload"]["ocr_mode"]
+        }
     if mode.startswith("progress") and operation == "transcribe" or mode == "progress-on-render" and operation == "render":
         frames = [(0, 2, "recognizing"), (1, 2, "recognizing"), (2, 2, "compiling")]
         if mode == "progress-regression": frames = [(1, 2, "recognizing"), (0, 2, "recognizing")]
@@ -783,7 +805,11 @@ for line in sys.stdin:
             if mode == "progress-revision": frame["document_revision"] += 1
             if mode == "progress-generation": frame["engine_generation"] = "old-worker"
             print(json.dumps(frame), flush=True)
-        response["result"] = {"jps": "Q: 1 |", "issues": [], "page_count": 3 if mode == "progress-final-total" else 2}
+        response["result"] = {
+            "jps": "Q: 1 |", "issues": [],
+            "ocr_mode": request["payload"]["ocr_mode"],
+            "page_count": 3 if mode == "progress-final-total" else 2
+        }
         if mode == "progress-error":
             response.pop("result")
             response.update(status="error", error={"code":"ocr_failed","message":"recognition failed"})
@@ -968,7 +994,7 @@ for line in sys.stdin:
     #[test]
     fn response_identity_and_generation_are_checked() {
         let response = json!({
-            "protocol_version": "1.7.0",
+            "protocol_version": "1.8.0",
             "engine_generation": "g1",
             "request_id": "r1",
             "document_id": "d1",
@@ -984,7 +1010,7 @@ for line in sys.stdin:
     #[test]
     fn handshake_requires_boolean_feature_capabilities() {
         let response = json!({
-            "protocol_version": "1.7.0",
+            "protocol_version": "1.8.0",
             "engine_generation": "g1",
             "request_id": "handshake-0",
             "document_id": "desktop",
@@ -1012,7 +1038,32 @@ for line in sys.stdin:
             document_id: "transcription-doc".into(),
             document_revision: 7,
             path: "/managed/reference.pdf".into(),
+            ocr_mode: OcrMode::Default,
         }
+    }
+
+    #[test]
+    fn transcription_args_default_missing_mode_and_reject_invalid_or_unknown_fields() {
+        let base = json!({
+            "documentId": "transcription-doc",
+            "documentRevision": 7,
+            "path": "/managed/reference.pdf"
+        });
+        let default: TranscribeArgs = serde_json::from_value(base.clone()).unwrap();
+        assert_eq!(default.ocr_mode, OcrMode::Default);
+
+        let mut accuracy = base.clone();
+        accuracy["ocrMode"] = json!("accuracy");
+        let accuracy: TranscribeArgs = serde_json::from_value(accuracy).unwrap();
+        assert_eq!(accuracy.ocr_mode, OcrMode::Accuracy);
+
+        let mut invalid_mode = base.clone();
+        invalid_mode["ocrMode"] = json!("faster");
+        assert!(serde_json::from_value::<TranscribeArgs>(invalid_mode).is_err());
+
+        let mut unknown_field = base;
+        unknown_field["futureMode"] = json!(true);
+        assert!(serde_json::from_value::<TranscribeArgs>(unknown_field).is_err());
     }
 
     #[test]
@@ -1060,14 +1111,28 @@ for line in sys.stdin:
     }
 
     #[test]
-    fn transcription_request_sends_only_the_managed_reference_path() {
+    fn transcription_request_sends_the_managed_reference_path_and_default_mode() {
         let mut engine = fake_engine("normal");
         let result = engine.transcribe(transcription_args()).unwrap();
         assert_eq!(
             result["result"]["payload"]["path"],
             "/managed/reference.pdf"
         );
-        assert_eq!(result["result"]["payload"].as_object().unwrap().len(), 1);
+        assert_eq!(result["result"]["payload"]["ocr_mode"], "default");
+        assert_eq!(result["result"]["payload"].as_object().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn transcription_request_sends_accuracy_mode_with_the_managed_path() {
+        let mut engine = fake_engine("normal");
+        let mut args = transcription_args();
+        args.ocr_mode = OcrMode::Accuracy;
+        let result = engine.transcribe(args).unwrap();
+        assert_eq!(
+            result["result"]["payload"]["path"],
+            "/managed/reference.pdf"
+        );
+        assert_eq!(result["result"]["payload"]["ocr_mode"], "accuracy");
     }
 
     #[test]

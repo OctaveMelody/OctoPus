@@ -3,16 +3,17 @@ import type {RefObject} from "react";
 import {isCurrentDocumentRevision} from "./document.js";
 import {cancelTranscription as cancelNative, onTranscriptionProgress, transcribeReference} from "./native-files.js";
 import {normalizeJpsFileName} from "./new-score.js";
-import type {DocumentSnapshot, TranscriptionDraft, WorkspaceCopy} from "./types";
+import type {DocumentSnapshot, OcrMode, TranscriptionDraft, WorkspaceCopy} from "./types";
 
 type ReferenceSet = ReturnType<typeof import("./reference-set.js").createReferenceSet>;
 export type TranscriptionContext = {pages: string[]; draft: TranscriptionDraft; name: string};
 export type TranscriptionProgress = {completed: number; total: number; stage: string};
 
 /** Owns request identity, progress subscription and cancellation. Draft adoption stays guarded. */
-export function useTranscriptionSession({currentDocument, getReferences, isBusy, copyRef, onDraft,
+export function useTranscriptionSession({currentDocument, ocrMode, getReferences, isBusy, copyRef, onDraft,
   onError}: {
   currentDocument: RefObject<DocumentSnapshot>;
+  ocrMode: OcrMode;
   getReferences(): ReferenceSet;
   isBusy(mode: "new" | "append"): boolean;
   copyRef: RefObject<WorkspaceCopy>;
@@ -52,6 +53,7 @@ export function useTranscriptionSession({currentDocument, getReferences, isBusy,
   }
 
   async function requestTranscription(mode: "new" | "append") {
+    const capturedOcrMode = ocrMode;
     if (transcribing.current || callbacks.current.isBusy(mode)) return;
     const reference = getReferences();
     const selected = reference.images.find(page => page.id === reference.selectedId);
@@ -63,7 +65,8 @@ export function useTranscriptionSession({currentDocument, getReferences, isBusy,
       : [selected.id];
     const sourceName = selected.kind === "pdf-page"
       ? reference.pdfs.find(pdf => pdf.id === assetId)?.name ?? selected.name : selected.name;
-    const job = {id: crypto.randomUUID(), document: currentDocument.current, cancelled: false, cancelling: false, started: false};
+    const job = {id: crypto.randomUUID(), document: currentDocument.current, ocrMode: capturedOcrMode,
+      cancelled: false, cancelling: false, started: false};
     active.current = job;
     transcribing.current = true;
     setIsTranscribing(true);
@@ -83,11 +86,14 @@ export function useTranscriptionSession({currentDocument, getReferences, isBusy,
       if (job.cancelled || active.current !== job) return;
       job.started = true;
       const response = await transcribeReference(
-        assetId, job.document.id, job.document.revision, job.id,
+        assetId, job.document.id, job.document.revision, job.id, job.ocrMode,
       );
       if (job.cancelled || active.current !== job) return;
       const draft = response.result;
       if (response.status !== "ok" || !draft) throw new Error(response.error?.message ?? copyRef.current.transcriptionFailed);
+      if (draft.ocr_mode !== job.ocrMode) {
+        throw new Error(copyRef.current.transcriptionModeMismatch);
+      }
       if (!isCurrentDocumentRevision(currentDocument.current, {
         documentId: job.document.id, revision: job.document.revision,
       })) throw new Error(copyRef.current.transcriptionDocumentChanged);

@@ -6,7 +6,8 @@ import {normalizeRecentFiles} from "./recent-files.js";
 /** @typedef {{x: number, y: number}} Split */
 /** @typedef {"N1" | "N2"} NormalLayout */
 /** @typedef {"T1" | "T2"} TranscriptionLayout */
-/** @typedef {{recentFiles: string[], referenceHintDismissed: boolean, displaySamplesLibrary: boolean, fontNoticeDismissals: string[], language: Language, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
+/** @typedef {"default" | "accuracy"} OcrMode */
+/** @typedef {{recentFiles: string[], referenceHintDismissed: boolean, displaySamplesLibrary: boolean, fontNoticeDismissals: string[], language: Language, mode: WorkspaceMode, ocrMode: OcrMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
 
 export const PREFERENCES_KEY = "octopus.workspace.v1";
 
@@ -39,6 +40,7 @@ export function defaultPreferences(osLanguage = "en") {
     fontNoticeDismissals: [],
     language: osLanguage.toLowerCase().startsWith("zh") ? "zh-CN" : "en",
     mode: "normal",
+    ocrMode: "default",
     normalLayout: "N1",
     transcriptionLayout: "T2",
     splits: {
@@ -85,6 +87,7 @@ export function readPreferences(storage, osLanguage = "en") {
         ? candidate.language
         : defaults.language,
       mode: candidate.mode === "transcription" ? "transcription" : "normal",
+      ocrMode: candidate.ocrMode === "accuracy" ? "accuracy" : "default",
       normalLayout: candidate.normalLayout === "N2" ? "N2" : "N1",
       transcriptionLayout: candidate.transcriptionLayout === "T1" ? "T1" : "T2",
       splits: { N1: split("N1"), N2: split("N2"), T1: t1, T2: split("T2") },

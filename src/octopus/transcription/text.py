@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
-from functools import lru_cache
 from math import isfinite
 from pathlib import Path
+from threading import RLock
 from typing import Any, cast
 from unicodedata import normalize
 from xml.etree import ElementTree
@@ -15,6 +15,7 @@ from PIL import Image, ImageOps
 
 from .components import Box, Component, connected_components
 from .marks import vertical_bend
+from .ocr_profiles import current_ocr_mode, normalize_ocr_mode, rapidocr_params
 from .session_artifacts import track_session_artifact
 
 _XHTML = "{http://www.w3.org/1999/xhtml}"
@@ -71,22 +72,75 @@ class TextMergeResult:
     ocr_spans: tuple[TextSpan, ...]
 
 
-@lru_cache(maxsize=1)
-def _cached_ocr_engine() -> object | None:
-    try:
-        from rapidocr import RapidOCR
-    except ImportError:
-        return None
-    with track_session_artifact():
-        return cast(object, RapidOCR(params={
-            "EngineConfig.onnxruntime.intra_op_num_threads": 2,
-            "EngineConfig.onnxruntime.inter_op_num_threads": 1,
-            "Global.log_level": "critical",
-        }))
+_OCR_ENGINE_LOCK = RLock()
+_ACTIVE_OCR_ENGINE: object | None = None
+_ACTIVE_OCR_MODE: str | None = None
+
+
+def _cached_ocr_engine(mode: object | None = None) -> object | None:
+    """Keep only the current profile's lazy RapidOCR engine and release it on switch."""
+    global _ACTIVE_OCR_ENGINE, _ACTIVE_OCR_MODE
+    selected = normalize_ocr_mode(current_ocr_mode() if mode is None else mode)
+    with _OCR_ENGINE_LOCK:
+        if _ACTIVE_OCR_ENGINE is not None and _ACTIVE_OCR_MODE == selected:
+            return _ACTIVE_OCR_ENGINE
+
+        previous = _ACTIVE_OCR_ENGINE
+        _ACTIVE_OCR_ENGINE = None
+        _ACTIVE_OCR_MODE = None
+        del previous
+
+        try:
+            from rapidocr import RapidOCR
+        except ImportError:
+            return None
+        with track_session_artifact():
+            engine = RapidOCR(params=rapidocr_params(selected))
+        _ACTIVE_OCR_ENGINE = cast(object, engine)
+        _ACTIVE_OCR_MODE = str(selected)
+        return _ACTIVE_OCR_ENGINE
+
+
+def _clear_cached_ocr_engine() -> None:
+    global _ACTIVE_OCR_ENGINE, _ACTIVE_OCR_MODE
+    with _OCR_ENGINE_LOCK:
+        previous = _ACTIVE_OCR_ENGINE
+        _ACTIVE_OCR_ENGINE = None
+        _ACTIVE_OCR_MODE = None
+        del previous
+
+
+setattr(_cached_ocr_engine, "cache_clear", _clear_cached_ocr_engine)  # noqa: B010
+
+
+class _ModeBoundOcrEngine:
+    """Resolve the active profile while holding the engine-switch lock for inference."""
+
+    def __call__(self, image: Any, **options: Any) -> object:
+        with _OCR_ENGINE_LOCK:
+            engine = _cached_ocr_engine()
+            if engine is None:
+                raise RuntimeError("RapidOCR is unavailable")
+            try:
+                with track_session_artifact():
+                    return engine(image, **options)  # type: ignore[operator]
+            except Exception:
+                if _ACTIVE_OCR_ENGINE is engine:
+                    _clear_cached_ocr_engine()
+                raise
+
+    @property
+    def max_side_len(self) -> int:
+        with _OCR_ENGINE_LOCK:
+            engine = _cached_ocr_engine()
+            return int(getattr(engine, "max_side_len", 2000))
+
+
+_MODE_BOUND_OCR_ENGINE = _ModeBoundOcrEngine()
 
 
 def _ocr_engine() -> object | None:
-    return _cached_ocr_engine()
+    return _MODE_BOUND_OCR_ENGINE if _cached_ocr_engine() is not None else None
 
 
 def _ocr_call(engine: object, image: Any, **options: Any) -> tuple[list[Any], Any]:
@@ -96,7 +150,11 @@ def _ocr_call(engine: object, image: Any, **options: Any) -> tuple[list[Any], An
     options.setdefault("use_rec", True)
     options.setdefault("return_word_box", False)
     options.setdefault("return_single_char_box", False)
-    result = engine(image, **options)  # type: ignore[operator]
+    if isinstance(engine, _ModeBoundOcrEngine):
+        result = engine(image, **options)
+    else:
+        with track_session_artifact():
+            result = engine(image, **options)  # type: ignore[operator]
     texts = getattr(result, "txts", None)
     scores = getattr(result, "scores", None)
     if texts is None or scores is None:

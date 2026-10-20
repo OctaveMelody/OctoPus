@@ -50,3 +50,4 @@ include = ["octopus*", "ui", "ui.engine"]
 "octopus.assets.glyphs" = ["*.svg", "registry.json"]
 
 "octopus.assets.fonts" = ["*.ttf", "*.json", "*.md", "licenses/*.txt", "licenses/*.pdf"]
+"octopus.assets.ocr_models" = ["manifest.json", "LICENSE", "NOTICE.md"]

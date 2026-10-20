@@ -1,7 +1,7 @@
 //! One cancellable transcription session, independent of the preview worker.
 use crate::DesktopState;
 use jps_document_io::reference_images::resolve_reference_image_paths;
-use jps_engine_bridge::TranscribeArgs;
+use jps_engine_bridge::{OcrMode, TranscribeArgs};
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -43,6 +43,7 @@ pub(crate) async fn transcribe_reference(
     document_id: String,
     document_revision: u64,
     job_id: String,
+    ocr_mode: Option<OcrMode>,
 ) -> Result<Value, String> {
     let key = JobKey {
         id: job_id.clone(),
@@ -78,6 +79,7 @@ pub(crate) async fn transcribe_reference(
                 .to_str()
                 .ok_or("managed reference path is not UTF-8")?
                 .to_owned(),
+            ocr_mode: resolve_ocr_mode(ocr_mode),
         };
         supervisor
             .lock()
@@ -94,4 +96,26 @@ pub(crate) async fn transcribe_reference(
     })
     .await
     .map_err(|error| format!("transcription task failed: {error}"))?
+}
+
+fn resolve_ocr_mode(ocr_mode: Option<OcrMode>) -> OcrMode {
+    ocr_mode.unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_ocr_mode;
+    use jps_engine_bridge::OcrMode;
+
+    #[test]
+    fn omitted_native_mode_defaults_and_explicit_modes_are_preserved() {
+        assert_eq!(resolve_ocr_mode(None), OcrMode::Default);
+        assert_eq!(resolve_ocr_mode(Some(OcrMode::Default)), OcrMode::Default);
+        assert_eq!(resolve_ocr_mode(Some(OcrMode::Accuracy)), OcrMode::Accuracy);
+    }
+
+    #[test]
+    fn native_mode_enum_rejects_unknown_strings() {
+        assert!(serde_json::from_str::<OcrMode>("\"fastest\"").is_err());
+    }
 }

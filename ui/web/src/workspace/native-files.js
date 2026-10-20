@@ -1,6 +1,7 @@
 /** @typedef {{name: string, path: string, suggestedPath: string, text: string}} OpenedJpsDocument */
 /** @typedef {{name: string, kind: "example" | "working-copy"}} JpsCatalogDocument */
 /** @typedef {{path: string | null, suggestedPath?: string | null, suggestedName?: string | null, recentSavedPath?: string | null, expectedText?: string | null, text: string, saveAs?: boolean}} SaveJpsDocumentOptions */
+/** @typedef {"default" | "accuracy"} OcrMode */
 /** @typedef {{documentId: string, revision: number, pageCount: number, filenames: string[], customMarkupOmitted: boolean}} SvgExportReceipt */
 /** @typedef {"pdf" | "jpg" | "png"} ScoreExportFormat */
 /** @typedef {{documentId: string, revision: number, format: ScoreExportFormat, dpi: number | null, pageCount: number, filenames: string[], customMarkupOmitted: boolean}} ScoreExportReceipt */
@@ -8,7 +9,7 @@
 /** @typedef {{id: string, path: string, name: string, mimeType: "image/png" | "image/jpeg", byteLength: number, width: number, height: number, orientation: number}} StagedReferenceImage */
 /** @typedef {{id: string, path: string, name: string, byteLength: number, sha256: string}} StagedReferencePdf */
 /** @typedef {{images: StagedReferenceImage[], pdfs: StagedReferencePdf[], order: string[]}} StagedReferenceAssets */
-/** @typedef {{jps: string, page_count: number, page_dimensions?: Array<{width:number, height:number}>, issues: Array<{code: string, page: number, detail: string, regions: number[][], confidence?:number|null, source_start?:number|null, source_end?:number|null}>}} TranscriptionDraft */
+/** @typedef {{jps: string, ocr_mode: OcrMode, page_count: number, page_dimensions?: Array<{width:number, height:number}>, issues: Array<{code: string, page: number, detail: string, regions: number[][], confidence?:number|null, source_start?:number|null, source_end?:number|null}>}} TranscriptionDraft */
 /** @typedef {{status: "ok" | "error", result?: TranscriptionDraft, error?: {message: string}}} TranscriptionResponse */
 
 /** @template T @param {string} command @param {Record<string, unknown>} args @returns {Promise<T>} */
@@ -43,17 +44,18 @@ export function resolveReferenceImages(ids) {
   return invokeNative("resolve_reference_images", { ids });
 }
 
-/** @param {string} assetId @param {string} documentId @param {number} documentRevision @param {string} jobId
+/** @param {string} assetId @param {string} documentId @param {number} documentRevision @param {string} jobId @param {OcrMode} ocrMode
  * @returns {Promise<TranscriptionResponse>} */
-export async function transcribeReference(assetId, documentId, documentRevision, jobId) {
+export async function transcribeReference(assetId, documentId, documentRevision, jobId, ocrMode) {
   /** @type {TranscriptionResponse} */
   const response = await invokeNative("transcribe_reference", {
-    assetId, documentId, documentRevision, jobId,
+    assetId, documentId, documentRevision, jobId, ocrMode,
   });
   const draft = response?.result;
   if (response?.status === "error" && typeof response.error?.message === "string") return response;
   if (response?.status !== "ok"
     || typeof draft?.jps !== "string"
+    || (draft?.ocr_mode !== "default" && draft?.ocr_mode !== "accuracy")
     || !Number.isSafeInteger(draft.page_count) || draft.page_count < 1
     || (draft.page_dimensions !== undefined && (!Array.isArray(draft.page_dimensions)
       || draft.page_dimensions.length !== draft.page_count
