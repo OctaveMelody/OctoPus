@@ -29,6 +29,11 @@ missed or misread. OctoPus reports review findings when note-number agreement is
 draft differs substantially from the source. A finding can open the related scan region and, when
 available, the corresponding note.
 
+Program Settings offers **Default (Faster)** with PP-OCRv6 Small text models and
+**Accuracy (Slower)** with Medium models. Both are bundled for offline English and Chinese
+recognition. Larger models may improve difficult text and use more time and memory; results
+can vary by score. The saved choice applies to the next New or Append transcription job.
+
 ## Planned improvements
 
 - Continue improving image and PDF transcription accuracy over the long term.

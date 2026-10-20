@@ -26,18 +26,27 @@ The export lists third-party dependencies; install this repository itself separa
 after lock changes. See [uv project structure](https://docs.astral.sh/uv/guides/projects/).
 
 Production setup: `python3 scripts/setup.py` on Linux or `py scripts/setup.py` on Windows. After
-setup, run `python3 scripts/build_portable.py` on Linux or `py scripts/build_portable.py` on
-Windows. The launcher locates the repository and its production virtual environment, so it also
-works when called by full path from another working directory. This keeps source-side package
-checks aligned with the dependencies collected into the frozen worker.
+setup, the pinned OCR models are prepared and checksum-verified in the ignored
+`build/ocr-model-cache` directory; a valid existing cache is reused offline. Setup needs access to
+the official model host when one or more files are missing. Set `OCTOPUS_OCR_MODEL_DIR` to prepare
+the cache elsewhere. Then run `python3 scripts/build_portable.py` on Linux or
+`py scripts/build_portable.py` on Windows. The launcher locates the repository and its production
+virtual environment, so it also works when called by full path from another working directory.
+This keeps source-side package checks aligned with the dependencies collected into the frozen
+worker.
 
 ## Locked dependencies
 
 - Python 3.12 for native worker builds (`.python-version`); Python source supports 3.11+.
 - Python runtime/export dependencies: `pyproject.toml` and `uv.lock`.
-- OCR: the `transcription` extra provides the single offline RapidOCR + ONNX engine using
-  `rapidocr==3.9.2` and `onnxruntime==1.30.0`. The worker and UI use this provider directly; there
-  is no per-user backend setting.
+- OCR: the `transcription` extra pins `rapidocr==3.10.0`, `onnxruntime==1.30.0` and
+  `opencv-python-headless==5.0.0.93`. Headless OpenCV still provides `cv2`; it omits GUI
+  support. Do not install regular or contrib OpenCV alongside it. Program Settings selects
+  Default (PP-OCRv6 Small detection/recognition) or Accuracy (PP-OCRv6 Medium); both share
+  the PP-OCRv4 Mobile orientation classifier. These multilingual weights cover English and
+  Chinese without separate English models. CPU execution retains 2 intra-op / 1 inter-op
+  threads. Both profiles are bundled offline; [model documentation](docs/OCR_MODELS.md)
+  links the checksums, attribution and preparation workflow.
 - Worker freezing: `desktop-build` extra, PyInstaller 6.22.3.
 - Node.js 22.23.3 (`.node-version`), npm 10.9.9 (`.npm-version`); frontend
   `ui/web/package-lock.json`.
@@ -102,6 +111,13 @@ Transcription emits correlated bounded progress frames followed by one final res
 cancellation stops the dedicated process tree and invalidates the pending draft. The preview
 worker is independent. Legacy HTTP/file/recovery protocol and audit entry points live only in
 OctoPus-dev and are excluded from production Python/native distributions.
+
+Desktop protocol 1.8.0 accepts `ocr_mode: "default" | "accuracy"` on transcription requests
+and identifies the actual mode in the result. Missing mode defaults to `default`; invalid
+values are rejected. The application captures its saved choice when a job starts, for both
+New and Append and every PDF page/crop. A settings change affects the next job. The choice
+does not become part of JPS. Larger models can improve difficult text but take more time and
+memory; all drafts still require review against the source.
 
 `VITE_UPDATE_CHECK_ENABLED=false` hides Help → Check for Update when building the frontend.
 Default builds keep it visible; this flag does not disable installed update checking code or
