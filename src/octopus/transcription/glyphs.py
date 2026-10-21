@@ -162,8 +162,9 @@ def classify_accidental(gray: Image.Image, component: Component) -> str | None:
 def classify_digit(
     gray: Image.Image, component: Component, min_score: float = 0.83,
     allow_ocr: bool = True, *, grace: bool = False,
+    page_templates: tuple[tuple[str, int], ...] = (),
 ) -> DigitMatch | None:
-    """Return a digit only when its shape beats competing digit classes."""
+    """Return a digit only when its shape supports or does not contradict OCR."""
     height = component.height
     if not ((6 if grace else MIN_NOTE_DIGIT_HEIGHT) <= height <= MAX_DIGIT_HEIGHT
             and height * 0.2 <= component.width <= height):
@@ -176,5 +177,15 @@ def classify_digit(
         if not allow_ocr:
             return None
         ocr = image_digit(gray, component.box, "1234567" if grace else "01234567")
-        return (ocr[0], ocr[1], True) if ocr else None
+        if ocr is None:
+            return None
+        if not grace:
+            best_shape = max(by_digit.values(), default=0.0)
+            reported_shape = by_digit.get(ocr[0], 0.0)
+            page_match = match_page_digit(gray, component, page_templates)
+            if (reported_shape <= 0
+                    or best_shape - reported_shape > 0.1
+                    and (page_match is None or page_match[0] != ocr[0])):
+                return None
+        return ocr[0], ocr[1], True
     return ranked[0][0], ranked[0][1], False

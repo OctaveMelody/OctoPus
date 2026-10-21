@@ -958,6 +958,7 @@ def _recognize_working_rows(
         (component, match) for component, match in trusted
         if abs(component.height - trusted_height) <= max(3, trusted_height * 0.12)
     ]
+    trusted_templates = page_digit_templates(gray, trusted_main)
     trusted_rows = [
         sum(component.center_y for component, _ in group) / len(group)
         for group in _groups(trusted_main, trusted_height)
@@ -998,7 +999,7 @@ def _recognize_working_rows(
             or any(abs(component.center_y - y) <= component.height * 0.4 for y in trusted_rows)
         ):
             continue
-        match = classify_digit(gray, component)
+        match = classify_digit(gray, component, page_templates=trusted_templates)
         if match is not None:
             candidates.append((component, match))
     if not candidates:
@@ -1147,7 +1148,9 @@ def _recognize_working_rows(
             and row.box[0] < component.box[0] < row.box[2]
             for row in rows
         )
-        and (match := classify_digit(gray, component, min_score=0.78)) is not None
+        and (match := classify_digit(
+            gray, component, min_score=0.78, page_templates=templates,
+        )) is not None
     ]
     known_boxes.update(component.box for component, _ in smaller)
     for group in _groups(smaller, round(digit_height * 0.78)):

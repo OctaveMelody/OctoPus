@@ -7,7 +7,7 @@ from math import ceil, floor
 from statistics import median
 from typing import cast
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from .components import Box, Component, connected_components
 from .glyphs import classify_digit
@@ -28,6 +28,57 @@ class EndingSegment:
     opens: bool
     closed: bool
     label: str = ""
+
+
+def _slender_stem_one(gray: Image.Image, component: Component) -> bool:
+    """Recognize the narrow, capped stem used by a small printed volta 1."""
+    width, height = component.width, component.height
+    if height < 12 or width > height * 0.55:
+        return False
+    pixels = gray.load()
+    assert pixels is not None
+    left, top, right, bottom = component.box
+    row_counts = [
+        sum(pixels[x, y] < 160 for x in range(left, right))
+        for y in range(top, bottom)
+    ]
+    if sum(count > 0 for count in row_counts) < height * 0.8:
+        return False
+    top_rows = row_counts[:ceil(height * 0.3)]
+    stem_rows = row_counts[round(height * 0.2):round(height * 0.9)]
+    return (
+        max(top_rows, default=0) >= max(3, ceil(width * 0.6))
+        and sum(count <= max(2, round(width * 0.5)) for count in stem_rows)
+        >= len(stem_rows) * 0.75
+    )
+
+
+def _ending_label_digit(gray: Image.Image, component: Component) -> str | None:
+    """Read a framed digit; enlarge a visibly narrow one when its first OCR pass is unsure."""
+    reading = image_digit(gray, component.box, "0123456789")
+    if reading is not None and reading[0] != "1":
+        return reading[0]
+    shape = classify_digit(
+        gray, component, min_score=0.4, allow_ocr=False, grace=True,
+    )
+    if shape is not None and (reading is None or shape[0] == reading[0]):
+        return shape[0]
+    if not _slender_stem_one(gray, component):
+        return None
+    if reading is not None:
+        return "1"
+
+    crop = gray.crop(component.box)
+    enlarged_readings = []
+    for scale in (2, 4):
+        enlarged = crop.resize((crop.width * scale, crop.height * scale), Image.Resampling.LANCZOS)
+        border = round(enlarged.height * 0.6)
+        padded = ImageOps.expand(enlarged, border=border, fill=255)
+        match = image_digit(
+            padded, (0, 0, padded.width, padded.height), "0123456789", tight_padding=True,
+        )
+        enlarged_readings.append(match[0] if match is not None else None)
+    return "1" if enlarged_readings == ["1", "1"] else None
 
 
 def _horizontal_rows(
@@ -159,11 +210,11 @@ def row_endings(
                     or abs(component.center_y - previous_letter.center_y) > height * 0.3
                 ):
                     break
-                match = image_digit(gray, component.box, "0123456789")
-                if match is None:
+                digit = _ending_label_digit(gray, component)
+                if digit is None:
                     complete = False
                     break
-                parts.append(match[0])
+                parts.append(digit)
                 punctuation = [
                     mark for mark in components
                     if component.box[2] <= mark.box[0] <= component.box[2] + height * 0.7
