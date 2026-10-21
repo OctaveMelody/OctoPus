@@ -24,7 +24,18 @@ use protocol::{
 };
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+const DEFAULT_TRANSCRIPTION_TIMEOUT: Duration = Duration::from_secs(900);
+// Keep Accuracy bounded above the 38-minute live request observed under shared CPU load.
+// This is an operational ceiling, not a completion guarantee; progress never renews it.
+const ACCURACY_TRANSCRIPTION_TIMEOUT: Duration = Duration::from_secs(3_600);
 static NEXT_REQUEST_ID: AtomicU64 = AtomicU64::new(1);
+
+fn transcription_timeout(ocr_mode: OcrMode) -> Duration {
+    match ocr_mode {
+        OcrMode::Default => DEFAULT_TRANSCRIPTION_TIMEOUT,
+        OcrMode::Accuracy => ACCURACY_TRANSCRIPTION_TIMEOUT,
+    }
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -364,12 +375,13 @@ impl EngineSupervisor {
         cancelled: Arc<AtomicBool>,
         progress: impl Fn(Value) + Send + 'static,
     ) -> Result<Value, String> {
+        let timeout = transcription_timeout(args.ocr_mode);
         self.call_controlled(
             args.document_id,
             args.document_revision,
             "transcribe",
             json!({ "path": args.path, "ocr_mode": args.ocr_mode.as_str() }),
-            Duration::from_secs(900),
+            timeout,
             Some(cancelled),
             Some(Box::new(progress)),
         )
@@ -736,7 +748,8 @@ fn stop_child(child: &Arc<Mutex<WorkerProcess>>) {
 mod tests {
     use super::process::WorkerProcess;
     use super::{
-        read_bounded_line, validate_response, EngineSupervisor, OcrMode, RenderArgs, TranscribeArgs,
+        read_bounded_line, transcription_timeout, validate_response, EngineSupervisor, OcrMode,
+        RenderArgs, TranscribeArgs, ACCURACY_TRANSCRIPTION_TIMEOUT, DEFAULT_TRANSCRIPTION_TIMEOUT,
     };
     use serde_json::json;
     use std::io::{BufReader, Cursor, ErrorKind};
@@ -760,6 +773,9 @@ for line in sys.stdin:
         time.sleep(30)
         continue
     if mode == "hang-request" and operation != "handshake":
+        if len(sys.argv) > 2:
+            with open(sys.argv[2], "w") as output:
+                output.write(request["payload"].get("ocr_mode", ""))
         time.sleep(30)
         continue
     response = {
@@ -856,6 +872,15 @@ for line in sys.stdin:
         EngineSupervisor::test_command(
             interpreter,
             &["-u", "-c", FAKE_ENGINE, mode],
+            Duration::from_secs(2),
+        )
+    }
+
+    fn fake_engine_with_argument(mode: &str, argument: &str) -> EngineSupervisor {
+        let interpreter = if cfg!(windows) { "python" } else { "python3" };
+        EngineSupervisor::test_command(
+            interpreter,
+            &["-u", "-c", FAKE_ENGINE, mode, argument],
             Duration::from_secs(2),
         )
     }
@@ -1136,6 +1161,20 @@ for line in sys.stdin:
     }
 
     #[test]
+    fn native_transcription_deadline_is_selected_by_ocr_mode() {
+        assert_eq!(
+            transcription_timeout(OcrMode::Default),
+            DEFAULT_TRANSCRIPTION_TIMEOUT
+        );
+        assert_eq!(
+            transcription_timeout(OcrMode::Accuracy),
+            ACCURACY_TRANSCRIPTION_TIMEOUT
+        );
+        assert_eq!(DEFAULT_TRANSCRIPTION_TIMEOUT, Duration::from_secs(900));
+        assert_eq!(ACCURACY_TRANSCRIPTION_TIMEOUT, Duration::from_secs(3_600));
+    }
+
+    #[test]
     fn invalid_progress_stops_the_worker_and_cannot_leak_to_another_request() {
         for mode in [
             "progress-id",
@@ -1188,25 +1227,53 @@ for line in sys.stdin:
 
     #[test]
     fn running_cancellation_kills_worker_descendants_promptly_and_restarts() {
-        let mut engine = fake_engine("child-hang-request");
-        let pid = engine.capabilities().unwrap()["descendant_pid"]
-            .as_u64()
-            .unwrap() as u32;
-        let child = Arc::clone(&engine.process.as_ref().unwrap().child);
-        let cancelled = Arc::new(AtomicBool::new(false));
-        let flag = Arc::clone(&cancelled);
-        let cancel = std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(100));
-            flag.store(true, Ordering::Release);
-        });
-        let started = Instant::now();
-        let result = engine.transcribe_with_progress(transcription_args(), cancelled, |_| {});
-        cancel.join().unwrap();
-        assert!(result.unwrap_err().contains("cancelled"));
-        assert!(started.elapsed() < Duration::from_secs(2));
-        assert_reaped(&child);
-        assert!(!descendant_running(pid));
-        assert!(engine.capabilities().is_ok());
+        for mode in [OcrMode::Default, OcrMode::Accuracy] {
+            let marker = std::env::temp_dir().join(format!(
+                "octopus-transcription-cancel-mode-{}-{}",
+                std::process::id(),
+                super::NEXT_REQUEST_ID.fetch_add(1, Ordering::Relaxed)
+            ));
+            let mut engine =
+                fake_engine_with_argument("child-hang-request", marker.to_str().unwrap());
+            let pid = engine.capabilities().unwrap()["descendant_pid"]
+                .as_u64()
+                .unwrap() as u32;
+            let child = Arc::clone(&engine.process.as_ref().unwrap().child);
+            let cancelled = Arc::new(AtomicBool::new(false));
+            let flag = Arc::clone(&cancelled);
+            let marker_for_cancel = marker.clone();
+            let expected_mode = mode.as_str().to_owned();
+            let cancel = std::thread::spawn(move || {
+                let deadline = Instant::now() + Duration::from_secs(2);
+                loop {
+                    if let Ok(observed_mode) = std::fs::read_to_string(&marker_for_cancel) {
+                        if observed_mode == expected_mode {
+                            flag.store(true, Ordering::Release);
+                            return true;
+                        }
+                    }
+                    if Instant::now() >= deadline {
+                        flag.store(true, Ordering::Release);
+                        return false;
+                    }
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+            });
+            let mut args = transcription_args();
+            args.ocr_mode = mode;
+            let started = Instant::now();
+            let result = engine.transcribe_with_progress(args, cancelled, |_| {});
+            let dispatched = cancel.join().unwrap();
+            assert!(result.unwrap_err().contains("cancelled"));
+            assert!(dispatched, "transcription request did not reach the worker");
+            assert_eq!(std::fs::read_to_string(&marker).unwrap(), mode.as_str());
+            assert!(started.elapsed() < Duration::from_secs(3));
+            assert_reaped(&child);
+            assert!(!descendant_running(pid));
+            assert!(engine.capabilities().is_ok());
+            drop(engine);
+            std::fs::remove_file(marker).unwrap();
+        }
     }
 
     #[test]

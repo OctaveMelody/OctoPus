@@ -24,6 +24,12 @@ can add loading time. Larger text models need more time and memory and may help 
 text; some scores can perform better with Default. Musical geometry and manual review
 remain necessary in either mode.
 
+Desktop transcription has a fixed deadline for the whole request: 15 minutes for
+Default and 60 minutes for Accuracy. Progress does not renew it, and cancellation
+remains available while recognition runs. These are operational limits; a large PDF
+can still exceed its selected limit and fail. Corpus CLI tools do not use that desktop
+deadline, so their completion alone does not establish desktop acceptance.
+
 ## Pinned inventory
 
 The machine-readable source of truth is
