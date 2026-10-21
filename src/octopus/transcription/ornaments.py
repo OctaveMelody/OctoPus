@@ -39,7 +39,7 @@ def _slender_stem_one(gray: Image.Image, component: Component) -> bool:
     assert pixels is not None
     left, top, right, bottom = component.box
     row_counts = [
-        sum(pixels[x, y] < 160 for x in range(left, right))
+        sum(cast(int, pixels[x, y]) < 160 for x in range(left, right))
         for y in range(top, bottom)
     ]
     if sum(count > 0 for count in row_counts) < height * 0.8:
@@ -56,17 +56,15 @@ def _slender_stem_one(gray: Image.Image, component: Component) -> bool:
 def _ending_label_digit(gray: Image.Image, component: Component) -> str | None:
     """Read a framed digit; enlarge a visibly narrow one when its first OCR pass is unsure."""
     reading = image_digit(gray, component.box, "0123456789")
-    if reading is not None and reading[0] != "1":
+    if reading is not None:
         return reading[0]
     shape = classify_digit(
         gray, component, min_score=0.4, allow_ocr=False, grace=True,
     )
-    if shape is not None and (reading is None or shape[0] == reading[0]):
+    if shape is not None:
         return shape[0]
     if not _slender_stem_one(gray, component):
         return None
-    if reading is not None:
-        return "1"
 
     crop = gray.crop(component.box)
     enlarged_readings = []

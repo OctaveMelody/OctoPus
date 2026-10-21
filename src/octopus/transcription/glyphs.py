@@ -14,6 +14,8 @@ from .text import image_digit
 
 MIN_NOTE_DIGIT_HEIGHT = 16
 MAX_DIGIT_HEIGHT = 75
+# Real glyph pixels remain evidence when a neighboring font template scores slightly higher.
+MIN_CONTRADICTED_OCR_GLYPH_SUPPORT = 0.4
 
 GLYPHS = Path(__file__).resolve().parents[1] / "assets" / "glyphs"
 NORMALIZED_SIZE = (24, 36)
@@ -183,9 +185,12 @@ def classify_digit(
             best_shape = max(by_digit.values(), default=0.0)
             reported_shape = by_digit.get(ocr[0], 0.0)
             page_match = match_page_digit(gray, component, page_templates)
-            if (reported_shape <= 0
-                    or best_shape - reported_shape > 0.1
-                    and (page_match is None or page_match[0] != ocr[0])):
+            contradicted_without_page_match = (
+                best_shape - reported_shape > 0.1
+                and (page_match is None or page_match[0] != ocr[0])
+                and reported_shape < MIN_CONTRADICTED_OCR_GLYPH_SUPPORT
+            )
+            if reported_shape <= 0 or contradicted_without_page_match:
                 return None
         return ocr[0], ocr[1], True
     return ranked[0][0], ranked[0][1], False

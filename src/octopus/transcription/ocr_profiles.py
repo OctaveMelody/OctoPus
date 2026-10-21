@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 OcrMode = Literal["default", "accuracy"]
-OCR_MODES = ("default", "accuracy")
+OCR_MODES: tuple[OcrMode, ...] = ("default", "accuracy")
 _PACKAGE_ASSET_DIR = Path(__file__).resolve().parents[1] / "assets" / "ocr_models"
 _PROJECT_MODEL_CACHE = Path(__file__).resolve().parents[3] / "build" / "ocr-model-cache"
 _configured_model_dir = os.environ.get("OCTOPUS_OCR_MODEL_DIR")
@@ -119,7 +119,7 @@ def verify_ocr_assets(
     models = manifest.get("models")
     if not isinstance(models, dict):
         raise RuntimeError("OCR model manifest has no model inventory")
-    selected_modes = OCR_MODES if profiles is None else tuple(
+    selected_modes: tuple[OcrMode, ...] = OCR_MODES if profiles is None else tuple(
         normalize_ocr_mode(mode) for mode in profiles
     )
     expected = {
@@ -137,7 +137,7 @@ def verify_ocr_assets(
 def _rapidocr_config_sha256() -> str:
     try:
         config = importlib.metadata.distribution("rapidocr").locate_file("rapidocr/config.yaml")
-        return hashlib.sha256(Path(config).read_bytes()).hexdigest()
+        return hashlib.sha256(Path(str(config)).read_bytes()).hexdigest()
     except (importlib.metadata.PackageNotFoundError, OSError) as error:
         raise RuntimeError("RapidOCR's installed config.yaml is unavailable") from error
 
