@@ -22,6 +22,7 @@ _PAGINATION = re.compile(
     re.I,
 )
 _MIN_BASELINE_TOLERANCE = 9
+_LYRIC_PUNCTUATION = frozenset("，。！？、,.!?；;：:")
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +39,11 @@ def _is_lyric_text(value: str) -> bool:
         or _ANNOTATION.fullmatch(text) is not None
         or sum(character.isalpha() for character in text) >= 2
     )
+
+
+def _is_lyric_punctuation(value: str) -> bool:
+    text = value.strip()
+    return bool(text) and all(character in _LYRIC_PUNCTUATION for character in text)
 
 
 def _lyric_units(span: TextSpan) -> list[tuple[str, float]]:
@@ -77,6 +83,80 @@ def _lyric_units(span: TextSpan) -> list[tuple[str, float]]:
         )
         for match in re.finditer(_ANNOTATION.pattern + r"|\S+", text)
     ]
+
+
+def _deduplicate_overlapping_glyphs(spans: list[TextSpan]) -> tuple[TextSpan, ...]:
+    """Keep the clearer glyph when OCR spans overlap on the same lyric baseline."""
+    selected: list[TextSpan | None] = [None] * len(spans)
+    occupied: list[tuple[Box, int, TextSpan]] = []
+    order = sorted(range(len(spans)), key=lambda index: (
+        -spans[index].confidence, spans[index].box, spans[index].text, index,
+    ))
+    for span_index in order:
+        span = spans[span_index]
+        boxes = span.character_boxes
+        if len(boxes) != len(span.text):
+            selected[span_index] = span
+            continue
+
+        kept: list[int] = []
+        for index, box in enumerate(boxes):
+            left, top, right, bottom = box
+            if right <= left or bottom <= top:
+                kept.append(index)
+                continue
+            duplicate = any(
+                abs(span.center_y - other.center_y) <= max(
+                    9, min(span.height, other.height) * 0.42,
+                )
+                and _glyph_boxes_overlap(box, other_box)
+                for other_box, other_index, other in occupied
+                if other_index != span_index
+            )
+            if not duplicate:
+                kept.append(index)
+                occupied.append((box, span_index, span))
+
+        while kept and span.text[kept[0]].isspace():
+            kept.pop(0)
+        while kept and span.text[kept[-1]].isspace():
+            kept.pop()
+        if not kept:
+            continue
+        if kept == list(range(len(span.text))):
+            selected[span_index] = span
+            continue
+
+        character_boxes = tuple(boxes[index] for index in kept)
+        centers = (
+            tuple(span.character_centers[index] for index in kept)
+            if len(span.character_centers) == len(span.text)
+            else tuple((box[0] + box[2]) / 2 for box in character_boxes)
+        )
+        selected[span_index] = replace(
+            span,
+            text="".join(span.text[index] for index in kept),
+            box=(min(box[0] for box in character_boxes),
+                 min(box[1] for box in character_boxes),
+                 max(box[2] for box in character_boxes),
+                 max(box[3] for box in character_boxes)),
+            character_centers=centers,
+            character_boxes=character_boxes,
+        )
+    return tuple(span for span in selected if span is not None)
+
+
+def _glyph_boxes_overlap(first: Box, second: Box) -> bool:
+    first_width = first[2] - first[0]
+    second_width = second[2] - second[0]
+    first_height = first[3] - first[1]
+    second_height = second[3] - second[1]
+    if min(first_width, second_width, first_height, second_height) <= 0:
+        return False
+    overlap_x = max(0, min(first[2], second[2]) - max(first[0], second[0]))
+    overlap_y = max(0, min(first[3], second[3]) - max(first[1], second[1]))
+    return (overlap_x * 2 >= min(first_width, second_width)
+            and overlap_y * 2 >= min(first_height, second_height))
 
 
 def _assemble(spans: list[TextSpan], notes: MusicRow) -> str:
@@ -213,24 +293,127 @@ def extract_lyrics(
 
     def baseline(span: TextSpan) -> float:
         return span.center_y - slope * span.center_x
-    # A right-aligned footer touching the page edge is outside the lyric band.
-    spans = [
-        span
-        for span in page.text_spans
-        if span.confidence >= MIN_TEXT_SPAN_CONFIDENCE
-        and (span.height >= digit_height * 0.58 or span.text == "一" and span.confidence >= 0.95)
-        and top <= span.center_y < bottom
-        and _is_lyric_text(span.text)
-        and not any(left <= span.center_x <= right and upper <= span.center_y <= lower
-                    for left, upper, right, lower in branch_boxes)
-        and not (next_index == len(page.rows) and span.box[3] >= page.height - digit_height
-                 and _PAGINATION.fullmatch(span.text.strip()))
-        and not (
-            span.box[0] > page.width * 0.6
-            and span.box[2] > page.width * 0.9
-            and span.box[3] > page.height - digit_height
+
+    lyric_spans = []
+    punctuation_spans = []
+    for span in page.text_spans:
+        if (span.confidence < MIN_TEXT_SPAN_CONFIDENCE
+                or not (span.height >= digit_height * 0.58
+                        or span.text == "一" and span.confidence >= 0.95
+                        or _is_lyric_punctuation(span.text))
+                or not top <= span.center_y < bottom
+                or not (_is_lyric_text(span.text) or _is_lyric_punctuation(span.text))
+                or any(left <= span.center_x <= right and upper <= span.center_y <= lower
+                       for left, upper, right, lower in branch_boxes)
+                or (next_index == len(page.rows)
+                    and span.box[3] >= page.height - digit_height
+                    and _PAGINATION.fullmatch(span.text.strip()))
+                or (span.box[0] > page.width * 0.6
+                    and span.box[2] > page.width * 0.9
+                    and span.box[3] > page.height - digit_height)):
+            continue
+        if _is_lyric_punctuation(span.text):
+            punctuation_spans.append(span)
+        else:
+            lyric_spans.append(span)
+
+    # A cropped reading can leave a source-supported comma as its own span.
+    # Attach it only to a preceding lyric glyph on the same baseline and nearby.
+    for punctuation in sorted(punctuation_spans, key=lambda span: span.box[0]):
+        punctuation_start = len(punctuation.text) - len(punctuation.text.lstrip())
+        punctuation_end = len(punctuation.text.rstrip())
+        punctuation_text = punctuation.text[punctuation_start:punctuation_end]
+        punctuation_centers = (
+            punctuation.character_centers[punctuation_start:punctuation_end]
+            if len(punctuation.character_centers) == len(punctuation.text)
+            else tuple(punctuation.center_x for _ in punctuation_text)
         )
-    ]
+        punctuation_boxes = (
+            punctuation.character_boxes[punctuation_start:punctuation_end]
+            if len(punctuation.character_boxes) == len(punctuation.text) else ()
+        )
+        owners = []
+        for index, span in enumerate(lyric_spans):
+            if abs(baseline(span) - baseline(punctuation)) > max(
+                _MIN_BASELINE_TOLERANCE,
+                min(span.height, punctuation.height) * 0.42,
+            ):
+                continue
+            end_center = (
+                span.character_centers[-1]
+                if len(span.character_centers) == len(span.text) else span.box[2]
+            )
+            center_gap = punctuation_centers[0] - end_center
+            position_tolerance = max(8.0, min(span.height, punctuation.height) * 0.75)
+            box_gap = max(
+                span.box[0] - punctuation.box[2],
+                punctuation.box[0] - span.box[2], 0,
+            )
+            box_tolerance = max(4.0, min(span.height, punctuation.height) * 0.25)
+            if (-position_tolerance * 0.25 <= center_gap <= position_tolerance
+                    and box_gap <= box_tolerance):
+                owners.append((abs(center_gap), -span.confidence, index))
+        if not owners:
+            continue
+        _, _, owner_index = min(owners)
+        owner = lyric_spans[owner_index]
+        duplicate_count = 0
+        for count in range(min(len(owner.text), len(punctuation_text)), 0, -1):
+            if owner.text[-count:] != punctuation_text[:count]:
+                continue
+            if len(owner.character_boxes) == len(owner.text) and len(punctuation_boxes) == len(
+                punctuation_text
+            ):
+                duplicate = all(
+                    _glyph_boxes_overlap(first, second)
+                    for first, second in zip(
+                        owner.character_boxes[-count:], punctuation_boxes[:count], strict=True,
+                    )
+                )
+            elif (len(owner.character_centers) == len(owner.text)
+                  and len(punctuation_centers) == len(punctuation_text)):
+                tolerance = max(2.0, min(owner.height, punctuation.height) * 0.2)
+                duplicate = all(
+                    abs(first - second) <= tolerance
+                    for first, second in zip(
+                        owner.character_centers[-count:], punctuation_centers[:count],
+                        strict=True,
+                    )
+                )
+            else:
+                duplicate = False
+            if duplicate:
+                duplicate_count = count
+                break
+        punctuation_text = punctuation_text[duplicate_count:]
+        punctuation_centers = punctuation_centers[duplicate_count:]
+        punctuation_boxes = punctuation_boxes[duplicate_count:]
+        if not punctuation_text:
+            continue
+        punctuation_box = punctuation.box
+        if duplicate_count and punctuation_boxes:
+            punctuation_box = (
+                min(box[0] for box in punctuation_boxes), min(box[1] for box in punctuation_boxes),
+                max(box[2] for box in punctuation_boxes), max(box[3] for box in punctuation_boxes),
+            )
+        centers = (
+            (*owner.character_centers, *punctuation_centers)
+            if len(owner.character_centers) == len(owner.text) else ()
+        )
+        boxes = (
+            (*owner.character_boxes, *punctuation_boxes)
+            if (len(owner.character_boxes) == len(owner.text)
+                and len(punctuation_boxes) == len(punctuation_text))
+            else ()
+        )
+        lyric_spans[owner_index] = TextSpan(
+            owner.text + punctuation_text,
+            (min(owner.box[0], punctuation_box[0]), min(owner.box[1], punctuation_box[1]),
+             max(owner.box[2], punctuation_box[2]), max(owner.box[3], punctuation_box[3])),
+            min(owner.confidence, punctuation.confidence), centers, owner.lyric_baselines, boxes,
+        )
+    # A right-aligned footer touching the page edge is outside the lyric band.
+    spans = lyric_spans
     bands: list[list[TextSpan]] = []
     for span in sorted((span for span in spans if not span.lyric_baselines),
                        key=baseline):
@@ -261,6 +444,7 @@ def extract_lyrics(
             abs(baseline - band[0].center_y) <= digit_height * 0.5
             for baseline in span.lyric_baselines
         ))
+        band = list(_deduplicate_overlapping_glyphs(band))
         body = _assemble(band, alignment_row)
         if body:
             units = [unit for span in sorted(band, key=lambda item: item.box[0])

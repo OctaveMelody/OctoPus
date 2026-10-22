@@ -41,6 +41,11 @@ def _same_lyric_baseline(first: TextSpan, second: TextSpan, height: float) -> bo
             and horizontal_gap <= height * 0.8)
 
 
+def _lyric_glyph(character: str) -> bool:
+    return (character.isalpha()
+            or character in "，。！？、,.!?；;：:")
+
+
 def _contains_in_order(source: str, reading: str) -> bool:
     characters = iter(reading)
     return bool(source) and all(any(candidate == char for candidate in characters)
@@ -139,16 +144,27 @@ def _reconcile_crop_characters(
     crops: set[TextSpan], spans: tuple[TextSpan, ...], height: float,
 ) -> tuple[tuple[TextSpan, ...], dict[int, set[int]]]:
     """Resolve overlapping crop glyphs against positioned page OCR characters."""
-    punctuation = "，。！？、,.!?；;：:"
-
-    def lyric_glyph(character: str) -> bool:
-        return "\u3400" <= character <= "\u9fff" or character in punctuation
-
     def glyph_center_y(span: TextSpan, index: int) -> float:
         if len(span.character_boxes) == len(span.text):
             box = span.character_boxes[index]
             return (box[1] + box[3]) / 2
         return span.center_y
+
+    def glyph_dimensions(span: TextSpan, index: int) -> tuple[int, int]:
+        if len(span.character_boxes) == len(span.text):
+            left, top, right, bottom = span.character_boxes[index]
+            return right - left, bottom - top
+        return 0, 0
+
+    def glyph_center_tolerance(
+        crop: TextSpan, crop_index: int, source: TextSpan, source_index: int,
+        exact_character: bool,
+    ) -> float:
+        crop_width, crop_height = glyph_dimensions(crop, crop_index)
+        source_width, source_height = glyph_dimensions(source, source_index)
+        result = max(tolerance, crop_width * 0.5, source_width * 0.5)
+        return max(result, crop_height * 0.5, source_height * 0.5) \
+            if exact_character else result
 
     ordered = sorted(crops, key=lambda span: (-span.confidence, span.box, span.text))
     used: set[tuple[int, int]] = set()
@@ -163,8 +179,9 @@ def _reconcile_crop_characters(
         centers: list[float] = []
         boxes: list[Box] = []
         has_boxes = len(crop.character_boxes) == len(crop.text)
+        last_source_center: float | None = None
         for index, character in enumerate(crop.text):
-            if not lyric_glyph(character):
+            if not _lyric_glyph(character):
                 characters.append(character)
                 centers.append(crop.character_centers[index])
                 if has_boxes:
@@ -178,26 +195,32 @@ def _reconcile_crop_characters(
                  if len(span.character_centers) == len(span.text)
                  and _same_lyric_baseline(span, crop, height)
                  for source_index, source_character in enumerate(span.text)
-                 if lyric_glyph(source_character)
+                 if _lyric_glyph(source_character)
                  and abs(crop.character_centers[index]
-                         - span.character_centers[source_index]) <= max(
-                             tolerance,
-                             max(
-                                 crop.character_boxes[index][2]
-                                 - crop.character_boxes[index][0]
-                                 if len(crop.character_boxes) == len(crop.text) else 0,
-                                 span.character_boxes[source_index][2]
-                                 - span.character_boxes[source_index][0]
-                                 if len(span.character_boxes) == len(span.text) else 0,
-                             ) * 0.5,
+                         - span.character_centers[source_index]) <= glyph_center_tolerance(
+                             crop, index, span, source_index,
+                             source_character == character,
                          )
                  and abs(crop_y - glyph_center_y(span, source_index))
                  <= max(4.0, height * 0.35)),
                 key=lambda item: (item[0], item[1], item[2].box, item[3]),
             )
-            available = next((item for item in candidates
+            exact = [item for item in candidates if item[2].text[item[3]] == character]
+            ordered_candidates = [
+                item for item in candidates
+                if last_source_center is None
+                or item[2].character_centers[item[3]] > last_source_center
+            ]
+            ordered_exact = [item for item in exact if item in ordered_candidates]
+            pool = ordered_exact if exact else ordered_candidates
+            out_of_order = any(
+                (id(item[2]), item[3]) not in used
+                and item not in ordered_candidates
+                for item in (exact or candidates)
+            )
+            available = next((item for item in pool
                               if (id(item[2]), item[3]) not in used), None)
-            if candidates and available is None:
+            if available is None and candidates and not out_of_order:
                 continue
             if available is None:
                 characters.append(character)
@@ -208,6 +231,7 @@ def _reconcile_crop_characters(
             _, _, source, source_index = available
             used.add((id(source), source_index))
             consumed.setdefault(id(source), set()).add(source_index)
+            last_source_center = source.character_centers[source_index]
             source_character = source.text[source_index]
             selected = (source_character if source.confidence >= crop.confidence
                         else character)
@@ -326,6 +350,18 @@ def _merge_lyric_readings(
     # page glyphs inside an accepted crop even when their centers are too far apart to
     # pair one-to-one with the crop's character boxes.
     for crop in accepted_crops:
+        if len(crop.character_boxes) == len(crop.text):
+            crop_glyph_boxes = tuple(
+                crop.character_boxes[index] for index, character in enumerate(crop.text)
+                if _lyric_glyph(character)
+            )
+        elif (len(crop.text) == 1
+              and crop.box[2] - crop.box[0] <= max(1, crop.height) * 3):
+            crop_glyph_boxes = (crop.box,)
+        else:
+            crop_glyph_boxes = ()
+        if not crop_glyph_boxes:
+            continue
         for span in spans:
             if (len(span.character_centers) != len(span.text)
                     or not _same_lyric_baseline(span, crop, height)):
@@ -336,14 +372,18 @@ def _merge_lyric_readings(
                     if len(span.character_boxes) == len(span.text) else span.center_y
                 )
                 vertical_margin = max(3.0, height * 0.15)
-                if (crop.box[0] <= center <= crop.box[2]
-                        and crop.box[1] - vertical_margin <= source_y
-                        <= crop.box[3] + vertical_margin
+                if (any(left <= center <= right
+                        and top - vertical_margin <= source_y <= bottom + vertical_margin
+                        for left, top, right, bottom in crop_glyph_boxes)
                         and ("\u3400" <= span.text[index] <= "\u9fff"
                              or span.text[index] in "，。！？、,.!?；;：:")):
                     consumed.setdefault(id(span), set()).add(index)
+    source_spans = tuple(
+        span for span in spans
+        if span in accepted_spans or consumed.get(id(span))
+    )
     source_residuals = tuple(
-        fragment for span in accepted_spans
+        fragment for span in source_spans
         for fragment in _unconsumed_span_fragments(span, consumed.get(id(span), set()))
     )
     return (*source_residuals, *resolved_crops)
