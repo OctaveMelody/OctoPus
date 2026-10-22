@@ -15,6 +15,7 @@ _DYNAMICS = {
     "ppp", "pp", "p", "mp", "mf", "f", "ff", "fff", "rit", "dim", "cresc",
     "d.s", "d.c", "d.s. fine", "d.c. fine",
 }
+_CJK_CHARACTERS = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 _PERFORMER = re.compile(r"[（(]\s*([女男合])\s*[）)]")
 _ANNOTATION = re.compile(r"[（(]\s*[女男合]\s*[）)]|[①-⑳]|(?<!\d)\d+[.．](?!\d)")
 _PAGINATION = re.compile(
@@ -37,7 +38,7 @@ def _is_lyric_text(value: str) -> bool:
     return score_text_kind(text) is None and text.lower().rstrip(".．") not in _DYNAMICS and (
         any("\u3400" <= character <= "\u9fff" for character in text)
         or _ANNOTATION.fullmatch(text) is not None
-        or sum(character.isalpha() for character in text) >= 2
+        or any(character.isalpha() for character in text)
     )
 
 
@@ -255,16 +256,26 @@ def _assemble(spans: list[TextSpan], notes: MusicRow) -> str:
     if not assigned:
         return ""
     body = []
+    previous_words: list[str] | None = None
     for index in range(max(assigned) + 1):
         words = assigned.get(index)
         if words is None:
             body.append("@")
+            previous_words = None
         else:
+            lyric_words = [word for word in words if not word.startswith('"')]
+            if (previous_words and lyric_words
+                    and any(character.isalpha() for character in previous_words[-1])
+                    and not _CJK_CHARACTERS.search(previous_words[-1])
+                    and any(character.isalpha() for character in lyric_words[0])
+                    and not _CJK_CHARACTERS.search(lyric_words[0])):
+                body.append("/")
             body.append("".join(
                 ("~" if index and not word.startswith('"')
                  and not words[index - 1].startswith('"') else "") + word
                 for index, word in enumerate(words)
             ))
+            previous_words = lyric_words
     return "".join(body)
 
 

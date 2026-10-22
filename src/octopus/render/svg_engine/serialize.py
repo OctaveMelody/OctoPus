@@ -24,7 +24,8 @@ def _escape_attribute(name: str, value: str, *, escape_code_ampersand: bool = Fa
 
     if name == "code" and not escape_code_ampersand:
         return value
-    return html.escape(value, quote=False)
+    escaped = html.escape(value, quote=False)
+    return escaped if name == "code" else escaped.replace('"', "&quot;")
 
 
 def _ordered_attributes(element: SvgElement) -> tuple[tuple[str, str], ...]:
