@@ -642,6 +642,8 @@ def _performance_text(
         found = text_decorations(
             tuple(note.box for note in row.notes), decoration_candidates, gray=gray,
             other_rows=tuple(other.box for other in owned_rows if other is not row),
+            lyric_spans=(page.ocr_text_spans if page.ocr_text_spans is not None
+                         else candidates),
         )
         notes = []
         for index, note in enumerate(row.notes):

@@ -190,13 +190,47 @@ def _lyric_character(
             and any(other.box[0] >= span.box[2] for other in context))
 
 
+def _overlaps_lyric_glyph(
+    span: TextSpan, source_span: TextSpan, lyric_spans: tuple[TextSpan, ...],
+) -> bool:
+    """Reject a mark when OCR independently recognizes overlapping lyric ink."""
+    span_area = _area(span.box)
+    if span_area <= 0:
+        return False
+    for other in lyric_spans:
+        if (other is source_span or other.confidence < 0.8
+                or decoration_token(other.text) is not None):
+            continue
+        character_boxes = other.character_boxes
+        lyric_indexes = tuple(
+            index for index, character in enumerate(other.text)
+            if "\u3400" <= character <= "\u9fff"
+        )
+        if not lyric_indexes:
+            continue
+        if len(character_boxes) == len(other.text):
+            boxes = tuple(character_boxes[index] for index in lyric_indexes)
+        elif len(lyric_indexes) == 1:
+            boxes = (other.box,)
+        else:
+            continue
+        for box in boxes:
+            intersection = max(0, min(span.box[2], box[2]) - max(span.box[0], box[0])) \
+                * max(0, min(span.box[3], box[3]) - max(span.box[1], box[1]))
+            if intersection / span_area >= 0.5:
+                return True
+    return False
+
+
 def text_decorations(
     note_boxes: tuple[Box, ...], spans: tuple[TextSpan, ...],
     *, other_rows: tuple[Box, ...] = (), gray: Image.Image | None = None,
+    lyric_spans: tuple[TextSpan, ...] | None = None,
 ) -> tuple[TextDecoration, ...]:
     """Associate exact OCR instructions above a note, including compact split words."""
     if not note_boxes:
         return ()
+    lyric_evidence = spans if lyric_spans is None else lyric_spans
     height = median(box[3] - box[1] for box in note_boxes)
     candidate_sources: dict[TextSpan, list[TextSpan]] = {}
     candidates = []
@@ -213,6 +247,8 @@ def text_decorations(
                 and height * 0.2 <= span.height <= maximum_height
                 and _above_row(span.box, note_boxes, height, other_rows)
                 and not _lyric_character(span, spans, height, other_rows)
+                and not (token in _DYNAMIC_WORDS
+                         and _overlaps_lyric_glyph(span, source_span, lyric_evidence))
             ):
                 candidates.append(span)
     candidates.sort(key=lambda span: (span.box[0], span.box[1]))
