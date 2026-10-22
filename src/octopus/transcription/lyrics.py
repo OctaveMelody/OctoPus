@@ -86,9 +86,10 @@ def _lyric_units(span: TextSpan) -> list[tuple[str, float]]:
 
 
 def _deduplicate_overlapping_glyphs(spans: list[TextSpan]) -> tuple[TextSpan, ...]:
-    """Keep the clearer glyph when OCR spans overlap on the same lyric baseline."""
+    """Keep the clearer reading of the same ink across lyric baselines."""
     selected: list[TextSpan | None] = [None] * len(spans)
-    occupied: list[tuple[Box, int, TextSpan]] = []
+    occupied: list[tuple[Box, int, TextSpan, str]] = []
+    ambiguous = _multibaseline_glyphs(spans)
     order = sorted(range(len(spans)), key=lambda index: (
         -spans[index].confidence, spans[index].box, spans[index].text, index,
     ))
@@ -105,17 +106,22 @@ def _deduplicate_overlapping_glyphs(spans: list[TextSpan]) -> tuple[TextSpan, ..
             if right <= left or bottom <= top:
                 kept.append(index)
                 continue
+            if (span_index, index) in ambiguous:
+                continue
+            center_y = (top + bottom) / 2
             duplicate = any(
-                abs(span.center_y - other.center_y) <= max(
-                    9, min(span.height, other.height) * 0.42,
+                abs(center_y - (other_box[1] + other_box[3]) / 2) <= max(
+                    9, min(bottom - top, other_box[3] - other_box[1]) * 0.42,
                 )
-                and _glyph_boxes_overlap(box, other_box)
-                for other_box, other_index, other in occupied
+                and _overlapping_readings_share_ink(
+                    span.text[index], other_character, box, other_box,
+                )
+                for other_box, other_index, other, other_character in occupied
                 if other_index != span_index
             )
             if not duplicate:
                 kept.append(index)
-                occupied.append((box, span_index, span))
+                occupied.append((box, span_index, span, span.text[index]))
 
         while kept and span.text[kept[0]].isspace():
             kept.pop(0)
@@ -146,6 +152,44 @@ def _deduplicate_overlapping_glyphs(spans: list[TextSpan]) -> tuple[TextSpan, ..
     return tuple(span for span in selected if span is not None)
 
 
+def _multibaseline_glyphs(spans: list[TextSpan]) -> set[tuple[int, int]]:
+    """Find tall OCR boxes that cover glyphs on two separate lyric baselines."""
+    glyphs = tuple(
+        (span_index, index, box)
+        for span_index, span in enumerate(spans)
+        if len(span.character_boxes) == len(span.text)
+        for index, box in enumerate(span.character_boxes)
+        if box[2] > box[0] and box[3] > box[1]
+    )
+    ambiguous: set[tuple[int, int]] = set()
+    for span_index, character_index, box in glyphs:
+        box_height = box[3] - box[1]
+        overlapping = tuple(
+            (other_span_index, other_index, other_box)
+            for other_span_index, other_index, other_box in glyphs
+            if other_span_index != span_index and _glyph_boxes_overlap(box, other_box)
+        )
+        for position, (first_span, _, first_box) in enumerate(overlapping):
+            first_center = (first_box[1] + first_box[3]) / 2
+            first_height = first_box[3] - first_box[1]
+            for second_span, _, second_box in overlapping[position + 1:]:
+                if first_span == second_span:
+                    continue
+                second_center = (second_box[1] + second_box[3]) / 2
+                second_height = second_box[3] - second_box[1]
+                baseline_tolerance = max(9, min(first_height, second_height) * 0.42)
+                if (abs(first_center - second_center) <= baseline_tolerance
+                        or box_height < max(first_height, second_height) * 1.5
+                        or box[1] > min(first_center, second_center)
+                        or box[3] < max(first_center, second_center)):
+                    continue
+                ambiguous.add((span_index, character_index))
+                break
+            if (span_index, character_index) in ambiguous:
+                break
+    return ambiguous
+
+
 def _glyph_boxes_overlap(first: Box, second: Box) -> bool:
     first_width = first[2] - first[0]
     second_width = second[2] - second[0]
@@ -157,6 +201,27 @@ def _glyph_boxes_overlap(first: Box, second: Box) -> bool:
     overlap_y = max(0, min(first[3], second[3]) - max(first[1], second[1]))
     return (overlap_x * 2 >= min(first_width, second_width)
             and overlap_y * 2 >= min(first_height, second_height))
+
+
+def _overlapping_readings_share_ink(
+    first_character: str, second_character: str, first: Box, second: Box,
+) -> bool:
+    """Distinguish duplicate glyphs from different characters in a merged tall box."""
+    if not _glyph_boxes_overlap(first, second):
+        return False
+    if first_character == second_character:
+        return True
+
+    overlap_width = max(0, min(first[2], second[2]) - max(first[0], second[0]))
+    overlap_height = max(0, min(first[3], second[3]) - max(first[1], second[1]))
+    overlap_area = overlap_width * overlap_height
+    larger_area = max(
+        (first[2] - first[0]) * (first[3] - first[1]),
+        (second[2] - second[0]) * (second[3] - second[1]),
+    )
+    # Conflicting OCR readings can represent one glyph when their boxes are nearly
+    # coextensive. A tall box spanning adjacent lyric rows is not that evidence.
+    return overlap_area * 2 >= larger_area
 
 
 def _assemble(spans: list[TextSpan], notes: MusicRow) -> str:
@@ -413,7 +478,10 @@ def extract_lyrics(
             min(owner.confidence, punctuation.confidence), centers, owner.lyric_baselines, boxes,
         )
     # A right-aligned footer touching the page edge is outside the lyric band.
-    spans = lyric_spans
+    # Resolve duplicates across the complete lyric region before dividing it into
+    # baselines. A tall page-OCR box can sit between two rows and otherwise be
+    # grouped with just one row, stealing a distinct glyph from that reading.
+    spans = list(_deduplicate_overlapping_glyphs(lyric_spans))
     bands: list[list[TextSpan]] = []
     for span in sorted((span for span in spans if not span.lyric_baselines),
                        key=baseline):
@@ -444,7 +512,6 @@ def extract_lyrics(
             abs(baseline - band[0].center_y) <= digit_height * 0.5
             for baseline in span.lyric_baselines
         ))
-        band = list(_deduplicate_overlapping_glyphs(band))
         body = _assemble(band, alignment_row)
         if body:
             units = [unit for span in sorted(band, key=lambda item: item.box[0])
