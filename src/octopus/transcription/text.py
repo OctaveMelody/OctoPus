@@ -196,15 +196,11 @@ def _character_centers(
     text: str, details: list[object], scale: float = 1.0, offset: float = 0.0,
 ) -> tuple[float, ...]:
     """Use the recognizer's character positions rather than evenly splitting a text line."""
-    if len(details) < 2:
+    geometry = _aligned_character_geometry(text, details)
+    if geometry is None:
         return ()
-    boxes = cast(list[list[list[float]]], details[0])
-    characters = "".join(cast(list[str], details[1]))
-    if characters.strip() != text or len(boxes) != len(characters):
-        return ()
-    start = len(characters) - len(characters.lstrip())
-    return tuple(sum(point[0] for point in box) / len(box) * scale + offset
-                 for box in boxes[start:start + len(text)])
+    centers, _ = geometry
+    return tuple(center * scale + offset for center in centers)
 
 
 def _character_boxes(
@@ -212,24 +208,72 @@ def _character_boxes(
     offset_x: float = 0.0, offset_y: float = 0.0,
 ) -> tuple[Box, ...]:
     """Keep recognizer glyph geometry so stacked text can be assigned by baseline."""
+    geometry = _aligned_character_geometry(text, details)
+    if geometry is None:
+        return ()
+    _, boxes = geometry
+    return tuple((
+        round(left * scale + offset_x), round(top * scale + offset_y),
+        round(right * scale + offset_x), round(bottom * scale + offset_y),
+    ) for left, top, right, bottom in boxes)
+
+
+def _aligned_character_geometry(
+    text: str, details: list[object],
+) -> tuple[tuple[float, ...], tuple[tuple[float, float, float, float], ...]] | None:
+    """Align glyph boxes while interpolating positions for unboxed separators."""
     if len(details) < 2:
-        return ()
-    boxes = cast(list[list[list[float]]], details[0])
-    characters = "".join(cast(list[str], details[1]))
-    if characters.strip() != text or len(boxes) != len(characters):
-        return ()
-    start = len(characters) - len(characters.lstrip())
-    result = []
-    for polygon in boxes[start:start + len(text)]:
+        return None
+    polygons = cast(list[list[list[float]]], details[0])
+    characters = list(cast(list[str], details[1]))
+    if len(polygons) != len(characters):
+        return None
+    text_glyphs = [(index, character) for index, character in enumerate(text)
+                   if not character.isspace()]
+    detail_glyphs = [(index, character) for index, character in enumerate(characters)
+                     if not character.isspace()]
+    if (not text_glyphs or [character for _, character in text_glyphs]
+            != [character for _, character in detail_glyphs]):
+        return None
+    if text[0].isspace() or text[-1].isspace():
+        return None
+
+    centers: list[float | None] = [None] * len(text)
+    boxes: list[tuple[float, float, float, float] | None] = [None] * len(text)
+    for (text_index, _), (detail_index, _) in zip(text_glyphs, detail_glyphs, strict=True):
+        polygon = polygons[detail_index]
         if not polygon:
-            return ()
+            return None
         xs = [point[0] for point in polygon]
         ys = [point[1] for point in polygon]
-        result.append((
-            round(min(xs) * scale + offset_x), round(min(ys) * scale + offset_y),
-            round(max(xs) * scale + offset_x), round(max(ys) * scale + offset_y),
-        ))
-    return tuple(result)
+        glyph_centers = sum(point[0] for point in polygon) / len(polygon)
+        glyph_box = (min(xs), min(ys), max(xs), max(ys))
+        centers[text_index] = glyph_centers
+        boxes[text_index] = glyph_box
+
+    visible = [index for index, _ in text_glyphs]
+    for left_index, right_index in zip(visible, visible[1:], strict=False):
+        gap = right_index - left_index - 1
+        if gap <= 0:
+            continue
+        left_center = cast(float, centers[left_index])
+        right_center = cast(float, centers[right_index])
+        left_box = cast(tuple[float, float, float, float], boxes[left_index])
+        right_box = cast(tuple[float, float, float, float], boxes[right_index])
+        top = min(left_box[1], right_box[1])
+        bottom = max(left_box[3], right_box[3])
+        for offset in range(1, gap + 1):
+            index = left_index + offset
+            center = left_center + (right_center - left_center) * offset / (gap + 1)
+            centers[index] = center
+            boxes[index] = (center, top, center, bottom)
+
+    if any(center is None for center in centers) or any(box is None for box in boxes):
+        return None
+    return (
+        tuple(cast(float, center) for center in centers),
+        tuple(cast(tuple[float, float, float, float], box) for box in boxes),
+    )
 
 
 def image_text(path: Path) -> tuple[TextSpan, ...] | None:
@@ -295,6 +339,7 @@ def image_annotation_text(path: Path, rows: tuple[Box, ...]) -> tuple[TextSpan, 
         components = sorted(connected_components(gray.crop((left, top, right, bottom))),
                             key=lambda item: item.box[0])
         groups: list[list[Component]] = []
+
         for component in components:
             if component.height < max(3, height * 0.24) or component.height > height * 1.4:
                 continue
@@ -304,7 +349,13 @@ def image_annotation_text(path: Path, rows: tuple[Box, ...]) -> tuple[TextSpan, 
                     and component.height <= height * 0.9
                     and component.area <= component.width * max(4, height * 0.25)):
                 continue
-            if groups and component.box[0] - max(item.box[2] for item in groups[-1]) < height * 0.6:
+            if (groups
+                    and component.box[0] - max(item.box[2] for item in groups[-1]) < height * 0.6
+                    and abs(
+                        component.box[3] - sum(
+                            item.box[3] for item in groups[-1]
+                        ) / len(groups[-1])
+                    ) <= max(2, height * 0.25)):
                 groups[-1].append(component)
             else:
                 groups.append([component])

@@ -580,11 +580,11 @@ def _performance_text(
         *cropped_directions,
     )))
     bz_duplicates = _bz_duplicate_text_spans(page, candidates)
-    duplicate_boxes = tuple(span.box for span in bz_duplicates)
+    overlay_boxes = tuple(overlay.row.box for overlay in page.bz_overlays)
     candidates = tuple(span for span in candidates if (
         span not in bz_duplicates
         and not (decoration_token(span.text) is not None
-                 and any(_box_coverage(span.box, box) >= 0.7 for box in duplicate_boxes))
+                 and any(_box_coverage(span.box, box) >= 0.7 for box in overlay_boxes))
     ))
     candidates = _score_text(replace(page, text_spans=candidates)).text_spans
     rows, direction_sources = attach_score_directions(

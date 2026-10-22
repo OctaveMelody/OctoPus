@@ -622,6 +622,31 @@ def _music_row(
     )
 
 
+def _exclude_voice_label_notes(
+    rows: list[MusicRow], voice_groups: tuple[VoiceGroup, ...],
+) -> list[MusicRow]:
+    """Drop note candidates left of a proven opening voice brace."""
+    result = list(rows)
+    for voice_group in voice_groups:
+        for row_index in voice_group.rows:
+            row = result[row_index]
+            notes = tuple(
+                note for note in row.notes
+                if (note.box[0] + note.box[2]) / 2 >= voice_group.box[2]
+            )
+            if not notes or len(notes) == len(row.notes):
+                continue
+            result[row_index] = replace(
+                row,
+                notes=notes,
+                box=(
+                    min(note.box[0] for note in notes), min(note.box[1] for note in notes),
+                    max(note.box[2] for note in notes), max(note.box[3] for note in notes),
+                ),
+            )
+    return result
+
+
 def _groups(
     candidates: list[tuple[Component, DigitMatch]], height: int,
 ) -> list[list[tuple[Component, DigitMatch]]]:
@@ -1117,6 +1142,7 @@ def _recognize_working_rows(
          for index in ((overlay.lower,) if overlay.standalone
                        else (overlay.upper, overlay.lower))},
     )
+    rows = _exclude_voice_label_notes(rows, voice_groups)
     # Broken pieces of a system brace can pass the local barline shape test.
     # Once the complete brace is known, its ink cannot also be a measure bar.
     rows = [replace(row, barlines=tuple(x for x in row.barlines if not any(

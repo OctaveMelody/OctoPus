@@ -257,34 +257,31 @@ def text_decorations(
             )
             if confidence < threshold and glyph != token:
                 continue
-            index = _text_owner(box, token, note_boxes, height)
-            if index is not None:
-                duplicate = next((item for item in found if (
-                    item.note_index == index and (
-                        item.token in _DYNAMIC_WORDS and token in _DYNAMIC_WORDS
-                        and _overlap(item.box, box) >= 0.6
-                        or _same_instruction(item.token, token)
-                        and _overlap(item.box, box) >= 0.6
-                    )
-                )), None)
-                if duplicate is not None:
-                    found.remove(duplicate)
-                    keep_previous = _prefer_previous(duplicate, token, box, confidence)
-                    selected = tuple(dict.fromkeys((*duplicate.source_spans, *selected)))
-                    if keep_previous:
-                        token, box = duplicate.token, duplicate.box
-                found.append(TextDecoration(index, token, box, selected))
-                consumed.update(selected)
-                break
+            sources = tuple(dict.fromkeys(
+                source for candidate in selected
+                for source in candidate_sources.get(candidate, (candidate,))
+            ))
+            duplicate = next((item for item in found if (
+                (item.token in _DYNAMIC_WORDS and token in _DYNAMIC_WORDS
+                 or _same_instruction(item.token, token))
+                and _overlap(item.box, box) >= 0.6
+            )), None)
+            if duplicate is not None:
+                found.remove(duplicate)
+                keep_previous = _prefer_previous(duplicate, token, box, confidence)
+                sources = tuple(dict.fromkeys((*duplicate.source_spans, *sources)))
+                if keep_previous:
+                    token, box = duplicate.token, duplicate.box
+            found.append(TextDecoration(-1, token, box, sources))
+            consumed.update(selected)
+            break
     return tuple(TextDecoration(
-        item.note_index,
+        owner,
         item.token,
         item.box,
-        tuple(dict.fromkeys(
-            source for candidate in item.source_spans
-            for source in candidate_sources.get(candidate, (candidate,))
-        )),
-    ) for item in found)
+        item.source_spans,
+    ) for item in found if (owner := _text_owner(item.box, item.token, note_boxes, height))
+    is not None)
 
 
 def _area(box: Box) -> int:
@@ -310,6 +307,10 @@ def _same_instruction(first: str, second: str) -> bool:
 def _prefer_previous(
     previous: TextDecoration, token: str, box: Box, confidence: float,
 ) -> bool:
+    if previous.token == token:
+        # Duplicate readings of one printed mark can have very different boxes.
+        # Keep the tighter localization before assigning the mark to a note.
+        return _area(previous.box) <= _area(box)
     if previous.token != token and _same_instruction(previous.token, token):
         matching = [span.confidence for span in previous.source_spans
                     if decoration_token(span.text) == previous.token]
