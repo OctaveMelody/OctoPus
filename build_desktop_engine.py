@@ -33,8 +33,6 @@ from octopus.transcription.ocr_profiles import (  # noqa: E402
     ASSET_DIR as OCR_MODEL_DIR,
 )
 from octopus.transcription.ocr_profiles import (  # noqa: E402
-    OCR_MODES,
-    normalize_ocr_mode,
     ocr_model_paths,
     verify_ocr_assets,
 )
@@ -204,12 +202,8 @@ def _stage_ocr_models(
     bundle: Path,
     *,
     model_dir: Path = OCR_MODEL_DIR,
-    profiles: tuple[str, ...] = OCR_MODES,
 ) -> None:
-    """Stage only verified local OCR weights and remove dependency example models."""
-    selected_profiles = tuple(normalize_ocr_mode(mode) for mode in profiles)
-    if not selected_profiles or len(set(selected_profiles)) != len(selected_profiles):
-        raise RuntimeError("OCR model profiles must be a nonempty unique selection")
+    """Stage the three verified Default models and remove dependency example models."""
     try:
         all_models = verify_ocr_assets(model_dir)
     except RuntimeError as error:
@@ -219,11 +213,7 @@ def _stage_ocr_models(
             f"OCR model cache is missing or invalid: {error}. "
             f"Prepare the pinned models before building with: {prepare_command}"
         ) from error
-    selected_files = {
-        path.name
-        for mode in selected_profiles
-        for path in ocr_model_paths(mode, model_dir).values()
-    }
+    selected_files = {path.name for path in ocr_model_paths(model_dir).values()}
     verified = {name: all_models[name] for name in sorted(selected_files)}
     internal = bundle / "_internal"
     package_root = internal if internal.is_dir() else bundle
@@ -239,7 +229,7 @@ def _stage_ocr_models(
     for filename in ("LICENSE", "NOTICE.md"):
         shutil.copy2(model_dir / filename, target / filename)
 
-    packaged = verify_ocr_assets(target, profiles=selected_profiles)
+    packaged = verify_ocr_assets(target)
     found = {path.relative_to(bundle).as_posix() for path in bundle.rglob("*.onnx")}
     expected = {f"_internal/octopus/assets/ocr_models/{name}" if internal.is_dir()
                 else f"octopus/assets/ocr_models/{name}" for name in verified}
@@ -326,17 +316,15 @@ def _stable_handshake_result(result: object) -> object:
 def _smoke_test(
     bundle: Path,
     render_request: dict[str, object],
-    profiles: tuple[str, ...] = OCR_MODES,
 ) -> None:
     with tempfile.TemporaryDirectory(prefix="octopus-ocr-smoke-") as temporary:
-        _smoke_test_with_image(bundle, render_request, Path(temporary), profiles)
+        _smoke_test_with_image(bundle, render_request, Path(temporary))
 
 
 def _smoke_test_with_image(
     bundle: Path,
     render_request: dict[str, object],
     temporary: Path,
-    profiles: tuple[str, ...] = OCR_MODES,
 ) -> None:
     executable_name = "octopus-engine"
     if platform.system() == "Windows":
@@ -349,18 +337,9 @@ def _smoke_test_with_image(
     image = Image.new("RGB", (480, 120), "white")
     ImageDraw.Draw(image).text((24, 42), "Q: 1 2 3 4 |", fill="black")
     image.save(smoke_image)
-    transcription_modes = (
-        ("default", "accuracy", "default")
-        if profiles == OCR_MODES
-        else profiles
-    )
-    transcription_requests = [
-        _request(
-            f"desktop-build-transcribe-{index}", "transcribe", index + 2,
-            {"path": str(smoke_image), "ocr_mode": mode},
-        )
-        for index, mode in enumerate(transcription_modes)
-    ]
+    transcription_requests = [_request(
+        "desktop-build-transcribe", "transcribe", 2, {"path": str(smoke_image)},
+    )]
     handshake = _request("desktop-build-handshake", "handshake", 0, {})
     previous_profile = os.environ.get("OCTOPUS_FONT_PROFILE")
     os.environ["OCTOPUS_FONT_PROFILE"] = "release"
@@ -445,15 +424,13 @@ def _smoke_test_with_image(
             raise RuntimeError("frozen engine transcription request is missing its ID")
         response = responses_by_id[request_id]
         transcription_result = response.get("result")
-        payload = request.get("payload")
-        expected_mode = payload.get("ocr_mode") if isinstance(payload, dict) else None
         if (response.get("status") != "ok" or not isinstance(transcription_result, dict)
-                or transcription_result.get("ocr_mode") != expected_mode
+                or "ocr_mode" in transcription_result
                 or transcription_result.get("page_count") != 1
                 or not isinstance(transcription_result.get("jps"), str)
                 or not transcription_result["jps"].strip()):
             raise RuntimeError(
-                "frozen engine RapidOCR + ONNX transcription failed or used the wrong mode: "
+                "frozen engine Default RapidOCR + ONNX transcription failed: "
                 + json.dumps(response.get("error"), ensure_ascii=True)[:1000]
             )
 
@@ -479,12 +456,8 @@ def build(
     *,
     repository_root: Path = ROOT,
     target_dir: Path = TARGET_DIR,
-    ocr_profiles: tuple[str, ...] = OCR_MODES,
     model_dir: Path = OCR_MODEL_DIR,
 ) -> Path:
-    selected_profiles = tuple(normalize_ocr_mode(mode) for mode in ocr_profiles)
-    if not selected_profiles or len(set(selected_profiles)) != len(selected_profiles):
-        raise RuntimeError("OCR model profiles must be a nonempty unique selection")
     _validate_target_triple(os.environ.get("TAURI_ENV_TARGET_TRIPLE"))
     entry_point = repository_root / "ui" / "engine" / "desktop_entry.py"
     glyph_dir = repository_root / "src" / "octopus" / "assets" / "glyphs"
@@ -573,9 +546,7 @@ def build(
             )
         bundle = dist_dir / "octopus-engine"
         _prune_non_onnx_rapidocr_backends(bundle)
-        _stage_ocr_models(
-            bundle, model_dir=model_dir, profiles=selected_profiles,
-        )
+        _stage_ocr_models(bundle, model_dir=model_dir)
         _check_glyph_assets(bundle, glyph_dir)
         shutil.copy2(repository_root / "LICENSE", bundle / "LICENSE")
         _check_project_license(bundle, repository_root / "LICENSE")
@@ -585,7 +556,7 @@ def build(
             _check_font_assets(font_dir)
         else:
             _check_no_application_font_assets(dist_dir)
-        _smoke_test(bundle, render_request, selected_profiles)
+        _smoke_test(bundle, render_request)
         _publish_bundle(dist_dir, output_dir.parent)
 
     return output_dir
@@ -597,10 +568,5 @@ if __name__ == "__main__":
         print("Verified production font assets and notices")
     else:
         parser = argparse.ArgumentParser(description=__doc__)
-        parser.add_argument(
-            "--ocr-profiles", choices=("default", "both"), default="both",
-            help="stage only Default for a Small-model size trial, or both offline profiles",
-        )
-        args = parser.parse_args()
-        profiles = ("default",) if args.ocr_profiles == "default" else OCR_MODES
-        print(build(ocr_profiles=profiles))
+        parser.parse_args()
+        print(build())

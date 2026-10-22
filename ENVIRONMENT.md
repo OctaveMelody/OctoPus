@@ -41,12 +41,12 @@ worker.
 - Python runtime/export dependencies: `pyproject.toml` and `uv.lock`.
 - OCR: the `transcription` extra pins `rapidocr==3.10.0`, `onnxruntime==1.30.0` and
   `opencv-python-headless==5.0.0.93`. Headless OpenCV still provides `cv2`; it omits GUI
-  support. Do not install regular or contrib OpenCV alongside it. Program Settings selects
-  Default (PP-OCRv6 Small detection/recognition) or Accuracy (PP-OCRv6 Medium); both share
-  the PP-OCRv4 Mobile orientation classifier. These multilingual weights cover English and
-  Chinese without separate English models. CPU execution retains 2 intra-op / 1 inter-op
-  threads. Both profiles are bundled offline; [model documentation](docs/OCR_MODELS.md)
-  links the checksums, attribution and preparation workflow.
+  support. Do not install regular or contrib OpenCV alongside it. The sole Default profile
+  uses PP-OCRv6 Small detection/recognition and the shared PP-OCRv4 Mobile orientation
+  classifier. These multilingual weights cover English and Chinese without separate English
+  models. CPU execution retains 2 intra-op / 1 inter-op threads. The three verified models
+  are bundled offline; [model documentation](docs/OCR_MODELS.md) links checksums, attribution
+  and preparation workflow.
 - Worker freezing: `desktop-build` extra, PyInstaller 6.22.3.
 - Node.js 22.23.3 (`.node-version`), npm 10.9.9 (`.npm-version`); frontend
   `ui/web/package-lock.json`.
@@ -112,12 +112,11 @@ cancellation stops the dedicated process tree and invalidates the pending draft.
 worker is independent. Legacy HTTP/file/recovery protocol and audit entry points live only in
 OctoPus-dev and are excluded from production Python/native distributions.
 
-Desktop protocol 1.8.0 accepts `ocr_mode: "default" | "accuracy"` on transcription requests
-and identifies the actual mode in the result. Missing mode defaults to `default`; invalid
-values are rejected. The application captures its saved choice when a job starts, for both
-New and Append and every PDF page/crop. A settings change affects the next job. The choice
-does not become part of JPS. Larger models can improve difficult text but take more time and
-memory; all drafts still require review against the source.
+Desktop protocol 2.0.0 accepts only the managed reference path on transcription requests and
+does not include an OCR mode field in requests or results. Older protocol versions and stale
+mode fields are rejected. New and Append use the sole Default profile for every PDF page and
+crop. The profile does not become part of JPS; all drafts still require review against the
+source.
 
 `VITE_UPDATE_CHECK_ENABLED=false` hides Help → Check for Update when building the frontend.
 Default builds keep it visible; this flag does not disable installed update checking code or

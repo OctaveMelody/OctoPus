@@ -8,7 +8,6 @@ from pathlib import Path
 
 from . import compilation, page_text, pdf_source
 from .image import PageObservation, recognize_image
-from .ocr_profiles import OcrMode, ocr_mode_scope
 from .results import Draft, Issue, RowBinding
 from .review import note_confidence_findings, render_back_findings
 from .text import image_text
@@ -51,12 +50,10 @@ def _compile(pages: tuple[PageObservation, ...]) -> Draft:
 
 
 def transcribe(
-    path: Path, *, ocr_mode: OcrMode = "default",
-    progress: Callable[[int, int, str], None] | None = None,
+    path: Path, *, progress: Callable[[int, int, str], None] | None = None,
 ) -> Draft:
     """Use only the supplied image/PDF, never a paired source or reference file."""
-    with ocr_mode_scope(ocr_mode):
-        return _transcribe(path, progress=progress)
+    return _transcribe(path, progress=progress)
 
 
 def _transcribe(

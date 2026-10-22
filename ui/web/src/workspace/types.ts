@@ -11,8 +11,6 @@ export type WorkspacePreferences = ReturnType<typeof readPreferences>;
 
 export type WorkspaceMode = WorkspacePreferences["mode"];
 
-export type OcrMode = WorkspacePreferences["ocrMode"];
-
 export type LayoutId = "N1" | "N2" | "T1" | "T2";
 
 export type PaneId = "editor" | "preview" | "reference";

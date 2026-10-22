@@ -1,4 +1,4 @@
-"""Pinned offline OCR models and selectable profile configuration."""
+"""Pinned offline OCR models for the single Default / PP-OCRv6 Small profile."""
 
 from __future__ import annotations
 
@@ -6,14 +6,9 @@ import hashlib
 import importlib.metadata
 import json
 import os
-from collections.abc import Iterator
-from contextlib import contextmanager
-from contextvars import ContextVar
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, cast
 
-OcrMode = Literal["default", "accuracy"]
-OCR_MODES: tuple[OcrMode, ...] = ("default", "accuracy")
 _PACKAGE_ASSET_DIR = Path(__file__).resolve().parents[1] / "assets" / "ocr_models"
 _PROJECT_MODEL_CACHE = Path(__file__).resolve().parents[3] / "build" / "ocr-model-cache"
 _configured_model_dir = os.environ.get("OCTOPUS_OCR_MODEL_DIR")
@@ -23,29 +18,6 @@ elif any(_PACKAGE_ASSET_DIR.glob("*.onnx")) or not _PROJECT_MODEL_CACHE.is_dir()
     ASSET_DIR = _PACKAGE_ASSET_DIR
 else:
     ASSET_DIR = _PROJECT_MODEL_CACHE
-
-_OCR_MODE: ContextVar[OcrMode] = ContextVar("octopus_ocr_mode", default="default")
-
-
-def normalize_ocr_mode(value: object) -> OcrMode:
-    if not isinstance(value, str) or value not in OCR_MODES:
-        raise ValueError("OCR mode must be 'default' or 'accuracy'")
-    return cast(OcrMode, value)
-
-
-@contextmanager
-def ocr_mode_scope(mode: object) -> Iterator[OcrMode]:
-    """Bind an OCR profile for this job and restore the caller's mode afterwards."""
-    selected = normalize_ocr_mode(mode)
-    token = _OCR_MODE.set(selected)
-    try:
-        yield selected
-    finally:
-        _OCR_MODE.reset(token)
-
-
-def current_ocr_mode() -> OcrMode:
-    return _OCR_MODE.get()
 
 
 def _model_dir(model_dir: Path | None = None) -> Path:
@@ -85,48 +57,43 @@ def _verified_asset(filename: str, model_dir: Path | None = None) -> dict[str, A
     return {"file": filename, "size_bytes": expected_size, "sha256": digest}
 
 
-def _profile_files(mode: OcrMode, model_dir: Path | None = None) -> dict[str, str]:
-    profiles = _manifest(model_dir).get("profiles")
-    profile = profiles.get(mode) if isinstance(profiles, dict) else None
+def _model_files(model_dir: Path | None = None) -> dict[str, str]:
+    manifest = _manifest(model_dir)
+    profiles = manifest.get("profiles")
+    if not isinstance(profiles, dict) or set(profiles) != {"default"}:
+        raise RuntimeError("OCR model manifest must contain only the Default profile")
+    profile = profiles["default"]
     if not isinstance(profile, dict) or set(profile) != {"det", "rec", "cls"}:
-        raise RuntimeError(f"OCR model profile is invalid: {mode}")
-    result = {}
+        raise RuntimeError("OCR model manifest has an invalid Default profile")
+    result: dict[str, str] = {}
     for role in ("det", "rec", "cls"):
         filename = profile[role]
         if not isinstance(filename, str) or Path(filename).name != filename:
-            raise RuntimeError(f"OCR model filename is invalid for {mode}/{role}")
+            raise RuntimeError(f"OCR model filename is invalid for Default/{role}")
         result[role] = filename
+    models = manifest.get("models")
+    if not isinstance(models, dict) or set(models) != set(result.values()):
+        raise RuntimeError("OCR model manifest inventory differs from the Default profile")
     return result
 
 
-def ocr_model_paths(mode: object, model_dir: Path | None = None) -> dict[str, Path]:
-    selected = normalize_ocr_mode(mode)
+def ocr_model_paths(model_dir: Path | None = None) -> dict[str, Path]:
+    """Return explicit, verified local paths for the three Default model roles."""
     directory = _model_dir(model_dir)
     return {
         role: directory / _verified_asset(filename, directory)["file"]
-        for role, filename in _profile_files(selected, directory).items()
+        for role, filename in _model_files(directory).items()
     }
 
 
-def verify_ocr_assets(
-    model_dir: Path | None = None,
-    *,
-    profiles: tuple[str, ...] | None = None,
-) -> dict[str, dict[str, Any]]:
-    """Require the exact selected ONNX files and verify their pinned metadata."""
+def verify_ocr_assets(model_dir: Path | None = None) -> dict[str, dict[str, Any]]:
+    """Require exactly the Default detector, recognizer and classifier, with pinned metadata."""
     directory = _model_dir(model_dir)
     manifest = _manifest(directory)
     models = manifest.get("models")
     if not isinstance(models, dict):
         raise RuntimeError("OCR model manifest has no model inventory")
-    selected_modes: tuple[OcrMode, ...] = OCR_MODES if profiles is None else tuple(
-        normalize_ocr_mode(mode) for mode in profiles
-    )
-    expected = {
-        filename
-        for mode in selected_modes
-        for filename in _profile_files(mode, directory).values()
-    }
+    expected = set(_model_files(directory).values())
     found = {path.name for path in directory.glob("*.onnx")}
     if found != expected:
         missing, extra = sorted(expected - found), sorted(found - expected)
@@ -152,12 +119,10 @@ def _runtime_versions() -> dict[str, str]:
         raise RuntimeError(f"required OCR runtime package is unavailable: {error.name}") from error
 
 
-def _identity_config(mode: OcrMode) -> dict[str, Any]:
-    profile = _profile_files(mode)
-    model_type = "small" if mode == "default" else "medium"
+def _identity_config() -> dict[str, Any]:
+    models = _model_files()
     return {
-        "mode": mode,
-        "models": profile,
+        "models": models,
         "rapidocr_config_sha256": _rapidocr_config_sha256(),
         "rapidocr_parameters": {
             "EngineConfig.onnxruntime.intra_op_num_threads": 2,
@@ -169,37 +134,33 @@ def _identity_config(mode: OcrMode) -> dict[str, Any]:
             "Global.log_level": "critical",
             "Det.engine_type": "onnxruntime",
             "Det.lang_type": "multi",
-            "Det.model_type": model_type,
+            "Det.model_type": "small",
             "Det.ocr_version": "PP-OCRv6",
-            "Det.model_path": profile["det"],
+            "Det.model_path": models["det"],
             "Rec.engine_type": "onnxruntime",
             "Rec.lang_type": "multi",
-            "Rec.model_type": model_type,
+            "Rec.model_type": "small",
             "Rec.ocr_version": "PP-OCRv6",
-            "Rec.model_path": profile["rec"],
+            "Rec.model_path": models["rec"],
             "Cls.engine_type": "onnxruntime",
             "Cls.lang_type": "ch",
             "Cls.model_type": "mobile",
             "Cls.ocr_version": "PP-OCRv4",
-            "Cls.model_path": profile["cls"],
+            "Cls.model_path": models["cls"],
         },
         "execution_provider": "CPUExecutionProvider",
     }
 
 
-def ocr_identity(mode: object) -> dict[str, Any]:
-    selected = normalize_ocr_mode(mode)
-    paths = ocr_model_paths(selected)
-    model_identity = {
-        role: _verified_asset(path.name) for role, path in paths.items()
-    }
-    config = _identity_config(selected)
+def ocr_identity() -> dict[str, Any]:
+    paths = ocr_model_paths()
+    model_identity = {role: _verified_asset(path.name) for role, path in paths.items()}
+    config = _identity_config()
     config_sha256 = hashlib.sha256(json.dumps(
         config, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False,
     ).encode("utf-8")).hexdigest()
     return {
         "schema": "octopus-ocr-identity-v1",
-        "mode": selected,
         "runtime": _runtime_versions(),
         "models": model_identity,
         "config": config,
@@ -207,13 +168,11 @@ def ocr_identity(mode: object) -> dict[str, Any]:
     }
 
 
-def rapidocr_params(mode: object, model_dir: Path | None = None) -> dict[str, Any]:
-    """Return RapidOCR's explicit local paths and pinned CPU thread settings."""
-    selected = normalize_ocr_mode(mode)
-    paths = ocr_model_paths(selected, model_dir)
+def rapidocr_params(model_dir: Path | None = None) -> dict[str, Any]:
+    """Return explicit Default model paths and pinned CPU thread settings."""
+    paths = ocr_model_paths(model_dir)
     from rapidocr import EngineType, LangCls, LangDet, ModelType, OCRVersion
 
-    model_type = ModelType.SMALL if selected == "default" else ModelType.MEDIUM
     return {
         "EngineConfig.onnxruntime.intra_op_num_threads": 2,
         "EngineConfig.onnxruntime.inter_op_num_threads": 1,
@@ -224,12 +183,12 @@ def rapidocr_params(mode: object, model_dir: Path | None = None) -> dict[str, An
         "Global.log_level": "critical",
         "Det.engine_type": EngineType.ONNXRUNTIME,
         "Det.lang_type": LangDet.MULTI,
-        "Det.model_type": model_type,
+        "Det.model_type": ModelType.SMALL,
         "Det.ocr_version": OCRVersion.PPOCRV6,
         "Det.model_path": str(paths["det"]),
         "Rec.engine_type": EngineType.ONNXRUNTIME,
         "Rec.lang_type": "multi",
-        "Rec.model_type": model_type,
+        "Rec.model_type": ModelType.SMALL,
         "Rec.ocr_version": OCRVersion.PPOCRV6,
         "Rec.model_path": str(paths["rec"]),
         "Cls.engine_type": EngineType.ONNXRUNTIME,

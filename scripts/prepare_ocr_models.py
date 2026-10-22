@@ -35,6 +35,8 @@ def _load_manifest(path: Path = MANIFEST) -> dict[str, object]:
     models, profiles = value.get("models"), value.get("profiles")
     if not isinstance(models, dict) or not isinstance(profiles, dict):
         raise RuntimeError("OCR model manifest is missing models or profiles")
+    if set(profiles) != {"default"}:
+        raise RuntimeError("OCR model manifest must contain only the Default profile")
     expected = {
         filename
         for profile in profiles.values()
@@ -44,6 +46,8 @@ def _load_manifest(path: Path = MANIFEST) -> dict[str, object]:
     }
     if expected != set(models):
         raise RuntimeError("OCR model manifest inventory does not match its profiles")
+    if len(expected) != 3:
+        raise RuntimeError("Default OCR profile must inventory exactly three models")
     for filename, record in models.items():
         if (not isinstance(filename, str) or Path(filename).name != filename
                 or not filename.endswith(".onnx") or not isinstance(record, dict)):
@@ -130,7 +134,7 @@ def _download(filename: str, record: dict[str, object], output_dir: Path) -> Non
 
 
 def prepare(output_dir: Path = DEFAULT_OUTPUT) -> Path:
-    """Ensure the build cache contains exactly the five manifest-pinned models."""
+    """Ensure the build cache contains exactly the three Default model assets."""
     manifest = _load_manifest()
     models = manifest["models"]
     profiles = manifest["profiles"]

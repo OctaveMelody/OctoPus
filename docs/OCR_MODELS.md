@@ -1,53 +1,32 @@
-# Offline OCR profiles
+# Offline OCR model
 
 OctoPus uses RapidOCR 3.10.0 with ONNX Runtime 1.30.0 and
-`opencv-python-headless==5.0.0.93`. Headless removes OpenCV's GUI support; `cv2`,
-NumPy, Shapely and the other required dependencies remain. It is not an OpenCV-free
-build. Do not install regular or contrib OpenCV alongside the headless distribution.
+`opencv-python-headless==5.0.0.93`. Headless OpenCV removes GUI support; `cv2`, NumPy,
+Shapely and the other required dependencies remain. Do not install regular or contrib
+OpenCV alongside the headless distribution.
 
-## Model selection
+## Active profile
 
-| Program Settings | Detection | Recognition | Orientation |
-|---|---|---|---|
-| Default (Faster) / 默认（更快） | PP-OCRv6 Small | PP-OCRv6 Small | PP-OCRv4 Mobile |
-| Accuracy (Slower) / 高精度（较慢） | PP-OCRv6 Medium | PP-OCRv6 Medium | Same shared classifier |
-
-The earlier RapidOCR 3.9.2 implementation used the Small profile. Its three weights
-are unchanged in this upgrade. Dependency replacement alone is not an accuracy claim.
-Both profiles use multilingual weights for English and Chinese; they do not remove
-other supported languages from those weights. No separate English model is bundled.
-
-The saved choice is captured when New or Append starts. Every page and crop uses that
-choice. Changing settings during a job affects the next job and does not modify JPS.
-The cache retains one active profile, releasing it before loading another. Switching
-can add loading time. Larger text models need more time and memory and may help difficult
-text; some scores can perform better with Default. Musical geometry and manual review
-remain necessary in either mode.
-
-Desktop transcription has a fixed deadline for the whole request: 15 minutes for
-Default and 60 minutes for Accuracy. Progress does not renew it, and cancellation
-remains available while recognition runs. These are operational limits; a large PDF
-can still exceed its selected limit and fail. Corpus CLI tools do not use that desktop
-deadline, so their completion alone does not establish desktop acceptance.
+The product has one OCR profile: Default. It uses PP-OCRv6 Small for text detection and
+recognition, with the shared PP-OCRv4 Mobile orientation classifier. All three models use
+multilingual weights that support English and Chinese; no separate English model is bundled.
+CPU execution retains 2 intra-op and 1 inter-op threads.
 
 ## Pinned inventory
 
 The machine-readable source of truth is
 [manifest.json](../src/octopus/assets/ocr_models/manifest.json). It records exact bytes,
-SHA-256 checksums, versioned official download URLs and profile membership.
+SHA-256 checksums, versioned official download URLs and the sole profile's model roles.
 
-| File | Bytes | Used by |
-|---|---:|---|
-| PP-OCRv6_det_small.onnx | 9,929,594 | Default |
-| PP-OCRv6_rec_small.onnx | 21,234,383 | Default |
-| PP-OCRv6_det_medium.onnx | 62,119,454 | Accuracy |
-| PP-OCRv6_rec_medium.onnx | 76,629,984 | Accuracy |
-| ch_ppocr_mobile_v2.0_cls_mobile.onnx | 585,532 | Both |
+| File | Bytes |
+|---|---:|
+| PP-OCRv6_det_small.onnx | 9,929,594 |
+| PP-OCRv6_rec_small.onnx | 21,234,383 |
+| ch_ppocr_mobile_v2.0_cls_mobile.onnx | 585,532 |
 
-Default uses 31,749,509 bytes (~30.3 MiB). Accuracy uses 139,334,970 bytes (~132.9 MiB).
-The combined five-file set is 170,498,947 bytes (~162.6 MiB), adding 138,749,438 bytes
-(~132.3 MiB) before compression to the previous three-file payload. Compressed package
-size must be measured separately; model growth can outweigh headless dependency savings.
+The offline model payload is 31,749,509 bytes (about 30.3 MiB), before package compression.
+Historical Medium-profile evaluations and complete packages remain audit evidence; they are
+retired and are not selectable or staged by the current build path.
 
 ## Setup and packaging
 
@@ -58,28 +37,24 @@ Keep the adjacent manifest, license and attribution notices with the weights.
 
 Source execution resolves verified local assets. `OCTOPUS_OCR_MODEL_DIR` can explicitly
 select a prepared model directory for an isolated source installation or evidence run.
-The packaged worker uses local staged files; it must not need an external model cache
-or runtime download. Missing or corrupt selected assets fail clearly. Accuracy never
-silently becomes Default.
+The packaged worker uses local staged files; it must not need an external model cache or
+runtime download. Missing, corrupt or unexpected model assets fail clearly.
 
-Production packaging stages exactly the five selected ONNX files, shares the classifier,
-and removes duplicate dependency weights and ONNX Runtime example models. Keep the full
-portable directory together. Windows requires native acceptance before release; Linux
-validation does not establish native macOS packaging support.
+Production packaging stages exactly the three selected ONNX files and removes duplicate
+dependency weights and ONNX Runtime example models. Keep the full portable directory
+together. Windows requires native acceptance before release; Linux validation does not
+establish native macOS packaging support.
 
 ## Attribution and evidence
 
-Upstream model weights are attributed to Baidu and the applicable PaddleOCR rights
-holders; RapidAI/RapidOCR supplies ONNX conversion and packaging. The adjacent
+Upstream model weights are attributed to Baidu and the applicable PaddleOCR rights holders;
+RapidAI/RapidOCR supplies ONNX conversion and packaging. The adjacent
 [notice](../src/octopus/assets/ocr_models/NOTICE.md) records provenance and the
 [Apache-2.0 license](../src/octopus/assets/ocr_models/LICENSE) is retained with the assets.
 The official [RapidOCR model notice](https://raw.githubusercontent.com/RapidAI/RapidOCR/v3.10.0/python/MODEL_LICENSES.md)
-enumerates Small and classifier artifacts. Medium provenance is also supported by the
-official [detector card](https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det) and
-[ONNX recognizer card](https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_rec_onnx).
+enumerates the Small and classifier artifacts.
 
-Evaluation records must identify mode, actual selected model hashes, effective settings,
-runtime versions and execution providers. Historical fixtures remain historical;
-switching model/configuration requires a distinct fixture namespace and invalidates
-incompatible resume evidence. Corpus label alignment is diagnostic: compare changed
-readings with the printed source, including navigation marks absent from manual labels.
+Current evaluation records identify the selected model hashes, effective settings, runtime
+versions and execution providers. Historical fixtures and Medium evaluation reports remain
+historical evidence. Current fixtures use only the Default profile and identity-scoped
+request keys.

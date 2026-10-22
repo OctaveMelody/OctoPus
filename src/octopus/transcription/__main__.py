@@ -7,14 +7,12 @@ from itertools import combinations
 from pathlib import Path
 
 from . import transcribe
-from .ocr_profiles import OCR_MODES
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path, help="PNG, JPG, JPEG or PDF score")
     parser.add_argument("--out", required=True, type=Path, help="reviewable JPS draft")
-    parser.add_argument("--ocr-mode", choices=OCR_MODES, default="default")
     parser.add_argument(
         "--issues", type=Path, help="review issues JSON beside the draft by default"
     )
@@ -25,7 +23,7 @@ def main() -> int:
             first.exists() and second.exists() and first.samefile(second)
         ):
             parser.error("input, draft and review issues must be distinct files")
-    draft = transcribe(args.input, ocr_mode=args.ocr_mode)
+    draft = transcribe(args.input)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     issue_path.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(draft.jps, encoding="utf-8")
