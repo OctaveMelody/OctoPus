@@ -33,6 +33,7 @@
 - 持续提升图片和 PDF 识谱的准确率。
 - 增加音频试听、MIDI 导出，以及 LilyPond 和 MusicXML 导出功能。
 - 支持导入 MusicXML 并转换为 JPS。
+- 支持配置可选的大语言模型 API 密钥，用于图片和 PDF 转录。
 
 ## 用户手册
 

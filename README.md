@@ -39,6 +39,7 @@ still be checked against the original score.
 - Continue improving image and PDF transcription accuracy over the long term.
 - Add audio playback, MIDI export, and LilyPond and MusicXML export.
 - Import MusicXML and convert it to JPS.
+- Enable optional LLM model apiKey connections for image/PDF transcribing.
 
 ## User manual
 
