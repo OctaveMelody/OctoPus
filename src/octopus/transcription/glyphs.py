@@ -25,8 +25,9 @@ NORMALIZED_SIZE = (24, 36)
 DigitMatch = tuple[str, float, bool]
 
 
-def _normalized_black_pixels(image: Image.Image) -> int:
-    resized = image.resize(NORMALIZED_SIZE, Image.Resampling.NEAREST)
+def _normalized_black_pixels(image: Image.Image, *, antialias: bool = False) -> int:
+    resampling = Image.Resampling.BILINEAR if antialias else Image.Resampling.NEAREST
+    resized = image.resize(NORMALIZED_SIZE, resampling)
     return int.from_bytes(
         resized.point(lambda value: 255 if value < 160 else 0).tobytes(), "little"
     )
@@ -89,17 +90,29 @@ def digit_shape_similarity(gray: Image.Image, component: Component, digit: str) 
 
 
 def page_digit_templates(
-    gray: Image.Image, accepted: list[tuple[Component, DigitMatch]],
+    gray: Image.Image, accepted: list[tuple[Component, DigitMatch]], *, antialias: bool = False,
 ) -> tuple[tuple[str, int], ...]:
     """Use high-confidence glyphs observed on this page as additional font evidence."""
-    return tuple((match[0], _normalized_black_pixels(gray.crop(component.box)))
-                 for component, match in accepted if match[1] >= 0.95)
+    templates = []
+    for component, match in accepted:
+        if not match[1] >= 0.95:
+            continue
+        crop = gray.crop(component.box)
+        mask = _normalized_black_pixels(crop, antialias=True) if antialias else (
+            _normalized_black_pixels(crop)
+        )
+        templates.append((match[0], mask))
+    return tuple(templates)
 
 
 def _page_digit_scores(
     gray: Image.Image, component: Component, templates: tuple[tuple[str, int], ...],
+    *, antialias: bool = False,
 ) -> dict[str, float]:
-    candidate = _normalized_black_pixels(gray.crop(component.box))
+    crop = gray.crop(component.box)
+    candidate = _normalized_black_pixels(crop, antialias=True) if antialias else (
+        _normalized_black_pixels(crop)
+    )
     scores: dict[str, list[float]] = {}
     for digit, template in templates:
         scores.setdefault(digit, []).append(_similarity(candidate, template))
@@ -127,10 +140,13 @@ def ocr_digit_has_page_conflict(
 
 def match_page_digit(
     gray: Image.Image, component: Component, templates: tuple[tuple[str, int], ...],
+    *, antialias: bool = False,
 ) -> DigitMatch | None:
     """Require two agreeing exemplars and separation from every competing digit."""
-    ranked = sorted(_page_digit_scores(gray, component, templates).items(),
-                    key=lambda item: item[1], reverse=True)
+    scores = _page_digit_scores(gray, component, templates, antialias=True) if antialias else (
+        _page_digit_scores(gray, component, templates)
+    )
+    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
     if (len(ranked) < 2 or ranked[0][1] < MIN_PAGE_DIGIT_SUPPORT
             or ranked[0][1] - ranked[1][1] < 0.1):
         return None

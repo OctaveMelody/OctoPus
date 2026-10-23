@@ -576,6 +576,7 @@ def _music_row(
         if is_bar(component)
     })
     notes = []
+    note_boxes = {component.box for component, _ in group}
     used_marks: set[Box] = set()
     for index, (component, match) in enumerate(group):
         right_limit = min(
@@ -590,7 +591,8 @@ def _music_row(
         )
         signs = [
             (sign, accidental) for sign in modifier_components
-            if digit_height * 0.55 <= sign.height <= digit_height * 1.3
+            if sign.box not in note_boxes
+            and digit_height * 0.55 <= sign.height <= digit_height * 1.3
             and sign.width <= digit_height * 0.6
             and 0 <= component.box[0] - sign.box[2] <= digit_height * 0.6
             and abs(sign.center_y - component.center_y) <= digit_height * 0.5
@@ -614,7 +616,6 @@ def _music_row(
         if accidental:
             marks.add(signs[0][0].box)
         used_marks.update(marks)
-    note_boxes = {note.box for note in notes}
     unresolved = tuple(
         component.box for component in nearby
         if component.box not in note_boxes
@@ -707,6 +708,7 @@ def _groups(
 def _split_page_digit_cluster(
     gray: Image.Image, component: Component, height: int,
     templates: tuple[tuple[str, int], ...],
+    *, antialias: bool = False,
 ) -> list[tuple[Component, DigitMatch]]:
     """Split wide row ink only when page exemplars support one complete digit string."""
     left, upper, right, lower = component.box
@@ -728,7 +730,9 @@ def _split_page_digit_cluster(
         if (not height * 0.2 <= piece.width <= height
                 or abs(piece.height - height) > max(3, height * 0.12)):
             return None
-        match = match_page_digit(gray, piece, templates)
+        match = match_page_digit(
+            gray, piece, templates, antialias=True,
+        ) if antialias else match_page_digit(gray, piece, templates)
         if match is None or digit_shape_similarity(gray, piece, match[0]) < 0.6:
             return None
         return piece, match
@@ -891,6 +895,7 @@ def _recover_row_digits(
     group: list[tuple[Component, DigitMatch]], components: list[Component],
     height: int, gray: Image.Image, claimed: set[Box],
     templates: tuple[tuple[str, int], ...] = (),
+    antialiased_templates: tuple[tuple[str, int], ...] = (),
 ) -> list[tuple[Component, DigitMatch]]:
     """Recover unresolved row ink without changing already accepted note glyphs."""
     height = round(median(component.height for component, _ in group))
@@ -914,6 +919,26 @@ def _recover_row_digits(
         )) is not None:
             found.append((component, page_match))
             claimed.add(component.box)
+    if antialiased_templates and len(group) >= 3:
+        # The existing sloped row band admits tilted page-font matches before
+        # OCR narrows candidates to its straight band. Keep that geometry while
+        # applying the same strict support and vector checks to the new bank.
+        for component in unresolved:
+            predicted_y = slope * (component.box[0] + component.box[2]) / 2 + intercept
+            if (component.box in claimed or component.width > height
+                    or abs(component.center_y - center_y) <= height * 0.3
+                    or abs(component.center_y - predicted_y) > height * 0.3):
+                continue
+            antialias_match = match_page_digit(
+                gray, component, antialiased_templates, antialias=True,
+            )
+            if antialias_match is not None and digit_shape_similarity(
+                gray, component, antialias_match[0],
+            ) >= (
+                MIN_DIGIT_VECTOR_SUPPORT
+            ):
+                found.append((component, antialias_match))
+                claimed.add(component.box)
     # Page-font matches can follow tilt; uncorroborated OCR keeps its existing row band.
     unresolved = [component for component in unresolved if component.box not in claimed
                   and abs(component.center_y - center_y) <= height * 0.3]
@@ -961,6 +986,21 @@ def _recover_row_digits(
                 pieces = [(component, ambiguous_match)]
         if not pieces and component.width > height:
             pieces = _split_page_digit_cluster(gray, component, height, templates)
+        if not pieces and antialiased_templates and len(group) >= 3:
+            if component.width <= height:
+                antialias_match = match_page_digit(
+                    gray, component, antialiased_templates, antialias=True,
+                )
+                if antialias_match is not None and digit_shape_similarity(
+                    gray, component, antialias_match[0],
+                ) >= (
+                    MIN_DIGIT_VECTOR_SUPPORT
+                ):
+                    pieces = [(component, antialias_match)]
+            else:
+                pieces = _split_page_digit_cluster(
+                    gray, component, height, antialiased_templates, antialias=True,
+                )
         if pieces:
             components.remove(component)
             components.extend(piece for piece, _ in pieces)
@@ -1173,6 +1213,7 @@ def _recognize_working_rows(
             main.extend(admitted)
     known_boxes = {component.box for component, _ in main}
     templates = page_digit_templates(gray, main)
+    antialiased_templates = page_digit_templates(gray, main, antialias=True)
     for group in _groups(main, digit_height):
         # Glyph recovery fills an established staff; it must not create a fragmentary row.
         established = (max(component.box[2] for component, _ in group)
@@ -1183,6 +1224,7 @@ def _recognize_working_rows(
         ):
             recovered = _recover_row_digits(
                 group, components, digit_height, gray, known_boxes, templates,
+                antialiased_templates,
             )
             main.extend(recovered)
             candidates.extend(recovered)
@@ -1230,6 +1272,7 @@ def _recognize_working_rows(
                          if row is candidate)
             recovered = _recover_row_digits(
                 group, components, digit_height, gray, known_boxes, templates,
+                antialiased_templates,
             )
             if recovered:
                 group.extend(recovered)
