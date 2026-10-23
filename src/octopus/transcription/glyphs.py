@@ -14,6 +14,7 @@ from .text import image_digit
 
 MIN_NOTE_DIGIT_HEIGHT = 16
 MAX_DIGIT_HEIGHT = 75
+MIN_PAGE_DIGIT_SUPPORT = 0.86
 # Real glyph pixels remain evidence when a neighboring font template scores slightly higher.
 MIN_CONTRADICTED_OCR_GLYPH_SUPPORT = 0.4
 
@@ -93,18 +94,43 @@ def page_digit_templates(
                  for component, match in accepted if match[1] >= 0.95)
 
 
-def match_page_digit(
+def _page_digit_scores(
     gray: Image.Image, component: Component, templates: tuple[tuple[str, int], ...],
-) -> DigitMatch | None:
-    """Require two agreeing exemplars and separation from every competing digit."""
+) -> dict[str, float]:
     candidate = _normalized_black_pixels(gray.crop(component.box))
     scores: dict[str, list[float]] = {}
     for digit, template in templates:
         scores.setdefault(digit, []).append(_similarity(candidate, template))
-    ranked = sorted(((digit, sorted(values, reverse=True)[1])
-                     for digit, values in scores.items() if len(values) >= 2),
+    return {digit: sorted(values, reverse=True)[1]
+            for digit, values in scores.items() if len(values) >= 2}
+
+
+def ocr_digit_has_page_conflict(
+    gray: Image.Image,
+    component: Component,
+    reported_digit: str,
+    templates: tuple[tuple[str, int], ...],
+) -> bool:
+    """Reject an OCR label only when independent page and vector evidence disagree."""
+    page_scores = _page_digit_scores(gray, component, templates)
+    reported_score = page_scores.get(reported_digit)
+    competitors = [digit for digit, score in page_scores.items()
+                   if digit != reported_digit and score >= MIN_PAGE_DIGIT_SUPPORT]
+    if reported_score is None or reported_score >= MIN_PAGE_DIGIT_SUPPORT or not competitors:
+        return False
+    vector_scores = _digit_scores(gray, component)
+    reported_shape = vector_scores.get(reported_digit, 0.0)
+    return any(vector_scores.get(digit, 0.0) > reported_shape for digit in competitors)
+
+
+def match_page_digit(
+    gray: Image.Image, component: Component, templates: tuple[tuple[str, int], ...],
+) -> DigitMatch | None:
+    """Require two agreeing exemplars and separation from every competing digit."""
+    ranked = sorted(_page_digit_scores(gray, component, templates).items(),
                     key=lambda item: item[1], reverse=True)
-    if len(ranked) < 2 or ranked[0][1] < 0.86 or ranked[0][1] - ranked[1][1] < 0.1:
+    if (len(ranked) < 2 or ranked[0][1] < MIN_PAGE_DIGIT_SUPPORT
+            or ranked[0][1] - ranked[1][1] < 0.1):
         return None
     return ranked[0][0], ranked[0][1], True
 

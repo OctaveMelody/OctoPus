@@ -24,6 +24,7 @@ from .glyphs import (
     classify_mordent,
     digit_shape_similarity,
     match_page_digit,
+    ocr_digit_has_page_conflict,
     page_digit_templates,
 )
 from .marks import note_modifiers, row_parentheses, row_sustains, vertical_bend
@@ -164,6 +165,15 @@ class _DigitPartition(NamedTuple):
     total_similarity: float
     separation_score: int
     cuts: tuple[int, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _PageDigitPath:
+    sequence: int
+    minimum_similarity: float
+    total_similarity: float
+    previous: _PageDigitPath | None
+    piece: tuple[Component, DigitMatch] | None
 
 
 def _qr_regions(gray: Image.Image) -> tuple[Box, ...]:
@@ -692,6 +702,90 @@ def _groups(
     return merged
 
 
+def _split_page_digit_cluster(
+    gray: Image.Image, component: Component, height: int,
+    templates: tuple[tuple[str, int], ...],
+) -> list[tuple[Component, DigitMatch]]:
+    """Split wide row ink only when page exemplars support one complete digit string."""
+    left, upper, right, lower = component.box
+    if component.width <= height or not templates:
+        return []
+
+    @cache
+    def piece_at(start: int, end: int) -> tuple[Component, DigitMatch] | None:
+        ink = gray.crop((start, upper, end, lower)).point(
+            lambda value: 255 if value < 160 else 0,
+        )
+        box = ink.getbbox()
+        if box is None:
+            return None
+        piece = Component(
+            (start + box[0], upper + box[1], start + box[2], upper + box[3]),
+            ink.histogram()[255],
+        )
+        if (not height * 0.2 <= piece.width <= height
+                or abs(piece.height - height) > max(3, height * 0.12)):
+            return None
+        match = match_page_digit(gray, piece, templates)
+        if match is None or digit_shape_similarity(gray, piece, match[0]) < 0.6:
+            return None
+        return piece, match
+
+    # Keep two distinct prefixes per endpoint: any common suffix preserves their
+    # disagreement, while same-string seam variants retain only their best path.
+    root = _PageDigitPath(0, 1.0, 0.0, None, None)
+    states: dict[int, dict[int, _PageDigitPath]] = {left: {0: root}}
+    sequences: dict[tuple[int, str], int] = {}
+    next_sequence = 1
+    for start in range(left, right):
+        prefixes = states.get(start)
+        if not prefixes:
+            continue
+        for end in range(start + 1, min(right, start + height) + 1):
+            found = piece_at(start, end)
+            if found is None:
+                continue
+            piece, match = found
+            updated = states.setdefault(end, {})
+            for prefix in prefixes.values():
+                key = (prefix.sequence, match[0])
+                sequence = sequences.get(key)
+                if sequence is None:
+                    if len(updated) >= 2:
+                        continue
+                    sequence = next_sequence
+                    next_sequence += 1
+                    sequences[key] = sequence
+                if sequence not in updated and len(updated) >= 2:
+                    continue
+                candidate = _PageDigitPath(
+                    sequence,
+                    min(prefix.minimum_similarity, match[1]),
+                    prefix.total_similarity + match[1],
+                    prefix,
+                    found,
+                )
+                previous = updated.get(sequence)
+                if previous is None or (
+                    candidate.minimum_similarity, candidate.total_similarity
+                ) > (previous.minimum_similarity, previous.total_similarity):
+                    updated[sequence] = candidate
+
+    final = states.get(right, {})
+    if len(final) != 1:
+        return []
+    path = next(iter(final.values()))
+    pieces = []
+    while path.previous is not None:
+        assert path.piece is not None
+        pieces.append(path.piece)
+        path = path.previous
+    pieces.reverse()
+    if len(pieces) < 2 or sum(piece.area for piece, _ in pieces) != component.area:
+        return []
+    return pieces
+
+
 def _split_digit_cluster(
     gray: Image.Image, component: Component,
     owned: list[tuple[str, float, float]], height: int,
@@ -851,6 +945,11 @@ def _recover_row_digits(
             if match is not None:
                 owned = [(match[0], match[1], (left + right) / 2)]
         pieces = _split_digit_cluster(gray, component, owned, height)
+        if any(ocr_digit_has_page_conflict(gray, piece, match[0], templates)
+               for piece, match in pieces):
+            pieces = []
+        if not pieces and component.width > height:
+            pieces = _split_page_digit_cluster(gray, component, height, templates)
         if pieces:
             components.remove(component)
             components.extend(piece for piece, _ in pieces)

@@ -721,16 +721,29 @@ def music_characters(gray: Image.Image, box: Box) -> tuple[tuple[str, float, flo
         )
         for _, value, _, *details in result or []:
             word = str(value).strip()
-            if len(details) < 3 or any(char not in "01234567 .()-|" for char in word):
+            if (len(details) < 3
+                    or any(char not in "01234567.()-|" and not char.isspace() for char in word)):
+                continue
+            characters = cast(list[str], details[1])
+            character_scores = cast(list[float], details[2])
+            if len(characters) != len(character_scores):
                 continue
             centers = _character_centers(word, details, 0.5, box[0] - border)
-            letters = "".join(cast(list[str], details[1]))
-            start = len(letters) - len(letters.lstrip())
-            scores = cast(list[float], details[2])[start:start + len(word)]
-            if len(centers) == len(scores) == len(word):
-                found.extend((char, float(score), center)
-                             for char, score, center in zip(word, scores, centers, strict=True)
-                             if char in "01234567" and score >= (0.5 if char == "0" else 0.9))
+            if len(centers) != len(word):
+                continue
+            glyph_word = "".join(char for char in word if not char.isspace())
+            glyph_scores = [float(score) for char, score in zip(
+                characters, character_scores, strict=True,
+            ) if not char.isspace()]
+            glyph_centers = [center for char, center in zip(word, centers, strict=True)
+                             if not char.isspace()]
+            if not (len(glyph_word) == len(glyph_scores) == len(glyph_centers)):
+                continue
+            found.extend((char, score, center)
+                         for char, score, center in zip(
+                             glyph_word, glyph_scores, glyph_centers, strict=True,
+                         )
+                         if char in "01234567" and score >= (0.5 if char == "0" else 0.9))
     return tuple(sorted(found, key=lambda item: item[2]))
 
 
