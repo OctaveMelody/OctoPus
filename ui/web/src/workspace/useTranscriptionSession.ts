@@ -1,8 +1,9 @@
 import {useEffect, useRef, useState} from "react";
 import type {RefObject} from "react";
 import {isCurrentDocumentRevision} from "./document.js";
-import {cancelTranscription as cancelNative, onTranscriptionProgress, transcribeReference} from "./native-files.js";
+import {cancelTranscription as cancelNative, onTranscriptionProgress, parseScore, transcribeReference} from "./native-files.js";
 import {normalizeJpsFileName} from "./new-score.js";
+import {transcriptionAppendIssue} from "./transcription-append.js";
 import type {DocumentSnapshot, TranscriptionDraft, WorkspaceCopy} from "./types";
 
 type ReferenceSet = ReturnType<typeof import("./reference-set.js").createReferenceSet>;
@@ -89,6 +90,27 @@ export function useTranscriptionSession({currentDocument, getReferences, isBusy,
       if (job.cancelled || active.current !== job) return;
       const draft = response.result;
       if (response.status !== "ok" || !draft) throw new Error(response.error?.message ?? copyRef.current.transcriptionFailed);
+      if (mode === "append" && job.document.source.trim()) {
+        let parsed;
+        try {
+          parsed = await Promise.all([job.document.source, draft.jps].map(code => parseScore({
+            documentId: job.document.id, documentRevision: job.document.revision,
+            name: job.document.name, code,
+          })));
+        } catch {
+          if (job.cancelled || active.current !== job) return;
+          throw new Error(copyRef.current.transcriptionAppendCannotVerify);
+        }
+        if (job.cancelled || active.current !== job) return;
+        const issue = transcriptionAppendIssue(
+          job.document.source,
+          parsed[0].status === "ok" ? parsed[0].result : null,
+          parsed[1].status === "ok" ? parsed[1].result : null,
+        );
+        if (issue) throw new Error(issue === "conflict"
+          ? copyRef.current.transcriptionAppendConflict
+          : copyRef.current.transcriptionAppendCannotVerify);
+      }
       if (!isCurrentDocumentRevision(currentDocument.current, {
         documentId: job.document.id, revision: job.document.revision,
       })) throw new Error(copyRef.current.transcriptionDocumentChanged);

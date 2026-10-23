@@ -8,6 +8,7 @@
 /** @typedef {{id: string, path: string, name: string, mimeType: "image/png" | "image/jpeg", byteLength: number, width: number, height: number, orientation: number}} StagedReferenceImage */
 /** @typedef {{id: string, path: string, name: string, byteLength: number, sha256: string}} StagedReferencePdf */
 /** @typedef {{images: StagedReferenceImage[], pdfs: StagedReferencePdf[], order: string[]}} StagedReferenceAssets */
+/** @typedef {{source_offset_unit: "codepoint", music_start_offset: number | null, header_lines: Array<{prefix: string, value: string, span: {start: {offset: number}}}>, music_annotations: Array<{value: string, music_position: {line: number, token: number}}>, diagnostics: unknown[]}} ParsedScore */
 /** @typedef {{jps: string, page_count: number, page_dimensions?: Array<{width:number, height:number}>, issues: Array<{code: string, page: number, detail: string, regions: number[][], confidence?:number|null, source_start?:number|null, source_end?:number|null}>}} TranscriptionDraft */
 /** @typedef {{status: "ok" | "error", result?: TranscriptionDraft, error?: {message: string}}} TranscriptionResponse */
 
@@ -163,6 +164,12 @@ export function destroyNativeWindow() {
 /** @returns {Promise<EngineCapabilities>} */
 export function getEngineCapabilities() {
   return invokeNative("get_engine_capabilities", {});
+}
+
+/** @param {{documentId: string, documentRevision: number, name: string, code: string}} args
+ * @returns {Promise<{status: "ok" | "error", result?: ParsedScore, error?: {message: string}}>} */
+export function parseScore(args) {
+  return invokeNative("parse_score", {args: {...args, customCode: "", pageConfig: {}}});
 }
 
 /** @returns {Promise<EngineCapabilities>} */

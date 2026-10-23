@@ -31,6 +31,7 @@ class LyricDraft:
     body: str
     regions: tuple[Box, ...]
     slot_constrained: bool = False
+    accepted_slot_groups: tuple[tuple[str, ...] | None, ...] = ()
 
 
 def _is_lyric_text(value: str) -> bool:
@@ -226,9 +227,15 @@ def _overlapping_readings_share_ink(
 
 
 def _assemble(spans: list[TextSpan], notes: MusicRow) -> str:
+    return _assemble_with_slots(spans, notes)[0]
+
+
+def _assemble_with_slots(
+    spans: list[TextSpan], notes: MusicRow,
+) -> tuple[str, tuple[tuple[str, ...] | None, ...], bool]:
     centers = [(note.box[0] + note.box[2]) / 2 for note in notes.notes]
     if not centers:
-        return ""
+        return "", (), False
     assigned: dict[int, list[str]] = {}
     units = [
         unit for span in sorted(spans, key=lambda item: item.box[0])
@@ -253,8 +260,12 @@ def _assemble(spans: list[TextSpan], notes: MusicRow) -> str:
             range(len(centers)), key=lambda position: abs(centers[position] - x),
         ))
         assigned.setdefault(index, []).append(word)
+    accepted = tuple(
+        tuple(words) if (words := assigned.get(index)) is not None else None
+        for index in range(len(centers))
+    )
     if not assigned:
-        return ""
+        return "", accepted, bool(constrained)
     body = []
     previous_words: list[str] | None = None
     for index in range(max(assigned) + 1):
@@ -276,7 +287,7 @@ def _assemble(spans: list[TextSpan], notes: MusicRow) -> str:
                 for index, word in enumerate(words)
             ))
             previous_words = lyric_words
-    return "".join(body)
+    return "".join(body), accepted, bool(constrained)
 
 
 def _measure_slot_priors(
@@ -523,13 +534,9 @@ def extract_lyrics(
             abs(baseline - band[0].center_y) <= digit_height * 0.5
             for baseline in span.lyric_baselines
         ))
-        body = _assemble(band, alignment_row)
+        body, accepted_slot_groups, constrained = _assemble_with_slots(band, alignment_row)
         if body:
-            units = [unit for span in sorted(band, key=lambda item: item.box[0])
-                     for unit in _lyric_units(span)]
-            constrained = bool(_measure_slot_priors(
-                band, units, alignment_row,
-                [(note.box[0] + note.box[2]) / 2 for note in alignment_row.notes],
+            drafts.append(LyricDraft(
+                body, tuple(span.box for span in band), constrained, accepted_slot_groups,
             ))
-            drafts.append(LyricDraft(body, tuple(span.box for span in band), constrained))
     return tuple(drafts)

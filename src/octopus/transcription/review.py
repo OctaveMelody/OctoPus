@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from fractions import Fraction
 from statistics import median
@@ -10,6 +11,7 @@ from statistics import median
 from octopus.model import normalize_code
 from octopus.parser import parse_code
 from octopus.parser.ast import HeaderLine, MusicLine, MusicToken, MusicTokenKind
+from octopus.render.core.layout_types import LayoutPage
 from octopus.render.svg import render_score_model_page_with_layout
 
 from .components import Box
@@ -331,6 +333,19 @@ def musical_consistency_findings(
     return tuple(result)
 
 
+def _sung_lyric_text(value: str) -> str:
+    start, end = 0, len(value)
+    while start < end and (
+        value[start].isspace() or unicodedata.category(value[start]).startswith("P")
+    ):
+        start += 1
+    while end > start and (
+        value[end - 1].isspace() or unicodedata.category(value[end - 1]).startswith("P")
+    ):
+        end -= 1
+    return value[start:end]
+
+
 def render_back_findings(
     code: str, pages: tuple[PageObservation, ...], bindings: tuple[RowBinding, ...],
 ) -> tuple[ReviewFinding, ...]:
@@ -347,9 +362,11 @@ def render_back_findings(
     try:
         model = normalize_code(code)
         rendered_by_line: dict[int, dict[int, tuple[float, float]]] = {}
+        rendered_layouts: dict[int, LayoutPage] = {}
         for page_index in range(len(model.pages)):
             checking_page = min(page_index + 1, len(pages))
             _svg, layout = render_score_model_page_with_layout(model, page_index)
+            rendered_layouts[page_index] = layout
             for item in layout.events:
                 if item.event.kind in _NOTES and item.block is None:
                     rendered_by_line.setdefault(item.event.span.start.line, {})[
@@ -408,4 +425,70 @@ def render_back_findings(
                     "segmentation; ordinary engraving differences remain possible.",
                     tuple(row.notes[index].box for index in selected),
                 ))
+        bound_layout = rendered_layouts.get(binding.page - 1)
+        if bound_layout is None:
+            continue
+        note_events = tuple(sorted(
+            (item for item in bound_layout.events
+             if item.event.span.start.line == binding.source_line
+             and item.event.kind in _NOTES and item.block is None),
+            key=lambda item: item.event.span.start.offset,
+        ))
+        if len(note_events) != len(row.notes):
+            continue
+        event_index = {item.address.notepos: index for index, item in enumerate(note_events)}
+        events_by_address = {item.address.notepos: item for item in note_events}
+        source_lines = code.splitlines(keepends=True)
+        for lyric_source_line, lyric_draft in binding.lyric_bindings:
+            accepted = lyric_draft.accepted_slot_groups
+            if not accepted or len(accepted) != len(note_events):
+                continue
+            actual_groups: list[list[tuple[int, str]]] = [
+                [] for _ in note_events
+            ]
+            foreign_host = False
+            for lyric in bound_layout.lyrics:
+                if not any(span.start.line == lyric_source_line for span in lyric.source_spans):
+                    continue
+                if lyric.annotation or lyric.cipos is None:
+                    continue
+                text = _sung_lyric_text(lyric.text)
+                if not text:
+                    continue
+                host = events_by_address.get(lyric.cipos)
+                if host is None or host.event.span.start.line != binding.source_line:
+                    foreign_host = True
+                    continue
+                if (lyric.voice, lyric.line, lyric.slot) != (
+                    host.voice, host.line, host.slot,
+                ):
+                    foreign_host = True
+                    continue
+                source_offset = min(
+                    span.start.offset for span in lyric.source_spans
+                    if span.start.line == lyric_source_line
+                )
+                actual_groups[event_index[lyric.cipos]].append((source_offset, text))
+            expected_text = tuple("".join(
+                _sung_lyric_text(unit)
+                for unit in (group or ())
+                if not unit.startswith('"')
+            ) for group in accepted)
+            actual_text = tuple("".join(
+                text for _, text in sorted(group)
+            ) for group in actual_groups)
+            if not foreign_host and actual_text == expected_text:
+                continue
+            source_start = source_end = None
+            if 1 <= lyric_source_line <= len(source_lines):
+                source_start = sum(len(line) for line in source_lines[:lyric_source_line - 1])
+                source_end = source_start + len(source_lines[lyric_source_line - 1].rstrip("\r\n"))
+            result.append(ReviewFinding(
+                "render_back_lyric_preservation", binding.page,
+                "The emitted lyric lost, merged, reordered, or moved accepted text between "
+                "note hosts. Check the C line against the source lyric row.",
+                lyric_draft.regions,
+                source_start=source_start,
+                source_end=source_end,
+            ))
     return (*result, *consistency)

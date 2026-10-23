@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import asdict
 from importlib.util import find_spec
 from pathlib import Path
@@ -23,6 +23,7 @@ from octopus.font_profile import (
 )
 from octopus.jps import JpsDocument, jps_key, load_jps_text, serialize_jps
 from octopus.normalization.types import ScoreModel
+from octopus.parser.ast import HeaderLine, MusicLine, MusicToken, MusicTokenKind
 from octopus.parser.grammar import parse_document
 from octopus.render.svg import (
     render_score_model_page_with_layout,
@@ -245,11 +246,39 @@ def _parse(payload: dict[str, Any]) -> dict[str, Any]:
         raise ProtocolError("parse requires code; allowed options: name, custom_code, page_config")
     source = _snapshot(payload)
     document = parse_document(source)
+    music_lines = [line for line in document.lines if isinstance(line, MusicLine)]
     return {
         "diagnostics": [asdict(item) for item in document.diagnostics],
+        "header_lines": [
+            {"prefix": line.prefix, "value": line.value, "span": asdict(line.span)}
+            for line in document.lines
+            if isinstance(line, HeaderLine)
+        ],
+        "music_start_offset": music_lines[0].span.start.offset if music_lines else None,
+        "music_annotations": list(_music_annotations(music_lines)),
         "source_offset_unit": "codepoint",
         "encoding_repaired": source.encoding_repaired,
     }
+
+
+def _music_annotations(music_lines: list[MusicLine]) -> Iterator[dict[str, Any]]:
+    for line_index, line in enumerate(music_lines):
+        for token_index, root in enumerate(line.tokens):
+            pending: list[tuple[MusicToken, tuple[int, ...]]] = [(root, ())]
+            while pending:
+                token, nested_path = pending.pop()
+                if token.kind == MusicTokenKind.ANNOTATION:
+                    music_position: dict[str, Any] = {"line": line_index, "token": token_index}
+                    if nested_path:
+                        music_position["nested_token_path"] = list(nested_path)
+                    yield {
+                        "raw": token.raw,
+                        "value": token.value,
+                        "span": asdict(token.span),
+                        "music_position": music_position,
+                    }
+                for child_index in range(len(token.children) - 1, -1, -1):
+                    pending.append((token.children[child_index], (*nested_path, child_index)))
 
 
 def _filename(value: object) -> str:

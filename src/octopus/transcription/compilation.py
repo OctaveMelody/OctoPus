@@ -693,6 +693,7 @@ def assemble(
             if voice is None or voice == 1:
                 source.append("")
             source.append(f"Q{voice or ''}: {music}")
+            binding_index = len(bindings)
             bindings.append(RowBinding(
                 page_number, row_index, len(source),
                 overlay is None and not bz_by_anchor.get(row_index),
@@ -724,6 +725,13 @@ def assemble(
             )
             for lyric in extract_lyrics(page, row_index, lyric_band_after):
                 source.append(f"C{voice or ''}: {lyric.body}")
+                bindings[binding_index] = replace(
+                    bindings[binding_index],
+                    lyric_bindings=(
+                        *bindings[binding_index].lyric_bindings,
+                        (len(source), lyric),
+                    ),
+                )
                 issues.append(Issue(
                     "lyric_alignment_review", page_number,
                     "Check lyric characters, skips and ownership against the image.",

@@ -7,6 +7,7 @@ import math
 from dataclasses import asdict, dataclass
 
 from .image import PageObservation
+from .lyrics import LyricDraft
 
 
 def finite_confidence(value: float) -> float:
@@ -78,3 +79,4 @@ class RowBinding:
     row: int
     source_line: int
     simple: bool
+    lyric_bindings: tuple[tuple[int, LyricDraft], ...] = ()
