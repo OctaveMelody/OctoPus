@@ -15,6 +15,8 @@ from .text import image_digit
 MIN_NOTE_DIGIT_HEIGHT = 16
 MAX_DIGIT_HEIGHT = 75
 MIN_PAGE_DIGIT_SUPPORT = 0.86
+MIN_DIGIT_VECTOR_SUPPORT = 0.6
+MIN_DIGIT_VECTOR_MARGIN = 0.04
 # Real glyph pixels remain evidence when a neighboring font template scores slightly higher.
 MIN_CONTRADICTED_OCR_GLYPH_SUPPORT = 0.4
 
@@ -111,7 +113,7 @@ def ocr_digit_has_page_conflict(
     reported_digit: str,
     templates: tuple[tuple[str, int], ...],
 ) -> bool:
-    """Reject an OCR label only when independent page and vector evidence disagree."""
+    """Reject OCR labels when the page and vector shape scores disagree."""
     page_scores = _page_digit_scores(gray, component, templates)
     reported_score = page_scores.get(reported_digit)
     competitors = [digit for digit, score in page_scores.items()
@@ -133,6 +135,27 @@ def match_page_digit(
             or ranked[0][1] - ranked[1][1] < 0.1):
         return None
     return ranked[0][0], ranked[0][1], True
+
+
+def match_ambiguous_page_digit(
+    gray: Image.Image, component: Component, templates: tuple[tuple[str, int], ...],
+) -> DigitMatch | None:
+    """Require unique page support and the same winner across vector labels."""
+    page_scores = _page_digit_scores(gray, component, templates)
+    if len(page_scores) < 2:
+        return None
+    supported = [(digit, score) for digit, score in page_scores.items()
+                 if score >= MIN_PAGE_DIGIT_SUPPORT]
+    if len(supported) != 1:
+        return None
+    digit, support = supported[0]
+    vector_scores = sorted(_digit_scores(gray, component).items(),
+                           key=lambda item: item[1], reverse=True)
+    if (len(vector_scores) < 2 or vector_scores[0][0] != digit
+            or vector_scores[0][1] < MIN_DIGIT_VECTOR_SUPPORT
+            or vector_scores[0][1] - vector_scores[1][1] < MIN_DIGIT_VECTOR_MARGIN):
+        return None
+    return digit, support, True
 
 
 def classify_mordent(gray: Image.Image, component: Component) -> bool:
@@ -201,7 +224,8 @@ def classify_digit(
         return None
     by_digit = _digit_scores(gray, component, grace)
     ranked = sorted(by_digit.items(), key=lambda item: item[1], reverse=True)
-    if len(ranked) < 2 or ranked[0][1] < min_score or ranked[0][1] - ranked[1][1] < 0.04:
+    if (len(ranked) < 2 or ranked[0][1] < min_score
+            or ranked[0][1] - ranked[1][1] < MIN_DIGIT_VECTOR_MARGIN):
         if not allow_ocr:
             return None
         ocr = image_digit(gray, component.box, "1234567" if grace else "01234567")

@@ -17,12 +17,14 @@ from .components import Box, Component, connected_components
 from .decorations import Hairpin, row_hairpins, symbol_decorations
 from .glyphs import (
     MAX_DIGIT_HEIGHT,
+    MIN_DIGIT_VECTOR_SUPPORT,
     MIN_NOTE_DIGIT_HEIGHT,
     DigitMatch,
     classify_accidental,
     classify_digit,
     classify_mordent,
     digit_shape_similarity,
+    match_ambiguous_page_digit,
     match_page_digit,
     ocr_digit_has_page_conflict,
     page_digit_templates,
@@ -936,11 +938,15 @@ def _recover_row_digits(
             continue
         if component.width <= height and len(owned) > 1:
             single = [item for item in owned
-                      if digit_shape_similarity(gray, component, item[0]) >= 0.6]
+                      if digit_shape_similarity(
+                          gray, component, item[0],
+                      ) >= MIN_DIGIT_VECTOR_SUPPORT]
             if single:
                 owned = [max(single, key=lambda item: item[1])]
         if (component.width <= height and len(owned) <= 1
-                and (not owned or digit_shape_similarity(gray, component, owned[0][0]) < 0.6)):
+                and (not owned or digit_shape_similarity(
+                    gray, component, owned[0][0],
+                ) < MIN_DIGIT_VECTOR_SUPPORT)):
             match = image_digit(gray, component.box, tight_padding=True)
             if match is not None:
                 owned = [(match[0], match[1], (left + right) / 2)]
@@ -948,6 +954,11 @@ def _recover_row_digits(
         if any(ocr_digit_has_page_conflict(gray, piece, match[0], templates)
                for piece, match in pieces):
             pieces = []
+        if not pieces and component.width <= height:
+            if (ambiguous_match := match_ambiguous_page_digit(
+                gray, component, templates,
+            )) is not None:
+                pieces = [(component, ambiguous_match)]
         if not pieces and component.width > height:
             pieces = _split_page_digit_cluster(gray, component, height, templates)
         if pieces:
