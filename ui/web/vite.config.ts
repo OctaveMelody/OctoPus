@@ -1,10 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { shouldRegisterBundledFontFaces } from "./scripts/font-policy.mjs";
+import { shouldRegisterBundledFontFaces, uiFontPlatformForTarget } from "./scripts/font-policy.mjs";
 
 export default defineConfig(({ mode }) => ({
   define: {
     __OCTOPUS_BUNDLE_FONTS__: JSON.stringify(shouldRegisterBundledFontFaces({
+      mode,
+      targetTriple: process.env.TAURI_ENV_TARGET_TRIPLE,
+      hostPlatform: process.platform,
+    })),
+    __OCTOPUS_UI_PLATFORM__: JSON.stringify(uiFontPlatformForTarget({
       mode,
       targetTriple: process.env.TAURI_ENV_TARGET_TRIPLE,
       hostPlatform: process.platform,

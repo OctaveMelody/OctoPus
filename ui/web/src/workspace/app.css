@@ -1,6 +1,6 @@
 :root {
   height: 100%;
-  font-family: "Noto Sans SC", "Liberation Sans", sans-serif;
+  font-family: var(--ui-font-family, "Noto Sans SC", "Liberation Sans", sans-serif);
   color: #202632;
   background: #f4f6f9;
   font-synthesis: none;
@@ -48,7 +48,6 @@ button:focus-visible, summary:focus-visible, select:focus-visible, textarea:focu
 
 .document-actions { display: flex; flex-wrap: wrap; gap: 5px; }
 .workspace-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 5px; margin-left: auto; }
-.language-switch { min-width: 50px; }
 .export-menu, .help-menu { position: relative; }
 .document-actions .export-menu > summary, .document-actions .help-menu > summary { display: flex; min-height: 34px; align-items: center; cursor: pointer; list-style: none; border: 1px solid #d1d7e0; border-radius: 6px; padding: 0 9px; color: #344258; background: white; font-size: 12px; }
 .document-actions .export-menu > summary::-webkit-details-marker, .document-actions .help-menu > summary::-webkit-details-marker { display: none; }

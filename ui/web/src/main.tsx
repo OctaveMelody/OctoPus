@@ -6,6 +6,13 @@ import "./workspace/app.css";
 import fontStyles from "./fonts.css?raw";
 
 declare const __OCTOPUS_BUNDLE_FONTS__: boolean;
+declare const __OCTOPUS_UI_PLATFORM__: "browser" | "linux" | "windows" | "macos";
+
+const uiPlatform = __OCTOPUS_UI_PLATFORM__ === "browser"
+  ? /Mac/i.test(navigator.platform) ? "macos"
+    : /Win/i.test(navigator.platform) ? "windows" : "linux"
+  : __OCTOPUS_UI_PLATFORM__;
+document.documentElement.dataset.uiPlatform = uiPlatform;
 
 async function registerBundledFontFaces() {
   if (!__OCTOPUS_BUNDLE_FONTS__) return;

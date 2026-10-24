@@ -1,12 +1,14 @@
 import {normalizeRecentFiles} from "./recent-files.js";
 
 /** @typedef {"en" | "zh-CN"} Language */
+/** @typedef {"system" | "classic"} UiFont */
+/** @typedef {"windows" | "macos" | "linux"} UiFontPlatform */
 /** @typedef {"normal" | "transcription"} WorkspaceMode */
 /** @typedef {"N1" | "N2" | "T1" | "T2"} LayoutId */
 /** @typedef {{x: number, y: number}} Split */
 /** @typedef {"N1" | "N2"} NormalLayout */
 /** @typedef {"T1" | "T2"} TranscriptionLayout */
-/** @typedef {{recentFiles: string[], referenceHintDismissed: boolean, displaySamplesLibrary: boolean, fontNoticeDismissals: string[], language: Language, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
+/** @typedef {{recentFiles: string[], referenceHintDismissed: boolean, displaySamplesLibrary: boolean, fontNoticeDismissals: string[], language: Language, uiFont: UiFont, mode: WorkspaceMode, normalLayout: NormalLayout, transcriptionLayout: TranscriptionLayout, splits: Record<LayoutId, Split>}} WorkspacePreferences */
 
 export const PREFERENCES_KEY = "octopus.workspace.v1";
 
@@ -30,14 +32,15 @@ function bounded(value, fallback, minimum, maximum) {
     : fallback;
 }
 
-/** @param {string} [osLanguage] @returns {WorkspacePreferences} */
-export function defaultPreferences(osLanguage = "en") {
+/** @returns {WorkspacePreferences} */
+export function defaultPreferences() {
   return {
     recentFiles: [],
     referenceHintDismissed: false,
     displaySamplesLibrary: true,
     fontNoticeDismissals: [],
-    language: osLanguage.toLowerCase().startsWith("zh") ? "zh-CN" : "en",
+    language: "zh-CN",
+    uiFont: "system",
     mode: "normal",
     normalLayout: "N1",
     transcriptionLayout: "T2",
@@ -50,9 +53,9 @@ export function defaultPreferences(osLanguage = "en") {
   };
 }
 
-/** @param {{getItem: (key: string) => string | null}} storage @param {string} [osLanguage] @returns {WorkspacePreferences} */
-export function readPreferences(storage, osLanguage = "en") {
-  const defaults = defaultPreferences(osLanguage);
+/** @param {{getItem: (key: string) => string | null}} storage @returns {WorkspacePreferences} */
+export function readPreferences(storage) {
+  const defaults = defaultPreferences();
   try {
     const candidate = JSON.parse(storage.getItem(PREFERENCES_KEY) ?? "null");
     if (!isRecord(candidate)) return defaults;
@@ -84,6 +87,7 @@ export function readPreferences(storage, osLanguage = "en") {
       language: candidate.language === "zh-CN" || candidate.language === "en"
         ? candidate.language
         : defaults.language,
+      uiFont: candidate.uiFont === "classic" ? "classic" : "system",
       mode: candidate.mode === "transcription" ? "transcription" : "normal",
       normalLayout: candidate.normalLayout === "N2" ? "N2" : "N1",
       transcriptionLayout: candidate.transcriptionLayout === "T1" ? "T1" : "T2",
@@ -92,6 +96,27 @@ export function readPreferences(storage, osLanguage = "en") {
   } catch {
     return defaults;
   }
+}
+
+/** @param {UiFontPlatform} platform @returns {Array<{id: UiFont, family: string, stack: string}>} */
+export function uiFontChoices(platform) {
+  if (platform === "windows") return [
+    {id: "system", family: "Segoe UI Variable",
+      stack: '"Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif'},
+    {id: "classic", family: "Arial", stack: 'Arial, "Microsoft YaHei UI", sans-serif'},
+  ];
+  if (platform === "macos") return [
+    {id: "system", family: "SF Pro",
+      stack: 'system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif'},
+    {id: "classic", family: "Helvetica Neue",
+      stack: '"Helvetica Neue", Helvetica, "PingFang SC", sans-serif'},
+  ];
+  return [
+    {id: "system", family: "Noto Sans SC",
+      stack: '"OctoPus Noto Sans SC", "OctoPus Liberation Sans", sans-serif'},
+    {id: "classic", family: "Liberation Sans",
+      stack: '"OctoPus Liberation Sans", "OctoPus Noto Sans SC", sans-serif'},
+  ];
 }
 
 /** @param {{setItem: (key: string, value: string) => void}} storage @param {WorkspacePreferences} preferences */

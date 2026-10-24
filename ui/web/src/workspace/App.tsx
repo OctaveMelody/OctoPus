@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 import { PanelControls } from "./PanelControls";
@@ -46,7 +46,7 @@ import {
   selectReferenceImage,
   updateReferenceView,
 } from "./reference-set.js";
-import { defaultPreferences, readPreferences, writePreferences } from "./preferences.js";
+import { defaultPreferences, readPreferences, uiFontChoices, writePreferences } from "./preferences.js";
 
 function AppBrand({ label, onOpen }: { label: string; onOpen: () => void }) {
   return (
@@ -65,8 +65,8 @@ export function App() {
   const [preferences, setPreferences] = useState<WorkspacePreferences>(() => {
     const storage = getStorage();
     return storage
-      ? readPreferences(storage, window.navigator.language)
-      : defaultPreferences(window.navigator.language);
+      ? readPreferences(storage)
+      : defaultPreferences();
   });
   const [focusPane, setFocusPane] = useState<FocusPane>(null);
   const [hiddenPanes, setHiddenPanes] = useState<PaneId[]>([]);
@@ -101,6 +101,10 @@ export function App() {
   const informationDialogRef = useRef<HTMLDialogElement>(null);
   const appShortcutRef = useRef<(event: KeyboardEvent) => void>(() => {});
   const copy = messages[preferences.language];
+  const uiPlatform = document.documentElement.dataset.uiPlatform;
+  const uiFontPlatform = uiPlatform === "windows" || uiPlatform === "macos" ? uiPlatform : "linux";
+  const uiFonts = uiFontChoices(uiFontPlatform);
+  const uiFont = uiFonts.find(font => font.id === preferences.uiFont) ?? uiFonts[0];
   const copyRef = useRef(copy);
   copyRef.current = copy;
   const lifecycle = useDocumentLifecycle({copyRef, setStatus, setPreferences, setFocusPane,
@@ -232,6 +236,10 @@ export function App() {
   useEffect(() => {
     document.documentElement.lang = preferences.language;
   }, [preferences.language]);
+
+  useLayoutEffect(() => {
+    document.documentElement.style.setProperty("--ui-font-family", uiFont.stack);
+  }, [uiFont.stack]);
 
   useEffect(() => {
     if (window.__TAURI__) void requestFontCapabilities(false);
@@ -775,17 +783,19 @@ export function App() {
               run: () => setPreferences(current => ({
                 ...current, displaySamplesLibrary: !current.displaySamplesLibrary,
               }))},
+            {label: copy.languageEnglish, group: copy.languageSetting,
+              selected: preferences.language === "en",
+              run: () => setPreferences(current => ({...current, language: "en"}))},
+            {label: copy.languageChinese, group: copy.languageSetting,
+              selected: preferences.language === "zh-CN",
+              run: () => setPreferences(current => ({...current, language: "zh-CN"}))},
+            ...uiFonts.map(font => ({
+              label: `${font.family}${font.id === "system" ? ` ${copy.defaultChoice}` : ""}`,
+              group: copy.uiFontSetting,
+              selected: preferences.uiFont === font.id,
+              run: () => setPreferences(current => ({...current, uiFont: font.id})),
+            })),
           ]} />
-          <button className="language-switch" type="button"
-            aria-label={preferences.language === "en" ? copy.switchToChinese : copy.switchToEnglish}
-            title={preferences.language === "en" ? copy.switchToChinese : copy.switchToEnglish}
-            onClick={() => setPreferences(current => ({
-              ...current, language: current.language === "en" ? "zh-CN" : "en",
-            }))}>
-            <span lang={preferences.language === "en" ? "zh-CN" : "en"}>
-              {preferences.language === "en" ? "中文" : "English"}
-            </span>
-          </button>
           <button
             disabled={isSaving || referenceOperationBusy}
             onClick={requestNativeClose}
