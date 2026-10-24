@@ -261,6 +261,13 @@ def _render_defs(
     compact_profile: bool = False,
 ) -> str:
     available_defs = {glyph_id: xml.rstrip() for glyph_id, xml in load_all_glyphs().items()}
+    # Semantic placeholders intentionally draw no ink but still need valid use targets.
+    available_defs.update(
+        {
+            "shuzi_b_": '<g id="shuzi_b_"></g>',
+            "xiaojiexian_none": '<g id="xiaojiexian_none"></g>',
+        }
+    )
     if include_catalog_graces:
         available_defs.update(_catalog_grace_defs_by_id())
     return _assemble_defs(
