@@ -16,6 +16,7 @@ from octopus.render.core.layout_types import (
     PageMetrics,
 )
 from octopus.render.layout_engine.constructs import collect_constructs as _collect_constructs
+from octopus.render.layout_engine.hidden.bz_layout import bz_spill_placeholder_owner_spans
 from octopus.render.layout_engine.hidden.hidden_rest_slots import reconcile_hidden_rest_slots
 from octopus.render.layout_engine.hidden.hidden_stream_layout import (
     hidden_dsb_events_for_layout,
@@ -91,6 +92,12 @@ def _finalize_layout_voice(
     shared_grace_raw_by_voice = state.shared_grace_raw_by_voice
     next_system = state.next_system
     laid_out = layout.events[voice_event_start:]
+    bz_spill_placeholder_spans = bz_spill_placeholder_owner_spans(
+        state.visible_events_by_voice.get(voice_index, []),
+        voice.events,
+        voice.constructs,
+        laid_out,
+    )
     grace_host_indices = frozenset(
         construct.host_event_index
         for construct in voice.constructs
@@ -186,6 +193,7 @@ def _finalize_layout_voice(
         reserves_lyric_dotted_notes=(
             len(system.voices) > 1 and voice.voice == 0
         ),
+        bz_spill_placeholder_spans=bz_spill_placeholder_spans,
         legacy_intrinsic_source_lines=legacy_source_lines,
         numbered_lyric_source_lines=_numbered_lyric_source_lines(
             lyrics_by_music_line

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from math import fsum
 
+from ...core.layout_widths import BZ_OVERLAY_CLEARANCE
 from .event_corrections import apply_semantic_corrections
 from .models import SyllabicProjectionPlan, SyllabicProjectionState
 
@@ -40,7 +41,7 @@ def _advance_cursor(
     if index in reserves.dsb_anchor_positions:
         state.iterative_x += 14.4 * plan.scale
     if index in reserves.bz_overlay_positions:
-        state.iterative_x -= 9.0 * plan.scale
+        state.iterative_x -= BZ_OVERLAY_CLEARANCE * plan.scale
     state.iterative_x += grace.width_by_position.get(index, 0.0)
     newly_expired = {
         position
@@ -76,7 +77,7 @@ def _project_base_event(
     dsb_width = 14.4 * plan.scale * sum(
         position <= index for position in reserves.dsb_anchor_positions
     )
-    bz_width = 9.0 * plan.scale * sum(
+    bz_width = BZ_OVERLAY_CLEARANCE * plan.scale * sum(
         position <= index for position in reserves.bz_overlay_positions
     )
     if plan.flags.uses_iterative_spacing:

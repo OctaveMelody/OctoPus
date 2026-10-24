@@ -38,6 +38,71 @@ def bz_target_source_lines(
     return frozenset(result)
 
 
+def bz_spill_placeholder_owner_spans(
+    visible_events: list[MusicEvent],
+    events: tuple[MusicEvent, ...],
+    constructs: tuple[SemanticConstruct, ...],
+    laid_out: list[LayoutEvent],
+) -> frozenset[tuple[int, int]]:
+    """Find source owners of BZ placeholders beyond every overlay target measure.
+
+    Placeholder insertion follows the first half of each hidden stream's visible
+    events on the source line. The overlay itself covers as many following
+    measures as the hidden stream contains. Only owners outside all such covered
+    measures are eligible for reserve transfer.
+    """
+    source = {event.index: event for event in events}
+    candidates: set[int] = set()
+    covered: set[int] = set()
+    for block in outer_bz_constructs(constructs):
+        if block.end_event_index is None:
+            continue
+        hidden = [
+            source[index]
+            for index in block.event_indices
+            if index in source and is_visible_event(source[index])
+        ]
+        hidden_measures = _measures(hidden)
+        hidden_count = sum(
+            event.kind != MusicTokenKind.BARLINE
+            for event in hidden
+        )
+        placeholder_count = hidden_count // 2
+        if not placeholder_count or not hidden_measures:
+            continue
+        following_sources = [
+            event
+            for event in visible_events
+            if event.index >= 0
+            and event.index > block.end_event_index
+            and event.span.start.line == block.source_span.end.line
+            and event.kind != MusicTokenKind.BARLINE
+        ]
+        candidates.update(event.index for event in following_sources[:placeholder_count])
+
+        following_layout = sorted(
+            (
+                item for item in laid_out
+                if item.event.span.start.offset >= block.source_span.end.offset
+            ),
+            key=lambda item: (item.line, item.x, item.slot),
+        )
+        target_measures = _layout_measures(following_layout)
+        covered.update(
+            item.event.index
+            for measure in target_measures[:len(hidden_measures)]
+            for item in measure
+            if item.event.index >= 0
+        )
+
+    source_by_index = {event.index: event for event in visible_events if event.index >= 0}
+    return frozenset(
+        (source_by_index[index].span.start.offset, source_by_index[index].span.end.offset)
+        for index in candidates - covered
+        if index in source_by_index
+    )
+
+
 def layout_bz_events(
     block: SemanticConstruct,
     hidden: list[MusicEvent],

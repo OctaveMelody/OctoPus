@@ -14,6 +14,7 @@ EXTENSION_WIDTH = 30.0
 BARLINE_EXTRA_GAP = 8.0
 MEASURE_GAP = 8.0
 INLINE_TIME_SIGNATURE_WIDTH = 24.0
+BZ_OVERLAY_CLEARANCE = 9.0
 
 
 def _is_zero_space_barline(event: MusicEvent) -> bool:

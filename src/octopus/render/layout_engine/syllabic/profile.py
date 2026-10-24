@@ -7,6 +7,7 @@ from dataclasses import replace
 
 from ....parser.ast import MusicTokenKind
 from ...core.layout_types import GEOMETRY_EPSILON, LayoutEvent
+from ...core.layout_widths import BZ_OVERLAY_CLEARANCE
 from ..dotted.dotted_classifiers import (
     hidden_sentinel_dotted_terminal_reserve_indices as _hidden_sentinel_dotted_correction,
 )
@@ -71,6 +72,9 @@ from ..reserves.interval_reserves import (
     release_interval_reserve_excess as _release_interval_reserve_excess,
 )
 from ..reserves.interval_reserves import (
+    transfer_interval_reserve_to_terminal as _transfer_interval_reserve_to_terminal,
+)
+from ..reserves.interval_reserves import (
     transfer_terminal_reserve_to_interval as _transfer_terminal_reserve_to_interval,
 )
 from ..reserves.reserve_classifiers import (
@@ -101,6 +105,23 @@ def build_syllabic_profile_state(request: SyllabicRowRequest) -> SyllabicProfile
         uses_compound_half_beat_spanning_hook,
         uses_leading_hook_dsb_tail_grid,
     ) = _build_base_syllabic_profile(request)
+    if request.bz_spill_placeholder_positions:
+        for index in sorted(request.bz_spill_placeholder_positions):
+            interval_width = profile.interval_widths[index]
+            transfer_width = max(interval_width - BZ_OVERLAY_CLEARANCE, 0.0)
+            if transfer_width <= GEOMETRY_EPSILON:
+                continue
+            allocation = _transfer_interval_reserve_to_terminal(
+                profile.interval_widths,
+                interval_index=index,
+                terminal_reserve=profile.terminal_width,
+                transfer_width=transfer_width,
+            )
+            profile = replace(
+                profile,
+                interval_widths=allocation.interval_widths,
+                terminal_width=allocation.terminal_reserve,
+            )
     profile = _apply_dotted_profile_reserves(
         row,
         lyric_text_by_event,

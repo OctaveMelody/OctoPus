@@ -28,6 +28,7 @@ class SyllabicRowRequest:
     localizes_cross_row_hook_opener: bool
     uses_lyricless_cross_row_compound_grid: bool
     uses_undivided_cross_row_hook_transfer: bool
+    bz_spill_placeholder_positions: frozenset[int] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)

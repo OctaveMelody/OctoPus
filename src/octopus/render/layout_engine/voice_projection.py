@@ -39,6 +39,7 @@ def _justify_voice_rows(
     legacy_intrinsic_source_lines: frozenset[int] = frozenset(),
     numbered_lyric_source_lines: frozenset[int] = frozenset(),
     legacy_lyric_text_by_event: dict[tuple[int, int], tuple[str, ...]] | None = None,
+    bz_spill_placeholder_spans: frozenset[tuple[int, int]] = frozenset(),
     selects_structural_intrinsic_entries: bool = True,
 ) -> None:
     by_line: dict[int, list[LayoutEvent]] = {}
@@ -155,6 +156,7 @@ def _justify_voice_rows(
                 grace_host_indices=grace_host_indices,
                 grace_raw_by_host=grace_raw_by_host or {},
                 reserves_lyric_dotted_notes=reserves_lyric_dotted_notes,
+                bz_spill_placeholder_spans=bz_spill_placeholder_spans,
                 uses_numbered_cjk_verse_label=(
                     row[0].event.span.start.line in numbered_lyric_source_lines
                 ),
@@ -200,6 +202,7 @@ def _justify_voice_rows(
                     ragged=True,
                     grace_host_indices=grace_host_indices,
                     grace_raw_by_host=grace_raw_by_host or {},
+                    bz_spill_placeholder_spans=bz_spill_placeholder_spans,
                     uses_lyricless_cross_row_cursor=uses_lyricless_cross_row_cursor,
                 )
                 if inherited_scale is not None:
@@ -212,6 +215,7 @@ def _justify_voice_rows(
                     lyric_text_by_event=legacy_lyric_text_by_event or {},
                     grace_host_indices=grace_host_indices,
                     grace_raw_by_host=grace_raw_by_host or {},
+                    bz_spill_placeholder_spans=bz_spill_placeholder_spans,
                     uses_lyricless_cross_row_cursor=uses_lyricless_cross_row_cursor,
                 )
                 continue
@@ -224,6 +228,7 @@ def _justify_voice_rows(
                     lyric_text_by_event=legacy_lyric_text_by_event or {},
                     grace_host_indices=grace_host_indices,
                     grace_raw_by_host=grace_raw_by_host or {},
+                    bz_spill_placeholder_spans=bz_spill_placeholder_spans,
                     uses_lyricless_cross_row_cursor=uses_lyricless_cross_row_cursor,
                 )
                 continue
@@ -258,6 +263,7 @@ def _justify_legacy_syllabic_row(
     grace_host_indices: frozenset[int] = frozenset(),
     grace_raw_by_host: dict[int, str] | None = None,
     reserves_lyric_dotted_notes: bool = False,
+    bz_spill_placeholder_spans: frozenset[tuple[int, int]] = frozenset(),
     uses_numbered_cjk_verse_label: bool = False,
     intrinsic_width_adjustment: float = 0.0,
     uses_lyricless_cross_row_cursor: bool = False,
@@ -277,6 +283,15 @@ def _justify_legacy_syllabic_row(
         grace_host_indices=grace_host_indices,
         grace_raw_by_host=grace_raw_by_host or {},
         reserves_lyric_dotted_notes=reserves_lyric_dotted_notes,
+        bz_spill_placeholder_positions=frozenset(
+            index
+            for index, item in enumerate(row[:-1])
+            if item.event.raw == "{bz-placeholder}"
+            and (
+                item.event.span.start.offset,
+                item.event.span.end.offset,
+            ) in bz_spill_placeholder_spans
+        ),
         uses_numbered_cjk_verse_label=uses_numbered_cjk_verse_label,
         intrinsic_width_adjustment=intrinsic_width_adjustment,
         uses_lyricless_cross_row_cursor=uses_lyricless_cross_row_cursor,
