@@ -8,6 +8,7 @@ from fractions import Fraction
 from ...model.model_normalize import MusicEvent
 from ...parser.ast import MusicTokenKind
 from ..layout_engine.streams import meter_beat_duration
+from ..layout_engine.visibility import is_bz_placeholder_event
 from .elements import SvgElement, _format_reference_number
 from .layout_types import LayoutEvent, LayoutMark, LayoutPage
 
@@ -119,6 +120,8 @@ def duration_source_groups(
                 signature = inline_signatures.get((item.voice, item.line, item.slot))
                 if signature is not None:
                     state.beat = _duration_group_limit("/".join(signature))
+                continue
+            if is_bz_placeholder_event(event):
                 continue
             raw_duration = event.duration
             # Sustain dashes carry normalized time without a DurationValue.
