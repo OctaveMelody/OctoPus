@@ -28,6 +28,7 @@ class EndingSegment:
     opens: bool
     closed: bool
     label: str = ""
+    row_head_candidate: bool = False
 
 
 def _slender_stem_one(gray: Image.Image, component: Component) -> bool:
@@ -118,7 +119,7 @@ def voice_components(
 
 def row_endings(
     notes: tuple[Box, ...], barlines: tuple[int, ...], components: list[Component],
-    gray: Image.Image, graces: tuple[GraceGroup, ...] = (),
+    gray: Image.Image, graces: tuple[GraceGroup, ...] = (), *, allow_unhooked: bool = False,
 ) -> tuple[EndingSegment, ...]:
     """Read straight frames, including a line interrupted by its printed numeric label."""
     height = median(box[3] - box[1] for box in notes)
@@ -128,18 +129,18 @@ def row_endings(
         left, upper, right, bottom = component.box
         if not (
             component.width >= height * 0.9
-            and upper <= top - height * 0.5 and bottom >= top - height * 3.5
-            and (component.height <= height * 0.9
+            and upper <= top - height * 0.5 and bottom >= top - height * 5
+            and (component.height <= height * 1.5
                  or component.width > height * 3 and component.height > height * 2)
         ):
             continue
         horizontal = _horizontal_rows(
-            gray, component, floor(top - height * 3.5), ceil(top - height * 0.5),
+            gray, component, floor(top - height * 5), ceil(top - height * 0.5),
         )
         if not horizontal or horizontal[-1] - horizontal[0] > max(2, height * 0.12):
             continue
         line_bottom = horizontal[-1] + 1
-        corner_bottom = min(bottom, line_bottom + ceil(height * 0.9))
+        corner_bottom = min(bottom, line_bottom + ceil(height * 1.4))
         hooks = [
             sum(any(_dark(gray, x, y) for x in range(start, end))
                 for y in range(line_bottom, corner_bottom)) >= max(2, height * 0.2)
@@ -149,6 +150,8 @@ def row_endings(
             for start, end in ((left, min(right, left + max(2, round(height * 0.12)))),
                                (max(left, right - max(2, round(height * 0.12))), right))
         ]
+        if not any(hooks) and not allow_unhooked:
+            continue
         strokes.append(EndingSegment(
             (left, horizontal[0], right, corner_bottom), hooks[0], hooks[1],
         ))
@@ -171,6 +174,8 @@ def row_endings(
     for segment in merged:
         left, upper, right, _ = segment.box
         starts_at_row = -height * 0.3 <= notes[0][0] - left <= height * 1.5
+        if top - upper > height * 3 and not starts_at_row:
+            continue
         ends_at_row = right >= max((notes[-1][2], *barlines)) - height * 0.5
         if not (
             right - left >= height * 2
@@ -238,6 +243,24 @@ def row_endings(
             continue
         if segment.opens or segment.closed or starts_at_row:
             found.append(EndingSegment(segment.box, segment.opens, segment.closed, label))
+    for index, segment in enumerate(found):
+        left, top, right, _ = segment.box
+        starts_at_row = -height * 0.3 <= notes[0][0] - left <= height * 1.5
+        row_head_candidate = (
+            starts_at_row and not segment.opens and segment.closed
+            and any(
+                other is not segment and other.opens
+                and abs(other.box[1] - top) <= max(2, height * 0.2)
+                and 0 <= other.box[0] - right <= height * 0.3
+                and any(abs(x - right) <= height * 0.65 for x in barlines)
+                and any(abs(x - other.box[0]) <= height * 0.65 for x in barlines)
+                for other in found
+            )
+        )
+        if row_head_candidate:
+            found[index] = EndingSegment(
+                segment.box, segment.opens, segment.closed, segment.label, True,
+            )
     return tuple(found)
 
 

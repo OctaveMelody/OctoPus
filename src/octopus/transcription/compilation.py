@@ -144,9 +144,15 @@ def _row_marks(
     marks.extend(bars)
     if left_cut:
         marks.append((row.box[0] - 0.5, "(" * left_cut))
-    if left_cut or synchronized_head_bar:
+    head_endings = [
+        (x, token) for x, token in endings if x < row.box[0] and x not in row.barlines
+    ]
+    marks.extend((row.box[0] - 1.5, "|/" + token) for _, token in head_endings)
+    if (left_cut or synchronized_head_bar) and not head_endings:
         marks.append((row.box[0] - 0.5, "|/"))
-    marks.extend((x, "|/" + token) for x, token in endings if x not in row.barlines)
+    marks.extend(
+        (x, "|/" + token) for x, token in endings if x not in row.barlines and x >= row.box[0]
+    )
     return marks
 
 
@@ -230,16 +236,61 @@ def _ending_marks(
         }
         for row_index, row in enumerate(page.rows):
             voices.setdefault(numbers.get(row_index, 0), []).append((page_index, row_index, row))
+
+    effective_openers: set[tuple[int, int, int]] = set()
+    for rows in voices.values():
+        active = False
+        for position, (page_index, row_index, row) in enumerate(rows):
+            height = median(note.box[3] - note.box[1] for note in row.notes)
+            for segment_index, segment in enumerate(row.endings):
+                opens = segment.opens or segment.row_head_candidate and not active
+                if opens:
+                    effective_openers.add((page_index, row_index, segment_index))
+                    active = True
+                if not opens and not active:
+                    continue
+                continuation = False
+                if not segment.closed and segment.box[2] >= max(
+                    (row.box[2], *row.barlines),
+                ) - height * 0.5:
+                    following = next((
+                        item
+                        for later in rows[position + 1:]
+                        for item in later[2].endings
+                    ), None)
+                    continuation = following is not None and not following.opens
+                if not continuation:
+                    active = False
+
+    baselines: dict[int, float | None] = {}
+    for page_index, page in enumerate(pages):
+        lanes = sorted(
+            (median(note.box[1] for note in row.notes) - segment.box[1])
+            / median(note.box[3] - note.box[1] for note in row.notes)
+            for row_index, row in enumerate(page.rows) if row.notes
+            for segment_index, segment in enumerate(row.endings)
+            if (page_index, row_index, segment_index) in effective_openers
+        )
+        for start, lower in enumerate(lanes):
+            cluster = [lane for lane in lanes[start:] if lane - lower <= 0.2]
+            if len(cluster) >= 2:
+                baselines[page_index] = lower
+                break
+        else:
+            baselines[page_index] = None
+
     found: dict[tuple[int, int], tuple[tuple[float, str], ...]] = {}
     issues: list[Issue] = []
     for rows in voices.values():
         active = False
         for position, (page_index, row_index, row) in enumerate(rows):
             height = median(note.box[3] - note.box[1] for note in row.notes)
+            top = median(note.box[1] for note in row.notes)
             marks: dict[float, str] = {}
-            for segment in row.endings:
+            for segment_index, segment in enumerate(row.endings):
                 left, _, right, _ = segment.box
-                if not segment.opens and not active:
+                opens = (page_index, row_index, segment_index) in effective_openers
+                if not opens and not active:
                     issues.append(Issue(
                         "ending_continuation_unresolved", page_index + 1,
                         "A continuation frame has no observed opener in this voice.",
@@ -251,12 +302,21 @@ def _ending_marks(
                     "Check ending label, barline attachment, continuation and bracket height.",
                     (segment.box,),
                 ))
-                if segment.opens:
+                if opens:
                     start: float = min(row.barlines, key=lambda x: abs(x - left), default=left)
                     if start not in row.barlines or abs(start - left) > height * 0.65:
                         start = row.box[0] - height
                     label = f'"{segment.label}"' if segment.label else ""
-                    marks[start] = marks.get(start, "") + "[" + label
+                    baseline = baselines[page_index]
+                    # The renderer advances by 10 units, which is 10/18 of note glyph height.
+                    lane_step = height * 10 / 18
+                    plus_count = (
+                        max(0, round(
+                            ((top - segment.box[1]) - baseline * height) / lane_step
+                        ))
+                        if baseline is not None and lane_step > 0 else 0
+                    )
+                    marks[start] = marks.get(start, "") + "[" + "+" * plus_count + label
                     active = True
                 end = (
                     min((x for x in row.barlines if x >= right), default=
@@ -267,13 +327,17 @@ def _ending_marks(
                 continuation = False
                 if not segment.closed and right >= max((row.box[2], *row.barlines)) - height * 0.5:
                     following = next((
-                        (later_position, item)
-                        for later_position, (_, _, later) in enumerate(
+                        (later_position, later_page, later_row_index, later_segment_index, item)
+                        for later_position, (later_page, later_row_index, later) in enumerate(
                             rows[position + 1:], start=position + 1,
                         )
-                        for item in later.endings
+                        for later_segment_index, item in enumerate(later.endings)
                     ), None)
-                    continuation = following is not None and not following[1].opens
+                    continuation = following is not None and not (
+                        following[4].opens or (
+                            following[1], following[2], following[3]
+                        ) in effective_openers
+                    )
                     if continuation and following is not None:
                         for gap_page, _, gap_row in rows[position + 1:following[0]]:
                             issues.append(Issue(

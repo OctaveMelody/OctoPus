@@ -1383,7 +1383,7 @@ def _recognize_working_rows(
 
 
 def _row_with_working_ornaments(
-    row: MusicRow, height: int, prepared: _PreparedImage,
+    row: MusicRow, height: int, prepared: _PreparedImage, *, allow_unhooked: bool = False,
 ) -> MusicRow:
     gray, components, transform = (
         prepared.working_gray, prepared.working_components, prepared.transform,
@@ -1420,17 +1420,136 @@ def _row_with_working_ornaments(
         notes=notes,
         unresolved_marks=unresolved_marks,
         graces=graces,
-        endings=row_endings(boxes, row.barlines, components, gray, graces),
+        endings=row_endings(
+            boxes, row.barlines, components, gray, graces, allow_unhooked=allow_unhooked,
+        ),
     )
+
+
+def _row_top_and_height(row: MusicRow) -> tuple[float, float]:
+    return (
+        median(note.box[1] for note in row.notes),
+        median(note.box[3] - note.box[1] for note in row.notes),
+    )
+
+
+def _owns_hookless_continuation(
+    rows: tuple[MusicRow, ...], index: int, segment: EndingSegment,
+    voice_rows: tuple[int, ...],
+) -> bool:
+    if index not in voice_rows:
+        return False
+    position = voice_rows.index(index)
+    if not 0 < position < len(voice_rows) - 1:
+        return False
+    previous_top, _ = _row_top_and_height(rows[voice_rows[position - 1]])
+    current_top, current_height = _row_top_and_height(rows[index])
+    if not previous_top < current_top:
+        return False
+    if not previous_top <= segment.box[1] < current_top:
+        return False
+    offset = (current_top - segment.box[1]) / current_height
+    tolerance = 0.25
+    opening = None
+    opening_position = -1
+    for prior_position, row_index in enumerate(voice_rows[:position]):
+        for frame in rows[row_index].endings:
+            if frame.opens:
+                opening = frame if not frame.closed else None
+                opening_position = prior_position if opening is not None else -1
+            elif frame.closed:
+                opening = None
+                opening_position = -1
+    if opening is None:
+        return False
+
+    opening_row = rows[voice_rows[opening_position]]
+    opening_top, opening_height = _row_top_and_height(opening_row)
+    if (
+        abs(segment.box[2] - opening.box[2]) > max(2, current_height * 0.25)
+        or abs(offset - (opening_top - opening.box[1]) / opening_height) > tolerance
+    ):
+        return False
+
+    for closing_position in range(position + 1, len(voice_rows)):
+        closing_row = rows[voice_rows[closing_position]]
+        closing_top, closing_height = _row_top_and_height(closing_row)
+        for closing in closing_row.endings:
+            if closing.opens or closing.closed:
+                return (
+                    not closing.opens
+                    and closing.closed
+                    and opening_top < current_top < closing_top
+                    and abs(segment.box[0] - closing.box[0])
+                    <= max(2, current_height * 0.25)
+                    and abs(offset - (closing_top - closing.box[1]) / closing_height)
+                    <= tolerance
+                )
+    return False
+
+
+def _owned_ending_rows(
+    rows: tuple[MusicRow, ...], voice_groups: tuple[tuple[int, ...], ...],
+) -> tuple[MusicRow, ...]:
+    owners: dict[tuple[int, int, int], tuple[float, int]] = {}
+    for index, row in enumerate(rows):
+        top, height = _row_top_and_height(row)
+        for ending in row.endings:
+            key = ending.box[:3]
+            distance = (top - ending.box[1]) / height
+            current = owners.get(key)
+            if current is None or distance < current[0]:
+                owners[key] = (distance, index)
+
+    tracks: dict[int, list[int]] = {}
+    grouped_rows: set[int] = set()
+    for group in voice_groups:
+        for voice_number, row_index in enumerate(group, start=1):
+            tracks.setdefault(voice_number, []).append(row_index)
+            grouped_rows.add(row_index)
+    monophonic_rows = [index for index in range(len(rows)) if index not in grouped_rows]
+    if monophonic_rows:
+        tracks[0] = monophonic_rows
+    elif not voice_groups:
+        tracks[0] = list(range(len(rows)))
+    voice_rows_by_index = {
+        row_index: tuple(voice_rows)
+        for voice_rows in tracks.values() for row_index in voice_rows
+    }
+
+    owned_rows = tuple(
+        replace(row, endings=tuple(
+            ending for ending in row.endings if owners[ending.box[:3]][1] == index
+        ))
+        for index, row in enumerate(rows)
+    )
+    result = []
+    for index, row in enumerate(owned_rows):
+        endings = tuple(
+            ending for ending in row.endings
+            if ending.opens or ending.closed
+            or _owns_hookless_continuation(
+                owned_rows, index, ending, voice_rows_by_index[index],
+            )
+        )
+        result.append(replace(row, endings=endings))
+    return tuple(result)
 
 
 def _add_working_ornaments(
     page: PageObservation, digit_height: int, prepared: _PreparedImage,
 ) -> PageObservation:
     """Attach grace and ending marks before converting working coordinates."""
+    rows = _owned_ending_rows(
+        tuple(
+            _row_with_working_ornaments(row, digit_height, prepared, allow_unhooked=True)
+            for row in page.rows
+        ),
+        tuple(group.rows for group in page.voice_groups),
+    )
     return replace(
         page,
-        rows=tuple(_row_with_working_ornaments(row, digit_height, prepared) for row in page.rows),
+        rows=rows,
         bz_overlays=tuple(
             replace(overlay, row=_row_with_working_ornaments(overlay.row, round(median(
                 note.box[3] - note.box[1] for note in overlay.row.notes
