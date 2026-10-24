@@ -306,8 +306,14 @@ def _package_staged_appimage(target: str | None) -> Path:
     return _package_appimage(app_dir, destination, identity["target"])
 
 
-def _linux_appimage_environment(environment: dict[str, str]) -> dict[str, str]:
+def _linux_appimage_environment(
+    environment: dict[str, str], target_triple: str
+) -> dict[str, str]:
     result = dict(environment)
+    runtime_arch = APPIMAGE_RUNTIME_ARCHES.get(target_triple.split("-", 1)[0])
+    runtime = ROOT / f"build/cache/tauri/runtime-{runtime_arch}" if runtime_arch else None
+    if runtime and runtime.is_file() and not result.get("LDAI_RUNTIME_FILE"):
+        result["LDAI_RUNTIME_FILE"] = str(runtime)
     shapely_libraries = (
         ROOT / "build/desktop-engine/octopus-engine/_internal/shapely.libs"
     )
@@ -775,7 +781,7 @@ def main() -> None:
         native_environment["CARGO_INCREMENTAL"] = "1"
     appimage_fallback = platform.system() == "Linux" and requested_bundles == {"appimage"}
     if appimage_fallback:
-        native_environment = _linux_appimage_environment(native_environment)
+        native_environment = _linux_appimage_environment(native_environment, target_triple)
         # Two verbose flags make Tauri retain linuxdeploy stderr, including the finalizer phase.
         command.extend(("--verbose", "--verbose"))
     try:
