@@ -101,15 +101,16 @@ export function readPreferences(storage) {
 /** @param {UiFontPlatform} platform @returns {Array<{id: UiFont, family: string, stack: string}>} */
 export function uiFontChoices(platform) {
   if (platform === "windows") return [
-    {id: "system", family: "Segoe UI Variable",
-      stack: '"Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif'},
-    {id: "classic", family: "Arial", stack: 'Arial, "Microsoft YaHei UI", sans-serif'},
+    {id: "system", family: "Microsoft YaHei",
+      stack: '"Microsoft YaHei", "Microsoft YaHei UI", "Segoe UI", sans-serif'},
+    {id: "classic", family: "SimSun",
+      stack: '"SimSun", "NSimSun", "Microsoft YaHei", serif'},
   ];
   if (platform === "macos") return [
-    {id: "system", family: "SF Pro",
-      stack: 'system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif'},
-    {id: "classic", family: "Helvetica Neue",
-      stack: '"Helvetica Neue", Helvetica, "PingFang SC", sans-serif'},
+    {id: "system", family: "PingFang SC",
+      stack: '"PingFang SC", system-ui, -apple-system, sans-serif'},
+    {id: "classic", family: "Songti SC",
+      stack: '"Songti SC", "STSong", "PingFang SC", serif'},
   ];
   return [
     {id: "system", family: "Noto Sans SC",

@@ -586,7 +586,8 @@ export function App() {
         showHint={!preferences.referenceHintDismissed}
         onDismissHint={() => setPreferences(current => ({...current, referenceHintDismissed: true}))}
         transcriptionControl={
-          <details className="transcribe-menu" ref={transcriptionMenuRef}>
+          <details className="transcribe-menu" data-source-loaded={references.images.length > 0 ? "true" : undefined}
+            ref={transcriptionMenuRef}>
             <summary title={engineCapabilities.ocr
               ? copy.transcriptionReadyHint
               : copy.transcriptionNoOcr}
