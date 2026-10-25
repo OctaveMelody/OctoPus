@@ -152,18 +152,23 @@ worker analysis after changing the build environment.
 
 Published files use `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}` with `x64` or `arm64` and
 `win64` or `linux`. Linux AppImages omit the purpose suffix, for example
-`OctoPus_1.0.0-beta_x64_linux.AppImage`. Windows builds create a portable ZIP such as
-`OctoPus_1.0.0-beta_x64_win64_portable.zip`; `--bundles nsis` also creates a setup executable such
-as `OctoPus_1.0.0-beta_x64_win64_setup.exe`. The checked `dist/<target-triple>/portable/` tree is
+`OctoPus_1.0.0-RC1_x64_linux.AppImage`. Windows builds create a portable ZIP such as
+`OctoPus_1.0.0-RC1_x64_win64_portable.zip`; `--bundles nsis` also creates a setup executable such
+as `OctoPus_1.0.0-RC1_x64_win64_setup.exe`. The checked `dist/<target-triple>/portable/` tree is
 kept for local launch and inspection.
 Windows ZIP publication retries transient sharing locks. If it still fails, the previous portable
 tree is restored and the existing ZIP is retained.
 
 The manually assigned app version is the single SemVer value in the repository-root `VERSION`
-file. Store it without a leading `v`; the current value is `1.0.0-beta`, normalized from the
-assigned `v1.0-Beta`. Update `VERSION` intentionally for a release. Git tags and the clock do not
-change the app version. `build.py` validates this value and injects it into Tauri and the
-frontend, so `package.json` and source literals are not the app version source.
+file. Store it without a leading `v`; the current value is `1.0.0-RC1`. Update `VERSION`
+intentionally for a release. Git tags and the clock do not change the app version. `build.py`
+validates this value and injects it into Tauri and the frontend, so `package.json` and source
+literals are not the app version source.
+
+The update checker compares this SemVer value with GitHub's latest stable release. SemVer
+prerelease identifiers are case-sensitive: `1.0.0-RC1` sorts before `1.0.0-beta3`. Before
+publishing this version, verify that the existing `beta3` release is marked as a prerelease, or
+choose an identifier whose SemVer ordering matches the intended release sequence.
 
 The numeric build number is the count of commits reachable from the `HEAD` of the OctoPus
 product repository (`git rev-list --count HEAD`). The short SHA shown alongside it identifies

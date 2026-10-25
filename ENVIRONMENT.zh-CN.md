@@ -120,16 +120,19 @@ Linux x86_64 AppImage 使用
 
 发布文件统一命名为 `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}`，其中架构为 `x64` 或
 `arm64`，系统为 `win64` 或 `linux`。Linux AppImage 不带 purpose 后缀，例如
-`OctoPus_1.0.0-beta_x64_linux.AppImage`。Windows 构建会生成便携 ZIP，例如
-`OctoPus_1.0.0-beta_x64_win64_portable.zip`；使用 `--bundles nsis` 时还会生成安装程序，例如
-`OctoPus_1.0.0-beta_x64_win64_setup.exe`。检查通过的
+`OctoPus_1.0.0-RC1_x64_linux.AppImage`。Windows 构建会生成便携 ZIP，例如
+`OctoPus_1.0.0-RC1_x64_win64_portable.zip`；使用 `--bundles nsis` 时还会生成安装程序，例如
+`OctoPus_1.0.0-RC1_x64_win64_setup.exe`。检查通过的
 `dist/<target-triple>/portable/` 目录仍会保留，供本机启动和检查。
 Windows ZIP 发布会重试临时文件共享锁；重试仍失败时，恢复上一个便携目录并保留原有 ZIP。
 
 手动设置的应用版本是仓库根目录 `VERSION` 文件中的 SemVer 值，不带开头的 `v`。当前版本为
-`1.0.0-beta`，对应已指定的 `v1.0-Beta`。发布时应有意更新 `VERSION`；Git 标签和当前时间
-不会改变应用版本。`build.py` 会校验该值并注入 Tauri 和前端；`package.json` 和源码中的字面值
-不是应用版本来源。
+`1.0.0-RC1`。发布时应有意更新 `VERSION`；Git 标签和当前时间不会改变应用版本。`build.py`
+会校验该值并注入 Tauri 和前端；`package.json` 和源码中的字面值不是应用版本来源。
+
+更新检查器会将该 SemVer 值与 GitHub 最新正式版比较。SemVer 预发布标识区分大小写：
+`1.0.0-RC1` 的排序低于 `1.0.0-beta3`。发布此版本前，请确认现有 `beta3` 版本已标记为
+预发布版，或选择一个符合预期发布顺序的标识。
 
 数字构建号为 OctoPus 产品仓库 `HEAD` 可达的提交数（`git rev-list --count HEAD`）。同时显示的
 短 SHA 用于标识确切的产品提交。`build.py` 始终相对于脚本所在目录读取 Git 元数据，因此从
