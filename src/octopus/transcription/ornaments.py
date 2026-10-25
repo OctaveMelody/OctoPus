@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import ceil, floor
 from statistics import median
 from typing import cast
@@ -20,6 +20,7 @@ class GraceGroup:
     host: int
     body: str
     box: Box
+    source_boxes: tuple[Box, ...] = field(default=(), compare=False, repr=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -268,18 +269,137 @@ def _dark(gray: Image.Image, x: int, y: int) -> bool:
     return cast(int, gray.getpixel((x, y))) < 170
 
 
+def _split_grace_component(
+    component: Component, gray: Image.Image, height: float,
+) -> list[tuple[tuple[Component, ...], Component]]:
+    """Split a tall grace compound at its thin horizontal beam."""
+    left, top, right, bottom = component.box
+    if not height * 0.75 < component.height <= height * 1.8:
+        return []
+    beam_rows = [
+        y for y in range(top + round(height * 0.35), min(bottom, top + round(height * 1.1)))
+        if sum(_dark(gray, x, y) for x in range(left, right)) >= component.width * 0.8
+    ]
+    bands: list[list[int]] = []
+    for y in beam_rows:
+        if bands and y == bands[-1][-1] + 1:
+            bands[-1].append(y)
+        else:
+            bands.append([y])
+    splits = []
+    for band in bands:
+        if len(band) > max(2, round(height * 0.14)):
+            continue
+        cut = band[0]
+        upper = connected_components(gray.crop((left, top, right, cut)))
+        digits = tuple(sorted((Component(
+            (left + part.box[0], top + part.box[1], left + part.box[2], top + part.box[3]),
+            part.area,
+        ) for part in upper if height * 0.35 <= part.height <= height * 0.75),
+            key=lambda digit: digit.box[0]))
+        if not digits:
+            continue
+        lower_top = band[-1] + 1
+        lower = connected_components(gray.crop((left, lower_top, right, bottom)))
+        if not lower:
+            continue
+        mark = Component((
+            left + min(part.box[0] for part in lower),
+            lower_top + min(part.box[1] for part in lower),
+            left + max(part.box[2] for part in lower),
+            lower_top + max(part.box[3] for part in lower),
+        ), sum(part.area for part in lower))
+        splits.append((digits, mark))
+    return splits
+
+
+def _grace_connector_direction(
+    digits: tuple[Component, ...], marks: tuple[Component, ...], gray: Image.Image,
+) -> bool | None:
+    """Return whether a connector bends rightward only when all evidence agrees."""
+    left = digits[0].box[0]
+    right = digits[-1].box[2]
+    bottom = max(component.box[3] for component in digits)
+    small_height = median(component.height for component in digits)
+    directions = []
+    for mark in marks:
+        if not (
+            left - small_height * 0.4 <= mark.box[0]
+            and mark.box[2] <= right + small_height * 0.4
+            and bottom < mark.box[1] < bottom + small_height * 2
+            and small_height * 0.3 <= mark.width <= right - left + small_height * 0.8
+            and small_height * 0.2 <= mark.height <= small_height * 1.2
+        ):
+            continue
+        beam_bottom = max((
+            y for y in range(mark.box[1], min(mark.box[3],
+                                             mark.box[1] + round(small_height * 0.3)))
+            if sum(_dark(gray, x, y) for x in range(mark.box[0], mark.box[2]))
+            >= mark.width * 0.8
+        ), default=mark.box[1] - 1)
+        centers = []
+        for y in (beam_bottom + 1, mark.box[3] - 1):
+            xs = [x for x in range(mark.box[0], mark.box[2]) if _dark(gray, x, y)]
+            if xs:
+                centers.append(sum(xs) / len(xs))
+        if len(centers) == 2 and abs(centers[1] - centers[0]) >= max(1, small_height * 0.06):
+            directions.append(centers[1] < centers[0])
+    if not directions or len(set(directions)) != 1:
+        return None
+    return directions[0]
+
+
+def _grace_host(
+    notes: tuple[Box, ...], left: int, right: int, post: bool, height: float,
+) -> int | None:
+    hosts = [
+        index for index, box in enumerate(notes)
+        if box[2] < left and left - box[2] <= height * 1.5
+    ] if post else [
+        index for index, box in enumerate(notes)
+        if box[0] > right and box[0] - right <= height * 1.5
+    ]
+    if not hosts:
+        return None
+    return min(hosts, key=lambda index: abs((notes[index][0] + notes[index][2]) / 2
+                                            - (left + right) / 2))
+
+
 def row_graces(
     notes: tuple[Box, ...], components: list[Component], gray: Image.Image,
 ) -> tuple[GraceGroup, ...]:
     """Require small digits, an eighth-note beam and a directed grace connector."""
     height = median(box[3] - box[1] for box in notes)
     top = median(box[1] for box in notes)
-    candidates = [
-        (component, match[0]) for component in components
-        if height * 0.35 <= component.height <= height * 0.75
-        and top - height * 1.1 <= component.box[1] <= top - height * 0.3
-        and (match := classify_digit(gray, component, min_score=0.78, grace=True)) is not None
-    ]
+    candidates: list[tuple[Component, str]] = []
+    candidate_sources: dict[Box, Box] = {}
+    split_marks: dict[Box, Component] = {}
+    for component in components:
+        if not top - height * 1.1 <= component.box[1] <= top - height * 0.3:
+            continue
+        if height * 0.35 <= component.height <= height * 0.75:
+            match = classify_digit(gray, component, min_score=0.78, grace=True)
+            if match is not None:
+                candidates.append((component, match[0]))
+                candidate_sources[component.box] = component.box
+            continue
+        for digits, mark in _split_grace_component(component, gray, height):
+            direction = _grace_connector_direction(
+                digits, (*components, mark), gray,
+            )
+            if direction is None or _grace_host(
+                notes, digits[0].box[0], digits[-1].box[2], direction, height,
+            ) is None:
+                continue
+            classified = tuple(
+                (digit, match[0]) for digit in digits
+                if (match := classify_digit(gray, digit, min_score=0.78, grace=True)) is not None
+            )
+            if classified:
+                candidates.extend(classified)
+                candidate_sources.update({digit.box: component.box for digit, _ in classified})
+                split_marks[component.box] = mark
+                break
     groups: list[list[tuple[Component, str]]] = []
     for candidate in sorted(candidates, key=lambda pair: pair[0].box[0]):
         component = candidate[0]
@@ -297,43 +417,14 @@ def row_graces(
         bottom = max(component.box[3] for component, _ in group)
         small_height = median(component.height for component, _ in group)
         # The connector bends toward its host; this also excludes isolated annotation digits.
-        directions = []
-        for mark in components:
-            if not (
-                left - small_height * 0.4 <= mark.box[0]
-                and mark.box[2] <= right + small_height * 0.4
-                and bottom < mark.box[1] < bottom + small_height * 2
-                and small_height * 0.3 <= mark.width <= right - left + small_height * 0.8
-                and small_height * 0.2 <= mark.height <= small_height * 1.2
-            ):
-                continue
-            beam_bottom = max((
-                y for y in range(mark.box[1], min(mark.box[3],
-                                                 mark.box[1] + round(small_height * 0.3)))
-                if sum(_dark(gray, x, y) for x in range(mark.box[0], mark.box[2]))
-                >= mark.width * 0.8
-            ), default=mark.box[1] - 1)
-            centers = []
-            for y in (beam_bottom + 1, mark.box[3] - 1):
-                xs = [x for x in range(mark.box[0], mark.box[2]) if _dark(gray, x, y)]
-                if xs:
-                    centers.append(sum(xs) / len(xs))
-            if len(centers) == 2 and abs(centers[1] - centers[0]) >= max(1, small_height * 0.06):
-                directions.append(centers[1] < centers[0])
-        if not directions or len(set(directions)) != 1:
+        post = _grace_connector_direction(
+            tuple(component for component, _ in group), (*components, *split_marks.values()), gray,
+        )
+        if post is None:
             continue
-        post = directions[0]
-        hosts = [
-            index for index, box in enumerate(notes)
-            if box[2] < left and left - box[2] <= height * 1.5
-        ] if post else [
-            index for index, box in enumerate(notes)
-            if box[0] > right and box[0] - right <= height * 1.5
-        ]
-        if not hosts:
+        host = _grace_host(notes, left, right, post, height)
+        if host is None:
             continue
-        host = min(hosts, key=lambda index: abs((notes[index][0] + notes[index][2]) / 2
-                                              - (left + right) / 2))
         body = []
         for component, digit in group:
             center = (component.box[0] + component.box[2]) / 2
@@ -382,5 +473,6 @@ def row_graces(
             host, "[" + ("h" if post else "") + "".join(body) + "]",
             (left, min(component.box[1] for component, _ in group), right,
              min(gray.height, bottom + round(small_height * 2))),
+            tuple(dict.fromkeys(candidate_sources[component.box] for component, _ in group)),
         ))
     return tuple(found)

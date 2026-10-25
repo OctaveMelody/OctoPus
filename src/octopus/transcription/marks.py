@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from math import ceil
 from statistics import correlation, linear_regression, median
 from typing import cast
 
@@ -183,7 +184,7 @@ def _joined_duration_bands(
     note: Box, component: Component, gray: Image.Image, digit_height: int,
     barlines: tuple[int, ...], threshold: int = 160,
 ) -> list[list[tuple[int, int, int]]] | None:
-    """Separate connected beam tiers, including short note-local secondary strokes."""
+    """Separate long, thin stroke bands while ignoring bridges between scanned beams."""
     left, _, right, bottom = note
     if not (
         component.width >= digit_height * 1.3
@@ -240,6 +241,57 @@ def _joined_duration_lines(
     return len(bands) if bands is not None else 0
 
 
+def _dark_core_duration_bands(
+    note: Box, component: Component, gray: Image.Image, digit_height: int,
+    candidate_band: tuple[int, int],
+) -> tuple[tuple[int, int], ...]:
+    """Find separated dark horizontal rows inside one validated joined-beam band."""
+    left, _, right, bottom = note
+    minimum_run = ceil((right - left) * 0.65)
+    first = max(bottom + 1, candidate_band[0], component.box[1])
+    last = min(bottom + round(digit_height * 0.6), candidate_band[1], component.box[3] - 1)
+    if minimum_run <= 0 or last < first:
+        return ()
+    supported_rows = []
+    for y in range(first, last + 1):
+        run = longest = 0
+        for x in range(left, right):
+            if cast(int, gray.getpixel((x, y))) < 80:
+                run += 1
+                longest = max(longest, run)
+            else:
+                run = 0
+        if longest >= minimum_run:
+            supported_rows.append(y)
+    groups: list[list[int]] = []
+    for y in supported_rows:
+        if groups and y == groups[-1][-1] + 1:
+            groups[-1].append(y)
+        else:
+            groups.append([y])
+    maximum_thickness = max(4, round(digit_height * 0.17))
+    return tuple(
+        (rows[0], rows[-1]) for rows in groups
+        if 2 <= len(rows) <= maximum_thickness
+    )
+
+
+def _add_duration_band(bands: list[tuple[int, int]], candidate: tuple[int, int]) -> None:
+    """Merge overlapping band observations so one physical stroke counts once."""
+    first, last = candidate
+    index = 0
+    while index < len(bands):
+        previous_first, previous_last = bands[index]
+        if max(first, previous_first) <= min(last, previous_last):
+            first = min(first, previous_first)
+            last = max(last, previous_last)
+            bands.pop(index)
+            index = 0
+        else:
+            index += 1
+    bands.append((first, last))
+
+
 def _local_duration_tiers(
     note: Box, gray: Image.Image, digit_height: int, barlines: tuple[int, ...],
     required: int, confirmed_centers: tuple[float, ...] = (),
@@ -258,6 +310,7 @@ def _local_duration_tiers(
         if not any(abs(center - previous) <= max(1, digit_height * 0.1)
                    for previous in supported_centers):
             supported_centers.append(center)
+    dark_bands: list[tuple[int, int]] = []
     crop_box = (
         max(0, left - digit_height * 3), top,
         min(gray.width, right + digit_height * 3), lower,
@@ -274,6 +327,10 @@ def _local_duration_tiers(
                 continue
             for band in joined:
                 first, last = band[0][0], band[-1][0]
+                for dark_band in _dark_core_duration_bands(
+                    note, candidate, gray, digit_height, (first, last),
+                ):
+                    _add_duration_band(dark_bands, dark_band)
                 if any(
                     sum(cast(int, gray.getpixel((x, y))) < 210 for x in range(left, right))
                     >= minimum_columns
@@ -283,7 +340,10 @@ def _local_duration_tiers(
                     if not any(abs(center - previous) <= max(1, digit_height * 0.1)
                                for previous in supported_centers):
                         supported_centers.append(center)
-    return min(required, len(supported_centers))
+    confirmed = min(required, len(supported_centers))
+    if confirmed >= required:
+        return min(4, confirmed)
+    return min(4, required, max(confirmed, len(dark_bands)))
 
 
 def note_modifiers(
@@ -300,6 +360,8 @@ def note_modifiers(
     lines: list[Component] = []
     joined_lines = 0
     bridged_lines = 0
+    clipped_candidates: list[Component] = []
+    clipped_duration_total = 0
     joined_local_centers: list[float] = []
     joined_dot_boxes: set[Box] = set()
     used_joined: set[Box] = set()
@@ -324,12 +386,13 @@ def note_modifiers(
                 if any(box[0] < bar < box[2] for bar in barlines):
                     continue
                 fused = Component(box, line.area + stub.area)
-                count, has_dot, _ = _joined_underline_and_dot(
+                count, has_dot, local_centers = _joined_underline_and_dot(
                     note, fused, gray, digit_height,
                 )
                 if count and not has_dot:
                     joined_lines += count
                     bridged_lines += count
+                    joined_local_centers.extend(local_centers)
                     bridged.update((line.box, stub.box))
                     used_joined.update((line.box, stub.box))
                     break
@@ -386,7 +449,18 @@ def note_modifiers(
             and component.width >= max(10, round((right - left) * 0.65))
             and _overlap(left, right, c_left, c_right) >= (right - left) * 0.65
         ):
-            lines.append(component)
+            joined = (_joined_duration_bands(
+                note, component, duration_gray, digit_height, barlines,
+            ) if duration_gray is not None else None)
+            count = len(joined) if joined is not None else 0
+            if count > 1:
+                joined_lines += count
+                joined_local_centers.extend(
+                    (band[0][0] + band[-1][0]) / 2 for band in joined
+                )
+                used_joined.add(component.box)
+            else:
+                lines.append(component)
         elif gray is not None:
             count, has_dot, local_centers = _joined_underline_and_dot(
                 note, component, gray, digit_height,
@@ -397,10 +471,27 @@ def note_modifiers(
                 if has_dot:
                     joined_dot_boxes.add(component.box)
                 used_joined.add(component.box)
+            elif (
+                duration_gray is not None
+                and c_top <= bottom < c_bottom
+                and component.width >= digit_height * 1.3
+                and component.height <= digit_height * 0.6
+                and c_bottom - bottom <= digit_height * 0.72
+                and not any(c_left < bar < c_right for bar in barlines)
+                and _overlap(left, right, c_left, c_right) >= (right - left) * 0.65
+            ):
+                clipped_candidates.append(component)
+                used_joined.add(component.box)
         elif duration_gray is not None:
-            count = _joined_duration_lines(note, component, duration_gray, digit_height, barlines)
+            joined = _joined_duration_bands(
+                note, component, duration_gray, digit_height, barlines,
+            )
+            count = len(joined) if joined is not None else 0
             if count:
                 joined_lines += count
+                joined_local_centers.extend(
+                    (band[0][0] + band[-1][0]) / 2 for band in joined
+                )
                 used_joined.add(component.box)
     # Above and below marks on one digit are ambiguous; keep them for review.
     if dots_above and dots_below:
@@ -408,6 +499,13 @@ def note_modifiers(
         dots_below.clear()
     if len(lines) > 4:
         lines.clear()
+    if clipped_candidates and duration_gray is not None:
+        clipped_centers = [*joined_local_centers, *(line.center_y for line in lines)]
+        clipped_centers = [center for center in clipped_centers
+                           if bottom < center <= bottom + round(digit_height * 0.6)]
+        clipped_duration_total = _local_duration_tiers(
+            note, duration_gray, digit_height, barlines, 4, tuple(clipped_centers),
+        )
     if len(duration_dots) > 2:
         duration_dots.clear()
     existing_duration_boxes = [component.box for component in lines]
@@ -489,7 +587,8 @@ def note_modifiers(
             note, duration_gray, digit_height, barlines, remaining_joined_lines,
             tuple(joined_local_centers),
         )
-    slash_count = len(lines) + joined_lines + sum(count for _, _, count in faint_bands)
+    base_slashes = len(lines) + joined_lines + sum(count for _, _, count in faint_bands)
+    slash_count = max(base_slashes, clipped_duration_total)
     used = {
         component.box for component in (*dots_above, *dots_below, *duration_dots, *lines)
     }

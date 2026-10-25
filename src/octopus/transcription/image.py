@@ -1393,11 +1393,26 @@ def _row_with_working_ornaments(
     notes = row.notes
     unresolved_marks = row.unresolved_marks
     if graces:
+        grace_sources = {box for grace in graces for box in grace.source_boxes}
+        removed = {index for index, note in enumerate(notes) if note.box in grace_sources}
+        if removed and len(removed) < len(notes):
+            notes = tuple(note for index, note in enumerate(notes) if index not in removed)
+            graces = tuple(replace(
+                grace,
+                host=grace.host - sum(index < grace.host for index in removed),
+            ) for grace in graces)
+            boxes = tuple(note.box for note in notes)
+            if notes:
+                row = replace(row, box=(
+                    min(note.box[0] for note in notes), min(note.box[1] for note in notes),
+                    max(note.box[2] for note in notes), max(note.box[3] for note in notes),
+                ))
+        graces = tuple(replace(grace, source_boxes=()) for grace in graces)
         # Keep the scale and baseline used when the row's main modifiers were read.
         row_y = sum((note.box[1] + note.box[3]) / 2 for note in notes) / len(notes)
         grace_marks = {
             component.box for component in components
-            if any(
+            if component.box in grace_sources or any(
                 left <= (component.box[0] + component.box[2]) / 2 <= right
                 and top <= component.center_y <= bottom
                 for left, top, right, bottom in (grace.box for grace in graces)
