@@ -162,6 +162,7 @@ def _collect_line_construct(
         ending_explicit_close=construct.ending_explicit_close,
         ending_reserves_clearance=construct.ending_reserves_clearance,
         inside_dangling_span=construct.inside_dangling_span,
+        ending_open_start=construct.ending_open_start,
     )
     layout.constructs.append(layout_construct)
 

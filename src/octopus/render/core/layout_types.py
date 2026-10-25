@@ -250,6 +250,7 @@ class LayoutConstruct:
     # without drawing; visible rows emit it after its first child's subtree
     # instead of before it (model.SemanticConstruct.inside_dangling_span).
     inside_dangling_span: bool = False
+    ending_open_start: bool = False
 
 
 @dataclass

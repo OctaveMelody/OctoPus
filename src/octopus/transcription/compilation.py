@@ -78,7 +78,10 @@ def _bar_marks(
         directions = "".join(
             f"&{code}" for anchor, code in row.score_directions if anchor in group
         )
-        ending = "".join(token for anchor, token in endings if anchor in group)
+        ending = "".join(
+            token for anchor, token in sorted(endings, key=lambda item: item[0])
+            if anchor in group
+        )
         marks.append((group[0], token + directions + ending))
     return marks
 
@@ -316,7 +319,10 @@ def _ending_marks(
                         ))
                         if baseline is not None and lane_step > 0 else 0
                     )
-                    marks[start] = marks.get(start, "") + "[" + "+" * plus_count + label
+                    marks[start] = (
+                        marks.get(start, "") + ("[" if segment.opens else "[/")
+                        + "+" * plus_count + label
+                    )
                     active = True
                 end = (
                     min((x for x in row.barlines if x >= right), default=

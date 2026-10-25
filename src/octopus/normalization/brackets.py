@@ -39,7 +39,7 @@ def reconcile_document_brackets(
     """Pair repeat endings across system/page boundaries and project local segments."""
 
     pairs_by_voice: dict[
-        int, list[tuple[MusicToken, MusicToken, int, str, int, bool]]
+        int, list[tuple[MusicToken, MusicToken, int, str, int, bool, bool]]
     ] = {}
     stacks: dict[int, list[MusicToken]] = {}
     token_streams: dict[int, list[MusicToken]] = {}
@@ -70,6 +70,11 @@ def reconcile_document_brackets(
                     and following.kind == MusicTokenKind.MODIFIER
                     and following.raw == "/"
                 )
+                slash_after_opener = (
+                    opener_index + 1 < len(stream)
+                    and stream[opener_index + 1].kind == MusicTokenKind.MODIFIER
+                    and stream[opener_index + 1].raw == "/"
+                )
                 pairs_by_voice.setdefault(line.voice, []).append(
                     (
                         opener,
@@ -78,6 +83,7 @@ def reconcile_document_brackets(
                         "".join(item.raw for item in stream[opener_index:]) + token.raw,
                         leading_bracket_plus_count(tuple(stream), opener_index, len(stream)),
                         not slash_after_closer,
+                        slash_after_opener,
                     )
                 )
             stream.append(token)
@@ -105,7 +111,15 @@ def reconcile_document_brackets(
             key=lambda event: event.span.start.offset,
         )
         visible_events = [event for event in all_events if _is_visible_music_event(event)]
-        for opener, closer, ordinal, source_text, plus_count, explicit_close in pairs:
+        for (
+            opener,
+            closer,
+            ordinal,
+            source_text,
+            plus_count,
+            explicit_close,
+            open_start,
+        ) in pairs:
             _project_document_bracket(
                 builders,
                 visible_events,
@@ -116,6 +130,7 @@ def reconcile_document_brackets(
                 plus_count,
                 (opener.span.start.offset, closer.span.end.offset) in recognized_spans,
                 explicit_close,
+                open_start,
             )
         for voice in builders:
             voice.events = annotate_construct_roles(voice.events, voice.constructs)
@@ -131,6 +146,7 @@ def _project_document_bracket(
     plus_count: int,
     reserves_clearance: bool,
     explicit_close: bool = True,
+    open_start: bool = False,
 ) -> None:
     opener_offset = opener.span.start.offset
     closer_offset = closer.span.end.offset
@@ -211,6 +227,7 @@ def _project_document_bracket(
                     ending_is_last_segment=is_last_segment,
                     ending_explicit_close=explicit_close,
                     ending_reserves_clearance=reserves_clearance,
+                    ending_open_start=open_start,
                 )
             )
 

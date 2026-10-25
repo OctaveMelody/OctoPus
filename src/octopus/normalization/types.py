@@ -130,6 +130,8 @@ class SemanticConstruct:
     # (oracle-verified 2026-08-31, probe shapes I/R1b/R3/S1/Q; corpus instance
     # Edelweiss p3 x4).  Childless spans carry the flag inertly.
     inside_dangling_span: bool = False
+    # A slash immediately after a repeat-ending opener leaves its leading end open.
+    ending_open_start: bool = False
 
 
 @dataclass(frozen=True, slots=True)

@@ -144,16 +144,17 @@ def _ending_construct_elements(
         and construct.ending_is_last_segment
         and metrics is not None
     ):
-        elements.append(
-            _line_element(
-                x1=x1,
-                y1=bottom_y,
-                x2=x1,
-                y2=y,
-                source_event_index=construct.start.event.index,
-                construct_ids=construct.start.event.construct_ids,
+        if not construct.ending_open_start:
+            elements.append(
+                _line_element(
+                    x1=x1,
+                    y1=bottom_y,
+                    x2=x1,
+                    y2=y,
+                    source_event_index=construct.start.event.index,
+                    construct_ids=construct.start.event.construct_ids,
+                )
             )
-        )
         elements.append(
             _line_element(
                 x1=x1,
@@ -177,20 +178,21 @@ def _ending_construct_elements(
                 construct_ids=construct.start.event.construct_ids,
             )
         )
-        elements.append(
-            _line_element(
-                x1=final_x2,
-                y1=final_y + 10,
-                x2=final_x2,
-                y2=final_y,
-                source_event_index=construct.start.event.index,
-                construct_ids=construct.start.event.construct_ids,
+        if construct.ending_explicit_close:
+            elements.append(
+                _line_element(
+                    x1=final_x2,
+                    y1=final_y + 10,
+                    x2=final_x2,
+                    y2=final_y,
+                    source_event_index=construct.start.event.index,
+                    construct_ids=construct.start.event.construct_ids,
+                )
             )
-        )
         if label is not None:
             elements.extend(_ending_label_element(label))
         return elements
-    if construct.ending_is_first_segment:
+    if construct.ending_is_first_segment and not construct.ending_open_start:
         elements.append(
             _line_element(
                 x1=x1,
