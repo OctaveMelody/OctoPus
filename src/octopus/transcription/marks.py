@@ -183,7 +183,7 @@ def _joined_duration_bands(
     note: Box, component: Component, gray: Image.Image, digit_height: int,
     barlines: tuple[int, ...], threshold: int = 160,
 ) -> list[list[tuple[int, int, int]]] | None:
-    """Separate long, thin stroke bands while ignoring bridges between scanned beams."""
+    """Separate connected beam tiers, including short note-local secondary strokes."""
     left, _, right, bottom = note
     if not (
         component.width >= digit_height * 1.3
@@ -195,6 +195,7 @@ def _joined_duration_bands(
         return None
     pixels = gray.load()
     assert pixels is not None
+    minimum_stroke_width = max(10, round((right - left) * 0.65))
     stroke_rows: list[tuple[int, int, int]] = []
     spans_component = False
     for y in range(component.box[1], component.box[3]):
@@ -205,7 +206,7 @@ def _joined_duration_bands(
                 continue
             width = x - run_start
             spans_component |= width >= component.width * 0.7
-            if (width >= max(10, digit_height * 1.5)
+            if (width >= minimum_stroke_width
                     and _overlap(left, right, run_start, x) >= (right - left) * 0.65):
                 stroke_span = (run_start, x)
             run_start = x + 1
