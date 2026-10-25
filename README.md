@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-**OctoPus: Oct (Octave) + Pus (Jianpu) = the ultimate numbered-notation editor.**
+**OctoPus: Octave + Jianpu for editing numbered-notation scores.**
 
 OctoPus is a desktop editor for Jianpu (numbered musical notation). Scores are written in JPS
 (Jianpu Script) and rendered as a live SVG preview. The application can also transcribe images
@@ -23,23 +23,21 @@ grouping in 6/8, 9/8 and 12/8 meters, along with image and PDF transcription.
 
 ## Transcription
 
-Image and PDF recognition uses RapidOCR with ONNX Runtime. Recognition produces provisional drafts
-that should be checked against the source before use. Small, blurred or overlapping marks may be
-missed or misread. OctoPus reports review findings when note-number agreement is low or the rendered
-draft differs substantially from the source. A finding can open the related scan region and, when
-available, the corresponding note.
+OctoPus uses RapidOCR with ONNX Runtime to turn score images and PDFs into JPS drafts. Small,
+blurred or overlapping marks may be missed or misread, so check each draft against the source before
+using it. OctoPus flags low note-number agreement and substantial differences between the draft and
+the source. A finding can open the related scan region and, when available, the corresponding note.
 
-Transcription uses the bundled **Default** profile with PP-OCRv6 Small detection and
-recognition models and the shared PP-OCRv4 Mobile orientation classifier. It supports
-offline English and Chinese recognition. The model profile is fixed; every draft should
-still be checked against the original score.
+The bundled **Default** profile uses PP-OCRv6 Small detection and recognition models with the
+shared PP-OCRv4 Mobile orientation classifier. It supports offline English and Chinese recognition.
+The model profile is fixed.
 
 ## Planned improvements
 
 - Continue improving image and PDF transcription accuracy over the long term.
 - Add audio playback, MIDI export, and LilyPond and MusicXML export.
 - Import MusicXML and convert it to JPS.
-- Enable optional LLM model apiKey connections for image/PDF transcribing.
+- Add optional LLM API-key support for image and PDF transcription.
 
 ## User manual
 
@@ -119,5 +117,4 @@ OctoPus is released under the GNU General Public License, version 3. This softwa
 of charge. The author makes no warranties and accepts no liability for any direct or indirect loss
 arising from its use.
 
-AI-assisted coding is used to develop this software, and the same approach will be used for ongoing
-maintenance.
+AI tools assist with development and will also be used for ongoing maintenance.

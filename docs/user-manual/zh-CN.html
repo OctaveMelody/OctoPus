@@ -7,8 +7,8 @@
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-zh-CN.pdf" download="OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自动与自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
 <section id="zh-CN-introduction"><h2>1. 简介</h2>
-<p>章鱼简谱（OctoPus）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）文本记录乐谱，实时查看 SVG 谱面，与原始图片或 PDF 对照，并导出完成的页面。.jps 文件描述音乐内容，页面设置决定排版。已安装版本可在“关于”对话框中查看；本手册更新于 2026 年 10 月 22 日。</p>
-<p>安装完成后，编辑、渲染和受支持的转录功能可在本地运行。帮助中的网站链接会在系统默认浏览器中打开；更新检查需要网络连接。手册本身支持离线阅读；中英文版本具有相同主题和示例。可切换语言标签页，也可下载对应 PDF。</p>
+<p>章鱼简谱（OctoPus）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）记录乐谱，可实时查看 SVG 预览、对照原稿图片或 PDF，并导出排版后的页面。JPS 源码记录音乐内容，页面设置控制排版。已安装版本可在“关于”窗口查看。本手册更新于 2026 年 10 月 24 日。</p>
+<p>安装后，编辑、渲染和受支持的转录流程都在本地运行。帮助链接会在系统默认浏览器中打开，检查更新则需要网络。手册可离线阅读，中英文版的主题和示例一致。可切换语言标签页，也可下载对应 PDF。</p>
 </section>
 <section id="zh-CN-capabilities"><h2>2. 功能、限制与计划</h2>
 <table><thead><tr><th>现有功能</th><th>范围</th></tr>
@@ -20,13 +20,13 @@
 <tr><td>语言</td><td>中英文界面及用户手册。</td></tr>
 </tbody>
 </table>
-<p><b>当前限制。</b>转录不能保证完整还原乐谱。请核对音符、变音、八度点、时值、歌词、连音线、倚音、跳房子及页序。页眉、页脚和页码过滤采取保守规则，特殊排版仍需校对。复杂排版及跨页连线需要人工检查。桌面界面目前没有播放/MIDI 工作流、LilyPond 导出或 MusicXML 导入导出。五线谱识别属于计划功能，不能作为当前简谱输入的替代。没有自动安装更新功能。macOS 原生打包暂缓；Windows/macOS 主机验收与 Linux 测试分别进行。</p>
+<p><b>当前限制。</b>转录结果未必完整，请核对音符、变音、八度点、时值、歌词、连音线、倚音、跳房子及页序。页眉、页脚和页码采用保守过滤，特殊排版与跨页连线仍需人工检查。桌面版目前没有播放/MIDI 工作流、LilyPond 导出或 MusicXML 导入导出。五线谱识别尚属计划，不能替代简谱输入；程序也不会自动安装更新。macOS 原生打包仍未完成，Windows 和 macOS 的主机验收需单独进行，Linux 测试不能替代。</p>
 <h3>规划中的功能</h3>
-<ul><li>计划：提升转录质量，包括复杂记号及重复的页面附属文字。</li>
-<li>计划：导出 LilyPond 源码及导入、导出 MusicXML。</li>
-<li>计划：导出 MIDI。</li>
-<li>计划：导入五线谱资料并识别为 JPS。</li>
-<li>计划表示发展方向，不代表发布日期或现有功能。</li>
+<ul><li>提升转录质量，包括复杂记号及重复的页面附属文字。</li>
+<li>导出 LilyPond 源码，以及导入、导出 MusicXML。</li>
+<li>导出 MIDI。</li>
+<li>导入五线谱并识别为 JPS。</li>
+<li>以上是计划中的工作，目前尚无发布日期，也不属于现有功能。</li>
 </ul>
 </section>
 <section id="zh-CN-quickstart"><h2>3. 第一份乐谱</h2>
@@ -59,7 +59,8 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <!-- sample:first-score:end -->
 </section>
 <section id="zh-CN-workspace"><h2>4. 工作区与界面</h2>
-<p>顶栏提供新建、打开、保存、另存为、导入、导出、关闭、帮助、页面设置、应用设置及退出。应用设置可选择界面语言和界面字体，并分组提供普通布局 N1/N2、转录布局 T1/T2 及示例库显示。首次使用默认简体中文和平台默认界面字体，之后的选择会被保存；字体列表会标明默认项：Windows 默认 Microsoft YaHei，另有 SimSun；macOS 默认 PingFang SC，另有 Songti SC；Linux 默认内置 Noto Sans SC，另有 Liberation Sans。界面字体只影响控件和菜单；页面设置中的字体角色仍控制乐谱与导出字体。导入菜单提供一项 JPG / PNG / PDF 操作。转录使用内置的默认 OCR 配置。点击图标或品牌文字会打开项目主页。各面板提供最大化、还原及关闭按钮；拖动面板之间的边界即可调整大小。</p>
+<p>顶栏包含新建、打开、保存、另存为、导入、导出、关闭、帮助、页面设置、应用设置和退出。应用设置集中管理 N1/N2 普通布局、T1/T2 转录布局、示例库显示、界面语言和界面字体。首次使用默认简体中文和平台默认字体，之后会记住你的选择。字体列表会标出默认项：Windows 使用 Microsoft YaHei，另有 SimSun；macOS 使用 PingFang SC，另有 Songti SC；Linux 使用内置 Noto Sans SC，另有 Liberation Sans。界面字体只影响控件和菜单，乐谱及导出字体仍由页面设置中的字体角色决定。</p>
+<p>导入菜单提供 JPG / PNG / PDF 操作，转录使用内置的默认 OCR 配置。点击图标或品牌文字可打开项目主页。每个面板都有最大化、还原和关闭按钮；拖动面板间的边界可调整大小。</p>
 <table><thead><tr><th>面板</th><th>用途</th></tr>
 </thead>
 <tbody><tr><td>JPS 源码</td><td>编辑文本。文件名及未保存标记位于右侧格式化源码按钮前；编辑工具位于 JPS 源码标题后。</td></tr>
@@ -67,11 +68,11 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <tr><td>原稿图片/PDF</td><td>显示原稿页及适合/缩放/旋转控制、转录菜单；在转录模式中可见。</td></tr>
 </tbody>
 </table>
-<p>面板较窄时，视图工具折叠为<b>视图（View）</b>菜单，源码工具折叠为<b>编辑（Edit）</b>菜单。SVG 视图含适合页面、适合宽度、上一页和下一页；原稿视图含适合、旋转，PDF 适用时还含翻页。极窄面板也通过视图菜单提供缩放。这些操作保持在同一标题行。</p>
+<p>面板较窄时，视图工具会收进<b>视图（View）</b>菜单，源码工具会收进<b>编辑（Edit）</b>菜单。SVG 视图提供适合页面、适合宽度、上一页和下一页；原稿视图提供适合、旋转，PDF 还可翻页。面板极窄时，也可从视图菜单缩放。相关操作仍显示在面板标题行。</p>
 </section>
 <section id="zh-CN-files"><h2>5. 文件、保存与恢复</h2>
-<p><b>打开</b>加载 .jps 乐谱。如果加载另一文件期间修改了乐谱或页面设置，程序会保留修改并提示重新打开。支持纯 JPS 文本及兼容的 JSON 封装文档；封装可包含源码、页面设置和原有元数据。<b>保存</b>写入当前文档，新文档首次保存需选择位置。<b>另存为</b>更换保存位置。对纯文本文档修改页面设置时，为保存设置可能需要转为包装格式，请留意对话框提示。</p>
-<p><b>关闭</b>关闭乐谱，<b>退出</b>关闭程序。有未保存修改时，可选择保存、放弃或取消。中断后的恢复功能可还原最后可恢复的草稿及托管原稿，但不能替代常规文件备份。原稿图片/PDF 与乐谱源码分别管理，请保留原始文件。打开示例后得到工作文档；覆盖文件前应选择自己的保存位置。</p>
+<p><b>打开</b>加载 .jps 乐谱。如果加载期间修改了当前乐谱或页面设置，程序会保留修改并提示你重试。支持纯 JPS 文本及兼容的 JSON 封装文档；封装可包含源码、页面设置和已有元数据。<b>保存</b>写入当前文档，新文档首次保存时需选择位置；<b>另存为</b>则更改保存位置。纯文本 JPS 可能无法保存页面设置，遇到这种情况时请按对话框提示改用封装格式。</p>
+<p><b>关闭</b>关闭乐谱，<b>退出</b>关闭程序。有未保存修改时，可选择保存、放弃或取消。程序中断后，恢复功能可还原最近可恢复的草稿和托管原稿，但不能替代常规备份。原稿图片/PDF 与乐谱源码分别保存，请保留原始文件。打开示例会创建工作文档；覆盖已有文件前，请先选择自己的保存位置。</p>
 <p>使用<b>打开</b>重新打开已保存乐谱，或加载便携版 examples 目录中的示例。手册中可下载的摘录也可直接打开。</p>
 </section>
 <section id="zh-CN-source"><h2>6. 编辑 JPS 源码</h2>
@@ -95,9 +96,8 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 </ul>
 <p>向非空乐谱插入前，追加会将草稿中每个非空的大写 D/P/J 描述头与当前乐谱比对。若发现明确冲突或无法核对（例如目标乐谱缺少相应字段，或音乐行内存在含义不明确的 D/P/J 指示），程序会阻止插入并建议使用“转录新建”。程序不会推断草稿中未写出的描述头，也不会补造调性、拍号或速度默认值。描述头一致不代表音乐兼容；仍须对照原稿校对。</p>
 <h3>OCR 模型</h3>
-<p>转录使用内置的<b>默认</b>配置：PP-OCRv6 Small 文本检测与识别模型，以及共用的 PP-OCRv4 Mobile 方向分类器。该配置支持中英文并可离线使用。使用草稿前仍应对照原稿检查。</p>
-<p>转录新建和转录追加均使用相同配置，包括所有裁剪区域和 PDF 页面。OCR 配置不会修改乐谱，也不会写入保存的 JPS。</p>
-<h3>校对不确定的草稿</h3><p>PDF 转录显示已识别页数，并提供<b>取消转录</b>按钮。取消会停止当前任务，保留已有乐谱，不插入尚未完成的草稿。转录后展开检查列表并选择一项：原稿面板会选择对应页、放大相关区域并显示琥珀色矩形框。能唯一映射到源码的提示还会选中编辑器中的对应音符。数字匹配度较低时，草稿中显示警告标记。匹配度是分类器的比较分数，并非校准后的概率，也不保证识别正确。</p><p>修改源码后，失效的音符范围标记会清除；原稿区域仍可用于人工校对。旧提示不能选择已被移除或替换的原稿。首次使用的提示说明如何拖入扫描稿/PDF 并生成草稿，可关闭以减少干扰。</p><p>程序保守地过滤乐谱和歌词区域之外的重复页眉页脚及孤立页码。检查提示还会标出续页拍号变化、需手动处理的调性或速度变化、归属不明的演唱指示，以及明显的小节或声部时值不一致。歌词提示可指出已确认的歌词字词或槽位与回渲染草稿不一致；请人工核对，因为程序不会自动改写歌词，也不代表 OCR 一定准确。这些检查与音符数量、行或间距的回渲染检查都不会改写不确定音符。仍需人工核对所有记号；这些检查不能证明草稿完整或音乐内容正确。</p>
+<p>转录使用内置的<b>默认</b>配置：PP-OCRv6 Small 文本检测与识别模型，以及共用的 PP-OCRv4 Mobile 方向分类器。该配置支持中英文并可离线使用。转录新建、转录追加以及各个裁剪区域和 PDF 页面都使用同一配置；OCR 配置不会修改乐谱或写入保存的 JPS。</p>
+<h3>校对不确定的草稿</h3><p>PDF 转录会显示识别进度，并提供<b>取消转录</b>按钮。取消后任务停止，当前乐谱保留，未完成的草稿不会插入。转录完成后，展开检查列表并选择一项。原稿面板会打开对应页、放大相关区域并用琥珀色框标出位置；若提示能唯一对应到源码音符，也会选中该音符。数字匹配度偏低时，草稿会显示警告标记。匹配度是分类器的比较分数，并非校准概率，也不能保证识别正确。</p><p>修改源码后，失效的音符范围标记会清除，原稿区域仍可供校对。若原稿被改名、移除或替换，旧提示无法再定位对应原稿。首次使用提示会介绍如何拖入扫描件/PDF 并生成草稿，也可将它关闭。</p><p>程序会保守过滤乐谱和歌词区域之外的重复页眉、页脚及孤立页码。检查项还可能提示续页拍号变化、需手动处理的调性或速度变化、尚未处理的记谱指示，以及明显的小节或声部时值不一致。歌词项会列出已确认歌词或槽位与重新渲染结果的差异，需要人工核对；它不会改写歌词，也不能证明 OCR 正确。渲染结果检查会比较音符数量、曲行和间距。这些检查都不会改写不确定音符，也不能证明草稿完整或记谱正确。请继续对照原稿逐项核对。</p>
 </section>
 <section id="zh-CN-layout"><h2>9. 模式、布局与聚焦</h2>
 <table><thead><tr><th>模式/布局</th><th>用途</th></tr>
@@ -121,11 +121,11 @@ C: 问君@此去几时还，来时@莫徘徊。</code></pre>
 <tr><td>FangSong</td><td>FangSong</td><td>STFangsong</td><td>Zhuque Fangsong Regular</td></tr>
 </tbody>
 </table>
-<p><b>应用设置</b>可选择界面语言（英语或简体中文）和界面字体；首次使用默认简体中文及平台默认字体，选择会被保存，字体列表会标明默认项：Windows 默认 Microsoft YaHei，另有 SimSun；macOS 默认 PingFang SC，另有 Songti SC；Linux 默认内置 Noto Sans SC，另有 Liberation Sans。界面字体只影响控件和菜单。<b>页面设置</b>选择乐谱使用的字体角色和样式，不选择字体来源，导出也沿用这些乐谱字体角色。Windows 和 macOS 会自动使用每个角色对应的首选已安装字体。若首选字族缺失，程序可使用兼容的已安装替代字体；请通过<b>帮助 → 字体</b>查看官方安装说明，或点击<b>重新检查</b>。Windows 说明链接到微软补充字体指南，macOS 说明链接到 Apple 字体册。无需安装即可继续使用现有替代字体；若所有已安装字体都不含所需字符，该字符仍可能无法显示。Windows/macOS 桌面包不包含 13 种乐谱字体。Linux 便携版和 AppImage 直接使用随程序提供并经过验证的字体集。Linux 字体集使用 Noto 字体补齐缺字，但不能保证覆盖所有 Unicode 字符；其中 Latin Arial 类文本使用 Liberation Sans。音符样式为常规、斜体及粗体。旧 HeiTi 对应 HeiTi-2。字体替代可能改变间距。微软字体不随软件分发。MiSans 使用小米独立许可；Linux 乐谱字体的其他许可包括 OFL 和 IPA。离线手册另含少量 Noto Sans SC 子集。<a href="https://learn.microsoft.com/en-us/windows/deployment/windows-missing-fonts">微软字体安装说明</a> · <a href="https://support.apple.com/en-gb/guide/font-book/fntbk1000/mac">Apple 字体册说明</a>。</p>
-<p class="keep-together">图片和扫描版 PDF 使用内置的默认 OCR 配置，通过本地 RapidOCR + ONNX 进行转录。在原稿图片/PDF 面板中点击<b>转录</b>，即可生成可供检查的 JPS 草稿。保存或使用草稿前，请检查生成的乐谱源码和所有问题标记。</p>
+<p>界面语言和界面字体在<b>应用设置</b>中选择，首次使用默认简体中文和平台默认字体，之后会保存你的选择（默认字体见第 4 节）。界面字体只影响控件和菜单。<b>页面设置</b>负责选择乐谱字体角色及样式，导出也使用这些角色。Windows 和 macOS 会优先使用每个角色对应的系统字体；首选字体缺失时，可改用兼容的已安装字体。打开<b>帮助 → 字体</b>查看官方安装说明，或点击<b>重新检查</b>。Windows 链接到微软补充字体指南，macOS 链接到 Apple 字体册。无需另装字体也可继续使用现有替代项；如果已安装字体都不含某个字符，该字符仍可能无法显示。Windows/macOS 桌面包不包含 13 种乐谱字体。Linux 便携版和 AppImage 使用随程序提供并经过验证的字体集；其中 Noto 字体用于补齐缺字，但无法覆盖所有 Unicode 字符，Latin Arial 类文本使用 Liberation Sans。音符样式有常规、斜体和粗体，旧版 HeiTi 对应 HeiTi-2。字体替代可能改变间距。微软字体不随软件分发。MiSans 使用小米的独立许可，Linux 乐谱字体的其他许可包括 OFL 和 IPA。本手册另附少量 Noto Sans SC 子集。<a href="https://learn.microsoft.com/en-us/windows/deployment/windows-missing-fonts">微软字体安装说明</a> · <a href="https://support.apple.com/en-gb/guide/font-book/fntbk1000/mac">Apple 字体册说明</a>。</p>
+<p class="keep-together">图片和扫描版 PDF 使用内置的默认 OCR 配置，通过本地 RapidOCR + ONNX 转录。在原稿图片/PDF 面板中点击<b>转录</b>生成 JPS 草稿，再检查源码和问题标记。</p>
 </section>
 <section id="zh-CN-export"><h2>11. 导出与便携版使用</h2>
-<p>通过导出选择 SVG、PDF、PNG 或 JPG（96 或 300 DPI），再选择输出位置。PDF 生成一份多页文档；SVG/PNG/JPG 按页生成文件。300 DPI 适合印刷质量的像素输出。LilyPond、MusicXML 和 MIDI 支持列于本手册第 2 节的规划功能中。分享渲染文件前先保存 JPS 作为可编辑原稿。PDF 嵌入字体，PNG 无损保存像素，JPEG 保存压缩像素，SVG 保留矢量内容，但外部 SVG 查看器需要相应文本字体。请在目标查看器检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，此时使用对应替代字体；这不是原生桌面导出的统一限制。</p>
+<p>选择导出格式（SVG、PDF、PNG 或 JPG，96 或 300 DPI）及保存位置。PDF 生成一份多页文档，SVG、PNG 和 JPG 则按页生成文件。300 DPI 适合印刷。分享导出文件前，先保存可继续编辑的 JPS 原稿。PDF 会嵌入字体，PNG 无损保存像素，JPEG 会压缩像素，SVG 保留矢量内容。外部 SVG 查看器仍需相应字体，请在计划使用的查看器中检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，会改用角色对应的替代字体；这项限制不适用于桌面版原生导出。</p>
 <p>请保持便携目录完整，包括 engine、examples 和 docs。Linux 运行 <code>dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus</code>，Windows 运行 <code>portable/octopus.exe</code>。已内置引擎，无需另装 Python。Linux 仍需 GTK/WebKit 运行库及 Poppler，Windows 需 WebView2。便携并不表示包含全部主机依赖。</p>
 <h3>通过 Python 命令行批量导出</h3><p>Python 命令行可将一组 JPS 合并为一份 PDF，或按乐谱分别导出。文件按路径排序处理；递归导出保留子目录。已有输出不会被覆盖。某个源文件失败时会报告错误，并继续处理其他有效源文件；请检查退出状态和输出摘要。</p><pre><code>uv run --locked octopus batch-export /path/to/scores --out combined.pdf
 uv run --locked octopus batch-export /path/to/scores --out-dir exported --format pdf --recursive
@@ -147,8 +147,8 @@ uv run --locked octopus batch-export /path/to/scores --out-dir images --format p
 <tr><td>方向键 / Home / End / Escape</td><td>导航菜单，Escape 关闭；语言标签页也支持方向键/Home/End。</td></tr>
 </tbody>
 </table>
-<p>模态对话框打开或表单控件获得焦点时，部分快捷键不生效。帮助提供用户手册、报告问题、反馈建议、检查更新及关于章鱼简谱。用户手册会在独立窗口中打开对应语言的版本；点击“下载 PDF”会打开桌面保存对话框，在浏览器中则直接下载。报告问题打开项目 Issues 页，反馈建议打开 Pull Requests 页。检查更新比较 GitHub 最新稳定发布，分别报告信息不可用、不熟悉的版本标签或网络错误，不会安装更新。关于窗口及品牌标识链接项目主页。</p>
-<p><b>关于。</b>“关于章鱼简谱”显示手动设置的 SemVer 应用版本、OctoPus 产品 Git 历史中的提交数，以及构建所用产品提交的短 SHA；还会显示“章鱼简谱：玩转八度，轻松制谱”。致谢依次介绍番茄简谱的 JPS 格式及渲染兼容目标、RapidOCR（Apache-2.0）与 ONNX Runtime（MIT），以及 Linux 乐谱字体集和离线手册少量 Noto Sans SC 子集的作者。字体集包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。Windows/macOS 桌面版使用操作系统字体，不随程序提供这些乐谱字体。章鱼简谱基于 GNU 通用公共许可证第 3 版发布。本软件免费分享，作者不承诺任何形式的担保，亦不承担因使用本软件所导致的任何直接或间接损失。随程序附带的资源均提供完整第三方许可。规划中的功能见第 2 节。</p>
+<p>模态对话框打开或表单控件获得焦点时，部分快捷键会停用。帮助菜单包括用户手册、报告问题、反馈建议、检查更新和关于章鱼简谱。用户手册会按当前界面语言在独立窗口中打开；桌面版点击“下载 PDF”会弹出保存对话框，浏览器则直接下载。报告问题会打开项目 Issues 页，反馈建议会打开 Pull Requests 页。检查更新会比较 GitHub 上最新的稳定版，并分别说明版本信息不可用、标签不熟悉或网络出错；它不会安装更新。关于窗口和品牌标识都链接到项目主页。</p>
+<p><b>关于。</b>窗口显示手动设置的 SemVer 应用版本、OctoPus 产品历史中的提交数、构建所用产品提交的短 SHA，以及“章鱼简谱：玩转八度，轻松制谱”。致谢包括番茄简谱的 JPS 格式与渲染兼容目标、RapidOCR（Apache-2.0）、ONNX Runtime（MIT），以及 Linux 乐谱字体集和离线手册 Noto Sans SC 子集的作者。字体集包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。Windows/macOS 桌面版使用系统字体，不随程序提供这组乐谱字体。章鱼简谱按 GNU 通用公共许可证第 3 版发布，免费提供；作者不提供任何形式的担保，也不对使用本软件造成的直接或间接损失承担责任。随程序附带资源的第三方许可均完整保留。规划中的功能见第 2 节。</p>
 </section>
 <section id="zh-CN-jps-structure"><h2>13. JPS 结构与约定</h2>
 <p>JPS 是普通文本，通常以 .jps 为扩展名。乐谱由描述头及曲 Q:、词 C: 组成。一个 Q 行对应一行印刷曲谱；随后 C 行依附该曲行。带数字前缀标识声部。空行便于阅读。以 # 开始的整行是注释；Q 行中的 # 是升音记号，不是注释。</p>
@@ -660,11 +660,11 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 <p>报告可复现问题时，请提供版本、系统、最小 JPS、相关设置、步骤及预期/实际结果，适当时附原稿。使用<a href="https://github.com/OctaveMelody/OctoPus/issues">报告问题</a>；改动提议使用<a href="https://github.com/OctaveMelody/OctoPus/pulls">Pull Requests 页</a>。历史规范的个人联系方式不是 OctoPus 支持渠道。</p>
 </section>
 <section id="zh-CN-sources"><h2>28. 参考依据与兼容性</h2>
-<p>本手册综合本地保存的 Jianpu-Spec v1.0 简介、描述头、曲、词及反馈章节；图片形式的符号、力度和小节线表已阅读并改写为可检索文本。本版增加逐项解释、25 个注明来源的示例库摘录及 26 张渲染图，不分发原规范截图；示例库没有相应写法时保留最小语法练习。另参考 Website-Contents/Zhipu-jsCode-editor 保存的源码格式化及源码/预览定位约定，并对照 OctoPus 行为。保存的 Zhipu-draw 文件为空，没有额外使用说明。</p>
-<p>记谱语法沿用参考规范，产品界面与计划描述 OctoPus。历史资料中的 MIDI、播放、网页自动格式化选项及个人联系方式不是当前桌面功能。运行实现、解析器、字体策略、输入限制及样例文档用于核对现状。本手册是重新编写的使用指南，不是原脚本副本。参考资料及编写工具保留在 OctoPus-dev；生产应用附带独立手册及 PDF。</p>
+<p>记谱章节参考本地保存的 Jianpu-Spec v1.0 简介、描述头、曲、词及反馈内容。规范中以图片呈现的符号、力度和小节线表，在此整理为可检索文本。本手册还补充了详细说明、25 个标明出处的示例库摘录和 26 张渲染图，不分发原规范截图；示例库没有对应写法时，则提供最小语法练习。源码格式化及源码/预览定位说明参考保存的 Website-Contents/Zhipu-jsCode-editor，并对照 OctoPus 的实际行为核对。保存的 Zhipu-draw 文件为空。</p>
+<p>记谱语法来自参考规范，产品界面和计划则说明 OctoPus。历史资料中提到的 MIDI、播放、网页自动格式化选项及个人联系方式，不代表当前桌面功能。运行代码、字体策略、输入限制和示例乐谱用于核对现状。本手册依据这些资料重新编写；生产版附带手册及 PDF，参考资料和编写工具留在 OctoPus-dev。</p>
 <p><a href="https://github.com/OctaveMelody/OctoPus">项目主页</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/README.zh-CN.md">生产版说明</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/ENVIRONMENT.zh-CN.md">构建环境</a></p>
 </section>
 </article>
 </main>
-<footer>OctoPus · OctaveMelody · 2026-10-20</footer>
+<footer>OctoPus · OctaveMelody · 2026-10-24</footer>
 </body></html>
