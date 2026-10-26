@@ -380,7 +380,7 @@ export const messages = {
     licenseTitle: "许可证",
     licenseInformation: "章鱼简谱基于 GNU 通用公共许可证第 3 版发布。本软件为免费分享，作者不承诺任何形式的担保，亦不承担因使用本软件所导致的任何直接或间接损失。",
     aboutTitle: "关于章鱼简谱",
-    aboutVersionAndBuild: (version: string, build: string) => `版本：${version}，构建：${build}`,
+    aboutVersionAndBuild: (version: string, build: string) => `版本：${version}，构建序号：${build}`,
     aboutDescription: "章鱼简谱：玩转八度，轻松制谱",
     aboutDisclaimer: "章鱼简谱通过 AI 辅助开发，并将以此方式维护。",
     done: "确定",
