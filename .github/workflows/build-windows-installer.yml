@@ -1,0 +1,32 @@
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to attach this package to; leave empty for a workflow artifact only
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build Windows x64 installer
+    permissions:
+      contents: read
+    uses: ./.github/workflows/package-artifact.yml
+    with:
+      package: windows-installer
+
+  publish:
+    name: Attach the installer to the release
+    if: ${{ github.event.inputs.release_tag != '' }}
+    needs: package
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish-release-assets.yml
+    with:
+      release_tag: ${{ github.event.inputs.release_tag }}
+      artifact_pattern: package-windows-installer

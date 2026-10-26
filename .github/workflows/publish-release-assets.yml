@@ -1,0 +1,42 @@
+name: Publish package artifacts to a release
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: Existing GitHub release tag receiving the packages
+        required: true
+        type: string
+      artifact_pattern:
+        description: Actions artifact name or pattern to download
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Upload packages to ${{ inputs.release_tag }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ inputs.artifact_pattern }}
+          path: packages
+          merge-multiple: true
+      - name: Attach packages to the existing GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          files=()
+          while IFS= read -r -d '' path; do files+=("$path"); done < <(find packages -type f -print0)
+          if ((${#files[@]} == 0)); then
+            echo "No package files were downloaded" >&2
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" "${files[@]}" --clobber

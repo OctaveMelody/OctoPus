@@ -735,6 +735,11 @@ def main() -> None:
         help="finalize an AppDir left by a failed AppImage build without recompiling",
     )
     parser.add_argument(
+        "--no-portable-zip",
+        action="store_true",
+        help="validate the portable tree without creating the Windows portable ZIP",
+    )
+    parser.add_argument(
         "--incremental",
         action="store_true",
         help="enable Cargo incremental compilation for faster local rebuilds",
@@ -756,7 +761,7 @@ def main() -> None:
             f"unsupported: {', '.join(sorted(unsupported_bundles))}"
         )
     if args.package_appimage_only:
-        if args.bundles or args.incremental:
+        if args.bundles or args.incremental or args.no_portable_zip:
             parser.error("--package-appimage-only cannot be combined with build options")
         try:
             print(_package_staged_appimage(args.target))
@@ -946,7 +951,7 @@ def main() -> None:
     print(f"Version: {version}, Build: {build_number}, Commit: {build_commit}")
     portable_archive_name = (
         _artifact_filename(version, target_triple, "Windows", "portable")
-        if platform.system() == "Windows"
+        if platform.system() == "Windows" and not args.no_portable_zip
         else None
     )
     if platform.system() != "Darwin":

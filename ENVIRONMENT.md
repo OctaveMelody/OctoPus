@@ -128,8 +128,13 @@ During development, build only the portable by default. Do not build installers 
 variants unless the user explicitly asks for them. Run `python3 scripts/build_portable.py` on
 Linux/macOS or `py scripts/build_portable.py` on Windows. Use `--bundles appimage` on Linux,
 `--bundles nsis` on Windows, or `--bundles dmg` on macOS only when a package is explicitly needed.
-The automated macOS release package targets Apple Silicon; other bundle formats are not published
-by this builder.
+To build only a Windows installer while retaining portable-tree smoke checks, add
+`--no-portable-zip`. GitHub Actions provides independent manual workflows for macOS DMG, Windows
+installer, Windows portable ZIP, and Linux AppImage builds, plus an all-in-one workflow that also
+runs for published releases. Manual runs use the selected commit if it matches a published release
+tag; otherwise they use the nearest earlier published release tag in that commit's history. The
+optional `release_tag` input attaches the generated package to an existing GitHub release. macOS
+builds target Apple Silicon and declare macOS 11.0 as the minimum version.
 Omitting `--bundles` selects portable-only mode. The launcher uses the pinned repository
 environment; the builder checks Python, Node/npm, Rust/Cargo, Tauri CLI, and native system
 prerequisites before beginning the build. It builds the frontend and worker first, then invokes
@@ -157,8 +162,9 @@ Published files use `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}` with `x64` o
 `win64` or `linux`. Linux AppImages omit the purpose suffix, for example
 `OctoPus_1.0.0-RC1_x64_linux.AppImage`. Windows builds create a portable ZIP such as
 `OctoPus_1.0.0-RC1_x64_win64_portable.zip`; `--bundles nsis` also creates a setup executable such
-as `OctoPus_1.0.0-RC1_x64_win64_setup.exe`. The checked `dist/<target-triple>/portable/` tree is
-kept for local launch and inspection.
+as `OctoPus_1.0.0-RC1_x64_win64_setup.exe`. The installer-only workflow adds
+`--no-portable-zip`, so it uploads only the setup executable. The checked
+`dist/<target-triple>/portable/` tree is kept for local launch and inspection.
 Windows ZIP publication retries transient sharing locks. If it still fails, the previous portable
 tree is restored and the existing ZIP is retained.
 

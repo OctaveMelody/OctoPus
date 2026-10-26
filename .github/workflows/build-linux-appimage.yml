@@ -1,0 +1,32 @@
+name: Build Linux AppImage
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to attach this package to; leave empty for a workflow artifact only
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build Linux x64 AppImage
+    permissions:
+      contents: read
+    uses: ./.github/workflows/package-artifact.yml
+    with:
+      package: linux-appimage
+
+  publish:
+    name: Attach the AppImage to the release
+    if: ${{ github.event.inputs.release_tag != '' }}
+    needs: package
+    permissions:
+      contents: write
+    uses: ./.github/workflows/publish-release-assets.yml
+    with:
+      release_tag: ${{ github.event.inputs.release_tag }}
+      artifact_pattern: package-linux-appimage

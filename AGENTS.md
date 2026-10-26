@@ -107,8 +107,8 @@ From the repository root (or pass the full script path from any working director
 # Default, matching OctoPus-dev's production-only default:
 py scripts\build_portable.py
 
-# Only when an installer is explicitly required:
-py scripts\build_portable.py --bundles nsis
+# Installer only, while retaining the portable-tree smoke checks:
+py scripts\build_portable.py --bundles nsis --no-portable-zip
 ```
 
 The default creates the portable application and a ZIP named
@@ -118,9 +118,13 @@ named `OctoPus_{version}_x64_win64_setup.exe`. Linux AppImages use
 under `dist\<target-triple>\`; build intermediates are under `build\`. Keep the complete
 `portable` directory together when moving or testing it.
 macOS builds run natively on Apple Silicon with `--bundles dmg` and produce
-`OctoPus_{version}_arm64_macos.dmg`. The production `desktop-packages` workflow builds Windows and
-Apple Silicon macOS packages on published releases and supports manual dispatch; macOS DMGs are
-validated before upload and are currently unsigned and not notarized.
+`OctoPus_{version}_arm64_macos.dmg`. The production `desktop-packages` workflow builds all packages
+on published releases and supports manual dispatch. Separate manual workflows build the macOS DMG,
+Windows installer, Windows portable ZIP, and Linux AppImage. Manual dispatch uses the selected
+commit when it matches a published release tag, otherwise it falls back to the nearest earlier
+published release tag in that commit's history. An optional release tag attaches artifacts to an
+existing release. The Windows installer workflow skips the portable ZIP. macOS DMGs are validated
+before upload and are currently unsigned and not notarized.
 Use `scripts/build_portable.py`, not `cargo tauri build` directly. The launcher finds the
 repository and its virtual environment regardless of the current directory. The production
 builder discovers tools through `PATH` (and initializes Visual Studio on Windows), verifies
