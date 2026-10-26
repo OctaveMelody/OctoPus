@@ -39,7 +39,13 @@
 
   function select(language, updateHash = false) {
     const selected = language === 'zh-CN' ? 'zh-CN' : 'en';
-    if (tabs.length) document.documentElement.lang = selected;
+    if (tabs.length) {
+      document.documentElement.lang = selected;
+      document.title = selected === 'zh-CN' ? '章鱼简谱用户手册' : 'OctoPus User Manual';
+      for (const element of document.querySelectorAll('[data-manual-language]')) {
+        element.hidden = element.dataset.manualLanguage !== selected;
+      }
+    }
     updateHistoryLabels(selected);
     for (const tab of tabs) {
       const active = tab.id === `tab-${selected}`;

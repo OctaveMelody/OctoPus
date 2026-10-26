@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>章鱼简谱用户手册</title><link rel="stylesheet" href="manual.css"><script src="manual.js" defer></script></head><body><nav class="history-controls" aria-label="手册导航"><button type="button" data-history="back" aria-label="后退" title="后退">←</button><button type="button" data-history="forward" aria-label="前进" title="前进">→</button><button type="button" data-navigation="home" aria-label="返回手册首页" title="返回手册首页">⌂</button><button type="button" data-scroll="top" aria-label="转到页面顶部" title="转到页面顶部">↑</button><button type="button" data-scroll="bottom" aria-label="转到页面底部" title="转到页面底部">↓</button></nav><header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">OctoPus <small>by OctaveMelody</small></a><nav><a href="index.html#en">English</a> | <a href="index.html#zh-CN">简体中文</a></nav>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>章鱼简谱用户手册</title><link rel="stylesheet" href="manual.css"><script src="manual.js" defer></script></head><body><nav class="history-controls" aria-label="手册导航"><button type="button" data-history="back" aria-label="后退" title="后退">←</button><button type="button" data-history="forward" aria-label="前进" title="前进">→</button><button type="button" data-navigation="home" aria-label="返回手册首页" title="返回手册首页">⌂</button><button type="button" data-scroll="top" aria-label="转到页面顶部" title="转到页面顶部">↑</button><button type="button" data-scroll="bottom" aria-label="转到页面底部" title="转到页面底部">↓</button></nav><header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">章鱼简谱 <small>by OctaveMelody</small></a><nav><a href="index.html#en">English</a> | <a href="index.html#zh-CN">简体中文</a></nav>
 </header>
-<main><article id="manual-zh-CN" lang="zh-CN"><div class="cover"><p class="eyebrow">OctoPus · OctaveMelody</p>
+<main><article id="manual-zh-CN" lang="zh-CN"><div class="cover"><p class="eyebrow">章鱼简谱 · OctaveMelody</p>
 <h1>章鱼简谱用户手册</h1>
 <p class="manual-version">版本：{{APP_VERSION}}</p>
 <p class="pdf-download"><a href="../PDF/OctoPus-User-Manual-zh-CN.pdf" download="OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
 </div><nav class="contents" aria-label="Contents"><a href="#zh-CN-introduction">1. 简介</a><a href="#zh-CN-capabilities">2. 功能、限制与计划</a><a href="#zh-CN-quickstart">3. 第一份乐谱</a><a href="#zh-CN-workspace">4. 工作区与界面</a><a href="#zh-CN-files">5. 文件、保存与恢复</a><a href="#zh-CN-source">6. 编辑 JPS 源码</a><a href="#zh-CN-preview">7. 预览、光标与导航</a><a href="#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="#zh-CN-layout">9. 模式、布局与聚焦</a><a href="#zh-CN-settings">10. 页面设置与字体</a><a href="#zh-CN-export">11. 导出与便携版使用</a><a href="#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="#zh-CN-headers">14. 描述头</a><a href="#zh-CN-notes">15. 音符、音区与时值</a><a href="#zh-CN-beaming">16. 自动与自定义节拍分组</a><a href="#zh-CN-accidentals">17. 变音与倚音</a><a href="#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="#zh-CN-barlines">20. 小节线与反复指示</a><a href="#zh-CN-slurs">21. 连音线与多连音</a><a href="#zh-CN-endings">22. 跳房子与临时拍号</a><a href="#zh-CN-voices">23. 声部与临时伴奏</a><a href="#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="#zh-CN-pagination">25. 手动分页</a><a href="#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="#zh-CN-troubleshooting">27. 排错与反馈</a><a href="#zh-CN-sources">28. 参考依据与兼容性</a></nav>
 <section id="zh-CN-introduction"><h2>1. 简介</h2>
-<p>章鱼简谱（OctoPus）是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）记录乐谱，可实时查看 SVG 预览、对照原稿图片或 PDF，并导出排版后的页面。JPS 源码记录音乐内容，页面设置控制排版。已安装版本可在“关于”窗口查看。本手册更新于 2026 年 10 月 24 日。</p>
+<p>章鱼简谱是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）记录乐谱，可实时查看 SVG 预览、对照原稿图片或 PDF，并导出排版后的页面。JPS 源码记录音乐内容，页面设置控制排版。已安装版本可在“关于”窗口查看。本手册更新于 2026 年 10 月 24 日。</p>
 <p>安装后，编辑、渲染和受支持的转录流程都在本地运行。帮助链接会在系统默认浏览器中打开，检查更新则需要网络。手册可离线阅读，中英文版的主题和示例一致。可切换语言标签页，也可下载对应 PDF。</p>
 </section>
 <section id="zh-CN-capabilities"><h2>2. 功能、限制与计划</h2>
@@ -30,7 +30,7 @@
 </ul>
 </section>
 <section id="zh-CN-quickstart"><h2>3. 第一份乐谱</h2>
-<ul><li>启动 OctoPus，选择<b>新建</b>，输入标题及基本乐谱字段并确认。拍号的分子和分母为正整数，支持 12/8 等复拍子。</li>
+<ul><li>启动章鱼简谱，选择<b>新建</b>，输入标题及基本乐谱字段并确认。拍号的分子和分母为正整数，支持 12/8 等复拍子。</li>
 <li>将源码替换为下面示例，或通过<b>打开</b>加载便携版 examples 目录中的示例乐谱。</li>
 <li>等待 SVG 预览渲染完成。点击音符定位源码，修改文本并检查结果。</li>
 <li>通过<b>页面设置</b>调整边距与字体，用<b>另存为</b>保存 .jps，再通过<b>导出</b>生成最终谱面。</li>
@@ -148,11 +148,11 @@ uv run --locked octopus batch-export /path/to/scores --out-dir images --format p
 </tbody>
 </table>
 <p>模态对话框打开或表单控件获得焦点时，部分快捷键会停用。帮助菜单包括用户手册、报告问题、反馈建议、检查更新和关于章鱼简谱。用户手册会按当前界面语言在独立窗口中打开；桌面版点击“下载 PDF”会弹出保存对话框，浏览器则直接下载。报告问题会打开项目 Issues 页，反馈建议会打开 Pull Requests 页。检查更新会比较 GitHub 上最新的稳定版，并分别说明版本信息不可用、标签不熟悉或网络出错；它不会安装更新。关于窗口和品牌标识都链接到项目主页。</p>
-<p><b>关于。</b>窗口显示手动设置的 SemVer 应用版本、OctoPus 产品历史中的提交数、构建所用产品提交的短 SHA，以及“章鱼简谱：玩转八度，轻松制谱”。致谢包括番茄简谱的 JPS 格式与渲染兼容目标、RapidOCR（Apache-2.0）、ONNX Runtime（MIT），以及 Linux 乐谱字体集和离线手册 Noto Sans SC 子集的作者。字体集包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。Windows/macOS 桌面版使用系统字体，不随程序提供这组乐谱字体。章鱼简谱按 GNU 通用公共许可证第 3 版发布，免费提供；作者不提供任何形式的担保，也不对使用本软件造成的直接或间接损失承担责任。随程序附带资源的第三方许可均完整保留。规划中的功能见第 2 节。</p>
+<p><b>关于。</b>窗口显示手动设置的 SemVer 应用版本、章鱼简谱产品历史中的提交数、构建所用产品提交的短 SHA，以及标语 <b>OctoPus: Octave + Jianpu for editing numbered-notation scores.</b> <b>章鱼简谱：玩转八度，轻松制谱。</b> 致谢包括番茄简谱的 JPS 格式与渲染兼容目标、RapidOCR（Apache-2.0）、ONNX Runtime（MIT），以及 Linux 乐谱字体集和离线手册 Noto Sans SC 子集的作者。字体集包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。Windows/macOS 桌面版使用系统字体，不随程序提供这组乐谱字体。章鱼简谱按 GNU 通用公共许可证第 3 版发布，免费提供；作者不提供任何形式的担保，也不对使用本软件造成的直接或间接损失承担责任。随程序附带资源的第三方许可均完整保留。规划中的功能见第 2 节。</p>
 </section>
 <section id="zh-CN-jps-structure"><h2>13. JPS 结构与约定</h2>
 <p>JPS 是普通文本，通常以 .jps 为扩展名。乐谱由描述头及曲 Q:、词 C: 组成。一个 Q 行对应一行印刷曲谱；随后 C 行依附该曲行。带数字前缀标识声部。空行便于阅读。以 # 开始的整行是注释；Q 行中的 # 是升音记号，不是注释。</p>
-<p>原规范将 V、B、D、P 列为必需字段。虽然 OctoPus 容忍不完整草稿，完整乐谱仍应包含这些字段。建议使用大写字段/行前缀及严格区分大小写的小写字面量 <code>[fenye]</code>。注意描述头和主体的区别；重复 B/Z 字段有特定排版用途。未知语法可能被保留并提示，不代表能按预期渲染。</p>
+<p>原规范将 V、B、D、P 列为必需字段。虽然 章鱼简谱可容忍不完整草稿，完整乐谱仍应包含这些字段。建议使用大写字段/行前缀及严格区分大小写的小写字面量 <code>[fenye]</code>。注意描述头和主体的区别；重复 B/Z 字段有特定排版用途。未知语法可能被保留并提示，不代表能按预期渲染。</p>
 <h3>分三步阅读源码</h3>
 <p>先读描述头中的标题、调号、拍号和速度；再只读 Q 行：数字与休止符是音乐事件，后缀修饰前面的主音，小节线分隔音乐；最后读 C 行，将歌词位置与音符逐一核对。源码顺序也决定排版顺序：移动整行 Q 会改变音乐位置，把 C 从原行移走则可能使歌词依附另一行。主体应从曲开始，不要先放无所属的歌词。</p>
 <h3>纯 JPS 与保存文档外层</h3>
@@ -181,7 +181,7 @@ J: 90 欢快地
 X: 10</code></pre>
 <p>调号使用大写 A-G，例如 C、F#、E$。多个 B 行在主标题下显示副标题；多个 Z 行将作者文字列于右上方。P 用斜线分隔分子/分母，空格与括号可列出辅助拍号。J 可以是每分钟拍数、文字或两者。X 是序号元数据，不是声部编号。描述头用于记谱，速度字段不会启用播放。</p>
 <h3>必需字段与重复字段</h3>
-<p>完整曲谱应写 V、B、D、P。V: 1.0 是语法版本，不是 OctoPus 程序版本。首个 B 为居中主标题，后续 B 为居中副标题；每个 Z 产生一行右对齐署名。J 可选，表示速度；X 可保存目录序号。把这些字段放在首个 Q 之前。未完成稿可能仍可预览，但不应以缺字段的形式作为通用文档。</p>
+<p>完整曲谱应写 V、B、D、P。V: 1.0 是语法版本，不是章鱼简谱的程序版本。首个 B 为居中主标题，后续 B 为居中副标题；每个 Z 产生一行右对齐署名。J 可选，表示速度；X 可保存目录序号。把这些字段放在首个 Q 之前。未完成稿可能仍可预览，但不应以缺字段的形式作为通用文档。</p>
 <h3>调号、拍号、速度与注释</h3>
 <p>D: F# 与 D: E$ 分别表示升、降调；使用大写 A-G 和半角 #/$。P: 6/8 指定拍号，P: 4/4 (2/4 1/4) 还列出辅助拍号，但不能代替小节线上的局部换拍。J: 90 表示数字速度，J: 欢快的 表示文字，也可兼用。整行以 # 开头是源码注释；Q 内的 4# 却是升音。带引号的注释会印在谱上，源码注释不会。</p>
 <!-- sample:header-layout:start -->
@@ -246,7 +246,7 @@ C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,
 <!-- sample:short-values:end -->
 </section>
 <section id="zh-CN-beaming"><h2>16. 自动与自定义节拍分组</h2>
-<p>OctoPus 在以八分音符为单位的复拍子中，按附点四分音符拍自动连接短音符的减时线：6/8 分成两个三音组，9/8 分成三个，12/8 分成四个，每组相当于三个八分音符。分母为 8、分子大于 3 且能被 3 整除的拍号均适用此规则。其他拍号，包括 3/8 和 2/2，保留四分音符单位的自动分组。音符本身的时值不变。</p>
+<p>章鱼简谱在以八分音符为单位的复拍子中，按附点四分音符拍自动连接短音符的减时线：6/8 分成两个三音组，9/8 分成三个，12/8 分成四个，每组相当于三个八分音符。分母为 8、分子大于 3 且能被 3 整除的拍号均适用此规则。其他拍号，包括 3/8 和 2/2，保留四分音符单位的自动分组。音符本身的时值不变。</p>
 <pre><code>P: 6/8
 Q: 1/ 2/ 3/ 4/ 5/ 6/ |</code></pre>
 <h3>~ 与 ^ 的作用位置</h3>
@@ -265,7 +265,7 @@ Q: 5,//~ 6,//~ 7,//~ 1//~ 2//~ 3// 1//~ 2//~ 3//~ 4//~ 5//~ 6// | 4//~ 5//~ 6//~
 <p>升音 #、降音 $、还原 = 写在所属数字后，例如 4#、7$、3=。倚音使用音符后紧附的方括号：<code>1[23]</code> 表示前倚音，<code>1[h23]</code> 表示后倚音。组内仍支持逗号/单引号、斜线及变音。倚音默认八分，加一条斜线成为十六分。紧附音符的方括号与小节线处的跳房子括号不同。</p>
 <pre><code>Q: 4# 7$ 3= 1[2/3&#x27;] | 5[h6,7/] - ||</code></pre>
 <h3>变音记号的位置与核对</h3>
-<p>变音记号写在所属数字后，如 4#、7$、3=，印刷位置却在数字前。D 改变描述头调号；音符变音记号针对具体书写音符。把片段复制到另一调号环境后，应检查后续重复音及还原号。OctoPus 按输入记谱，不能替用户判断和声拼写或补齐所有缺失还原。</p>
+<p>变音记号写在所属数字后，如 4#、7$、3=，印刷位置却在数字前。D 改变描述头调号；音符变音记号针对具体书写音符。把片段复制到另一调号环境后，应检查后续重复音及还原号。章鱼简谱按输入记谱，不能替用户判断和声拼写或补齐所有缺失还原。</p>
 <h3>倚音是依附主音的小音符组</h3>
 <p>1[23] 为依附主音 1 的前倚音组，1[h23] 为后倚音组。h 放在 [ 后，不放在 ] 后。组内可写多个音、音区、变音及减时线；裸数字已按八分倚音显示，/ 变为十六分。主音仍保留自身时值与歌词，不应为每个倚音数字另分配主旋律唱词；也不要将方括号移到小节线，那会变成结尾线语法。</p>
 <!-- sample:accidental-return:start -->
@@ -361,7 +361,7 @@ Q: 1&amp;zkh 2 3 4&amp;ykh | 5&quot;轻柔地&quot; - - - ||</code></pre>
 <p>音后引号注释如 5&quot;轻柔地唱&quot; 印在该音附近；小节线引号注释属于边界；整行 # 注释不印刷。伴奏括弧应在首、末音后写 &amp;zkh、&amp;ykh。Q 中 (...) 是音乐连线，不是一对伴奏字形。C 中的普通标点及旧式 (~...~) 属于歌词，不是音乐跨度语法。</p>
 <!-- sample:fermata-rit:start -->
 <div class="sample-example" id="zh-CN-example-fermata-rit">
-<h3>渐慢与延长记号</h3><p>5&amp;rit 印出渐慢术语；7,/&amp;yc 在低音八分音符上画延长记号。OctoPus 当前没有播放功能，这些记号仅用于谱面。</p>
+<h3>渐慢与延长记号</h3><p>5&amp;rit 印出渐慢术语；7,/&amp;yc 在低音八分音符上画延长记号。章鱼简谱当前没有播放功能，这些记号仅用于谱面。</p>
 <p class="sample-provenance">示例库：Farewell.jps · 源码行 34-36。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="assets/examples/fermata-rit.jps">下载此 JPS 摘录</a></p>
 <p class="example-label">JPS 源码</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5&amp;rit (2/ 3/) 4. 7,/&amp;yc | 1 - - 0 ||
 C: 人生@难得是欢聚，唯有@别离多。
@@ -643,7 +643,7 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 <li>处理诊断，保存可编辑原稿，导出并检查最终文件。</li>
 </ul>
 <h3>用图例练习编辑</h3>
-<p>每个图例把所选原始源码行与重新生成的 OctoPus 结果配对，下载含描述头；图片只裁掉页面空白。打开标明示例可查看完整音乐上下文，打开摘录则可单独研究语法。每次只改一个符号，对照预览与导出，再撤销。成功渲染说明记谱和排版可显示，不代表转写、和声或时值已完全核实。</p>
+<p>每个图例把所选原始源码行与重新生成的章鱼简谱结果配对，下载含描述头；图片只裁掉页面空白。打开标明示例可查看完整音乐上下文，打开摘录则可单独研究语法。每次只改一个符号，对照预览与导出，再撤销。成功渲染说明记谱和排版可显示，不代表转写、和声或时值已完全核实。</p>
 </section>
 <section id="zh-CN-troubleshooting"><h2>27. 排错与反馈</h2>
 <table><thead><tr><th>现象</th><th>检查内容</th></tr>
@@ -657,14 +657,14 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 <tr><td>浏览器或更新失败</td><td>默认浏览器关联与网络；发布信息不可用不等于已经最新。</td></tr>
 </tbody>
 </table>
-<p>报告可复现问题时，请提供版本、系统、最小 JPS、相关设置、步骤及预期/实际结果，适当时附原稿。使用<a href="https://github.com/OctaveMelody/OctoPus/issues">报告问题</a>；改动提议使用<a href="https://github.com/OctaveMelody/OctoPus/pulls">Pull Requests 页</a>。历史规范的个人联系方式不是 OctoPus 支持渠道。</p>
+<p>报告可复现问题时，请提供版本、系统、最小 JPS、相关设置、步骤及预期/实际结果，适当时附原稿。使用<a href="https://github.com/OctaveMelody/OctoPus/issues">报告问题</a>；改动提议使用<a href="https://github.com/OctaveMelody/OctoPus/pulls">Pull Requests 页</a>。历史规范的个人联系方式不是章鱼简谱的支持渠道。</p>
 </section>
 <section id="zh-CN-sources"><h2>28. 参考依据与兼容性</h2>
-<p>记谱章节参考本地保存的 Jianpu-Spec v1.0 简介、描述头、曲、词及反馈内容。规范中以图片呈现的符号、力度和小节线表，在此整理为可检索文本。本手册还补充了详细说明、25 个标明出处的示例库摘录和 26 张渲染图，不分发原规范截图；示例库没有对应写法时，则提供最小语法练习。源码格式化及源码/预览定位说明参考保存的 Website-Contents/Zhipu-jsCode-editor，并对照 OctoPus 的实际行为核对。保存的 Zhipu-draw 文件为空。</p>
-<p>记谱语法来自参考规范，产品界面和计划则说明 OctoPus。历史资料中提到的 MIDI、播放、网页自动格式化选项及个人联系方式，不代表当前桌面功能。运行代码、字体策略、输入限制和示例乐谱用于核对现状。本手册依据这些资料重新编写；生产版附带手册及 PDF，参考资料和编写工具留在 OctoPus-dev。</p>
+<p>记谱章节参考本地保存的 Jianpu-Spec v1.0 简介、描述头、曲、词及反馈内容。规范中以图片呈现的符号、力度和小节线表，在此整理为可检索文本。本手册还补充了详细说明、25 个标明出处的示例库摘录和 26 张渲染图，不分发原规范截图；示例库没有对应写法时，则提供最小语法练习。源码格式化及源码/预览定位说明参考保存的 Website-Contents/Zhipu-jsCode-editor，并对照章鱼简谱的实际行为核对。保存的 Zhipu-draw 文件为空。</p>
+<p>记谱语法来自参考规范，产品界面和计划则说明章鱼简谱。历史资料中提到的 MIDI、播放、网页自动格式化选项及个人联系方式，不代表当前桌面功能。运行代码、字体策略、输入限制和示例乐谱用于核对现状。本手册依据这些资料重新编写；生产版附带手册及 PDF，参考资料和编写工具留在 OctoPus-dev。</p>
 <p><a href="https://github.com/OctaveMelody/OctoPus">项目主页</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/README.zh-CN.md">生产版说明</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/ENVIRONMENT.zh-CN.md">构建环境</a></p>
 </section>
 </article>
 </main>
-<footer>OctoPus · OctaveMelody · 2026-10-24</footer>
+<footer>章鱼简谱 · OctaveMelody · 2026-10-24</footer>
 </body></html>

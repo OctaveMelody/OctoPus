@@ -20,6 +20,15 @@ repository's `VERSION`, `uv.lock`, `ui/web/package-lock.json`, `ui/Cargo.lock`, 
 `.node-version`, and `rust-toolchain.toml` are authoritative. The dev Python lock includes
 development-only dependencies and is not a substitute for this repository's production lock.
 
+## Chinese-language product copy
+
+- In Chinese user-facing content, including READMEs and user manuals, use `章鱼简谱` as the
+  product name. Keep `OctoPus` only in literal filenames, URLs, code/repository identifiers, or the
+  paired English slogan below.
+- Pair the bold English tagline **OctoPus: Octave + Jianpu for editing numbered-notation scores.**
+  with the exact bold Chinese slogan **章鱼简谱：玩转八度，轻松制谱。** Do not translate the
+  English tagline literally.
+
 ## Agent workflow
 
 - Preserve existing user changes. Begin with `git status --short --branch`; do not reset or clean
