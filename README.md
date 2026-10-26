@@ -28,16 +28,13 @@ blurred or overlapping marks may be missed or misread, so check each draft again
 using it. OctoPus flags low note-number agreement and substantial differences between the draft and
 the source. A finding can open the related scan region and, when available, the corresponding note.
 
-The bundled **Default** profile uses PP-OCRv6 Small detection and recognition models with the
-shared PP-OCRv4 Mobile orientation classifier. It supports offline English and Chinese recognition.
-The model profile is fixed.
-
 ## Planned improvements
 
 - Continue improving image and PDF transcription accuracy over the long term.
-- Add audio playback, MIDI export, and LilyPond and MusicXML export.
+- Add audio playback, MIDI export.
+- Add LilyPond and MusicXML export.
 - Import MusicXML and convert it to JPS.
-- Add optional LLM API-key support for image and PDF transcription.
+- Add optional LLM support for more accurate image and PDF transcription.
 
 ## User manual
 
@@ -47,25 +44,22 @@ supported JPS notation and current limitations. The manual is included with inst
 portable packages. PDF editions are available in
 [English](docs/PDF/OctoPus-User-Manual-en.pdf) and
 [Chinese](docs/PDF/OctoPus-User-Manual-zh-CN.pdf).
-The manual's PDF links open a save dialog in the desktop app and download the PDF in a browser.
 
 For the source format specification, see [Tomato JPS Spec](https://github.com/yetist/jianpu-spec),
 which OctoPus uses for JPS input.
 
 ## Fonts
 
-Windows and macOS desktop builds use the preferred fonts installed on the system and compatible
+Windows and macOS (upcoming) desktop builds use the preferred fonts installed on the system and compatible
 installed substitutes when a preferred family is missing. Use **Help → Fonts** for official
 installation instructions or to check again. These desktop builds do not bundle the application's
 13 score-font faces. Linux portable and AppImage builds use the verified score-font set shipped
-with the application directly. The offline manual includes only small Noto Sans SC subsets; these
-are separate from the score-font set. The [font asset guide](src/octopus/assets/fonts/README.md)
-lists platform mappings, font licenses and build behavior.
+with the application directly.
 
 ## Build from source
 
 See [environment instructions](ENVIRONMENT.md) for runtime and build requirements. Production
-builds use the pinned Python, Node/npm and Rust versions plus Tauri CLI 2.11.5. Run the setup
+builds use the pinned Python, Node/npm and Rust versions plus Tauri CLI. Run the setup
 script from the repository root:
 
 ```sh
@@ -91,13 +85,6 @@ py scripts\build_portable.py
 The same launcher accepts `--bundles appimage` on Linux or `--bundles nsis` on Windows when a
 package is explicitly needed. It locates the repository from its script path, validates build
 prerequisites, and can be called from any working directory.
-
-Windows builds also create a portable ZIP by default. Published files follow
-`OctoPus_{version}_{arch}_{os}_{purpose}.{ext}`: Windows portable ZIPs end in
-`_x64_win64_portable.zip`, Windows setup executables in `_x64_win64_setup.exe`, and Linux AppImages
-in `_x64_linux.AppImage` with no purpose suffix. Architecture may be `x64` or `arm64`. The checked
-portable application directory stays under `dist/<target-triple>/portable/`; build intermediates
-stay under `build/`.
 
 ## Run the portable application
 
