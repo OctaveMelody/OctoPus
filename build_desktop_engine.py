@@ -57,7 +57,9 @@ def _validate_target_triple(
     if len(parts) < 3:
         raise RuntimeError(f"invalid Tauri target triple: {target_triple}")
     target_arch, target_os = parts[0], parts[2]
-    expected_system = {"linux": "Linux", "windows": "Windows"}.get(target_os)
+    expected_system = {"darwin": "Darwin", "linux": "Linux", "windows": "Windows"}.get(
+        target_os
+    )
     if expected_system is None:
         raise RuntimeError(f"desktop engine packaging does not support {target_triple}")
     if (host_system or platform.system()) != expected_system:
@@ -474,8 +476,8 @@ def build(
     if any(path.is_symlink() for path in (cache_root, cache_dir, work_path, spec_path)):
         raise RuntimeError("refusing to use a symlinked PyInstaller cache")
 
-    if platform.system() not in {"Windows", "Linux"}:
-        raise RuntimeError("desktop engine packaging currently supports Windows and Linux only")
+    if platform.system() not in {"Windows", "Linux", "Darwin"}:
+        raise RuntimeError("desktop engine packaging supports Windows, Linux, and macOS only")
     if sys.version_info[:2] != (3, 12):
         raise RuntimeError("desktop engine packaging requires Python 3.12")
     installed_version = importlib.metadata.version("pyinstaller")

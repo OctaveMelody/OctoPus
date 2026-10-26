@@ -1,5 +1,8 @@
 {
   "bundle": {
+    "icon": [
+      "../../../build/cargo/macos-icons/icon.icns"
+    ],
     "resources": {
       "../../../LICENSE": "lib/OctoPus/LICENSE",
       "../../../samples/jps_files/": "lib/OctoPus/examples/",

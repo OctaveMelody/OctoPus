@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import platform
+import plistlib
 import re
 import shutil
 import subprocess
@@ -26,7 +27,7 @@ from build_support import (
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "ui" / "web"
 BUILD = ROOT / "build" / "cargo"
-PACKAGE_SUFFIXES = {".appimage", ".exe"}
+PACKAGE_SUFFIXES = {".appimage", ".dmg", ".exe"}
 ARTIFACT_ARCHES = {"x86_64": "x64", "aarch64": "arm64"}
 APPIMAGE_RUNTIME_ARCHES = {
     "x86_64": "x86_64",
@@ -88,10 +89,90 @@ def _artifact_filename(
         os_name, extension = "win64", ".exe"
     elif system == "Linux" and purpose is None:
         os_name, extension = "linux", ".AppImage"
+    elif system == "Darwin" and purpose is None:
+        os_name, extension = "macos", ".dmg"
     else:
         raise RuntimeError(f"unsupported artifact type for {system}: {purpose!r}")
     purpose_suffix = f"_{purpose}" if purpose else ""
     return f"OctoPus_{version}_{arch}_{os_name}{purpose_suffix}{extension}"
+
+
+def _validate_macos_dmg(package: Path, product_name: str, identifier: str) -> None:
+    """Verify a DMG and the app/resources it contains before publishing it."""
+    if not package.is_file() or package.stat().st_size == 0:
+        raise RuntimeError(f"macOS disk image is missing or empty: {package}")
+    verified = subprocess.run(
+        ["hdiutil", "verify", str(package)], capture_output=True, text=True, check=False
+    )
+    if verified.returncode:
+        raise RuntimeError(
+            f"hdiutil could not verify {package}: {verified.stderr or verified.stdout}"
+        )
+
+    with tempfile.TemporaryDirectory(prefix="octopus-dmg-check-") as temporary:
+        mountpoint = Path(temporary) / "mounted"
+        mountpoint.mkdir()
+        attached = subprocess.run(
+            [
+                "hdiutil", "attach", "-readonly", "-nobrowse", "-mountpoint",
+                str(mountpoint), str(package),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if attached.returncode:
+            raise RuntimeError(
+                f"hdiutil could not mount {package}: {attached.stderr or attached.stdout}"
+            )
+        try:
+            app = mountpoint / f"{product_name}.app"
+            info_path = app / "Contents" / "Info.plist"
+            executable_directory = app / "Contents" / "MacOS"
+            resources = app / "Contents" / "Resources" / "lib" / "OctoPus"
+            if not info_path.is_file():
+                missing_info = info_path.relative_to(mountpoint)
+                raise RuntimeError(f"macOS app bundle is missing {missing_info}")
+            with info_path.open("rb") as source:
+                info = plistlib.load(source)
+            executable = info.get("CFBundleExecutable")
+            if (
+                info.get("CFBundleIdentifier") != identifier
+                or info.get("CFBundlePackageType") != "APPL"
+            ):
+                raise RuntimeError("macOS app bundle has unexpected bundle metadata")
+            if not isinstance(executable, str):
+                raise RuntimeError("macOS app bundle is missing its native executable")
+            if not (executable_directory / executable).is_file():
+                raise RuntimeError("macOS app bundle is missing its native executable")
+            required_resources = (
+                resources / "engine" / "octopus-engine",
+                resources / "LICENSE",
+                resources / "examples",
+                resources / "docs",
+            )
+            missing = [str(path.relative_to(mountpoint)) for path in required_resources
+                       if not path.exists()]
+            if missing:
+                raise RuntimeError(
+                    "macOS app bundle is missing packaged resources: " + ", ".join(missing)
+                )
+            if not any((resources / "examples").rglob("*.jps")):
+                raise RuntimeError("macOS app bundle has no packaged JPS examples")
+            if not any(path.is_file() for path in (resources / "docs").rglob("*")):
+                raise RuntimeError("macOS app bundle has no packaged manual files")
+        finally:
+            detached = subprocess.run(
+                ["hdiutil", "detach", "-quiet", str(mountpoint)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if detached.returncode:
+                raise RuntimeError(
+                    f"hdiutil could not detach {mountpoint}: "
+                    f"{detached.stderr or detached.stdout}"
+                )
 
 
 def _create_portable_zip(source: Path, destination: Path) -> Path:
@@ -665,12 +746,13 @@ def main() -> None:
     allowed_bundles = (
         {"appimage"} if platform.system() == "Linux"
         else {"nsis"} if platform.system() == "Windows"
+        else {"dmg"} if platform.system() == "Darwin"
         else set()
     )
     unsupported_bundles = requested_bundles - allowed_bundles
     if unsupported_bundles:
         parser.error(
-            "supported package types are Linux appimage and Windows nsis; "
+            "supported package types are Linux appimage, Windows nsis, and macOS dmg; "
             f"unsupported: {', '.join(sorted(unsupported_bundles))}"
         )
     if args.package_appimage_only:
@@ -681,8 +763,8 @@ def main() -> None:
         except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as error:
             parser.error(str(error))
         return
-    if platform.system() not in {"Linux", "Windows"}:
-        parser.error("portable builds currently support Linux and Windows")
+    if platform.system() not in {"Linux", "Windows", "Darwin"}:
+        parser.error("desktop builds currently support Linux, Windows, and macOS")
 
     try:
         environment, tools = _toolchain_environment()
@@ -758,10 +840,27 @@ def main() -> None:
     )
 
     version_config = BUILD / "tauri-version.json"
-    version_config.write_text(
-        json.dumps({"version": version, "build": {"beforeBuildCommand": ""}}),
-        encoding="utf-8",
-    )
+    version_configuration: dict[str, object] = {
+        "version": version,
+        "build": {"beforeBuildCommand": ""},
+    }
+    if platform.system() == "Darwin":
+        icon_output = BUILD / "macos-icons"
+        if icon_output.exists():
+            shutil.rmtree(icon_output)
+        icon_output.mkdir(parents=True)
+        subprocess.run(
+            [
+                tools["cargo"], "tauri", "icon", str(WEB / "src-tauri/icons/icon.png"),
+                "--output", str(icon_output),
+            ],
+            cwd=WEB,
+            env=environment,
+            check=True,
+        )
+        if not (icon_output / "icon.icns").is_file():
+            raise RuntimeError("Tauri did not generate the required macOS icon.icns")
+    version_config.write_text(json.dumps(version_configuration), encoding="utf-8")
     command = _tauri_build_command_for(tools["cargo"], args.bundles)
     command.extend(("--config", str(version_config)))
     if args.target:
@@ -807,6 +906,9 @@ def main() -> None:
 
     triple = target_triple
     bundles = BUILD / (args.target or "") / "release" / "bundle"
+    tauri_configuration = json.loads(
+        (WEB / "src-tauri/tauri.conf.json").read_text(encoding="utf-8")
+    )
     packages = [
         path for kind in bundles.iterdir() if kind.is_dir()
         for path in kind.iterdir()
@@ -822,8 +924,16 @@ def main() -> None:
             purpose = None
         elif suffix == ".exe":
             purpose = "setup"
+        elif suffix == ".dmg":
+            purpose = None
         else:
             raise RuntimeError(f"Tauri created an unsupported package artifact: {package.name}")
+        if suffix == ".dmg":
+            _validate_macos_dmg(
+                package,
+                tauri_configuration["productName"],
+                tauri_configuration["identifier"],
+            )
         canonical_name = _artifact_filename(
             version, target_triple, platform.system(), purpose
         )
@@ -839,14 +949,15 @@ def main() -> None:
         if platform.system() == "Windows"
         else None
     )
-    print(
-        publish_portable(
-            destination,
-            bundles.parent,
-            platform.system(),
-            portable_archive_name,
+    if platform.system() != "Darwin":
+        print(
+            publish_portable(
+                destination,
+                bundles.parent,
+                platform.system(),
+                portable_archive_name,
+            )
         )
-    )
     if portable_archive_name:
         print(destination / portable_archive_name)
 

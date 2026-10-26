@@ -1,0 +1,108 @@
+name: desktop-packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to attach the packages to; leave empty for workflow artifacts only
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-packages-${{ github.event.release.tag_name || inputs.release_tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Package ${{ matrix.package }}
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_INCREMENTAL: "0"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            package: windows-x64
+            bundle: nsis
+          - os: macos-26
+            package: macos-arm64
+            bundle: dmg
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.release_tag || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/web/package-lock.json
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version 2.11.5 --locked
+      - name: Install locked production build dependencies
+        run: uv sync --locked --extra desktop-build --extra transcription
+      - name: Build and validate native package and offline worker
+        working-directory: .
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ github.workspace }}/.venv
+          VIRTUAL_ENV: ""
+        run: >-
+          uv run --project . --locked --extra desktop-build --extra transcription
+          python build.py --bundles ${{ matrix.bundle }}
+      - name: Format check
+        working-directory: ui
+        run: cargo fmt --all --check
+      - name: Lint active Rust targets
+        working-directory: ui
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test standalone Rust workspace
+        working-directory: ui
+        run: cargo test --workspace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.package }}
+          path: |
+            dist/*/*.dmg
+            dist/*/*.exe
+            dist/*/*.zip
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: packages
+          merge-multiple: true
+      - name: Attach packages to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+        run: |
+          files=()
+          while IFS= read -r -d '' path; do files+=("$path"); done < <(find packages -type f -print0)
+          if ((${#files[@]} == 0)); then
+            echo "No desktop packages were downloaded" >&2
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
