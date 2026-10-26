@@ -126,15 +126,18 @@ change the version. Use it only when a distribution intentionally omits that men
 
 During development, build only the portable by default. Do not build installers or other
 variants unless the user explicitly asks for them. Run `python3 scripts/build_portable.py` on
-Linux or `py scripts/build_portable.py` on Windows. Use `--bundles appimage` on Linux or
-`--bundles nsis` on Windows only when a package is explicitly needed. Other bundle formats are
-not published by this builder.
+Linux/macOS or `py scripts/build_portable.py` on Windows. Use `--bundles appimage` on Linux,
+`--bundles nsis` on Windows, or `--bundles dmg` on macOS only when a package is explicitly needed.
+The automated macOS release package targets Apple Silicon; other bundle formats are not published
+by this builder.
 Omitting `--bundles` selects portable-only mode. The launcher uses the pinned repository
 environment; the builder checks Python, Node/npm, Rust/Cargo, Tauri CLI, and native system
 prerequisites before beginning the build. It builds the frontend and worker first, then invokes
 Tauri once with its nested prebuild hook disabled. Rust/PyInstaller target architecture must
 match the native Python host; worker cross-compilation is unsupported. macOS packaging is
-deferred.
+performed on a native Apple Silicon host. The published package workflow runs the macOS build on
+GitHub's `macos-26` runner and validates the mounted DMG's app bundle and resources before upload.
+Packages are currently unsigned and not notarized.
 
 For a Linux x86_64 AppImage, use
 `python3 scripts/build_portable.py --bundles appimage`. If linuxdeploy completes deployment but
@@ -182,7 +185,8 @@ identity, so commit product-source changes before creating a release build. Use
 build-number generation.
 
 For an explicitly requested package, pass `--bundles appimage` on Linux or `--bundles nsis` on
-native Windows (with Microsoft C++ Build Tools and WebView2 installed). `build.py` builds the
+native Windows (with Microsoft C++ Build Tools and WebView2 installed), or `--bundles dmg` on
+macOS. `build.py` builds the
 frontend/worker/native app under `build/`, places the checked portable tree under
 `dist/<target-triple>/portable/`, and publishes packages in `dist/<target-triple>/` using the
 filename convention above. Directory publication retries transient access errors, falls back to

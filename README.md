@@ -50,8 +50,9 @@ which OctoPus uses for JPS input.
 
 ## Fonts
 
-Windows and macOS (upcoming) desktop builds use the preferred fonts installed on the system and compatible
-installed substitutes when a preferred family is missing. Use **Help → Fonts** for official
+Windows and Apple Silicon macOS desktop builds use the preferred fonts installed on the system and
+compatible installed substitutes when a preferred family is missing. The macOS DMG is currently
+unsigned and not notarized. Use **Help → Fonts** for official
 installation instructions or to check again. These desktop builds do not bundle the application's
 13 score-font faces. Linux portable and AppImage builds use the verified score-font set shipped
 with the application directly.
