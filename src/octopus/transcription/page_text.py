@@ -13,7 +13,8 @@ from .components import Box
 from .decorations import decoration_token, ending_title_text, score_text_kind, text_decorations
 from .directions import attach_score_directions, remove_attached_direction_text
 from .headers import extract_headers, printed_key_span, stacked_meter_span
-from .image import MusicRow, PageObservation, _read_page
+from .image import _read_page
+from .observations import MusicRow, PageObservation
 from .text import (
     MIN_TEXT_SPAN_CONFIDENCE,
     TextMergeResult,

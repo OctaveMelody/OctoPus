@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 
 from ....parser.ast import MusicTokenKind
-from ...core.layout_types import GEOMETRY_EPSILON
+from ...core.layout_types import GEOMETRY_EPSILON, LayoutEvent
 
 _INTEGER_STEP = 27.0
 _SUBSTEP = 18.0
@@ -93,6 +93,19 @@ def _is_pair(code: str | None) -> bool:
     return code is not None and ("(" in code or ")" in code)
 
 
+def _measure_groups(items: list[LayoutEvent]) -> list[list[LayoutEvent]]:
+    groups: list[list[LayoutEvent]] = []
+    current: list[LayoutEvent] = []
+    for item in items:
+        current.append(item)
+        if item.event.kind == MusicTokenKind.BARLINE:
+            groups.append(current)
+            current = []
+    if current:
+        groups.append(current)
+    return groups
+
+
 def _ceiling_slot_after(slots: list[float], previous_x: float, ideal: float) -> float:
     """Return the first column at or after the row's own ideal position.
 
@@ -122,4 +135,5 @@ __all__ = [
     "_base_step",
     "_ceiling_slot_after",
     "_is_pair",
+    "_measure_groups",
 ]

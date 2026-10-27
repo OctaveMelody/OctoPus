@@ -11,7 +11,8 @@ from dataclasses import replace
 from pathlib import Path
 
 from . import page_text
-from .image import PageObservation, recognize_image
+from .image import recognize_image
+from .observations import PageObservation
 from .text import image_text, merge_text, pdf_text, scale_pdf_text
 
 MAX_PDF_BYTES = 100_000_000

@@ -7,7 +7,8 @@ from dataclasses import replace
 from pathlib import Path
 
 from . import compilation, page_text, pdf_source
-from .image import PageObservation, recognize_image
+from .image import recognize_image
+from .observations import PageObservation
 from .results import Draft, Issue, RowBinding
 from .review import note_confidence_findings, render_back_findings
 from .text import image_text

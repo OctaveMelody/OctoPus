@@ -14,7 +14,7 @@ from PIL import Image, ImageOps
 
 from .accompaniment import bracketed_row_centers, compact_accompaniment_owner
 from .components import Box, Component, connected_components
-from .decorations import Hairpin, row_hairpins, symbol_decorations
+from .decorations import row_hairpins, symbol_decorations
 from .glyphs import (
     MAX_DIGIT_HEIGHT,
     MIN_DIGIT_VECTOR_SUPPORT,
@@ -30,11 +30,11 @@ from .glyphs import (
     page_digit_templates,
 )
 from .marks import note_modifiers, row_parentheses, row_sustains, vertical_bend
-from .ornaments import EndingSegment, GraceGroup, row_endings, row_graces, voice_components
+from .observations import BzOverlay, MusicRow, Note, PageObservation
+from .ornaments import EndingSegment, row_endings, row_graces, voice_components
 from .slurs import curve_core_parts, row_slurs
-from .text import TextMergeConflict, TextSpan, image_digit, music_characters
+from .text import image_digit, music_characters
 from .voices import (
-    DsbOverlay,
     VoiceGroup,
     dsb_brace_candidate,
     recognize_dsb_overlays,
@@ -47,59 +47,6 @@ MIN_WORKING_GLYPH_HEIGHT = 24
 MAX_WORKING_GLYPH_HEIGHT = MAX_DIGIT_HEIGHT - 2
 MAX_WORKING_REDUCTION = 4
 MIN_OVERSIZED_ROW_GLYPHS = 3
-
-
-@dataclass(frozen=True, slots=True)
-class Note:
-    digit: str
-    box: Box
-    confidence: float
-    octave: int = 0
-    duration_slashes: int = 0
-    duration_dots: int = 0
-    accidental: str = ""
-    decorations: tuple[str, ...] = ()
-    annotations: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class MusicRow:
-    notes: tuple[Note, ...]
-    barlines: tuple[int, ...]
-    box: Box
-    unresolved_marks: tuple[Box, ...]
-    # Indices address notes only; None marks an endpoint cut at a row barline.
-    slurs: tuple[tuple[int | None, int | None], ...] = ()
-    graces: tuple[GraceGroup, ...] = ()
-    endings: tuple[EndingSegment, ...] = ()
-    parentheses: tuple[tuple[int, str], ...] = ()
-    hairpins: tuple[Hairpin, ...] = ()
-    decoration_regions: tuple[Box, ...] = ()
-    score_directions: tuple[tuple[int, str], ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class BzOverlay:
-    anchor: int
-    row: MusicRow
-
-
-@dataclass(frozen=True, slots=True)
-class PageObservation:
-    width: int
-    height: int
-    rows: tuple[MusicRow, ...]
-    candidate_digits: int
-    text_spans: tuple[TextSpan, ...] = ()
-    text_source: str = "unavailable"
-    voice_groups: tuple[VoiceGroup, ...] = ()
-    dsb_overlays: tuple[DsbOverlay, ...] = ()
-    bz_overlays: tuple[BzOverlay, ...] = ()
-    unresolved_braces: tuple[Box, ...] = ()
-    excluded_regions: tuple[Box, ...] = ()
-    native_text_spans: tuple[TextSpan, ...] | None = None
-    ocr_text_spans: tuple[TextSpan, ...] | None = None
-    text_merge_conflicts: tuple[TextMergeConflict, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -1112,15 +1059,16 @@ def _prepare_image(path: Path) -> _PreparedImage:
     )
 
 
-def _recognize_working_rows(
-    prepared: _PreparedImage,
-) -> tuple[PageObservation, int] | None:
-    """Keep digit recovery and row/overlay ownership together in working coordinates."""
-    gray, components, excluded, transform = (
-        prepared.working_gray, prepared.working_components,
-        prepared.working_excluded, prepared.transform,
-    )
-    resized = not transform.is_identity
+class _WorkingRowCandidates(NamedTuple):
+    candidates: list[tuple[Component, DigitMatch]]
+    digit_height: int
+    barline_candidates: list[Component]
+    possible_bars: list[Component]
+
+
+def _classify_working_row_candidates(
+    gray: Image.Image, components: list[Component],
+) -> _WorkingRowCandidates | None:
     trusted = [
         (component, match)
         for component in components
@@ -1187,6 +1135,25 @@ def _recognize_working_rows(
     barline_candidates = [
         *possible_bars, *_fragmented_vertical_barlines(components, digit_height, gray),
     ]
+    return _WorkingRowCandidates(candidates, digit_height, barline_candidates, possible_bars)
+
+
+def _recognize_working_rows(
+    prepared: _PreparedImage,
+) -> tuple[PageObservation, int] | None:
+    """Keep digit recovery and row/overlay ownership together in working coordinates."""
+    gray, components, excluded, transform = (
+        prepared.working_gray, prepared.working_components,
+        prepared.working_excluded, prepared.transform,
+    )
+    resized = not transform.is_identity
+    classification = _classify_working_row_candidates(gray, components)
+    if classification is None:
+        return None
+    candidates = classification.candidates
+    digit_height = classification.digit_height
+    barline_candidates = classification.barline_candidates
+    possible_bars = classification.possible_bars
     main = [
         (component, match)
         for component, match in candidates

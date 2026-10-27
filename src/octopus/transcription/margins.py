@@ -9,7 +9,7 @@ from dataclasses import replace
 from statistics import median
 
 from .components import Box
-from .image import PageObservation
+from .observations import PageObservation
 from .text import TextSpan
 
 _PAGE_NUMBER = re.compile(

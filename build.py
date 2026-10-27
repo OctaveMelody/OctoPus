@@ -6,7 +6,6 @@ import argparse
 import json
 import os
 import platform
-import plistlib
 import re
 import shutil
 import subprocess
@@ -16,6 +15,8 @@ import tomllib
 import zipfile
 from pathlib import Path
 
+from build_platforms import appimage as linux_appimage
+from build_platforms import macos, windows
 from build_support import (
     environment_with_tools,
     find_executable,
@@ -29,12 +30,7 @@ WEB = ROOT / "ui" / "web"
 BUILD = ROOT / "build" / "cargo"
 PACKAGE_SUFFIXES = {".appimage", ".dmg", ".exe"}
 ARTIFACT_ARCHES = {"x86_64": "x64", "aarch64": "arm64"}
-APPIMAGE_RUNTIME_ARCHES = {
-    "x86_64": "x86_64",
-    "aarch64": "aarch64",
-    "i686": "i386",
-    "armv7": "armhf",
-}
+APPIMAGE_RUNTIME_ARCHES = linux_appimage.RUNTIME_ARCHES
 SEMVER_VERSION = re.compile(
     r"^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)"
     r"(?:-(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
@@ -98,81 +94,7 @@ def _artifact_filename(
 
 
 def _validate_macos_dmg(package: Path, product_name: str, identifier: str) -> None:
-    """Verify a DMG and the app/resources it contains before publishing it."""
-    if not package.is_file() or package.stat().st_size == 0:
-        raise RuntimeError(f"macOS disk image is missing or empty: {package}")
-    verified = subprocess.run(
-        ["hdiutil", "verify", str(package)], capture_output=True, text=True, check=False
-    )
-    if verified.returncode:
-        raise RuntimeError(
-            f"hdiutil could not verify {package}: {verified.stderr or verified.stdout}"
-        )
-
-    with tempfile.TemporaryDirectory(prefix="octopus-dmg-check-") as temporary:
-        mountpoint = Path(temporary) / "mounted"
-        mountpoint.mkdir()
-        attached = subprocess.run(
-            [
-                "hdiutil", "attach", "-readonly", "-nobrowse", "-mountpoint",
-                str(mountpoint), str(package),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if attached.returncode:
-            raise RuntimeError(
-                f"hdiutil could not mount {package}: {attached.stderr or attached.stdout}"
-            )
-        try:
-            app = mountpoint / f"{product_name}.app"
-            info_path = app / "Contents" / "Info.plist"
-            executable_directory = app / "Contents" / "MacOS"
-            resources = app / "Contents" / "Resources" / "lib" / "OctoPus"
-            if not info_path.is_file():
-                missing_info = info_path.relative_to(mountpoint)
-                raise RuntimeError(f"macOS app bundle is missing {missing_info}")
-            with info_path.open("rb") as source:
-                info = plistlib.load(source)
-            executable = info.get("CFBundleExecutable")
-            if (
-                info.get("CFBundleIdentifier") != identifier
-                or info.get("CFBundlePackageType") != "APPL"
-            ):
-                raise RuntimeError("macOS app bundle has unexpected bundle metadata")
-            if not isinstance(executable, str):
-                raise RuntimeError("macOS app bundle is missing its native executable")
-            if not (executable_directory / executable).is_file():
-                raise RuntimeError("macOS app bundle is missing its native executable")
-            required_resources = (
-                resources / "engine" / "octopus-engine",
-                resources / "LICENSE",
-                resources / "examples",
-                resources / "docs",
-            )
-            missing = [str(path.relative_to(mountpoint)) for path in required_resources
-                       if not path.exists()]
-            if missing:
-                raise RuntimeError(
-                    "macOS app bundle is missing packaged resources: " + ", ".join(missing)
-                )
-            if not any((resources / "examples").rglob("*.jps")):
-                raise RuntimeError("macOS app bundle has no packaged JPS examples")
-            if not any(path.is_file() for path in (resources / "docs").rglob("*")):
-                raise RuntimeError("macOS app bundle has no packaged manual files")
-        finally:
-            detached = subprocess.run(
-                ["hdiutil", "detach", "-quiet", str(mountpoint)],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if detached.returncode:
-                raise RuntimeError(
-                    f"hdiutil could not detach {mountpoint}: "
-                    f"{detached.stderr or detached.stdout}"
-                )
+    macos.validate_dmg(package, product_name, identifier)
 
 
 def _create_portable_zip(source: Path, destination: Path) -> Path:
@@ -189,73 +111,18 @@ def _create_portable_zip(source: Path, destination: Path) -> Path:
 def _appimage_paths(
     target: str | None, version: str, target_triple: str
 ) -> tuple[Path, Path, Path, Path]:
-    config = json.loads((WEB / "src-tauri/tauri.conf.json").read_text(encoding="utf-8"))
-    product_name = config["productName"]
-    bundle_dir = BUILD / (target or "") / "release/bundle/appimage"
-    app_dir = bundle_dir / f"{product_name}.AppDir"
-    package = bundle_dir / _artifact_filename(version, target_triple, "Linux", None)
-    identity = bundle_dir / ".octopus-build.json"
-    return bundle_dir, app_dir, package, identity
+    return linux_appimage.paths(
+        target,
+        version,
+        target_triple,
+        build=BUILD,
+        web=WEB,
+        artifact_filename=_artifact_filename,
+    )
 
 
 def _prepare_appimage_app_dir(app_dir: Path) -> None:
-    from build_desktop_engine import _check_font_assets
-
-    required = (
-        app_dir / "AppRun",
-        app_dir / "AppRun.wrapped",
-        app_dir / "apprun-hooks/linuxdeploy-plugin-gtk.sh",
-        app_dir / "OctoPus.desktop",
-        app_dir / ".DirIcon",
-        app_dir / "usr/bin/octopus",
-        app_dir / "usr/share/applications/OctoPus.desktop",
-        app_dir / "usr/share/icons/hicolor/512x512/apps/octopus.png",
-        app_dir / "usr/lib/OctoPus/LICENSE",
-        app_dir / "usr/lib/OctoPus/engine/octopus-engine",
-        app_dir / "usr/lib/OctoPus/examples",
-        app_dir / "usr/lib/OctoPus/docs",
-        app_dir / "usr/lib/OctoPus/fonts",
-    )
-    missing = [path for path in required if not path.exists()]
-    if missing:
-        raise RuntimeError(
-            "The staged AppImage directory is incomplete: "
-            + ", ".join(path.relative_to(app_dir).as_posix() for path in missing)
-        )
-    _check_font_assets(app_dir / "usr/lib/OctoPus/fonts")
-    for helper in (
-        "WebKitNetworkProcess",
-        "WebKitWebProcess",
-        "injected-bundle/libwebkit2gtkinjectedbundle.so",
-    ):
-        if not any(path.is_file() for path in app_dir.glob(f"usr/**/webkit2gtk-4.1/{helper}")):
-            raise RuntimeError(f"The staged AppImage is missing WebKit runtime file: {helper}")
-    ldd = find_executable("ldd")
-    if ldd:
-        dependencies = subprocess.run(
-            [ldd, str(app_dir / "usr/bin/octopus")],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        missing_dependencies = [
-            line.strip() for line in dependencies.stdout.splitlines() if "not found" in line
-        ]
-        if dependencies.returncode or missing_dependencies:
-            raise RuntimeError(
-                "The staged AppImage has unresolved native dependencies: "
-                + "; ".join(missing_dependencies or [dependencies.stderr.strip()])
-            )
-
-    icon_alias = app_dir / "octopus.png"
-    icon_target = "usr/share/icons/hicolor/512x512/apps/octopus.png"
-    if icon_alias.is_symlink():
-        if os.readlink(icon_alias) != icon_target:
-            raise RuntimeError(f"unexpected AppImage icon alias: {icon_alias}")
-    elif not icon_alias.exists():
-        icon_alias.symlink_to(icon_target)
-    elif not icon_alias.is_file():
-        raise RuntimeError(f"unexpected AppImage icon entry: {icon_alias}")
+    linux_appimage.prepare_app_dir(app_dir, find_executable)
 
 
 def _run_appimage_build(command: list[str], environment: dict[str, str]) -> None:
@@ -284,29 +151,11 @@ def _run_appimage_build(command: list[str], environment: dict[str, str]) -> None
 
 
 def _appimage_runtime_download_failed(output: object, app_dir: Path) -> bool:
-    if not isinstance(output, str):
-        return False
-    packaging_started = any(
-        "Running command:" in line and "appimagetool" in line and str(app_dir) in line
-        for line in output.splitlines()
-    )
-    return packaging_started and "Failed to download runtime file" in output
+    return linux_appimage.runtime_download_failed(output, app_dir)
 
 
 def _cached_appimage_tooling(target_triple: str) -> tuple[Path, Path]:
-    try:
-        runtime_arch = APPIMAGE_RUNTIME_ARCHES[target_triple.split("-", 1)[0]]
-    except KeyError as error:
-        raise RuntimeError(f"AppImage fallback does not support {target_triple}") from error
-    appimagetool = ROOT / "build/cache/squashfs-root/usr/bin/appimagetool"
-    runtime = ROOT / f"build/cache/tauri/runtime-{runtime_arch}"
-    missing = [path for path in (appimagetool, runtime) if not path.is_file()]
-    if missing:
-        raise RuntimeError(
-            "Cached AppImage fallback tools are missing: "
-            + ", ".join(str(path) for path in missing)
-        )
-    return appimagetool, runtime
+    return linux_appimage.cached_tooling(target_triple, root=ROOT)
 
 
 def _package_appimage(app_dir: Path, package: Path, target_triple: str) -> Path:
@@ -390,113 +239,11 @@ def _package_staged_appimage(target: str | None) -> Path:
 def _linux_appimage_environment(
     environment: dict[str, str], target_triple: str
 ) -> dict[str, str]:
-    result = dict(environment)
-    runtime_arch = APPIMAGE_RUNTIME_ARCHES.get(target_triple.split("-", 1)[0])
-    runtime = ROOT / f"build/cache/tauri/runtime-{runtime_arch}" if runtime_arch else None
-    if runtime and runtime.is_file() and not result.get("LDAI_RUNTIME_FILE"):
-        result["LDAI_RUNTIME_FILE"] = str(runtime)
-    shapely_libraries = (
-        ROOT / "build/desktop-engine/octopus-engine/_internal/shapely.libs"
-    )
-    if shapely_libraries.is_dir():
-        paths = [str(shapely_libraries)]
-        paths.extend(
-            path for path in result.get("LD_LIBRARY_PATH", "").split(os.pathsep)
-            if path and path != str(shapely_libraries)
-        )
-        result["LD_LIBRARY_PATH"] = os.pathsep.join(paths)
-    return result
+    return linux_appimage.environment(environment, target_triple, root=ROOT)
 
 
 def _windows_developer_environment(environment: dict[str, str]) -> dict[str, str]:
-    """Load an installed Visual Studio x64 toolchain when this shell lacks one."""
-    if (
-        find_executable("cl", path=environment.get("PATH"))
-        and find_executable("link", path=environment.get("PATH"))
-        and environment.get("INCLUDE")
-        and environment.get("LIB")
-        and environment.get("VSCMD_ARG_TGT_ARCH", "").lower() == "x64"
-    ):
-        return environment
-
-    program_files = (
-        environment.get("PROGRAMFILES(X86)") or environment.get("ProgramFiles(x86)")
-    )
-    vswhere = find_executable("vswhere", path=environment.get("PATH"))
-    if not vswhere and program_files:
-        candidate = Path(program_files) / "Microsoft Visual Studio/Installer/vswhere.exe"
-        if candidate.is_file():
-            vswhere = str(candidate)
-    if not vswhere:
-        raise RuntimeError(
-            "MSVC tools are not on PATH and vswhere could not locate Visual Studio. Install "
-            "Visual Studio 2022 Build Tools with the Desktop development with C++ workload."
-        )
-
-    installation = subprocess.run(
-        [
-            vswhere,
-            "-latest",
-            "-products",
-            "*",
-            "-version",
-            "[17.0,18.0)",
-            "-requires",
-            "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-            "-property",
-            "installationPath",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=environment,
-    )
-    install_path = installation.stdout.strip()
-    if installation.returncode != 0 or not install_path:
-        raise RuntimeError(
-            "Visual Studio 2022 C++ Build Tools were not found. Install the Desktop "
-            "development with C++ workload and a Windows SDK."
-        )
-    developer_prompt = Path(install_path) / "Common7/Tools/VsDevCmd.bat"
-    if not developer_prompt.is_file():
-        raise RuntimeError(f"Visual Studio developer environment is missing: {developer_prompt}")
-
-    with tempfile.TemporaryDirectory(prefix="octopus-vs-env-") as work:
-        environment_script = Path(work) / "load-environment.cmd"
-        environment_script.write_text(
-            "@echo off\r\n"
-            f'call "{developer_prompt}" -arch=x64 -host_arch=x64 >nul\r\n'
-            "if errorlevel 1 exit /b %errorlevel%\r\n"
-            "set\r\n",
-            encoding="utf-8",
-        )
-        completed = subprocess.run(
-            ["cmd.exe", "/d", "/c", environment_script.name],
-            cwd=work,
-            capture_output=True,
-            text=True,
-            check=False,
-            env=environment,
-        )
-    if completed.returncode != 0:
-        raise RuntimeError(
-            "Could not initialize the Visual Studio x64 build environment: "
-            + (completed.stderr or completed.stdout)[-2000:]
-        )
-    result = dict(environment)
-    for line in completed.stdout.splitlines():
-        name, separator, value = line.partition("=")
-        if separator and name and not name.startswith("="):
-            result[name.upper() if os.name == "nt" else name] = value
-    if (
-        not find_executable("cl", path=result.get("PATH"))
-        or not find_executable("link", path=result.get("PATH"))
-        or not result.get("INCLUDE")
-        or not result.get("LIB")
-    ):
-        raise RuntimeError("Visual Studio did not expose cl.exe and link.exe for x64 builds")
-    print("Initialized Visual Studio 2022 x64 build tools.", flush=True)
-    return result
+    return windows.developer_environment(environment, find_executable)
 
 
 def _toolchain_environment() -> tuple[dict[str, str], dict[str, str]]:

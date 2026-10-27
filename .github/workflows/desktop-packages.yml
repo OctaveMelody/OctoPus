@@ -9,6 +9,10 @@ on:
         description: Existing release tag to attach all packages to; leave empty for workflow artifacts only
         required: false
         type: string
+      source_ref:
+        description: Branch, tag, or commit to build; leave empty to use the nearest published release
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -18,49 +22,62 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  resolve:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/resolve-package-source.yml
+    with:
+      release_event_tag: ${{ github.event.release.tag_name || '' }}
+      source_ref: ${{ inputs.source_ref || '' }}
+
   macos_dmg:
     name: macOS DMG
+    needs: resolve
     permissions:
       contents: read
     uses: ./.github/workflows/package-artifact.yml
     with:
       package: macos-dmg
-      release_event_tag: ${{ github.event.release.tag_name || '' }}
+      source_sha: ${{ needs.resolve.outputs.source_sha }}
 
   windows_installer:
     name: Windows installer
+    needs: resolve
     permissions:
       contents: read
     uses: ./.github/workflows/package-artifact.yml
     with:
       package: windows-installer
-      release_event_tag: ${{ github.event.release.tag_name || '' }}
+      source_sha: ${{ needs.resolve.outputs.source_sha }}
 
   windows_portable:
     name: Windows portable ZIP
+    needs: resolve
     permissions:
       contents: read
     uses: ./.github/workflows/package-artifact.yml
     with:
       package: windows-portable
-      release_event_tag: ${{ github.event.release.tag_name || '' }}
+      source_sha: ${{ needs.resolve.outputs.source_sha }}
 
   linux_appimage:
     name: Linux AppImage
+    needs: resolve
     permissions:
       contents: read
     uses: ./.github/workflows/package-artifact.yml
     with:
       package: linux-appimage
-      release_event_tag: ${{ github.event.release.tag_name || '' }}
+      source_sha: ${{ needs.resolve.outputs.source_sha }}
 
   publish:
     name: Attach all packages to the release
     if: ${{ github.event_name == 'release' || github.event.inputs.release_tag != '' }}
-    needs: [macos_dmg, windows_installer, windows_portable, linux_appimage]
+    needs: [resolve, macos_dmg, windows_installer, windows_portable, linux_appimage]
     permissions:
       contents: write
     uses: ./.github/workflows/publish-release-assets.yml
     with:
       release_tag: ${{ github.event.release.tag_name || github.event.inputs.release_tag || '' }}
+      source_sha: ${{ needs.resolve.outputs.source_sha }}
       artifact_pattern: package-*

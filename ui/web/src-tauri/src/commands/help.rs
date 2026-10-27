@@ -1,20 +1,5 @@
-use jps_document_io::file_exports::{publish_export_pages, ExportFormat};
-use serde::{Deserialize, Serialize};
-#[cfg(target_os = "linux")]
-use std::ffi::OsStr;
-use std::fs::{self, DirEntry};
-use std::future::Future;
-use std::io;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex as StdMutex, OnceLock};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tauri::async_runtime::Mutex;
-#[cfg(not(debug_assertions))]
-use tauri::path::BaseDirectory;
+use serde::Deserialize;
 use tauri::AppHandle;
-use tauri::Manager;
 use tauri::WebviewWindow;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -22,13 +7,26 @@ use tauri_plugin_opener::OpenerExt;
 use super::save_dialogs::{approved_save_path, confirm_replacements};
 
 const PROJECT: &str = "https://github.com/OctaveMelody/OctoPus";
-const UPDATE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
-const UPDATE_RETRY_COOLDOWN: Duration = Duration::from_secs(60);
-const MAX_UPDATE_RETRY_COOLDOWN: Duration = Duration::from_secs(60 * 60);
+#[path = "help/manual.rs"]
+mod manual;
+#[path = "help/updates.rs"]
+mod updates;
 
-static UPDATE_CHECK_CACHE: OnceLock<UpdateCheckCache> = OnceLock::new();
-static MANUAL_STAGING: OnceLock<StdMutex<Option<(PathBuf, PathBuf)>>> = OnceLock::new();
-static MANUAL_STAGING_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+#[cfg(test)]
+#[allow(unused_imports)]
+pub(crate) use manual::{
+    copy_manual_docs, copy_manual_pdf, find_matching_manual_docs, manual_docs_match,
+    manual_html_path_from_root, manual_pdf_filename, manual_staging_base, stage_manual_docs,
+};
+#[cfg(all(test, target_os = "linux"))]
+#[allow(unused_imports)]
+pub(crate) use manual::validated_appimage_docs_root;
+#[cfg(test)]
+#[allow(unused_imports)]
+pub(crate) use updates::{
+    release_status, retry_cooldown, UpdateCheckCache, UpdateCheckOutcome,
+};
+pub(crate) use updates::UpdateStatus;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -58,70 +56,14 @@ pub(crate) fn project_url(destination: &HelpDestination) -> Option<String> {
     })
 }
 
-fn manual_filename(language: &str) -> &'static str {
-    if language == "zh-CN" {
-        "zh-CN.html"
-    } else {
-        "en.html"
-    }
-}
-
-fn manual_pdf_filename(language: &str) -> &'static str {
-    if language == "zh-CN" {
-        "OctoPus-User-Manual-zh-CN.pdf"
-    } else {
-        "OctoPus-User-Manual-en.pdf"
-    }
-}
-
-fn manual_pdf_path(_app: &AppHandle, language: &str) -> Result<PathBuf, String> {
-    let filename = manual_pdf_filename(language);
-    #[cfg(debug_assertions)]
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../docs/PDF")
-        .join(filename);
-    #[cfg(not(debug_assertions))]
-    let path = _app
-        .path()
-        .resolve(
-            crate::resource_relative(&format!("docs/PDF/{filename}")),
-            BaseDirectory::Resource,
-        )
-        .map_err(|error| format!("could not locate bundled user manual PDF: {error}"))?;
-    if !path.is_file() {
-        return Err(format!(
-            "bundled user manual PDF is missing: {}",
-            path.display()
-        ));
-    }
-    Ok(path)
-}
-
-pub(crate) fn copy_manual_pdf(
-    source: &Path,
-    destination: &Path,
-    confirmed_existing: &[PathBuf],
-) -> Result<(), String> {
-    let bytes =
-        fs::read(source).map_err(|error| format!("could not read user manual PDF: {error}"))?;
-    publish_export_pages(
-        destination,
-        ExportFormat::Pdf,
-        &[&bytes],
-        confirmed_existing,
-    )
-    .map_err(|error| format!("could not save user manual PDF: {error}"))?;
-    Ok(())
-}
-
 #[tauri::command]
 pub(crate) async fn save_user_manual_pdf(
     app: AppHandle,
     window: WebviewWindow,
     language: String,
 ) -> Result<(), String> {
-    let source = manual_pdf_path(&app, &language)?;
-    let filename = manual_pdf_filename(&language).to_owned();
+    let source = manual::manual_pdf_path(&app, &language)?;
+    let filename = manual::manual_pdf_filename(&language).to_owned();
     tauri::async_runtime::spawn_blocking(move || {
         let selected = window
             .dialog()
@@ -148,280 +90,17 @@ pub(crate) async fn save_user_manual_pdf(
         } else {
             Vec::new()
         };
-        copy_manual_pdf(&source, &destination, &existing)
+        manual::copy_manual_pdf(&source, &destination, &existing)
     })
     .await
     .map_err(|error| format!("user manual save dialog failed: {error}"))?
 }
 
 fn open_manual(app: &AppHandle, language: &str) -> Result<(), String> {
-    let path = manual_html_path(app, language)?;
+    let path = manual::manual_html_path(app, language)?;
     app.opener()
         .open_path(path.to_string_lossy().into_owned(), None::<&str>)
         .map_err(|error| format!("could not open user manual: {error}"))
-}
-
-fn manual_docs_path(_app: &AppHandle) -> Result<PathBuf, String> {
-    #[cfg(debug_assertions)]
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../build/pdfjs-assets/docs");
-    #[cfg(not(debug_assertions))]
-    let path = _app
-        .path()
-        .resolve(crate::resource_relative("docs"), BaseDirectory::Resource)
-        .map_err(|error| format!("could not locate bundled user manual: {error}"))?;
-    if !path.is_dir() {
-        return Err(format!(
-            "bundled user manual resources are missing: {}",
-            path.display()
-        ));
-    }
-    Ok(path)
-}
-
-#[cfg(target_os = "linux")]
-fn path_is_beneath(path: &Path, directory: &Path) -> bool {
-    path.strip_prefix(directory)
-        .is_ok_and(|relative| !relative.as_os_str().is_empty())
-}
-
-#[cfg(target_os = "linux")]
-pub(crate) fn validated_appimage_docs_root(
-    appimage: Option<&OsStr>,
-    appdir: Option<&OsStr>,
-    executable: &Path,
-    resource_root: &Path,
-) -> Option<PathBuf> {
-    appimage?;
-    let appdir = Path::new(appdir?).canonicalize().ok()?;
-    let executable = executable.canonicalize().ok()?;
-    let resource_root = resource_root.canonicalize().ok()?;
-    if appdir.is_dir()
-        && executable.is_file()
-        && resource_root.is_dir()
-        && path_is_beneath(&executable, &appdir)
-        && path_is_beneath(&resource_root, &appdir)
-    {
-        Some(resource_root)
-    } else {
-        None
-    }
-}
-
-fn running_appimage_docs_root(resource_root: &Path) -> Option<PathBuf> {
-    #[cfg(target_os = "linux")]
-    {
-        let executable = std::env::current_exe().ok()?;
-        validated_appimage_docs_root(
-            std::env::var_os("APPIMAGE").as_deref(),
-            std::env::var_os("APPDIR").as_deref(),
-            &executable,
-            resource_root,
-        )
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _ = resource_root;
-        None
-    }
-}
-
-pub(crate) fn manual_docs_match(source: &Path, candidate: &Path) -> io::Result<bool> {
-    let source_type = fs::symlink_metadata(source)?.file_type();
-    let candidate_type = fs::symlink_metadata(candidate)?.file_type();
-    if !source_type.is_dir() || !candidate_type.is_dir() {
-        return Ok(false);
-    }
-
-    let mut source_entries = fs::read_dir(source)?.collect::<Result<Vec<DirEntry>, _>>()?;
-    let mut candidate_entries = fs::read_dir(candidate)?.collect::<Result<Vec<DirEntry>, _>>()?;
-    source_entries.sort_by_key(DirEntry::file_name);
-    candidate_entries.sort_by_key(DirEntry::file_name);
-    if source_entries.len() != candidate_entries.len() {
-        return Ok(false);
-    }
-
-    for (source_entry, candidate_entry) in source_entries.iter().zip(&candidate_entries) {
-        if source_entry.file_name() != candidate_entry.file_name() {
-            return Ok(false);
-        }
-        let source_path = source_entry.path();
-        let candidate_path = candidate_entry.path();
-        let source_type = source_entry.file_type()?;
-        let candidate_type = candidate_entry.file_type()?;
-        if source_type.is_dir() && candidate_type.is_dir() {
-            if !manual_docs_match(&source_path, &candidate_path)? {
-                return Ok(false);
-            }
-        } else if source_type.is_file() && candidate_type.is_file() {
-            if fs::read(source_path)? != fs::read(candidate_path)? {
-                return Ok(false);
-            }
-        } else {
-            return Ok(false);
-        }
-    }
-    Ok(true)
-}
-
-fn copy_directory_contents(source: &Path, destination: &Path) -> io::Result<()> {
-    let mut entries = fs::read_dir(source)?.collect::<Result<Vec<DirEntry>, _>>()?;
-    entries.sort_by_key(DirEntry::file_name);
-    for entry in entries {
-        let source_path = entry.path();
-        let destination_path = destination.join(entry.file_name());
-        let file_type = entry.file_type()?;
-        if file_type.is_dir() {
-            fs::create_dir(&destination_path)?;
-            copy_directory_contents(&source_path, &destination_path)?;
-        } else if file_type.is_file() {
-            fs::copy(&source_path, &destination_path)?;
-        } else {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "unsupported manual resource entry: {}",
-                    source_path.display()
-                ),
-            ));
-        }
-    }
-    Ok(())
-}
-
-pub(crate) fn copy_manual_docs(source: &Path, destination: &Path) -> io::Result<()> {
-    if !source.is_dir() {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            format!("manual resource directory is missing: {}", source.display()),
-        ));
-    }
-    fs::create_dir(destination)?;
-    if let Err(error) = copy_directory_contents(source, destination) {
-        return match fs::remove_dir_all(destination) {
-            Ok(()) => Err(error),
-            Err(cleanup_error) => Err(io::Error::new(
-                cleanup_error.kind(),
-                format!("{error}; could not remove incomplete manual copy: {cleanup_error}"),
-            )),
-        };
-    }
-    Ok(())
-}
-
-pub(crate) fn manual_staging_base(home_dir: &Path) -> PathBuf {
-    home_dir.join("Downloads").join(".octopus.tmp")
-}
-
-pub(crate) fn find_matching_manual_docs(
-    source: &Path,
-    staging_base: &Path,
-) -> io::Result<Option<PathBuf>> {
-    let mut entries = fs::read_dir(staging_base)?.collect::<Result<Vec<DirEntry>, _>>()?;
-    entries.sort_by_key(DirEntry::file_name);
-    for entry in entries {
-        if !entry
-            .file_name()
-            .to_string_lossy()
-            .starts_with("octopus-manual-")
-            || !entry.file_type()?.is_dir()
-        {
-            continue;
-        }
-        let candidate = entry.path();
-        if manual_docs_match(source, &candidate).unwrap_or(false) {
-            return Ok(Some(candidate));
-        }
-    }
-    Ok(None)
-}
-
-fn manual_staging_candidate(base: &Path) -> PathBuf {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    let sequence = MANUAL_STAGING_SEQUENCE.fetch_add(1, Ordering::Relaxed);
-    base.join(format!(
-        "octopus-manual-{}-{timestamp}-{sequence}",
-        std::process::id()
-    ))
-}
-
-pub(crate) fn stage_manual_docs(source: &Path, home_dir: &Path) -> Result<PathBuf, String> {
-    let source = source
-        .canonicalize()
-        .map_err(|error| format!("could not locate bundled manual resources: {error}"))?;
-    let base = manual_staging_base(home_dir);
-    fs::create_dir_all(&base).map_err(|error| {
-        format!(
-            "could not create user manual staging directory {}: {error}",
-            base.display()
-        )
-    })?;
-    let cache = MANUAL_STAGING.get_or_init(|| StdMutex::new(None));
-    let mut cached = cache.lock().unwrap_or_else(|error| error.into_inner());
-    if let Some((cached_source, cached_destination)) = cached.as_ref() {
-        if cached_source == &source
-            && cached_destination.is_dir()
-            && cached_destination.join("user-manual/en.html").is_file()
-        {
-            return Ok(cached_destination.clone());
-        }
-    }
-    *cached = None;
-    if let Some(destination) = find_matching_manual_docs(&source, &base).map_err(|error| {
-        format!(
-            "could not scan prior user manual copies in {}: {error}",
-            base.display()
-        )
-    })? {
-        *cached = Some((source, destination.clone()));
-        return Ok(destination);
-    }
-
-    for _ in 0..16 {
-        let destination = manual_staging_candidate(&base);
-        match copy_manual_docs(&source, &destination) {
-            Ok(()) => {
-                *cached = Some((source, destination.clone()));
-                return Ok(destination);
-            }
-            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
-            Err(error) => {
-                return Err(format!(
-                    "could not stage bundled user manual under {}: {error}",
-                    base.display()
-                ));
-            }
-        }
-    }
-    Err("could not create a unique user manual staging directory".into())
-}
-
-pub(crate) fn manual_html_path_from_root(resource_root: &Path, language: &str) -> PathBuf {
-    resource_root
-        .join("user-manual")
-        .join(manual_filename(language))
-}
-
-fn manual_html_path(app: &AppHandle, language: &str) -> Result<PathBuf, String> {
-    let resource_root = manual_docs_path(app)?;
-    let path = if let Some(appimage_root) = running_appimage_docs_root(&resource_root) {
-        let home_dir = app
-            .path()
-            .home_dir()
-            .map_err(|error| format!("could not locate user home for manual staging: {error}"))?;
-        manual_html_path_from_root(&stage_manual_docs(&appimage_root, &home_dir)?, language)
-    } else {
-        manual_html_path_from_root(&resource_root, language)
-    };
-    if !path.is_file() {
-        return Err(format!(
-            "bundled user manual is missing: {}",
-            path.display()
-        ));
-    }
-    Ok(path)
 }
 
 #[tauri::command]
@@ -610,195 +289,8 @@ mod tests {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub(crate) struct UpdateStatus {
-    pub(crate) status: &'static str,
-    pub(crate) current_version: String,
-    pub(crate) latest_version: Option<String>,
-}
-
-pub(crate) struct UpdateCheckOutcome {
-    pub(crate) result: Result<UpdateStatus, String>,
-    pub(crate) ttl: Duration,
-}
-
-impl UpdateCheckOutcome {
-    pub(crate) fn new(result: Result<UpdateStatus, String>) -> Self {
-        let ttl = if result.is_ok() {
-            UPDATE_CACHE_TTL
-        } else {
-            UPDATE_RETRY_COOLDOWN
-        };
-        Self { result, ttl }
-    }
-}
-
-struct CachedUpdateCheck {
-    current_version: String,
-    expires_at: Instant,
-    result: Result<UpdateStatus, String>,
-}
-
-#[derive(Default)]
-pub(crate) struct UpdateCheckCache {
-    entry: Mutex<Option<CachedUpdateCheck>>,
-}
-
-impl UpdateCheckCache {
-    pub(crate) async fn check<F, Fut, Clock>(
-        &self,
-        current: &str,
-        now: Clock,
-        fetch: F,
-    ) -> Result<UpdateStatus, String>
-    where
-        F: FnOnce() -> Fut,
-        Fut: Future<Output = UpdateCheckOutcome>,
-        Clock: Fn() -> Instant,
-    {
-        // Keep the lock while fetching so concurrent commands share one completed outcome.
-        let mut entry = self.entry.lock().await;
-        if let Some(cached) = entry.as_ref() {
-            if cached.current_version == current && now() < cached.expires_at {
-                return cached.result.clone();
-            }
-        }
-        let outcome = fetch().await;
-        *entry = Some(CachedUpdateCheck {
-            current_version: current.into(),
-            expires_at: now() + outcome.ttl.min(MAX_UPDATE_RETRY_COOLDOWN),
-            result: outcome.result.clone(),
-        });
-        outcome.result
-    }
-}
-
-pub(crate) fn retry_cooldown(
-    status: reqwest::StatusCode,
-    headers: &reqwest::header::HeaderMap,
-    now: SystemTime,
-) -> Duration {
-    // GitHub documents Retry-After as seconds and primary reset as Unix seconds.
-    let retry_after = headers
-        .get(reqwest::header::RETRY_AFTER)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<u64>().ok())
-        .unwrap_or(0);
-    let reset = if matches!(status.as_u16(), 403 | 429)
-        && headers
-            .get("x-ratelimit-remaining")
-            .is_some_and(|value| value == "0")
-    {
-        headers
-            .get("x-ratelimit-reset")
-            .and_then(|value| value.to_str().ok())
-            .and_then(|value| value.parse::<u64>().ok())
-            .map(|reset| {
-                reset.saturating_sub(now.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs())
-            })
-            .unwrap_or(0)
-    } else {
-        0
-    };
-    Duration::from_secs(retry_after.max(reset))
-        .max(UPDATE_RETRY_COOLDOWN)
-        .min(MAX_UPDATE_RETRY_COOLDOWN)
-}
-
-#[derive(Deserialize)]
-struct Release {
-    tag_name: String,
-    draft: bool,
-    prerelease: bool,
-}
-
-pub(crate) fn release_status(bytes: &[u8], current: &str) -> Result<UpdateStatus, String> {
-    let release: Release = serde_json::from_slice(bytes).map_err(|_| "invalid release response")?;
-    if release.draft || release.prerelease || release.tag_name.len() > 128 {
-        return Err("latest release response is not a stable release".into());
-    }
-    let version = semver::Version::parse(
-        release
-            .tag_name
-            .strip_prefix('v')
-            .unwrap_or(&release.tag_name),
-    );
-    let installed = semver::Version::parse(current).map_err(|_| "invalid installed version")?;
-    let status = match version {
-        Ok(latest) if latest > installed => "available",
-        Ok(_) => "up_to_date",
-        Err(_) => "unknown_version",
-    };
-    Ok(UpdateStatus {
-        status,
-        current_version: current.into(),
-        latest_version: Some(release.tag_name),
-    })
-}
-
 #[tauri::command]
 pub(crate) async fn check_for_update(app: AppHandle) -> Result<UpdateStatus, String> {
     let current = app.package_info().version.to_string();
-    UPDATE_CHECK_CACHE
-        .get_or_init(UpdateCheckCache::default)
-        .check(&current, Instant::now, || fetch_update(&current))
-        .await
-}
-
-async fn fetch_update(current: &str) -> UpdateCheckOutcome {
-    let mut retry_ttl = None;
-    let result = fetch_release(current, &mut retry_ttl).await;
-    let mut outcome = UpdateCheckOutcome::new(result);
-    if let Some(ttl) = retry_ttl {
-        outcome.ttl = ttl;
-    }
-    outcome
-}
-
-async fn fetch_release(
-    current: &str,
-    retry_ttl: &mut Option<Duration>,
-) -> Result<UpdateStatus, String> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(10))
-        .redirect(reqwest::redirect::Policy::none())
-        .user_agent(format!("OctoPus/{current}"))
-        .build()
-        .map_err(|error| format!("could not start update check: {error}"))?;
-    let mut response = client
-        .get("https://api.github.com/repos/OctaveMelody/OctoPus/releases/latest")
-        .header("Accept", "application/vnd.github+json")
-        .send()
-        .await
-        .map_err(|error| format!("update check failed: {error}"))?;
-    if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return Ok(UpdateStatus {
-            status: "unavailable",
-            current_version: current.into(),
-            latest_version: None,
-        });
-    }
-    if !response.status().is_success() {
-        *retry_ttl = Some(retry_cooldown(
-            response.status(),
-            response.headers(),
-            SystemTime::now(),
-        ));
-        return Err(format!(
-            "update server returned HTTP {}",
-            response.status().as_u16()
-        ));
-    }
-    let mut bytes = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|error| format!("could not read release: {error}"))?
-    {
-        if bytes.len() + chunk.len() > 65536 {
-            return Err("release response is too large".into());
-        }
-        bytes.extend_from_slice(&chunk);
-    }
-    release_status(&bytes, current)
+    updates::check(&current).await
 }

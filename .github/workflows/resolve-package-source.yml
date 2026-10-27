@@ -1,0 +1,54 @@
+name: Resolve one desktop package source
+
+on:
+  workflow_call:
+    inputs:
+      release_event_tag:
+        description: Release tag supplied by a published-release event
+        required: false
+        type: string
+        default: ""
+      source_ref:
+        description: Optional branch, tag, or commit to build
+        required: false
+        type: string
+        default: ""
+    outputs:
+      source_sha:
+        description: Immutable commit SHA selected for this package run
+        value: ${{ jobs.resolve.outputs.source_sha }}
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Select one package source
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.resolve.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: workflow-source
+          fetch-depth: 1
+      - name: Resolve the release event, requested ref, or nearest published release
+        id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_EVENT_TAG: ${{ inputs.release_event_tag }}
+          SOURCE_REF: ${{ inputs.source_ref }}
+          SELECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python "$GITHUB_WORKSPACE/workflow-source/scripts/resolve_package_source.py" \
+            --repository "$GITHUB_WORKSPACE" \
+            --selected-sha "$SELECTED_SHA" \
+            --release-event-tag "$RELEASE_EVENT_TAG" \
+            --source-ref "$SOURCE_REF"

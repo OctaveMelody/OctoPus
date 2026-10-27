@@ -15,7 +15,7 @@ from octopus.render.core.layout_types import LayoutPage
 from octopus.render.svg import render_score_model_page_with_layout
 
 from .components import Box
-from .image import MusicRow, PageObservation
+from .observations import MusicRow, PageObservation
 from .results import RowBinding, finite_confidence
 
 LOW_NOTE_CONFIDENCE = 0.90

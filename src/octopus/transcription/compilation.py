@@ -9,10 +9,10 @@ from statistics import median
 
 from .decorations import decoration_token, score_text_kind
 from .headers import HeaderResult, extract_headers
-from .image import MusicRow, PageObservation
 from .lyrics import _is_lyric_text, extract_lyrics
 from .margins import filter_document_margins
 from .marks import row_sustains
+from .observations import MusicRow, PageObservation
 from .results import Draft, Issue, RowBinding
 from .text import TextSpan
 

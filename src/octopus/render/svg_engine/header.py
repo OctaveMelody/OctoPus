@@ -8,6 +8,7 @@ from decimal import Decimal
 from ..core.elements import SvgElement
 from ..core.glyphs import get_key_glyphs, get_time_signature_glyphs
 from ..core.layout_types import LayoutPage
+from .primitives import use_element as _use_element
 
 
 def _attrs(*items: tuple[str, object | None]) -> tuple[tuple[str, str], ...]:
@@ -24,33 +25,6 @@ def _dy(coefficient: float, size: int) -> str:
 # they use a fixed 16 px (19 px when the lyric font is KaiTi).
 HEADER_TEXT_SIZE = 16
 KAITI_TEXT_SIZE = 19
-
-
-def _use_element(
-    glyph_id: str,
-    *,
-    x: str | float,
-    y: str | float,
-    layer: str,
-    source_event_index: int | None = None,
-    construct_ids: tuple[str, ...] = (),
-    synthetic: bool = False,
-    extra_attrs: tuple[tuple[str, str], ...] = (),
-) -> SvgElement:
-    return SvgElement(
-        tag="use",
-        layer=layer,
-        source_event_index=source_event_index,
-        attrs=(
-            ("x", str(x)),
-            ("y", str(y)),
-            ("xlink:href", f"#{glyph_id}"),
-            *extra_attrs,
-            ("xmlns:xlink", "http://www.w3.org/1999/xlink"),
-        ),
-        construct_ids=construct_ids,
-        synthetic=synthetic,
-    )
 
 
 def _text_element(

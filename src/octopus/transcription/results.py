@@ -6,8 +6,8 @@ import json
 import math
 from dataclasses import asdict, dataclass
 
-from .image import PageObservation
 from .lyrics import LyricDraft
+from .observations import PageObservation
 
 
 def finite_confidence(value: float) -> float:

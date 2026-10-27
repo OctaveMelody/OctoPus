@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import re
 from fractions import Fraction
 
 from ...model.model_normalize import MusicEvent
 from ...parser.ast import MusicTokenKind
 from ..layout_engine.streams import meter_beat_duration
 from ..layout_engine.visibility import is_bz_placeholder_event
+from .annotations import _inline_time_signature
 from .elements import SvgElement, _format_reference_number
-from .layout_types import LayoutEvent, LayoutMark, LayoutPage
+from .layout_types import LayoutEvent, LayoutPage
 
 MAX_DURATION_LINE_LEVEL = 4
 
@@ -399,11 +399,3 @@ def _flush_duration_group(parts: list[SvgElement], group: list[LayoutEvent]) -> 
         if run:
             parts.append(_duration_line(run, level))
     group.clear()
-
-
-def _inline_time_signature(mark: LayoutMark) -> tuple[str, str] | None:
-    if mark.event.kind != MusicTokenKind.ANNOTATION:
-        return None
-    value = (mark.event.value or mark.event.raw.strip('"')).strip()
-    match = re.fullmatch(r"p:(\d+)/(\d+)", value)
-    return (match.group(1), match.group(2)) if match else None

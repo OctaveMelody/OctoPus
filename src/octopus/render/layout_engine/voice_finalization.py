@@ -234,7 +234,7 @@ def _finalize_layout_voice(
         hidden_events,
     )
     layout.events.extend(tail_barlines)
-    reconcile_hidden_rest_slots(layout.events, laid_out, tail_barlines)
+    reconcile_hidden_rest_slots(layout.events, laid_out, tail_barlines, system=system)
     if len(system.voices) == 1:
         max_voice_y = max(max_voice_y, voice_y)
     if len(system.voices) == 1:

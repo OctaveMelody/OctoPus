@@ -7,6 +7,7 @@ from octopus.render.layout_engine.hidden.hidden_streams import hidden_dsb_stream
 
 from ....parser.ast import MusicTokenKind
 from ..streams import dsb_stream_beat_unit
+from .dsb_union_common import _measure_groups
 from .overlapping_dsb_widths import overlapping_dsb_topology
 from .projection import SharedProjectionPlan
 
@@ -55,19 +56,6 @@ def apply_overlapping_dsb_hidden_accidental_release(
             for item in group:
                 item.x += delta
                 item.style_x = item.x
-
-
-def _measure_groups(items: list[LayoutEvent]) -> list[list[LayoutEvent]]:
-    groups: list[list[LayoutEvent]] = []
-    current: list[LayoutEvent] = []
-    for item in items:
-        current.append(item)
-        if item.event.kind == MusicTokenKind.BARLINE:
-            groups.append(current)
-            current = []
-    if current:
-        groups.append(current)
-    return groups
 
 
 __all__ = ["apply_overlapping_dsb_hidden_accidental_release"]

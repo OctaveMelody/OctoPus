@@ -8,7 +8,7 @@ from statistics import linear_regression, median
 
 from .components import Box
 from .decorations import score_text_kind
-from .image import MusicRow, PageObservation
+from .observations import MusicRow, PageObservation
 from .text import MIN_TEXT_SPAN_CONFIDENCE, TextSpan
 
 _DYNAMICS = {

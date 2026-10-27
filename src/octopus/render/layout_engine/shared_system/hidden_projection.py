@@ -12,6 +12,7 @@ from ..hidden.hidden_streams import event_duration_fraction, hidden_dsb_stream_g
 from ..intrinsic.builder import build_legacy_intrinsic_profile
 from ..streams import dsb_stream_beat_unit, first_meter
 from .dsb_gap_reserves import two_owner_trailing_dsb_topology
+from .dsb_union_common import _measure_groups
 from .overlapping_dsb_hidden import apply_overlapping_dsb_hidden_accidental_release
 from .projection import SharedProjectionPlan
 
@@ -439,19 +440,6 @@ def _ghost_clears_bare_zone_start(
         for row in plan.request.rows
         for item in row
     )
-
-
-def _measure_groups(items: list[LayoutEvent]) -> list[list[LayoutEvent]]:
-    groups: list[list[LayoutEvent]] = []
-    current: list[LayoutEvent] = []
-    for item in items:
-        current.append(item)
-        if item.event.kind == MusicTokenKind.BARLINE:
-            groups.append(current)
-            current = []
-    if current:
-        groups.append(current)
-    return groups
 
 
 def _project_measure(

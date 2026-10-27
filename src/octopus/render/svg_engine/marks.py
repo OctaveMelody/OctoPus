@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import re
-
 from octopus.normalization.types import MusicEvent
 
 from ...parser.ast import MusicTokenKind
+from ..core.annotations import _inline_time_signature
 from ..core.elements import RenderElement, SvgElement, _format_reference_number
 from ..core.glyphs import get_decoration_glyph
 from ..core.layout_types import GEOMETRY_EPSILON, LayoutEvent, LayoutMark, LayoutPage
@@ -121,14 +120,6 @@ def _is_standalone_glyph_decoration_mark(mark: LayoutMark) -> bool:
         and get_decoration_glyph(mark.event.decorations[0]) is not None
         and not is_dynamic_decoration(mark.event.decorations[0])
     )
-
-
-def _inline_time_signature(mark: LayoutMark) -> tuple[str, str] | None:
-    if mark.event.kind != MusicTokenKind.ANNOTATION:
-        return None
-    value = (mark.event.value or mark.event.raw.strip('"')).strip()
-    match = re.fullmatch(r"p:(\d+)/(\d+)", value)
-    return (match.group(1), match.group(2)) if match else None
 
 
 def _inline_time_signature_elements(

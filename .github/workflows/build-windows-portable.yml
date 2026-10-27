@@ -16,22 +16,31 @@ permissions:
   contents: read
 
 jobs:
+  resolve:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/resolve-package-source.yml
+    with:
+      source_ref: ${{ inputs.source_ref }}
+
   package:
     name: Build Windows x64 portable ZIP
+    needs: resolve
     permissions:
       contents: read
     uses: ./.github/workflows/package-artifact.yml
     with:
       package: windows-portable
-      source_ref: ${{ github.event.inputs.source_ref }}
+      source_sha: ${{ needs.resolve.outputs.source_sha }}
 
   publish:
     name: Attach the portable ZIP to the release
     if: ${{ github.event.inputs.release_tag != '' }}
-    needs: package
+    needs: [resolve, package]
     permissions:
       contents: write
     uses: ./.github/workflows/publish-release-assets.yml
     with:
       release_tag: ${{ github.event.inputs.release_tag }}
+      source_sha: ${{ needs.resolve.outputs.source_sha }}
       artifact_pattern: package-windows-portable

@@ -7,7 +7,7 @@ import unicodedata
 from dataclasses import dataclass, replace
 from statistics import median
 
-from .image import MusicRow
+from .observations import MusicRow
 from .text import MIN_TEXT_SPAN_CONFIDENCE, TextSpan
 
 _DIRECTION_CODES = {
