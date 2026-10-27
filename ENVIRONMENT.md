@@ -131,11 +131,12 @@ Linux/macOS or `py scripts/build_portable.py` on Windows. Use `--bundles appimag
 To build only a Windows installer while retaining portable-tree smoke checks, add
 `--no-portable-zip`. GitHub Actions provides independent manual workflows for macOS DMG, Windows
 installer, Windows portable ZIP, and Linux AppImage builds, plus an all-in-one workflow that also
-runs for published releases. Manual runs use the selected commit if it matches a published release
-tag; otherwise they use the nearest earlier published release tag in that commit's history. The
-macOS DMG workflow accepts an optional `source_ref` branch, tag, or commit to build directly. The
-optional `release_tag` input attaches the generated package to an existing GitHub release. macOS
-builds target Apple Silicon and declare macOS 11.0 as the minimum version.
+runs for published releases. Each individual manual workflow accepts an optional `source_ref`
+branch, tag, or commit to build directly. Without it, manual runs use the selected commit if it
+matches a published release tag; otherwise they use the nearest earlier published release tag in
+that commit's history. The all-in-one manual workflow has no `source_ref` input. The optional
+`release_tag` selects the destination release, not the build source; verify that they match before
+uploading. macOS builds target Apple Silicon and declare macOS 11.0 as the minimum version.
 Omitting `--bundles` selects portable-only mode. The launcher uses the pinned repository
 environment; the builder checks Python, Node/npm, Rust/Cargo, Tauri CLI, and native system
 prerequisites before beginning the build. It builds the frontend and worker first, then invokes

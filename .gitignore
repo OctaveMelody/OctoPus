@@ -11,3 +11,6 @@ __pycache__/
 
 # Generated ONNX Runtime session cache
 :memory:.ses*
+
+# Local CodeGraph index
+/.codegraph/

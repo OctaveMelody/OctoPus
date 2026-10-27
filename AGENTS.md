@@ -120,11 +120,13 @@ under `dist\<target-triple>\`; build intermediates are under `build\`. Keep the 
 macOS builds run natively on Apple Silicon with `--bundles dmg` and produce
 `OctoPus_{version}_arm64_macos.dmg`. The production `desktop-packages` workflow builds all packages
 on published releases and supports manual dispatch. Separate manual workflows build the macOS DMG,
-Windows installer, Windows portable ZIP, and Linux AppImage. Manual dispatch uses the selected
-commit when it matches a published release tag, otherwise it falls back to the nearest earlier
-published release tag in that commit's history. An optional release tag attaches artifacts to an
-existing release. The macOS DMG workflow also accepts an optional `source_ref` branch, tag, or
-commit to build directly. The Windows installer workflow skips the portable ZIP. macOS DMGs are
+Windows installer, Windows portable ZIP, and Linux AppImage. Each individual manual workflow accepts
+an optional `source_ref` branch, tag, or commit to build directly. Without it, manual dispatch uses
+the selected commit when it matches a published release tag, otherwise it falls back to the nearest
+earlier published release tag in that commit's history. The all-in-one manual workflow has no
+`source_ref` input. An optional `release_tag` attaches artifacts to an existing release; it selects
+the destination, not the source, so verify that the selected source matches that release. The
+Windows installer workflow skips the portable ZIP. macOS DMGs are
 validated before upload and are currently unsigned and not notarized.
 Use `scripts/build_portable.py`, not `cargo tauri build` directly. The launcher finds the
 repository and its virtual environment regardless of the current directory. The production
