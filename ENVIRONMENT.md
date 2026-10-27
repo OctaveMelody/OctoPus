@@ -133,6 +133,7 @@ To build only a Windows installer while retaining portable-tree smoke checks, ad
 installer, Windows portable ZIP, and Linux AppImage builds, plus an all-in-one workflow that also
 runs for published releases. Manual runs use the selected commit if it matches a published release
 tag; otherwise they use the nearest earlier published release tag in that commit's history. The
+macOS DMG workflow accepts an optional `source_ref` branch, tag, or commit to build directly. The
 optional `release_tag` input attaches the generated package to an existing GitHub release. macOS
 builds target Apple Silicon and declare macOS 11.0 as the minimum version.
 Omitting `--bundles` selects portable-only mode. The launcher uses the pinned repository

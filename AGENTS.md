@@ -123,8 +123,9 @@ on published releases and supports manual dispatch. Separate manual workflows bu
 Windows installer, Windows portable ZIP, and Linux AppImage. Manual dispatch uses the selected
 commit when it matches a published release tag, otherwise it falls back to the nearest earlier
 published release tag in that commit's history. An optional release tag attaches artifacts to an
-existing release. The Windows installer workflow skips the portable ZIP. macOS DMGs are validated
-before upload and are currently unsigned and not notarized.
+existing release. The macOS DMG workflow also accepts an optional `source_ref` branch, tag, or
+commit to build directly. The Windows installer workflow skips the portable ZIP. macOS DMGs are
+validated before upload and are currently unsigned and not notarized.
 Use `scripts/build_portable.py`, not `cargo tauri build` directly. The launcher finds the
 repository and its virtual environment regardless of the current directory. The production
 builder discovers tools through `PATH` (and initializes Visual Studio on Windows), verifies
