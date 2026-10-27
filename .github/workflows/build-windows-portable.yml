@@ -3,6 +3,10 @@ name: Build Windows portable ZIP
 on:
   workflow_dispatch:
     inputs:
+      source_ref:
+        description: Branch, tag, or commit to build; empty uses the nearest published release
+        required: false
+        type: string
       release_tag:
         description: Existing release tag to attach this package to; leave empty for a workflow artifact only
         required: false
@@ -19,6 +23,7 @@ jobs:
     uses: ./.github/workflows/package-artifact.yml
     with:
       package: windows-portable
+      source_ref: ${{ github.event.inputs.source_ref }}
 
   publish:
     name: Attach the portable ZIP to the release
