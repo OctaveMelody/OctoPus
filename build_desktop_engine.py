@@ -68,6 +68,8 @@ def _validate_target_triple(
         )
     build_platform = python_platform or sysconfig.get_platform()
     python_arch = _normalized_architecture(build_platform.split("-")[-1])
+    if expected_system == "Darwin" and python_arch == "universal2":
+        python_arch = _normalized_architecture(platform.machine())
     if _normalized_architecture(target_arch) != python_arch:
         raise RuntimeError(
             f"Python architecture {python_arch} does not match Tauri target {target_triple}"

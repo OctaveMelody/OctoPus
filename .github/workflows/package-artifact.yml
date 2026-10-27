@@ -12,6 +12,11 @@ on:
         required: false
         type: string
         default: ""
+      source_ref:
+        description: Optional branch, tag, or commit to build
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -21,7 +26,7 @@ jobs:
     name: Select a published release source
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.resolve.outputs.tag }}
+      source_sha: ${{ steps.resolve.outputs.source_sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,6 +38,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_EVENT_TAG: ${{ inputs.release_event_tag }}
+          SOURCE_REF: ${{ inputs.source_ref }}
         run: |
           set -euo pipefail
           selected_sha="$(git rev-parse HEAD)"
@@ -47,6 +53,22 @@ jobs:
               exit 1
             fi
             source_tag="$RELEASE_EVENT_TAG"
+            source_description="published release tag $source_tag"
+          elif [[ -n "$SOURCE_REF" ]]; then
+            source_sha=""
+            for candidate_ref in \
+              "refs/remotes/origin/${SOURCE_REF#origin/}" \
+              "refs/tags/$SOURCE_REF" \
+              "$SOURCE_REF"; do
+              if source_sha="$(git rev-parse --verify --end-of-options "${candidate_ref}^{commit}" 2>/dev/null)"; then
+                break
+              fi
+            done
+            if [[ -z "$source_sha" ]]; then
+              echo "Requested source ref does not resolve to a commit: $SOURCE_REF" >&2
+              exit 1
+            fi
+            source_description="requested ref $SOURCE_REF"
           else
             releases_json="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 \
               --exclude-drafts --order desc --json tagName,publishedAt)"
@@ -80,13 +102,14 @@ jobs:
               echo "No published release tag matches $selected_sha or precedes it in its history." >&2
               exit 1
             fi
+            source_description="nearest published release tag $source_tag"
           fi
 
-          echo "tag=$source_tag" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
           {
             echo "### Package source"
-            echo "Using published release tag **$source_tag** at \`$source_sha\`."
-            if [[ "$source_sha" != "$selected_sha" ]]; then
+            echo "Using $source_description at \`$source_sha\`."
+            if [[ -z "$SOURCE_REF" && -z "$RELEASE_EVENT_TAG" && "$source_sha" != "$selected_sha" ]]; then
               echo "The selected commit was untagged; this run fell back to the nearest earlier published release tag."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
@@ -106,7 +129,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.resolve-source.outputs.tag }}
+          ref: ${{ needs.resolve-source.outputs.source_sha }}
           fetch-depth: 0
       - name: Validate package selection
         shell: bash
@@ -144,6 +167,10 @@ jobs:
         run: cargo install tauri-cli --version 2.11.5 --locked
       - name: Install locked production build dependencies
         run: uv sync --locked --extra desktop-build --extra transcription
+      - name: Prepare pinned OCR models
+        run: >-
+          uv run --project . --locked --extra desktop-build --extra transcription
+          python scripts/prepare_ocr_models.py
       - name: Build and validate macOS DMG
         if: ${{ inputs.package == 'macos-dmg' }}
         run: >-
