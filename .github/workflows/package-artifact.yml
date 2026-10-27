@@ -167,6 +167,10 @@ jobs:
         run: cargo install tauri-cli --version 2.11.5 --locked
       - name: Install locked production build dependencies
         run: uv sync --locked --extra desktop-build --extra transcription
+      - name: Prepare pinned OCR models
+        run: >-
+          uv run --project . --locked --extra desktop-build --extra transcription
+          python scripts/prepare_ocr_models.py
       - name: Build and validate macOS DMG
         if: ${{ inputs.package == 'macos-dmg' }}
         run: >-
