@@ -7,6 +7,10 @@ on:
         description: Existing release tag to attach this package to; leave empty for a workflow artifact only
         required: false
         type: string
+      source_ref:
+        description: Branch, tag, or commit to build; leave empty to use the nearest published release
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -19,6 +23,7 @@ jobs:
     uses: ./.github/workflows/package-artifact.yml
     with:
       package: macos-dmg
+      source_ref: ${{ inputs.source_ref }}
 
   publish:
     name: Attach the DMG to the release
