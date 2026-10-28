@@ -5,11 +5,11 @@ OctoPus bundles OCR components with its desktop worker. The complete Apache Lice
 
 ## RapidOCR and bundled OCR models
 
-The **RapidOCR + ONNX** provider packages RapidOCR 3.9.2 and its default ONNX models.
+The **RapidOCR + ONNX** provider packages RapidOCR 3.10.0 and its default ONNX models.
 The RapidOCR project identifies its engineering code as Apache-2.0 and states that the bundled
 OCR models originate from PaddleOCR; the model copyright belongs to Baidu and/or the applicable
-PaddleOCR rights holders. RapidOCR's tagged 3.9.2 README records those attributions, and the
-current upstream model-license notice documents the applicable model terms. The default models
+PaddleOCR rights holders. RapidOCR's 3.10.0 README and model-license notice record those
+attributions and document the applicable model terms. The default models
 in the pinned wheel are:
 
 | Bundled model | SHA-256 |
@@ -20,9 +20,9 @@ in the pinned wheel are:
 
 RapidOCR source and release references:
 
-- [RapidOCR 3.9.2 README and project license](https://github.com/RapidAI/RapidOCR/blob/v3.9.2/README.md)
-- [RapidOCR model license and attribution notice](https://github.com/RapidAI/RapidOCR/blob/main/python/MODEL_LICENSES.md)
-- [RapidOCR 3.9.2 default ONNX model registry](https://github.com/RapidAI/RapidOCR/blob/v3.9.2/python/rapidocr/default_models.yaml)
+- [RapidOCR 3.10.0 README and project license](https://github.com/RapidAI/RapidOCR/blob/v3.10.0/README.md)
+- [RapidOCR 3.10.0 model license and attribution notice](https://github.com/RapidAI/RapidOCR/blob/v3.10.0/python/MODEL_LICENSES.md)
+- [RapidOCR 3.10.0 default ONNX model registry](https://github.com/RapidAI/RapidOCR/blob/v3.10.0/python/rapidocr/default_models.yaml)
 - [PaddleOCR upstream](https://github.com/PaddlePaddle/PaddleOCR)
 
 ## ONNX Runtime

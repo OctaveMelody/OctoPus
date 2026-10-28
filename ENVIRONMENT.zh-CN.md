@@ -34,7 +34,7 @@ Linux 使用 `python3 scripts/setup.py`，Windows 使用 `py scripts/setup.py` �
 - 原生引擎构建使用 Python 3.12（`.python-version`）；Python 源码支持 3.11+。
 - Python 运行与导出依赖：`pyproject.toml` 和 `uv.lock`。
 - OCR：`transcription` 可选依赖组提供唯一的本地离线 RapidOCR + ONNX 引擎，使用
-  `rapidocr==3.9.2` 和 `onnxruntime==1.30.0`。工作进程和界面直接使用该引擎，不提供
+  `rapidocr==3.10.0` 和 `onnxruntime==1.30.0`。工作进程和界面直接使用该引擎，不提供
   后端切换设置。
 - 引擎冻结打包：`desktop-build` 可选依赖组，PyInstaller 6.22.3。
 - Node.js 22.23.3（`.node-version`）、npm 10.9.9（`.npm-version`）；前端锁定文件为
