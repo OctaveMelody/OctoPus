@@ -128,6 +128,8 @@ selected commit's history. An optional `release_tag` attaches artifacts only whe
 the same source commit; mismatches are rejected before upload. The Windows installer workflow skips
 the portable ZIP. macOS DMGs are
 validated before upload and are currently unsigned and not notarized.
+GitHub workflow artifacts use the canonical package filename without its extension; GitHub's
+downloaded artifact archive adds `.zip` to that package stem.
 Use `scripts/build_portable.py`, not `cargo tauri build` directly. The launcher finds the
 repository and its virtual environment regardless of the current directory. The production
 builder discovers tools through `PATH` (and initializes Visual Studio on Windows), verifies

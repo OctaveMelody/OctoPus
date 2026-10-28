@@ -129,7 +129,17 @@ jobs:
             linux-appimage) path='dist/*/OctoPus_*_x64_linux.AppImage' ;;
             *) echo "Unsupported package: $PACKAGE" >&2; exit 1 ;;
           esac
-          echo "path=$path" >> "$GITHUB_OUTPUT"
+          shopt -s nullglob
+          packages=( $path )
+          if (( ${#packages[@]} != 1 )); then
+            echo "Expected exactly one package for $PACKAGE, found ${#packages[@]}" >&2
+            exit 1
+          fi
+          filename=${packages[0]##*/}
+          # GitHub appends .zip to downloads, so keep the canonical package filename stem here.
+          artifact_name=${filename%.*}
+          echo "path=${packages[0]}" >> "$GITHUB_OUTPUT"
+          echo "name=$artifact_name" >> "$GITHUB_OUTPUT"
       - name: Exercise the packaged worker
         if: ${{ inputs.package != 'macos-dmg' }}
         shell: bash
@@ -148,6 +158,6 @@ jobs:
             --source-root "$GITHUB_WORKSPACE"
       - uses: actions/upload-artifact@v4
         with:
-          name: package-${{ inputs.package }}
+          name: ${{ steps.artifact.outputs.name }}
           path: ${{ steps.artifact.outputs.path }}
           if-no-files-found: error

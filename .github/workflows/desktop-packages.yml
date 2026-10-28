@@ -80,4 +80,4 @@ jobs:
     with:
       release_tag: ${{ github.event.release.tag_name || github.event.inputs.release_tag || '' }}
       source_sha: ${{ needs.resolve.outputs.source_sha }}
-      artifact_pattern: package-*
+      artifact_pattern: "OctoPus_*"

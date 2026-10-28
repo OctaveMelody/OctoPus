@@ -43,4 +43,4 @@ jobs:
     with:
       release_tag: ${{ github.event.inputs.release_tag }}
       source_sha: ${{ needs.resolve.outputs.source_sha }}
-      artifact_pattern: package-macos-dmg
+      artifact_pattern: "OctoPus_*_arm64_macos"
