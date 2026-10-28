@@ -17,7 +17,7 @@ from typing import TypedDict
 
 from octopus.assets import fonts as font_assets
 
-from .system_fonts import font_face, mac_font_roots
+from .system_fonts import font_face, mac_font_assets, mac_font_roots
 
 _SVG_TAG = re.compile(r"<(?:[^>\"']|\"[^\"]*\"|'[^']*')+>")
 _ATTRIBUTE = re.compile(r"([\w:-]+)(\s*=\s*)([\"'])(.*?)(\3)", re.DOTALL)
@@ -191,6 +191,13 @@ def system_font_path(family: str) -> Path | None:
                             return path
                     except (OSError, ValueError):
                         continue
+        for path in mac_font_assets(filenames):
+            if path.is_file():
+                try:
+                    if font_face(path, family) is not None:
+                        return path
+                except (OSError, ValueError):
+                    continue
         return None
     role = next((entry for entry in _FONT_ROLES.values() if entry[0] == family), None)
     if sys.platform == "win32":

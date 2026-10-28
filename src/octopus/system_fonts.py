@@ -5,6 +5,8 @@ from __future__ import annotations
 from functools import cache
 from pathlib import Path
 
+_MAC_FONT_ASSETS = Path("/System/Library/AssetsV2")
+
 
 def mac_font_roots() -> tuple[Path, ...]:
     return (
@@ -12,6 +14,19 @@ def mac_font_roots() -> tuple[Path, ...]:
         Path("/System/Library/Fonts/Supplemental"),
         Path("/Library/Fonts"),
         Path.home() / "Library/Fonts",
+    )
+
+
+def mac_font_assets(filenames: tuple[str, ...]) -> tuple[Path, ...]:
+    # shortcut: asset filenames are known; use the macOS font registry if Apple renames them.
+    return tuple(
+        path
+        for filename in filenames
+        for path in sorted(
+            _MAC_FONT_ASSETS.glob(
+                f"com_apple_MobileAsset_Font*/*.asset/AssetData/{filename}"
+            )
+        )
     )
 
 
