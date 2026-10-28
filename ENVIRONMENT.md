@@ -138,6 +138,10 @@ the nearest published release tag in the selected commit's history. The optional
 attaches packages only when its destination tag peels to the resolved source commit; mismatches are
 rejected before upload. macOS builds target Apple Silicon and declare macOS 11.0 as the minimum
 version.
+Rust formatting is checked on pushes and pull requests, and again before package setup. Before
+upload, Windows installer/portable and Linux AppImage jobs extract or install the built artifact
+and exercise its packaged worker with a handshake, score render, and OCR request. These checks do
+not launch or verify the desktop GUI.
 Omitting `--bundles` selects portable-only mode. The launcher uses the pinned repository
 environment; the builder checks Python, Node/npm, Rust/Cargo, Tauri CLI, and native system
 prerequisites before beginning the build. It builds the frontend and worker first, then invokes

@@ -12,21 +12,19 @@ mod manual;
 #[path = "help/updates.rs"]
 mod updates;
 
+#[cfg(all(test, target_os = "linux"))]
+#[allow(unused_imports)]
+pub(crate) use manual::validated_appimage_docs_root;
 #[cfg(test)]
 #[allow(unused_imports)]
 pub(crate) use manual::{
     copy_manual_docs, copy_manual_pdf, find_matching_manual_docs, manual_docs_match,
     manual_html_path_from_root, manual_pdf_filename, manual_staging_base, stage_manual_docs,
 };
-#[cfg(all(test, target_os = "linux"))]
-#[allow(unused_imports)]
-pub(crate) use manual::validated_appimage_docs_root;
+pub(crate) use updates::UpdateStatus;
 #[cfg(test)]
 #[allow(unused_imports)]
-pub(crate) use updates::{
-    release_status, retry_cooldown, UpdateCheckCache, UpdateCheckOutcome,
-};
-pub(crate) use updates::UpdateStatus;
+pub(crate) use updates::{release_status, retry_cooldown, UpdateCheckCache, UpdateCheckOutcome};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
