@@ -6,6 +6,9 @@ Page Settings offers the score roles HeiTi-1, HeiTi-2, SongTi, KaiTi and FangSon
 source is selected automatically by the desktop target; users do not choose OS versus bundled
 fonts in Preferences.
 
+Help → Font Status lists every role, its resolved font family and whether the preferred installed
+family is available. Family names follow the selected app language, including Chinese display names.
+
 - Windows and macOS desktop builds use the preferred installed family for each role below.
   When it is unavailable, the application searches compatible installed faces and provides
   official installation help. These desktop packages omit the 13 application score-font faces.

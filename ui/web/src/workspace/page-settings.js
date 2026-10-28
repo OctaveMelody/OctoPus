@@ -21,7 +21,7 @@ export const pageSettingGroups = [
       { key: "margin_bottom", label: "pageSettingsMarginBottom", kind: "number", defaultValue: 40, min: 0, max: 300 },
       { key: "margin_left", label: "pageSettingsMarginLeft", kind: "number", defaultValue: 60, min: 0, max: 300 },
       { key: "margin_right", label: "pageSettingsMarginRight", kind: "number", defaultValue: 60, min: 0, max: 300 },
-      { key: "body_margin_top", label: "pageSettingsBodyTop", kind: "number", defaultValue: 20, min: 0, max: 300 },
+      { key: "body_margin_top", label: "pageSettingsBodyTop", kind: "number", defaultValue: 40, min: 0, max: 300 },
     ],
   },
   {

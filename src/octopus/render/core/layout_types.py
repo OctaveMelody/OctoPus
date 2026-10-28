@@ -31,7 +31,7 @@ class PageMetrics:
     margin_bottom: int = 40
     margin_left: int = 60
     margin_right: int = 60
-    body_margin_top: int = 20
+    body_margin_top: int = 40
     title_font: str = "Microsoft YaHei"
     note_font: str = "b"
     lyric_font: str = "Microsoft YaHei"

@@ -82,6 +82,26 @@ export function LifecycleDialogs({ lifecycle, referenceAssets, copy, preferences
             <h2 id="lifecycle-dialog-title">{copy.fontStatusTitle}</h2>
             <p>{fontPolicy === "system" ? copy.fontPolicySystem
               : fontPolicy === "bundled" ? copy.fontPolicyBundled : copy.fontPolicyReference}</p>
+            <table className="font-status-table">
+              <thead>
+                <tr>
+                  <th scope="col">{copy.fontRoleColumn}</th>
+                  <th scope="col">{copy.fontResolvedColumn}</th>
+                  <th scope="col">{copy.fontAvailabilityColumn}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fontRoleLabels.map(([role, label]) => {
+                  const status = fonts?.[role];
+                  return <tr key={role}>
+                    <th scope="row">{label}</th>
+                    <td>{familyName(status?.fallback ?? copy.fontUnknown)}</td>
+                    <td>{status ? (status.available ? copy.fontAvailable : copy.fontUnavailable)
+                      : copy.fontUnknown}</td>
+                  </tr>;
+                })}
+              </tbody>
+            </table>
             {fontStatusError && <p role="alert">{copy.fontRefreshFailed} {fontStatusError}</p>}
             {fontHelpError && <p role="alert">{fontHelpError}</p>}
             {fontPolicy === "system" && fontRoles === null

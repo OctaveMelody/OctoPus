@@ -57,7 +57,7 @@ def page_metrics(model: ScoreModel) -> PageMetrics:
     body_margin_top = _config_int(
         page_config,
         "body_margin_top",
-        20,
+        40,
         minimum=0,
         maximum=available_height,
     )
