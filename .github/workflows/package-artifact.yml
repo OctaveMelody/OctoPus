@@ -18,7 +18,7 @@ permissions:
 jobs:
   package:
     name: Build ${{ inputs.package }}
-    runs-on: ${{ inputs.package == 'macos-dmg' && 'macos-26' || (inputs.package == 'windows-installer' || inputs.package == 'windows-portable') && 'windows-2022' || 'ubuntu-24.04' }}
+    runs-on: ${{ inputs.package == 'macos-dmg' && 'xcode-27' || (inputs.package == 'windows-installer' || inputs.package == 'windows-portable') && 'windows-2022' || 'ubuntu-24.04' }}
     timeout-minutes: 180
     env:
       CARGO_BUILD_JOBS: "2"
