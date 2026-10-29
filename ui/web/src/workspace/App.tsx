@@ -790,7 +790,7 @@ export function App() {
               selected: preferences.language === "zh-CN",
               run: () => setPreferences(current => ({...current, language: "zh-CN"}))},
             ...uiFonts.map(font => ({
-              label: `${font.family}${font.id === "system" ? ` ${copy.defaultChoice}` : ""}`,
+              label: `${fontFamilyNames[preferences.language][font.family] ?? font.family}${font.id === "system" ? ` ${copy.defaultChoice}` : ""}`,
               group: copy.uiFontSetting,
               selected: preferences.uiFont === font.id,
               run: () => setPreferences(current => ({...current, uiFont: font.id})),

@@ -663,6 +663,7 @@ export const fontFamilyNames: Record<Language, Record<string, string>> = {
       "STFangsong": "华文仿宋", "MiSans": "小米字体", "LXGW Neo XiHei": "霞鹜新晰黑",
       "SimZhiSong": "新致宋", "LXGW WenKai": "霞鹜文楷", "Zhuque Fangsong": "朱雀仿宋",
       "Zhuque Fangsong (technical preview)": "朱雀仿宋",
+      "Noto Sans SC": "Noto 黑体（简体中文）", "Liberation Sans": "Liberation 无衬线体",
       "serif": "衬线字体", "sans-serif": "无衬线字体",
     },
 };
