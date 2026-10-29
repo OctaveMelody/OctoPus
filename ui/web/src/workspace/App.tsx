@@ -732,16 +732,6 @@ export function App() {
           <button disabled={!documentOpen || isSaving || referenceOperationBusy} onClick={() => requestAction("close-document")} type="button">
             {copy.closeDocument}
           </button>
-          <ActionMenu label={copy.helpMenu} title={`${copy.helpMenu} (${copy.fullScreen}: F11)`} actions={[
-            {label: copy.userManual, run: () => { void openHelp("manual"); }},
-            {label: copy.reportIssues, run: () => { void openHelp("issues"); }},
-            {label: copy.fontStatusTitle, run: showFontDetails},
-            ...(import.meta.env.VITE_UPDATE_CHECK_ENABLED === "false" ? [] : [
-              {label: copy.checkForUpdate, disabled: checkingUpdate, run: () => { void checkUpdates(); }},
-            ]),
-            {label: copy.about, run: () => setInformationDialog("about")},
-          ]}/>
-
           {currentExportStatus && (
             <span
               aria-live={currentExportStatus.kind === "error" ? "assertive" : "polite"}
@@ -796,6 +786,15 @@ export function App() {
               run: () => setPreferences(current => ({...current, uiFont: font.id})),
             })),
           ]} />
+          <ActionMenu label={copy.helpMenu} title={`${copy.helpMenu} (${copy.fullScreen}: F11)`} actions={[
+            {label: copy.userManual, run: () => { void openHelp("manual"); }},
+            {label: copy.reportIssues, run: () => { void openHelp("issues"); }},
+            {label: copy.fontStatusTitle, run: showFontDetails},
+            ...(import.meta.env.VITE_UPDATE_CHECK_ENABLED === "false" ? [] : [
+              {label: copy.checkForUpdate, disabled: checkingUpdate, run: () => { void checkUpdates(); }},
+            ]),
+            {label: copy.about, run: () => setInformationDialog("about")},
+          ]}/>
           <button
             disabled={isSaving || referenceOperationBusy}
             onClick={requestNativeClose}
