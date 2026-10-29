@@ -102,6 +102,7 @@ _FONT_ROLE_ALIASES = {
     "微软雅黑": "heiti-1",
     "simhei": "heiti-2",
     "宋体": "songti",
+    "songti": "songti",
     "simsun": "songti",
     "nsimsun": "songti",
     "serif": "songti",
@@ -365,25 +366,6 @@ def font_runtime_status() -> dict[str, str]:
 
 def release_family(family: str, sources: dict[str, str] | None = None) -> str:
     first = html.unescape(family).split(",", 1)[0].strip().strip("\"'")
-    role = {
-        "HeiTi": "heiti-2",
-        "heiti": "heiti-2",
-        "黑体": "heiti-2",
-        "黑体-1": "heiti-1",
-        "黑体-2": "heiti-2",
-        "宋体": "songti",
-        "楷体": "kaiti",
-        "仿宋": "fangsong",
-        "Microsoft YaHei": "heiti-1",
-        "microsoft yahei": "heiti-1",
-        "微软雅黑": "heiti-1",
-        "SimHei": "heiti-2",
-    }.get(
-        first,
-        first.casefold(),
-    )
-    if role in _FONT_ROLES:
-        return role_family(role, sources)
     canonical = {name.casefold(): name for name in _RELEASE_FAMILIES}
     if first.casefold() in canonical:
         selected = canonical[first.casefold()]
@@ -400,8 +382,9 @@ def release_family(family: str, sources: dict[str, str] | None = None) -> str:
             "zhuque fangsong (technical preview)": "fangsong",
         }
         return role_family(family_roles[first.casefold()], sources)
-    if first.casefold() in {"simsun", "nsimsun", "serif"}:
-        return role_family("songti", sources)
+    role = _FONT_ROLE_ALIASES.get(first.casefold(), first.casefold())
+    if role in _FONT_ROLES:
+        return role_family(role, sources)
     if first.casefold() in {"arial", "liberation sans"}:
         return "Liberation Sans"
     return role_family("heiti-2", sources)
