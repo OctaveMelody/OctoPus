@@ -60,7 +60,7 @@ export function InformationDialog({ kind: informationDialog, dialogRef: informat
             <h2 id="information-dialog-title">{copy.aboutTitle}</h2>
             {brand}
             <p>{copy.aboutVersionAndBuild(version, build)}</p>
-            <p>{copy.aboutDescription}</p>
+            <p><strong>{copy.aboutDescription}</strong></p>
             <p>{copy.aboutDisclaimer}</p>
             <p><a href="https://github.com/OctaveMelody/OctoPus" onClick={event => {
               event.preventDefault(); void openHelp("home");
