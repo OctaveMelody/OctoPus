@@ -735,7 +735,6 @@ export function App() {
           <ActionMenu label={copy.helpMenu} title={`${copy.helpMenu} (${copy.fullScreen}: F11)`} actions={[
             {label: copy.userManual, run: () => { void openHelp("manual"); }},
             {label: copy.reportIssues, run: () => { void openHelp("issues"); }},
-            {label: copy.submitRequests, run: () => { void openHelp("requests"); }},
             {label: copy.fontStatusTitle, run: showFontDetails},
             ...(import.meta.env.VITE_UPDATE_CHECK_ENABLED === "false" ? [] : [
               {label: copy.checkForUpdate, disabled: checkingUpdate, run: () => { void checkUpdates(); }},
