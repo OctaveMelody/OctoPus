@@ -37,8 +37,8 @@ export function InformationDialog({ kind: informationDialog, dialogRef: informat
               <p>{updateResult.status === "available" ? copy.updateAvailable
                 : updateResult.status === "up_to_date" ? copy.updateCurrent
                 : updateResult.status === "unknown_version" ? copy.updateUnknown : copy.updateUnavailable}</p>
-              <p>{copy.installedVersion}: {updateResult.current_version}</p>
-              {updateResult.latest_version && <p>{copy.latestVersion}: {updateResult.latest_version}</p>}
+              <p>{copy.installedVersion}: {updateResult.current_version.replace(/^v/i, "")}</p>
+              {updateResult.latest_version && <p>{copy.latestVersion}: {updateResult.latest_version.replace(/^v/i, "")}</p>}
             </>}
             <p><a href="https://github.com/OctaveMelody/OctoPus/releases" onClick={event => {
               event.preventDefault(); void openHelp("releases");

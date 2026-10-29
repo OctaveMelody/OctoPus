@@ -34,7 +34,9 @@ pub(crate) enum HelpDestination {
     Requests,
     Home,
     Releases,
+    #[serde(alias = "windows-fonts")]
     WindowsFonts,
+    #[serde(alias = "macos-fonts")]
     MacosFonts,
 }
 

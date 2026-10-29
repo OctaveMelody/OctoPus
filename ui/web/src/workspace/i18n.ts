@@ -51,7 +51,7 @@ export const messages = {
     updateFailed: "Could not check for updates.",
     installedVersion: "Installed version",
     latestVersion: "Latest release",
-    releases: "Releases",
+    releases: "OctoPus Releases",
     browserErrorTitle: "Could not open browser",
     about: "About OctoPus",
     helpTitle: "Using OctoPus",
