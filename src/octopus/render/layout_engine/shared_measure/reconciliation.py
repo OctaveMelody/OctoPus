@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from fractions import Fraction
+from math import isfinite
 
 from ....parser.ast import MusicTokenKind
 from ...core.layout_types import GEOMETRY_EPSILON, LayoutEvent
 from ..duration_partition import partition_shared_measure_widths_by_duration
+from ..hidden.hidden_streams import event_duration_fraction
 from ..profiles import LegacyIntrinsicProfile
 from ..width_partition import (
     partition_shared_measure_widths,
@@ -305,6 +308,28 @@ def reconcile_shared_measure_widths(
     normalized_terminal_punctuation = policies.terminal_punctuation_by_row
     normalized_skip_indices = policies.skip_indices_by_row
     normalized_skip_connector_indices = policies.skip_connector_indices_by_row
+    if (
+        len(rows) == 2
+        and len(profiles) == 2
+        and not any(
+            (
+                uses_shifted_voice_grid,
+                uses_compact_four_voice_grid,
+                uses_primary_spanning_hook_grid,
+                uses_primary_parallel_voice_denominator,
+                allows_partial_boundaries,
+                allows_shorter_measure_projection,
+            )
+        )
+        and natural_measure_widths is None
+    ):
+        _merge_compatible_singleton_onset_widths(
+            rows,
+            widths,
+            bar_indices,
+            terminal_punctuation_by_row=normalized_terminal_punctuation,
+            skip_connector_indices_by_row=normalized_skip_connector_indices,
+        )
     normalized_natural_widths = _normalize_natural_measure_widths(
         natural_measure_widths,
         bar_indices,
@@ -389,6 +414,72 @@ def reconcile_shared_measure_widths(
             )
             widths[voice_index][start:end] = replacement
     return [tuple(items) for items in widths]
+
+
+def _merge_compatible_singleton_onset_widths(
+    rows: list[list[LayoutEvent]],
+    widths: list[list[float]],
+    bar_indices: Sequence[Sequence[int]],
+    *,
+    terminal_punctuation_by_row: Sequence[bool],
+    skip_connector_indices_by_row: Sequence[frozenset[int]],
+) -> None:
+    """Union both sides of source-matched singleton onsets before reconciliation."""
+    if not bar_indices or len({len(indices) for indices in bar_indices}) != 1:
+        return
+    for bar_ordinal, slices in enumerate(iter_shared_measure_slices(bar_indices, widths)):
+        incoming: list[float] = []
+        outgoing: list[float] = []
+        onset: Fraction | None = None
+        admitted = True
+        for voice_index, (row, measure_slice) in enumerate(zip(rows, slices, strict=True)):
+            start = measure_slice.start
+            end = measure_slice.end
+            if (
+                end - start != 2
+                or len(measure_slice.widths) != 2
+                or row[start].event.kind != MusicTokenKind.BARLINE
+                or row[end].event.kind != MusicTokenKind.BARLINE
+            ):
+                admitted = False
+                break
+            entering_bar, note = row[start : start + 2]
+            if (
+                note.event.kind not in {MusicTokenKind.NOTE, MusicTokenKind.REST}
+                or note.event.index < 0
+                or entering_bar.event.code != rows[0][slices[0].start].event.code
+                or note.block is not None
+                or note.event.grace_reservation
+                or any(
+                    item.block is not None or item.event.kind == MusicTokenKind.HIDDEN_REST
+                    for item in row[:end]
+                )
+                or any(start <= index < end for index in skip_connector_indices_by_row[voice_index])
+                or bar_ordinal == len(bar_indices[voice_index]) - 1
+                and terminal_punctuation_by_row[voice_index]
+                or any(not isfinite(width) or width <= 0 for width in measure_slice.widths)
+            ):
+                admitted = False
+                break
+            source_onset = sum(
+                (event_duration_fraction(item.event) for item in row[: start + 1]),
+                start=Fraction(),
+            )
+            if onset is not None and source_onset != onset:
+                admitted = False
+                break
+            onset = source_onset
+            incoming.append(measure_slice.widths[0])
+            outgoing.append(measure_slice.widths[1])
+        if not admitted or len(incoming) != 2 or len(outgoing) != 2:
+            continue
+        shared_incoming = max(incoming)
+        shared_outgoing = max(outgoing)
+        for voice_index, measure_slice in enumerate(slices):
+            widths[voice_index][measure_slice.start : measure_slice.end] = [
+                shared_incoming,
+                shared_outgoing,
+            ]
 
 
 def _normalize_natural_measure_widths(

@@ -201,12 +201,22 @@ class MusicLexer:
         if self._is_note_start(start):
             self._scan_note()
         else:
-            while (
-                self.index < len(self.body)
-                and not self.body[self.index].isspace()
-                and self.body[self.index] not in _STRUCTURAL
+            dash_end = start
+            while dash_end < len(self.body) and self.body[dash_end] == "-":
+                dash_end += 1
+            if (
+                dash_end - start >= 2
+                and dash_end < len(self.body)
+                and "0" <= self.body[dash_end] <= "9"
             ):
-                self.index += 1
+                self.index = dash_end
+            else:
+                while (
+                    self.index < len(self.body)
+                    and not self.body[self.index].isspace()
+                    and self.body[self.index] not in _STRUCTURAL
+                ):
+                    self.index += 1
         if self.index == start:
             self.index += 1
         raw = self.body[start : self.index]
@@ -310,14 +320,25 @@ class MusicLexer:
                         )
                     return
         if _EXTENSION_RE.fullmatch(raw):
-            decorations = tuple(match.group("name") for match in _DECORATION_RE.finditer(raw))
-            self._append(
-                MusicTokenKind.EXTENSION,
-                start,
-                end,
-                decorations=decorations,
-                attached=attached,
-            )
+            if len(raw) > 1 and set(raw) == {"-"}:
+                for offset in range(start, end):
+                    self._append(
+                        MusicTokenKind.EXTENSION,
+                        offset,
+                        offset + 1,
+                        attached=attached if offset == start else True,
+                    )
+            else:
+                decorations = tuple(
+                    match.group("name") for match in _DECORATION_RE.finditer(raw)
+                )
+                self._append(
+                    MusicTokenKind.EXTENSION,
+                    start,
+                    end,
+                    decorations=decorations,
+                    attached=attached,
+                )
             return
         if _STANDALONE_DECORATIONS_RE.fullmatch(raw):
             value = raw[1:]
