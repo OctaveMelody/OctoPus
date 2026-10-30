@@ -171,6 +171,30 @@ def _needs_hidden_rest_for_sustain_alignment(
         events for duration, events in eligible_siblings if duration == maximum_duration
     ]
     if maximum_duration - current_duration == Fraction(1):
+        if len(group.rows) == 2:
+            current_timed = tuple(
+                event
+                for event in current_events
+                if event_duration_fraction(event) > 0
+            )
+            sibling_timed = tuple(
+                tuple(
+                    event
+                    for event in events
+                    if event_duration_fraction(event) > 0
+                )
+                for _duration, events in eligible_siblings
+            )
+            if (
+                len(current_timed) == 1
+                and current_timed[0].kind in {MusicTokenKind.NOTE, MusicTokenKind.REST}
+                and all(
+                    len(events) == 1
+                    and events[0].kind in {MusicTokenKind.NOTE, MusicTokenKind.REST}
+                    for events in sibling_timed
+                )
+            ):
+                return False
         return True
     return any(
         _has_terminal_held_prefix_and_slashed_sibling_tail(
