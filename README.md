@@ -21,6 +21,33 @@ grouping in 6/8, 9/8 and 12/8 meters, along with image and PDF transcription.
 - Export scores as SVG, PDF, PNG or JPEG. Raster exports support 96 and 300 DPI.
 - The app offers Normal and Transcription layouts.
 
+## Download and install
+
+Download the latest release directly from the
+[official GitHub Releases page](https://github.com/OctaveMelody/OctoPus/releases), then choose the
+package for your operating system.
+
+- **Windows:** Download `OctoPus_<version>_x64_win64_setup.exe`, open it, and follow the installer
+  prompts. Windows requires WebView2, which is already installed on most systems.
+- **macOS (Apple Silicon):** Download and open `OctoPus_<version>_arm64_macos.dmg`, then drag
+  **OctoPus** into **Applications**. The app is not signed with an Apple Developer ID or notarized,
+  so Gatekeeper may block the first launch and show a warning that the app is damaged. After
+  copying the app to Applications, open Terminal and run:
+
+  ```bash
+  sudo xattr -cr /Applications/OctoPus.app
+  ```
+
+  This recursively clears the app bundle's extended attributes, including the quarantine flag that
+  makes Gatekeeper block it. Run this command only for a copy downloaded from the official GitHub
+  Releases page. Then launch OctoPus from Applications.
+- **Linux:** Download the OctoPus AppImage from the releases page, make it executable, and run it:
+
+  ```sh
+  chmod +x OctoPus_*_linux.AppImage
+  ./OctoPus_*_linux.AppImage
+  ```
+
 ## Transcription
 
 OctoPus uses RapidOCR with ONNX Runtime to turn score images and PDFs into JPS drafts. Small,

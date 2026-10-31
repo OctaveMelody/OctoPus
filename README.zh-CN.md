@@ -17,6 +17,30 @@
 - 将乐谱导出为 SVG、PDF、PNG 或 JPEG；PNG 和 JPEG 支持 96 和 300 DPI。
 - 可在普通布局和转录布局之间切换。
 
+## 下载与安装
+
+请从[章鱼简谱 GitHub 官方发布页](https://github.com/OctaveMelody/OctoPus/releases)直接下载最新版，
+并选择适用于你操作系统的安装包。
+
+- **Windows：** 下载 `OctoPus_<版本>_x64_win64_setup.exe`，双击并按安装向导操作。Windows 需要
+  WebView2；多数系统已安装。
+- **macOS（Apple Silicon）：** 下载并打开 `OctoPus_<版本>_arm64_macos.dmg`，将**章鱼简谱**拖入
+  「应用程序」文件夹。该应用尚未使用 Apple Developer ID 签名或公证，因此首次启动时，Gatekeeper
+  可能会阻止打开并显示应用已损坏的警告。将应用复制到「应用程序」后，打开「终端」并运行：
+
+  ```bash
+  sudo xattr -cr /Applications/OctoPus.app
+  ```
+
+  该命令会递归清除 app 包的扩展属性，其中包括触发 Gatekeeper 拦截的隔离标记。请仅对从 GitHub
+  官方发布页下载的应用运行此命令，然后从「应用程序」启动章鱼简谱。
+- **Linux：** 从发布页下载章鱼简谱 AppImage，赋予可执行权限后运行：
+
+  ```sh
+  chmod +x OctoPus_*_linux.AppImage
+  ./OctoPus_*_linux.AppImage
+  ```
+
 ## 识谱
 
 章鱼简谱使用 RapidOCR 和 ONNX Runtime 将图片和 PDF 转成 JPS 草稿。较小、模糊或重叠的符号可能漏识或误识，使用前请对照原稿检查。音符编号识别结果的一致率较低，或草稿与原稿差异明显时，程序会提示复查。点击提示可查看对应的原稿区域；如果能关联到具体音符，也会定位到该音符。
@@ -37,7 +61,7 @@ JPS 格式规范见 [Tomato JPS Spec](https://github.com/yetist/jianpu-spec)。�
 
 ## 字体
 
-Windows 桌面版和即将推出的 macOS 桌面版优先使用系统中已安装的首选字体；缺少首选字族时，会改用兼容的已安装字体。可通过**帮助 → 字体**查看官方安装说明或重新检查。这两个平台的桌面包不包含程序的 13 种乐谱字体。Linux 便携版和 AppImage 直接使用随程序提供并经过验证的乐谱字体集。
+Windows 和 Apple Silicon macOS 桌面版优先使用系统中已安装的首选字体；缺少首选字族时，会改用兼容的已安装字体。可通过**帮助 → 字体**查看官方安装说明或重新检查。这两个平台的桌面包不包含程序的 13 种乐谱字体。Linux 便携版和 AppImage 直接使用随程序提供并经过验证的乐谱字体集。
 
 ## 源码构建
 

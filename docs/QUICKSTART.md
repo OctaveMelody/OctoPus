@@ -11,7 +11,8 @@ rendering and transcription — runs locally on your computer.
 This guide takes you from a fresh install to a finished, exported score in about ten minutes, using
 the classic song **Farewell (送别)** as the running example.
 
-> Screenshots show the Linux interface; menus and fonts may differ on your system.
+> Screenshots show the current Windows desktop interface. Menu labels and available fonts can vary
+> slightly by operating system.
 
 ---
 
@@ -20,7 +21,7 @@ the classic song **Farewell (送别)** as the running example.
 1. [Install and run](#1-install-and-run)
 2. [Program layout, buttons and menus](#2-program-layout-buttons-and-menus)
 3. [Your first score: Farewell](#3-your-first-score-farewell)
-4. [Transcribing an image or PDF](#4-transcribing-an-image-or-pdf)
+4. [Transcribing Farewell](#transcribing-farewell)
 5. [Tuning the page layout](#5-tuning-the-page-layout)
 6. [Exporting the final page](#6-exporting-the-final-page)
 7. [Minimal JPS syntax cheat-sheet](#7-minimal-jps-syntax-cheat-sheet)
@@ -29,9 +30,10 @@ the classic song **Farewell (送别)** as the running example.
 
 ## 1. Install and run
 
-Download the package for your operating system from the
-[OctoPus releases page](https://github.com/OctaveMelody/OctoPus/releases). The bundle includes the
-score examples and the offline user manual, so no internet is needed after install.
+Download the latest release package for your operating system directly from the
+[official OctoPus GitHub Releases page](https://github.com/OctaveMelody/OctoPus/releases). Select the
+installer, portable archive, disk image, or AppImage from the release's asset list. The package
+includes score examples and the offline user manual, so no internet is needed after installation.
 
 ### Windows
 
@@ -44,19 +46,19 @@ score examples and the offline user manual, so no internet is needed after insta
 
 ### macOS
 
-1. Open the Apple Silicon `OctoPus_<version>_arm64_macos.dmg` and drag **OctoPus** into your **Applications** folder.
-2. The current DMG is **unsigned and not notarized**, so macOS may block the first launch. Open a **Terminal** window and run this command to remove the quarantine flag, then
-   double-click the app again:
+1. Open the Apple Silicon `OctoPus_<version>_arm64_macos.dmg` and drag **OctoPus** into your
+   **Applications** folder.
+2. This build is not signed with an Apple Developer ID or notarized. Gatekeeper may block it and
+   show an “app is damaged” warning. After copying it to Applications, open **Terminal** and run:
 
    ```bash
-   xattr -cr /Applications/OctoPus.app
+   sudo xattr -cr /Applications/OctoPus.app
    ```
 
-   **Why this command?** When an app is downloaded from the internet, macOS tags it with an
-   extended attribute called `com.apple.quarantine`. Gatekeeper refuses to open apps whose quarantine
-   flag is set unless they are signed and notarized by Apple. `xattr -cr` clears (`-c`) all
-   extended attributes and recursively (`-r`) walks the app bundle, removing that tag so the app
-   can start. If a warning dialog still appears, choose **Open**.
+   This recursively clears extended attributes on the app bundle, including the quarantine flag
+   that causes Gatekeeper to block launch. Use this command only for a copy downloaded directly
+   from the official GitHub Releases page.
+3. Launch **OctoPus** from Applications.
 
 > The macOS desktop build uses your installed Apple system fonts (PingFang SC, Songti SC, …). See
 > **Help → Font Status** if a character is missing.
@@ -83,8 +85,10 @@ See [ENVIRONMENT.md](../ENVIRONMENT.md) for setup and commands.
 ## 2. Program layout, buttons and menus
 
 On first use OctoPus opens the 小星星 example; a recoverable session may be restored instead.
-The interface starts in Simplified Chinese. Choose **应用设置 → English** for English. The toolbar
-and panes can be arranged with **App Settings**.
+The interface starts in Simplified Chinese. Choose **应用设置 → English** to switch the interface
+language. Use **App Settings** to choose a workspace layout and UI font.
+
+![Farewell open in OctoPus, with its JPS source beside the full-page SVG preview.](screenshots/main-window-en.jpg)
 
 
 **Toolbar controls:**
@@ -94,8 +98,8 @@ and panes can be arranged with **App Settings**.
 | **New** | Create a score using the New score dialog. |
 | **Open** | Load a `.jps` score or a bundled example. |
 | **Save / Save As** | Write the current document; Save As picks a new location. |
-| **Import** | Bring in a JPG / PNG / PDF original for transcription. |
-| **Export** | Publish the score as SVG / PDF / PNG / JPEG. |
+| **Import** | Import a JPG / PNG / PDF original for transcription. |
+| **Export** | Choose SVG, PDF, or PNG/JPG at 96 or 300 DPI. |
 | **Close / Exit** | Close the score / quit the app. |
 | **Page Settings** | Paper, margins, fonts, sizes, spacing, slur shape. |
 | **App Settings** | Layout, interface language and UI font. |
@@ -103,20 +107,20 @@ and panes can be arranged with **App Settings**.
 
 **App Settings** chooses one of four working layouts and the interface language/font:
 
-![The App Settings menu: N1/N2 Normal layouts, T1/T2 Transcription layouts, sample-library visibility, language and UI font.](screenshots/settings-en.jpg)
+![App Settings with Farewell open in the side-by-side workspace.](screenshots/settings-en.jpg)
 
 | Layout | Use |
 | --- | --- |
 | **Normal N1** | Source and preview side by side (default for editing). |
 | **Normal N2** | Source and preview stacked. |
-| **Transcription T1** | Original + source + preview, three columns (for copying from a scan). |
+| **Transcription T1** | Original, source, and preview in three columns (useful when transcribing a scan). |
 | **Transcription T2** | Original and preview above the source editor. |
 
 The three panes do these jobs:
 
 
-- **JPS source** — you type the plain-text JPS here. The filename and an *Unsaved* marker sit before
-  the **Format Source** button.
+- **JPS source** — type or edit the plain-text JPS here. The filename and an *Unsaved* marker sit
+  before **Format Source**.
 - **SVG preview** — the rendered score, with fit/zoom/next-page controls and render diagnostics.
   It updates as you type.
 - **Original Image/PDF** — the reference scan; shows in the Transcription layouts.
@@ -132,10 +136,11 @@ Let's build the opening of **Farewell (送别)** by hand so you see how source t
 
 ### Step 1 — New document
 
-Click **New** (or `Ctrl/Cmd + N`). In the New score dialog, enter a title, choose the key and
-meter, then click **OK**. The app creates a score with a generated header.
+Click **New** (or `Ctrl/Cmd + N`). Enter a file name and the required title. You can also fill in a
+subtitle, lyricist, composer, other authors, key, time signature, and tempo. Click **OK** to create
+the score with a generated header.
 
-![The New score dialog.](screenshots/new-en.jpg)
+![The New score dialog with Farewell in the background.](screenshots/new-en.jpg)
 
 ### Step 2 — Enter the descriptive header
 
@@ -202,7 +207,7 @@ song. To try the full piece, choose **Open** and load **Farewell.jps** from the 
 
 ### Step 6 — Save your work
 
-**Save As** (`Ctrl/Cmd + Shift+S`) to store the editable master as a `.jps` file. Follow any
+**Save As** (`Ctrl/Cmd + Shift + S`) to store the editable master as a `.jps` file. Follow any
 prompt to preserve page settings when saving a plain-text score. Save a copy before experimenting.
 
 > ✅ **Golden rule:** change **one token at a time**, look at the preview, and use
@@ -210,46 +215,24 @@ prompt to preserve page settings when saving a plain-text score. Save a copy bef
 
 ---
 
-## 4. Transcribing an image or PDF
+<a id="transcribing-farewell"></a>
+## 4. Transcribing Farewell
 
-OctoPus can read a scan of a Jianpu score and produce an editable **JPS draft**. Accuracy is good but
-not perfect, so always proofread the draft against the original.
+Try transcription with the same song. The [Farewell reference image](user-manual/assets/examples/farewell-transcription.png)
+shows the whole one-page score.
 
-### Step 1 — Import the original
+1. Save your current work, then restart OctoPus for a clean page. If a recovery prompt appears,
+   discard it only if you no longer need that recovered work.
+2. In **App Settings**, choose **Comparison Above Editor (T2)**. Import the Farewell image with
+   **Import → JPG / PNG / PDF…**, then choose **Transcribe → Transcribe New** to replace the current score with the draft.
+3. Set the SVG preview to **Fit Width**. Compare the generated lines with the full original page;
+   expand **Review transcription issues** and click a finding to highlight its area in orange.
 
-Click **Import → JPG / PNG / PDF…** (or drag one file into the **Original Image/PDF** pane).
-Import one JPG, PNG or PDF at a time. Each file is limited to 100 MiB, with at most 200
-PDF/reference pages and 40 million pixels per decoded page.
+The draft is a starting point, so check the notes and lyrics against the original before saving.
 
+![Farewell in the T2 transcription layout: the full original page, a Fit Width preview with several music lines, and the source editor below.](screenshots/transcription-review-en.jpg)
 
-### Step 2 — Choose a transcription mode
-
-In the Original pane, open the **Transcribe** menu:
-
-- **Transcribe New** — recognize a whole new score (replaces the current document; save first).
-- **Transcribe Append** — add recognized music to the current score. Explicit draft key, meter and tempo must match
-  the current score when they can be verified; otherwise use Transcribe New.
-
-Use a **Transcription layout (T1/T2)** from App Settings so the original, source and preview are all
-visible.
-
-
-### Step 3 — Find and fix recognition issues
-
-OctoPus compares the draft against itself and lists **findings**. Click a finding in the review list:
-the original pane zooms to that region and outlines it in amber, and — when the finding maps to a
-single note — selects that note in the source. A low digit-agreement note gets a warning mark.
-
-
-**What to check manually** (the draft never fixes these for you):
-
-- Note numbers, **octave dots** (`'` / `,`) and **dotted durations**.
-- **Accidentals** (`#` `$` `=`), **grace notes** (`1[23]`), **slurs** (`(1 2 3)`) and endings.
-- **Lyrics** — count sung slots against the notes; fix `@` skips and `/` syllable breaks.
-- Meter changes, page order, and any missed or extra measures.
-
-Then edit the tokens directly in the source (see the cheat-sheet in section 7) until the preview
-matches the original, and **Save**.
+![The same Farewell page with a review finding selected and its title and credit areas outlined in orange.](screenshots/transcription-findings-en.jpg)
 
 ---
 
@@ -258,17 +241,17 @@ matches the original, and **Save**.
 **Page Settings** controls how the score is laid out and which fonts draw it. Open it from the
 toolbar (**Page Settings**).
 
-![The Page Settings dialog.](screenshots/page-settings-en.jpg)
+![Page Settings for Farewell.](screenshots/page-settings-en.jpg)
 
 Main groups:
 
 | Group | Controls |
 | --- | --- |
 | **Paper & margins** | A4 / A5 page; top/bottom/left/right margins and body offset. |
-| **Fonts & style** | Title and lyric fonts; note style (Regular, Italic, Bold). |
+| **Fonts** | Title and lyric fonts; note style (Regular, Italic, Bold). |
 | **Sizes** | Title, subtitle and lyric font sizes. |
 | **Spacing** | Music-to-lyric, lyric-to-lyric, lyric-to-music and voice spacing. |
-| **Slur shape** | Automatic, Arc, or Flat top. |
+| **Other** | Slur style: Automatic, Arc, or Flat top. |
 
 Buttons:
 
@@ -284,17 +267,21 @@ Buttons:
 
 ## 6. Exporting the final page
 
-When the preview looks right, click **Export** and choose a format:
+When the preview looks right, click **Export**. Choose SVG or PDF, or choose an image format and
+resolution from the menu:
+
+![The Export menu with Farewell open.](screenshots/export-en.jpg)
 
 
-| Format | Notes |
+| Menu choice | Use |
 | --- | --- |
-| **SVG** | Vector; scales without pixelation. Needs matching text fonts in the viewer. |
-| **PDF** | One multi-page document; embeds fonts; best for sharing/printing. |
-| **PNG** | Lossless raster, one file per page. |
-| **JPEG** | Compressed raster, one file per page. |
+| **SVG…** | Vector output that scales without pixelation. The viewer needs matching fonts for text. |
+| **PDF…** | One multi-page document for sharing or printing. |
+| **JPG (96 DPI)… / JPG (300 DPI)…** | Compressed image files; choose 300 DPI for print. |
+| **PNG (96 DPI)… / PNG (300 DPI)…** | Lossless image files; choose 300 DPI for print. |
 
-**DPI** (PNG/JPEG only): use **300 DPI** for print, **96 DPI** for screen.
+Use **96 DPI** for screen display and **300 DPI** for print. The DPI choice appears directly in the
+JPG and PNG menu items.
 
 - PDF creates **one** combined document; SVG/PNG/JPG create **one file per page**.
 - **Save the `.jps` first** — it is your editable master. Exports are output, not something you edit
@@ -348,7 +335,7 @@ Q: 1 2 3 4 | 5. 6/ 7// 1'. - ||
 | `\|` | Single barline |
 | `\|\|` | Final line (thin-thick) |
 | `\|\|/` | Two thin lines |
-| `\:|` `\|:` `:|\|:` | End / start / both repeat |
+| `\|:` `\:|` `:|\|:` | Start / end / both repeat |
 | `\|/` `\|*` | Hidden barline (no width / reserves width) |
 | `\|\|&fine` `\|&dc.` `\|&ty` | Fine / D.C. / Coda on a barline |
 
