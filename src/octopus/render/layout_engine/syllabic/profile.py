@@ -111,7 +111,7 @@ def build_syllabic_profile_state(request: SyllabicRowRequest) -> SyllabicProfile
             transfer_width = max(interval_width - BZ_OVERLAY_CLEARANCE, 0.0)
             if transfer_width <= GEOMETRY_EPSILON:
                 continue
-            allocation = _transfer_interval_reserve_to_terminal(
+            terminal_transfer = _transfer_interval_reserve_to_terminal(
                 profile.interval_widths,
                 interval_index=index,
                 terminal_reserve=profile.terminal_width,
@@ -119,8 +119,8 @@ def build_syllabic_profile_state(request: SyllabicRowRequest) -> SyllabicProfile
             )
             profile = replace(
                 profile,
-                interval_widths=allocation.interval_widths,
-                terminal_width=allocation.terminal_reserve,
+                interval_widths=terminal_transfer.interval_widths,
+                terminal_width=terminal_transfer.terminal_reserve,
             )
     profile = _apply_dotted_profile_reserves(
         row,

@@ -453,7 +453,7 @@ def note_modifiers(
                 note, component, duration_gray, digit_height, barlines,
             ) if duration_gray is not None else None)
             count = len(joined) if joined is not None else 0
-            if count > 1:
+            if joined is not None and count > 1:
                 joined_lines += count
                 joined_local_centers.extend(
                     (band[0][0] + band[-1][0]) / 2 for band in joined
@@ -487,7 +487,7 @@ def note_modifiers(
                 note, component, duration_gray, digit_height, barlines,
             )
             count = len(joined) if joined is not None else 0
-            if count:
+            if joined is not None and count:
                 joined_lines += count
                 joined_local_centers.extend(
                     (band[0][0] + band[-1][0]) / 2 for band in joined

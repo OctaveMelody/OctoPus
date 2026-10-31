@@ -11,6 +11,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+from typing import cast
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
@@ -74,7 +75,8 @@ def _rapidocr_wheel_model(filename: str, record: dict[str, object]) -> Path | No
         distribution = importlib.metadata.distribution("rapidocr")
     except importlib.metadata.PackageNotFoundError:
         return None
-    path = Path(distribution.locate_file(Path("rapidocr") / "models" / filename))
+    location = distribution.locate_file(Path("rapidocr") / "models" / filename)
+    path = Path(cast(os.PathLike[str], location))
     return path if _matches(path, record) else None
 
 
@@ -116,7 +118,7 @@ def _download(filename: str, record: dict[str, object], output_dir: Path) -> Non
             with urlopen(request, timeout=120) as response:
                 while chunk := response.read(1024 * 1024):
                     size += len(chunk)
-                    if size > record["size_bytes"]:
+                    if size > cast(int, record["size_bytes"]):
                         raise RuntimeError(
                             f"OCR model download exceeded its pinned size: {filename}"
                         )

@@ -22,12 +22,12 @@ def main() -> None:
     uv = find_executable("uv")
     if not uv:
         raise RuntimeError("uv was not found on PATH; install uv and rerun this setup script.")
-    tools = [uv]
-    npm = node = cargo = None
+    tools: list[str | None] = [uv]
+    npm = node = cargo = ""
     if not args.runtime_only:
-        node = find_executable("node")
-        npm = find_executable("npm")
-        cargo = find_executable("cargo")
+        node = find_executable("node") or ""
+        npm = find_executable("npm") or ""
+        cargo = find_executable("cargo") or ""
         missing = [
             name for name, value in (("node", node), ("npm", npm), ("cargo", cargo))
             if not value

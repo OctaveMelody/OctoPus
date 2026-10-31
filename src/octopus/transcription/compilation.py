@@ -306,9 +306,9 @@ def _ending_marks(
                     (segment.box,),
                 ))
                 if opens:
-                    start: float = min(row.barlines, key=lambda x: abs(x - left), default=left)
-                    if start not in row.barlines or abs(start - left) > height * 0.65:
-                        start = row.box[0] - height
+                    start_x: float = min(row.barlines, key=lambda x: abs(x - left), default=left)
+                    if start_x not in row.barlines or abs(start_x - left) > height * 0.65:
+                        start_x = row.box[0] - height
                     label = f'"{segment.label}"' if segment.label else ""
                     baseline = baselines[page_index]
                     # The renderer advances by 10 units, which is 10/18 of note glyph height.
@@ -319,8 +319,8 @@ def _ending_marks(
                         ))
                         if baseline is not None and lane_step > 0 else 0
                     )
-                    marks[start] = (
-                        marks.get(start, "") + ("[" if segment.opens else "[/")
+                    marks[start_x] = (
+                        marks.get(start_x, "") + ("[" if segment.opens else "[/")
                         + "+" * plus_count + label
                     )
                     active = True
@@ -332,20 +332,20 @@ def _ending_marks(
                 )
                 continuation = False
                 if not segment.closed and right >= max((row.box[2], *row.barlines)) - height * 0.5:
-                    following = next((
+                    following_frame = next((
                         (later_position, later_page, later_row_index, later_segment_index, item)
                         for later_position, (later_page, later_row_index, later) in enumerate(
                             rows[position + 1:], start=position + 1,
                         )
                         for later_segment_index, item in enumerate(later.endings)
                     ), None)
-                    continuation = following is not None and not (
-                        following[4].opens or (
-                            following[1], following[2], following[3]
+                    continuation = following_frame is not None and not (
+                        following_frame[4].opens or (
+                            following_frame[1], following_frame[2], following_frame[3]
                         ) in effective_openers
                     )
-                    if continuation and following is not None:
-                        for gap_page, _, gap_row in rows[position + 1:following[0]]:
+                    if continuation and following_frame is not None:
+                        for gap_page, _, gap_row in rows[position + 1:following_frame[0]]:
                             issues.append(Issue(
                                 "ending_continuation_gap_review", gap_page + 1,
                                 "Paired ending frames span this unframed music row; "
