@@ -21,7 +21,7 @@ the classic song **Farewell (送别)** as the running example.
 1. [Install and run](#1-install-and-run)
 2. [Program layout, buttons and menus](#2-program-layout-buttons-and-menus)
 3. [Your first score: Farewell](#3-your-first-score-farewell)
-4. [Transcribing Farewell](#transcribing-farewell)
+4. [Transcribing Farewell](#4-transcribing-farewell)
 5. [Tuning the page layout](#5-tuning-the-page-layout)
 6. [Exporting the final page](#6-exporting-the-final-page)
 7. [Minimal JPS syntax cheat-sheet](#7-minimal-jps-syntax-cheat-sheet)
@@ -33,7 +33,8 @@ the classic song **Farewell (送别)** as the running example.
 Download the latest release package for your operating system directly from the
 [official OctoPus GitHub Releases page](https://github.com/OctaveMelody/OctoPus/releases). Select the
 installer, portable archive, disk image, or AppImage from the release's asset list. The package
-includes score examples and the offline user manual, so no internet is needed after installation.
+includes score examples, this quick start, and the offline user manual, so no internet is needed
+after installation.
 
 ### Windows
 
@@ -100,10 +101,16 @@ language. Use **App Settings** to choose a workspace layout and UI font.
 | **Save / Save As** | Write the current document; Save As picks a new location. |
 | **Import** | Import a JPG / PNG / PDF original for transcription. |
 | **Export** | Choose SVG, PDF, or PNG/JPG at 96 or 300 DPI. |
-| **Close / Exit** | Close the score / quit the app. |
+| **Close** | Close the current score and keep OctoPus open. |
+| **Exit** | Quit OctoPus. |
 | **Page Settings** | Paper, margins, fonts, sizes, spacing, slur shape. |
 | **App Settings** | Layout, interface language and UI font. |
-| **Help** | User Manual, Fonts, About, updates. |
+| **Help** | Quick Start, User Manual, Fonts, About, updates. |
+
+Choose **JPG / PNG / PDF…** from the **Import** menu to select an original image or PDF for
+transcription:
+
+![The Import menu open with Farewell in the normal side-by-side workspace.](screenshots/import-en.jpg)
 
 **App Settings** chooses one of four working layouts and the interface language/font:
 
@@ -140,7 +147,7 @@ Click **New** (or `Ctrl/Cmd + N`). Enter a file name and the required title. You
 subtitle, lyricist, composer, other authors, key, time signature, and tempo. Click **OK** to create
 the score with a generated header.
 
-![The New score dialog with Farewell in the background.](screenshots/new-en.jpg)
+![The New score dialog with Farewell entered in the file name and title fields.](screenshots/new-en.jpg)
 
 ### Step 2 — Enter the descriptive header
 
@@ -215,7 +222,6 @@ prompt to preserve page settings when saving a plain-text score. Save a copy bef
 
 ---
 
-<a id="transcribing-farewell"></a>
 ## 4. Transcribing Farewell
 
 Try transcription with the same song. The [Farewell reference image](user-manual/assets/examples/farewell-transcription.png)
@@ -375,4 +381,4 @@ C: 第二句也能写
 ---
 
 *OctoPus is released under GPLv3. It is free software provided without warranty. For issues or
-requests use **Help → Issues and Requests**.*
+requests use **Help → Issues & Requests**.*

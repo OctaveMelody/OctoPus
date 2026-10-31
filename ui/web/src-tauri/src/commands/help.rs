@@ -19,7 +19,8 @@ pub(crate) use manual::validated_appimage_docs_root;
 #[allow(unused_imports)]
 pub(crate) use manual::{
     copy_manual_docs, copy_manual_pdf, find_matching_manual_docs, manual_docs_match,
-    manual_html_path_from_root, manual_pdf_filename, manual_staging_base, stage_manual_docs,
+    manual_html_path_from_root, manual_pdf_filename, manual_staging_base,
+    quick_start_html_path_from_root, stage_manual_docs,
 };
 pub(crate) use updates::UpdateStatus;
 #[cfg(test)]
@@ -29,6 +30,8 @@ pub(crate) use updates::{release_status, retry_cooldown, UpdateCheckCache, Updat
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum HelpDestination {
+    #[serde(rename = "quick-start")]
+    QuickStart,
     Manual,
     Issues,
     Requests,
@@ -42,6 +45,7 @@ pub(crate) enum HelpDestination {
 
 pub(crate) fn project_url(destination: &HelpDestination) -> Option<String> {
     Some(match destination {
+        HelpDestination::QuickStart => return None,
         HelpDestination::Manual => return None,
         HelpDestination::Issues => format!("{PROJECT}/issues"),
         HelpDestination::Requests => format!("{PROJECT}/pulls"),
@@ -114,8 +118,19 @@ pub(crate) fn open_help_destination(
             .opener()
             .open_url(url, None::<&str>)
             .map_err(|error| format!("could not open browser: {error}")),
-        None => open_manual(&app, &language),
+        None => match destination {
+            HelpDestination::QuickStart => open_quick_start(&app, &language),
+            HelpDestination::Manual => open_manual(&app, &language),
+            _ => unreachable!("external help destinations always have a URL"),
+        },
     }
+}
+
+fn open_quick_start(app: &AppHandle, language: &str) -> Result<(), String> {
+    let path = manual::quick_start_html_path(app, language)?;
+    app.opener()
+        .open_path(path.to_string_lossy().into_owned(), None::<&str>)
+        .map_err(|error| format!("could not open quick start: {error}"))
 }
 
 fn is_internal_app_origin(url: &reqwest::Url) -> bool {

@@ -273,6 +273,15 @@ pub(crate) fn stage_manual_docs(source: &Path, home_dir: &Path) -> Result<PathBu
         if cached_source == &source
             && cached_destination.is_dir()
             && cached_destination.join("user-manual/en.html").is_file()
+            && cached_destination.join("quick-start/en.html").is_file()
+            && cached_destination.join("quick-start/zh-CN.html").is_file()
+            && cached_destination.join("quick-start/index.html").is_file()
+            && cached_destination
+                .join("quick-start/quickstart.css")
+                .is_file()
+            && cached_destination
+                .join("quick-start/quickstart.js")
+                .is_file()
         {
             return Ok(cached_destination.clone());
         }
@@ -313,6 +322,16 @@ pub(crate) fn manual_html_path_from_root(resource_root: &Path, language: &str) -
         .join(manual_filename(language))
 }
 
+pub(crate) fn quick_start_html_path_from_root(resource_root: &Path, language: &str) -> PathBuf {
+    resource_root
+        .join("quick-start")
+        .join(if language == "zh-CN" {
+            "zh-CN.html"
+        } else {
+            "en.html"
+        })
+}
+
 pub(super) fn manual_html_path(app: &AppHandle, language: &str) -> Result<PathBuf, String> {
     let resource_root = manual_docs_path(app)?;
     let path = if let Some(appimage_root) = running_appimage_docs_root(&resource_root) {
@@ -327,6 +346,26 @@ pub(super) fn manual_html_path(app: &AppHandle, language: &str) -> Result<PathBu
     if !path.is_file() {
         return Err(format!(
             "bundled user manual is missing: {}",
+            path.display()
+        ));
+    }
+    Ok(path)
+}
+
+pub(super) fn quick_start_html_path(app: &AppHandle, language: &str) -> Result<PathBuf, String> {
+    let resource_root = manual_docs_path(app)?;
+    let root = if let Some(appimage_root) = running_appimage_docs_root(&resource_root) {
+        let home_dir = app.path().home_dir().map_err(|error| {
+            format!("could not locate user home for quick start staging: {error}")
+        })?;
+        stage_manual_docs(&appimage_root, &home_dir)?
+    } else {
+        resource_root
+    };
+    let path = quick_start_html_path_from_root(&root, language);
+    if !path.is_file() {
+        return Err(format!(
+            "bundled quick start is missing: {}",
             path.display()
         ));
     }

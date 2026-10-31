@@ -3,8 +3,8 @@
 The `*-en` and `*-zh` screenshots are captures of the installed Windows desktop app, version
 1.0.0-RC3. The screenshots used in the quickstart guides show the same Farewell example in the
 editing and transcription walkthroughs. Their English and Simplified Chinese pairs show the same
-score, panels, and view settings. The settings, new-score, page-settings and export pairs also show
-Farewell in the background.
+score, panels, and view settings. The import, settings, new-score, page-settings and export pairs
+also show Farewell in the background.
 
 The transcription screenshots were captured after restarting OctoPus and discarding any recovery
 draft. They use the one-page Farewell reference image rendered from the Farewell JPS example, the

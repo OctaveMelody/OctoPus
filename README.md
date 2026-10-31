@@ -65,7 +65,9 @@ the source. A finding can open the related scan region and, when available, the 
 
 ## User manual
 
-Open **Help → User Manual** in the application, or read the
+Open **Help → Quick Start** for a short guided introduction, or **Help → User Manual** for the
+full reference. The bilingual quick start is also available in
+[English](docs/QUICKSTART.md) and [简体中文](docs/QUICKSTART.zh-CN.md). Read the
 [offline English/Chinese manual](docs/user-manual/index.html). It documents the editing workflow,
 supported JPS notation and current limitations. The manual is included with installation and
 portable packages. PDF editions are available in

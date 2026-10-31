@@ -429,7 +429,7 @@ def publish_portable(
                 continue
             copied_manual = resources / "docs" / manual.relative_to(manual_docs)
             if not copied_manual.is_file() or copied_manual.read_bytes() != manual.read_bytes():
-                raise RuntimeError(f"portable user manual missing/corrupt: {manual.name}")
+                raise RuntimeError(f"portable documentation missing/corrupt: {manual.name}")
         _check_project_license(resources)
         staged_archive = None
         if portable_archive_name:

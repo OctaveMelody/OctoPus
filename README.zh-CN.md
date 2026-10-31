@@ -55,7 +55,7 @@
 
 ## 用户手册
 
-可在程序中打开**帮助 → 用户手册**，也可阅读[中英文离线手册](docs/user-manual/index.html)。手册介绍编辑流程、支持的 JPS 记谱方式和当前限制，并随安装包和便携版一同提供。另有[英文 PDF](docs/PDF/OctoPus-User-Manual-en.pdf)和[中文 PDF](docs/PDF/OctoPus-User-Manual-zh-CN.pdf)。
+可在程序中打开**帮助 → 快速上手**阅读简短入门指南，或打开**帮助 → 用户手册**查看完整参考。快速上手指南提供[英文版](docs/QUICKSTART.md)和[简体中文版](docs/QUICKSTART.zh-CN.md)。[中英文离线手册](docs/user-manual/index.html)介绍编辑流程、支持的 JPS 记谱方式和当前限制，并随安装包和便携版一同提供。另有[英文 PDF](docs/PDF/OctoPus-User-Manual-en.pdf)和[中文 PDF](docs/PDF/OctoPus-User-Manual-zh-CN.pdf)。
 
 JPS 格式规范见 [Tomato JPS Spec](https://github.com/yetist/jianpu-spec)。章鱼简谱的 JPS 输入遵循该规范。
 

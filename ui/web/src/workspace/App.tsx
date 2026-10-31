@@ -787,6 +787,7 @@ export function App() {
             })),
           ]} />
           <ActionMenu label={copy.helpMenu} title={`${copy.helpMenu} (${copy.fullScreen}: F11)`} actions={[
+            {label: copy.quickStart, run: () => { void openHelp("quick-start"); }},
             {label: copy.userManual, run: () => { void openHelp("manual"); }},
             {label: copy.reportIssues, run: () => { void openHelp("issues"); }},
             {label: copy.fontStatusTitle, run: showFontDetails},
