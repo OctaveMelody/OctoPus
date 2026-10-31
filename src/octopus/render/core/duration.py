@@ -124,15 +124,21 @@ def duration_source_groups(
             if is_bz_placeholder_event(event):
                 continue
             raw_duration = event.duration
-            # Sustain dashes carry normalized time without a DurationValue.
-            # Compound grouping must count that time to retain the beat phase.
-            duration = (
-                Fraction(raw_duration.numerator, raw_duration.denominator)
-                if raw_duration is not None
-                else Fraction(event.time or "0")
-                if state.beat != 1 and event.kind == MusicTokenKind.EXTENSION
-                else Fraction(0, 1)
-            )
+            if event.kind == MusicTokenKind.EXTENSION:
+                if state.beat == 1:
+                    duration = Fraction(0, 1)
+                elif raw_duration is not None:
+                    # Exact extension timing drives onsets; duration grouping keeps
+                    # the legacy raw-dash contribution in compound meters.
+                    duration = Fraction(max(event.raw.count("-"), 1))
+                else:
+                    duration = Fraction(event.time or "0")
+            else:
+                duration = (
+                    Fraction(raw_duration.numerator, raw_duration.denominator)
+                    if raw_duration is not None
+                    else Fraction(0, 1)
+                )
             if event.kind == MusicTokenKind.HIDDEN_REST:
                 # Hidden rests render as null glyphs and never carry beams;
                 # a tied one (8~) still isolates its following run.

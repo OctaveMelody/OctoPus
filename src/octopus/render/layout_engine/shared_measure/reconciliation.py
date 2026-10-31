@@ -416,6 +416,15 @@ def reconcile_shared_measure_widths(
     return [tuple(items) for items in widths]
 
 
+_MIXED_SINGLETON_ENTRY_BARLINE_PAIRS = frozenset(
+    {
+        frozenset(("|", "|w")),
+        frozenset(("|", "|y")),
+        frozenset(("|w", "|y")),
+    }
+)
+
+
 def _merge_compatible_singleton_onset_widths(
     rows: list[list[LayoutEvent]],
     widths: list[list[float]],
@@ -444,10 +453,14 @@ def _merge_compatible_singleton_onset_widths(
                 admitted = False
                 break
             entering_bar, note = row[start : start + 2]
+            entry_codes = frozenset(
+                (entering_bar.event.code, rows[0][slices[0].start].event.code)
+            )
             if (
                 note.event.kind not in {MusicTokenKind.NOTE, MusicTokenKind.REST}
                 or note.event.index < 0
-                or entering_bar.event.code != rows[0][slices[0].start].event.code
+                or len(entry_codes) > 1
+                and entry_codes not in _MIXED_SINGLETON_ENTRY_BARLINE_PAIRS
                 or note.block is not None
                 or note.event.grace_reservation
                 or any(

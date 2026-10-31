@@ -111,12 +111,74 @@ def _event_decoration_elements(layout: LayoutPage) -> list[SvgElement]:
     return elements
 
 
+def _should_suppress_hidden_extension_glyph(
+    layout: LayoutPage,
+    item: LayoutEvent,
+) -> bool:
+    event = item.event
+    if not (
+        event.kind == MusicTokenKind.EXTENSION
+        and event.index >= 0
+        and event.raw == "-"
+        and event.code == "-"
+        and event.source_code == "-"
+        and event.span.start.offset >= 0
+        and event.span.end.offset == event.span.start.offset + 1
+    ):
+        return False
+    if item.block == "bz-hidden":
+        return True
+    if item.block != "dsb-hidden":
+        return False
+
+    earlier_items = [
+        candidate
+        for candidate in layout.hidden_events
+        if candidate.event.index >= 0
+        and candidate.event.span.start.offset >= 0
+        and candidate.event.span.start.offset < event.span.start.offset
+    ]
+    if not earlier_items:
+        return False
+    preceding_offset = max(candidate.event.span.start.offset for candidate in earlier_items)
+    preceding_items = [
+        candidate
+        for candidate in earlier_items
+        if candidate.event.span.start.offset == preceding_offset
+    ]
+    if len(preceding_items) != 1:
+        return False
+    previous = preceding_items[0]
+    block_construct_ids = {
+        construct.construct_id
+        for construct in layout.constructs
+        if construct.kind == "block" and construct.construct_id is not None
+    }
+    current_construct_ids = set(event.construct_ids) & block_construct_ids
+    previous_construct_ids = set(previous.event.construct_ids) & block_construct_ids
+
+    return (
+        item.block == previous.block == "dsb-hidden"
+        and len(current_construct_ids) == 1
+        and current_construct_ids == previous_construct_ids
+        and item.voice == previous.voice
+        and item.source_voice == previous.source_voice
+        and item.page_index == previous.page_index
+        and item.system_index == previous.system_index
+        and item.line == previous.line
+        and item.y == previous.y
+        and item.x == previous.x
+    )
+
+
 def _render_event_element(
     layout: LayoutPage,
     item: LayoutEvent,
     previous_musical_by_event_id: dict[int, LayoutEvent | None],
 ) -> RenderElement | None:
     event = item.event
+    if _should_suppress_hidden_extension_glyph(layout, item):
+        return None
     glyph_id = _event_glyph_id(layout, item)
     if glyph_id is None:
         return None

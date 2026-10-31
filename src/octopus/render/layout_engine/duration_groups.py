@@ -32,7 +32,7 @@ def duration_group_positions(
             _record_duration_group(group, members, terminals)
             progress = Fraction(0, 1)
             continue
-        if event.duration is None:
+        if event.kind == MusicTokenKind.EXTENSION or event.duration is None:
             continue
         duration = Fraction(event.duration.numerator, event.duration.denominator)
         if event.duration_slashes:

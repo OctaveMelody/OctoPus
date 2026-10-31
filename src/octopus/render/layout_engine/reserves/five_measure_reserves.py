@@ -124,10 +124,10 @@ def first_unused_even_beat_interval(
     candidates: list[int] = []
     for index in range(content_start, end):
         event = row[index].event
-        if event.duration is not None:
-            elapsed += Fraction(event.duration.numerator, event.duration.denominator)
-        elif event.kind == MusicTokenKind.EXTENSION:
+        if event.kind == MusicTokenKind.EXTENSION:
             elapsed += Fraction(1)
+        elif event.duration is not None:
+            elapsed += Fraction(event.duration.numerator, event.duration.denominator)
         else:
             continue
         if (

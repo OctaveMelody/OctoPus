@@ -44,6 +44,99 @@ def _time_text(token: MusicToken, duration: DurationValue | None) -> str | None:
     return None
 
 
+def _flat_tuplet_duration_overrides(
+    tokens: tuple[MusicToken, ...],
+) -> dict[int, DurationValue]:
+    overrides: dict[int, DurationValue] = {}
+    nesting_depth = 0
+    block_depth = 0
+    for token_index, token in enumerate(tokens):
+        if (
+            token.kind == MusicTokenKind.TUPLET_START
+            and nesting_depth == 0
+            and block_depth == 0
+        ):
+            overrides.update(_flat_tuplet_duration_overrides_at(tokens, token_index))
+        if token.kind in {MusicTokenKind.TUPLET_START, MusicTokenKind.SPAN_START}:
+            nesting_depth += 1
+        elif token.kind == MusicTokenKind.SPAN_END:
+            nesting_depth = max(nesting_depth - 1, 0)
+        elif token.kind == MusicTokenKind.BLOCK_START:
+            block_depth += 1
+        elif token.kind == MusicTokenKind.BLOCK_END:
+            block_depth = max(block_depth - 1, 0)
+    return overrides
+
+
+def _flat_tuplet_duration_overrides_at(
+    tokens: tuple[MusicToken, ...],
+    opener_index: int,
+) -> dict[int, DurationValue]:
+    note_index = opener_index + 1
+    if note_index >= len(tokens) or not _ordinary_flat_tuplet_note(tokens[note_index]):
+        return {}
+
+    extension_indices: list[int] = []
+    index = note_index + 1
+    final_dynamic = False
+    while index < len(tokens) and tokens[index].kind == MusicTokenKind.EXTENSION:
+        extension = tokens[index]
+        if not _flat_tuplet_dash(extension):
+            return {}
+        if final_dynamic:
+            return {}
+        final_dynamic = bool(extension.decorations)
+        extension_indices.append(index)
+        if len(extension_indices) > 3:
+            return {}
+        index += 1
+
+    dash_count = len(extension_indices)
+    if (
+        dash_count == 0
+        or index >= len(tokens)
+        or tokens[index].kind != MusicTokenKind.SPAN_END
+    ):
+        return {}
+
+    factor = Fraction(dash_count, dash_count + 1)
+    text = {
+        Fraction(1, 2): "0.50",
+        Fraction(2, 3): "0.67",
+        Fraction(3, 4): "0.75",
+    }[factor]
+    duration = DurationValue(factor.numerator, factor.denominator, text)
+    return {token_index: duration for token_index in (note_index, *extension_indices)}
+
+
+def _ordinary_flat_tuplet_note(token: MusicToken) -> bool:
+    return (
+        token.kind == MusicTokenKind.NOTE
+        and token.pitch is not None
+        and 1 <= token.pitch <= 7
+        and token.accidental is None
+        and token.octave == 0
+        and token.duration_slashes == 0
+        and token.duration_dots == 0
+        and not token.dotted
+        and not token.decorations
+        and token.raw == str(token.pitch)
+    )
+
+
+def _flat_tuplet_dash(token: MusicToken) -> bool:
+    return (
+        token.kind == MusicTokenKind.EXTENSION
+        and token.duration_slashes == 0
+        and token.duration_dots == 0
+        and not token.dotted
+        and (
+            token.raw == "-" and not token.decorations
+            or token.raw == "-&f" and token.decorations == ("f",)
+        )
+    )
+
+
 def _tuplet_multipliers(tokens: tuple[MusicToken, ...]) -> list[Fraction]:
     multipliers: list[Fraction] = []
     opener_stack: list[tuple[MusicTokenKind, bool]] = []

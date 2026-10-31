@@ -328,6 +328,16 @@ class MusicLexer:
                         offset + 1,
                         attached=attached if offset == start else True,
                     )
+            elif len(raw) > 3 and raw.endswith("&f") and set(raw[:-2]) == {"-"}:
+                for offset in range(start, end - 2):
+                    final_dash = offset == end - 3
+                    self._append(
+                        MusicTokenKind.EXTENSION,
+                        offset,
+                        end if final_dash else offset + 1,
+                        decorations=("f",) if final_dash else (),
+                        attached=attached if offset == start else True,
+                    )
             else:
                 decorations = tuple(
                     match.group("name") for match in _DECORATION_RE.finditer(raw)

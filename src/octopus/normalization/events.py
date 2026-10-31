@@ -11,9 +11,20 @@ from octopus.normalization.constructs import (
 )
 from octopus.normalization.grace import attach_grace_reservations
 from octopus.normalization.ties import _audio_text, _precompute_openers
-from octopus.normalization.timing import _music_duration, _time_text, _tuplet_multipliers
+from octopus.normalization.timing import (
+    _flat_tuplet_duration_overrides,
+    _music_duration,
+    _time_text,
+    _tuplet_multipliers,
+)
 from octopus.normalization.token_code import _rendered_code
-from octopus.normalization.types import LyricEvent, LyricLineModel, MusicEvent, SemanticConstruct
+from octopus.normalization.types import (
+    DurationValue,
+    LyricEvent,
+    LyricLineModel,
+    MusicEvent,
+    SemanticConstruct,
+)
 from octopus.normalization.visual_chains import resolve_visual_chain_endpoints
 from octopus.parser.ast import (
     LyricLine,
@@ -32,6 +43,7 @@ def _normalize_music_token_stream(
     token_to_event_index: dict[int, int] = {}
     event_index = next_event_index - 1
     tuplet_multipliers = _tuplet_multipliers(tokens)
+    duration_overrides = _flat_tuplet_duration_overrides(tokens)
     opener_map = _precompute_openers(tokens)
     for token_index, token in enumerate(tokens):
         if token.kind == MusicTokenKind.IGNORED_TEXT:
@@ -45,6 +57,7 @@ def _normalize_music_token_stream(
                 event_index,
                 tuplet_multipliers[token_index],
                 opener_map,
+                duration_overrides.get(token_index),
             )
         )
     constructs = _extract_semantic_constructs(tokens, token_to_event_index, construct_prefix)
@@ -59,6 +72,7 @@ def _normalize_music_token(
     index: int,
     tuplet_multiplier: Fraction = Fraction(1, 1),
     opener_map: dict[int, int] | None = None,
+    duration_override: DurationValue | None = None,
 ) -> MusicEvent:
     token = tokens[token_index]
     child_multipliers = _tuplet_multipliers(token.children)
@@ -73,7 +87,7 @@ def _normalize_music_token(
         )
         for child_index, _child in enumerate(token.children, start=1)
     )
-    duration = _music_duration(token, tuplet_multiplier)
+    duration = duration_override or _music_duration(token, tuplet_multiplier)
     code = _rendered_code(tokens, token_index)
     time = _time_text(token, duration)
     audio = _audio_text(tokens, token_index, token, code, opener_map or {})

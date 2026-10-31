@@ -28,6 +28,7 @@ from octopus.render.layout_engine.lyrics.lyric_selection import (
 from octopus.render.layout_engine.lyrics.lyrics import (
     _layout_lyrics,
     _legacy_lyric_text_by_event,
+    _single_voice_owner_by_line,
 )
 from octopus.render.layout_engine.parallel_sustain import align_parallel_sustain_sentinel_rows
 from octopus.render.layout_engine.shared_system.hidden_projection import (
@@ -128,6 +129,7 @@ def _layout_system(
             key=lambda lyric: lyric.span.start.offset,
         )
     )
+    source_voice_owner_by_line = _single_voice_owner_by_line(system)
     if system_lyric_models:
         system_lyric_associations = _associate_lyrics(
             system.music_line_numbers,
@@ -148,6 +150,7 @@ def _layout_system(
                 [item for item in system_layout_events if item.voice == owner],
                 {source_line: lyric_lines},
                 append_floating_punctuation=False,
+                source_voice_owner_by_line=source_voice_owner_by_line,
             )
             if text_by_event:
                 grid_lyric_text_by_voice.setdefault(owner, {}).update(text_by_event)

@@ -13,7 +13,7 @@ from octopus.render.core.layout_widths import NOTE_WIDTH
 
 def duration_fraction(event: MusicEvent) -> Fraction:
     """Return an event duration without converting through binary floats."""
-    if event.kind == MusicTokenKind.EXTENSION:
+    if event.kind == MusicTokenKind.EXTENSION and event.duration is None:
         return Fraction(1, 1)
     if event.kind == MusicTokenKind.HIDDEN_REST:
         return Fraction(1, 2**event.duration_slashes)

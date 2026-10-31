@@ -40,6 +40,7 @@ def _layout_lyrics(
     system_line_start: int,
     system_rows: int,
 ) -> None:
+    source_voice_owner_by_line = _single_voice_owner_by_line(system)
     by_source_line: dict[int, list[LayoutEvent]] = {}
     for event in layout.events:
         if system_line_start <= event.line < system_line_start + system_rows:
@@ -65,6 +66,7 @@ def _layout_lyrics(
                 bottom_row_y,
                 lyric_index,
                 _lyric_consumable_events(line_events),
+                source_voice_owner=source_voice_owner_by_line.get(source_line),
             )
             rendered = layout.lyrics[lyric_start:]
             host_y = [
@@ -86,6 +88,7 @@ def _legacy_lyric_text_by_event(
     lyrics_by_music_line: dict[int, list[LyricLineModel]],
     *,
     append_floating_punctuation: bool = True,
+    source_voice_owner_by_line: dict[int, int] | None = None,
 ) -> dict[tuple[int, int], tuple[str, ...]]:
     """Map music events to their rendered lyric text.
 
@@ -111,6 +114,7 @@ def _legacy_lyric_text_by_event(
                 verse,
                 source_events,
                 record_skips=True,
+                source_voice_owner=(source_voice_owner_by_line or {}).get(source_line),
             )
 
     uses_compact_latin_bilingual_profile = (
@@ -185,6 +189,8 @@ def _legacy_lyric_gap_by_event(
     header: LayoutHeader,
     events: list[LayoutEvent],
     lyrics_by_music_line: dict[int, list[LyricLineModel]],
+    *,
+    source_voice_owner_by_line: dict[int, int] | None = None,
 ) -> dict[tuple[int, int], int]:
     scratch = LayoutPage(metrics=metrics, header=header)
     event_by_address = {item.address.notepos: item for item in events}
@@ -202,6 +208,7 @@ def _legacy_lyric_gap_by_event(
                 verse,
                 source_events,
                 record_skips=True,
+                source_voice_owner=(source_voice_owner_by_line or {}).get(source_line),
             )
             rendered = scratch.lyrics[rendered_start:]
             rendered_index = 0
@@ -239,6 +246,31 @@ def _lyric_consumable_events(events: list[LayoutEvent]) -> list[LayoutEvent]:
         if event.event.kind not in {MusicTokenKind.BARLINE, MusicTokenKind.EXTENSION}
     ]
 
+
+def _single_voice_owner_by_line(system: SystemModel) -> dict[int, int]:
+    if len(system.voices) != 1:
+        return {}
+    voice = system.voices[0]
+    return {source_line: voice.voice for source_line in voice.music_line_numbers}
+
+
+def _skip_bare_hidden_rests_for_lyric_line(
+    events: list[LayoutEvent],
+    event_index: int,
+    lyric_line: LyricLineModel,
+    source_voice_owner: int | None,
+) -> int:
+    if source_voice_owner is None or lyric_line.voice != source_voice_owner:
+        return _skip_bare_hidden_rests(events, event_index)
+    while event_index < len(events):
+        event = events[event_index].event
+        if event.kind != MusicTokenKind.HIDDEN_REST or event.raw != "8":
+            break
+        if event.index >= 0 and event.span.end.offset > event.span.start.offset:
+            break
+        event_index += 1
+    return event_index
+
 def _layout_lyric_line(
     layout: LayoutPage,
     lyric_line: LyricLineModel,
@@ -247,6 +279,7 @@ def _layout_lyric_line(
     events: list[LayoutEvent],
     *,
     record_skips: bool = False,
+    source_voice_owner: int | None = None,
 ) -> None:
     """Place one lyric line's tokens onto its host events, in order.
 
@@ -351,7 +384,12 @@ def _layout_lyric_line(
                 and event_index < len(events)
             ):
                 if previous_alignment_kind == LyricTokenKind.SKIP:
-                    event_index = _skip_bare_hidden_rests(events, event_index)
+                    event_index = _skip_bare_hidden_rests_for_lyric_line(
+                        events,
+                        event_index,
+                        lyric_line,
+                        source_voice_owner,
+                    )
                     event_index = _skip_implicit_hidden_placeholders(events, event_index)
                     if event_index >= len(events):
                         break
@@ -454,7 +492,12 @@ def _layout_lyric_line(
         text_parts = [pending_prefix, text]
         pending_prefix = ""
         lookahead = token_index + 1
-        event_index = _skip_bare_hidden_rests(events, event_index)
+        event_index = _skip_bare_hidden_rests_for_lyric_line(
+            events,
+            event_index,
+            lyric_line,
+            source_voice_owner,
+        )
         event_index = _skip_implicit_hidden_placeholders(events, event_index)
         if event_index >= len(events):
             break

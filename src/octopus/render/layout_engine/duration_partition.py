@@ -100,11 +100,11 @@ def partition_shared_measure_widths_by_duration(
         return None
 
     def duration_value(item: LayoutEvent) -> Fraction | None:
+        if item.event.kind == MusicTokenKind.EXTENSION:
+            return Fraction(1)
         duration = item.event.duration
         if duration is not None:
             return Fraction(duration.numerator, duration.denominator)
-        if item.event.kind == MusicTokenKind.EXTENSION:
-            return Fraction(1)
         return None
 
     target_grid = measure_grid_from_durations(

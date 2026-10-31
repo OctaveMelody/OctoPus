@@ -21,6 +21,7 @@ from octopus.render.layout_engine.lyrics.lyric_selection import (
 from octopus.render.layout_engine.lyrics.lyrics import (
     _legacy_lyric_gap_by_event,
     _legacy_lyric_text_by_event,
+    _single_voice_owner_by_line,
 )
 from octopus.render.layout_engine.rows.row_signatures import (
     shared_row_rhythm_signature as _shared_row_rhythm_signature,
@@ -170,6 +171,7 @@ def _collect_system_lyric_authorities(
     state: _SystemLayoutState,
     system_layout_events: list[LayoutEvent],
 ) -> tuple[int, bool]:
+    source_voice_owner_by_line = _single_voice_owner_by_line(system)
     visible_events_by_voice = state.visible_events_by_voice
     system_note_start_x = state.system_note_start_x
     shared_lyric_text_by_voice = state.shared_lyric_text_by_voice
@@ -275,6 +277,7 @@ def _collect_system_lyric_authorities(
                 layout.header,
                 source_events,
                 association,
+                source_voice_owner_by_line=source_voice_owner_by_line,
             )
         )
         shared_lyric_gap_by_voice.setdefault(voice_index, {}).update(
@@ -283,6 +286,7 @@ def _collect_system_lyric_authorities(
                 layout.header,
                 source_events,
                 association,
+                source_voice_owner_by_line=source_voice_owner_by_line,
             )
         )
     uses_ascii_dual_verse_dsb_system = (

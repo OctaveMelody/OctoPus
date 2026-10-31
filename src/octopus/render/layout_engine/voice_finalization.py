@@ -43,6 +43,7 @@ from octopus.render.layout_engine.lyrics.lyric_selection import (
 from octopus.render.layout_engine.lyrics.lyrics import (
     _legacy_lyric_gap_by_event,
     _legacy_lyric_text_by_event,
+    _single_voice_owner_by_line,
 )
 from octopus.render.layout_engine.spacing.system_spacing import (
     lyrics_have_annotations as _lyrics_have_annotations,
@@ -88,6 +89,7 @@ def _finalize_layout_voice(
     system_tail_height: float,
 ) -> tuple[float, float]:
     shared_lyric_text_by_voice = state.shared_lyric_text_by_voice
+    source_voice_owner_by_line = _single_voice_owner_by_line(system)
     shared_lyric_gap_by_voice = state.shared_lyric_gap_by_voice
     shared_grace_raw_by_voice = state.shared_grace_raw_by_voice
     next_system = state.next_system
@@ -150,12 +152,14 @@ def _finalize_layout_voice(
             layout.header,
             laid_out,
             lyrics_by_music_line,
+            source_voice_owner_by_line=source_voice_owner_by_line,
         )
         shared_lyric_gap_by_voice[voice_index] = _legacy_lyric_gap_by_event(
             metrics,
             layout.header,
             laid_out,
             lyrics_by_music_line,
+            source_voice_owner_by_line=source_voice_owner_by_line,
         )
     intrinsic_tail_lines = frozenset(
         source_group[-1].span.start.line
@@ -204,6 +208,7 @@ def _finalize_layout_voice(
                 layout.header,
                 laid_out,
                 lyrics_by_music_line,
+                source_voice_owner_by_line=source_voice_owner_by_line,
             )
             if legacy_source_lines
             else {}
