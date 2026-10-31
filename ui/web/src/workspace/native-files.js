@@ -132,6 +132,11 @@ export function readRecoverySnapshot() {
   return invokeNative("read_recovery_snapshot", {});
 }
 
+/** @returns {Promise<string>} */
+export function preserveRecoverySnapshot() {
+  return invokeNative("preserve_recovery_snapshot", {});
+}
+
 /** @param {number} sequence @param {string | null} text @returns {Promise<boolean>} */
 export function writeRecoverySnapshot(sequence, text) {
   return invokeNative("write_recovery_snapshot", { sequence, text });

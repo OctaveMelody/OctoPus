@@ -15,6 +15,7 @@ function statusText(status: Status, copy: WorkspaceCopy): string {
     case "rendered": return copy.rendered(status.pages, status.elapsed);
     case "transcribing": return copy.transcribing;
     case "transcribed": return copy.transcribed(status.issues);
+    case "recovery-preserved": return copy.recoveryPreserved(status.path);
     case "error": return status.message;
   }
 }

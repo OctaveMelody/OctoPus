@@ -18,6 +18,37 @@ pub const MAX_JPS_FILE_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_RECOVERY_SNAPSHOT_BYTES: usize = 40 * 1024 * 1024;
 pub const MAX_SELECTED_JPS_FILES: usize = 16;
 
+pub fn preserve_recovery_snapshot(
+    snapshot: &Path,
+    references: &Path,
+    backup_parent: &Path,
+) -> io::Result<PathBuf> {
+    if !fs::symlink_metadata(snapshot)?.file_type().is_file() {
+        return Err(io::Error::other("invalid recovery snapshot"));
+    }
+    fs::create_dir_all(backup_parent)?;
+    let backup = tempfile::Builder::new()
+        .prefix("recovery-")
+        .tempdir_in(backup_parent)?;
+    fs::copy(snapshot, backup.path().join("recovery.json"))?;
+    match fs::symlink_metadata(references) {
+        Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+            let target = backup.path().join("reference-images");
+            fs::create_dir(&target)?;
+            for entry in fs::read_dir(references)? {
+                let entry = entry?;
+                if entry.file_type()?.is_file() {
+                    fs::copy(entry.path(), target.join(entry.file_name()))?;
+                }
+            }
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Ok(_) => return Err(io::Error::other("invalid reference cache directory")),
+        Err(error) => return Err(error),
+    }
+    Ok(backup.keep())
+}
+
 #[derive(Clone, Default)]
 pub struct RecoverySnapshotSequence(Arc<Mutex<u64>>);
 

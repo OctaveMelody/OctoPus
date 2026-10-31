@@ -1,9 +1,10 @@
 use jps_document_io::reference_recovery::validate_recovery_references;
 use jps_document_io::{
-    list_jps_examples as get_jps_examples, read_jps_example, read_jps_text,
-    read_recovery_snapshot as read_recovery_text, validate_jps_path, write_jps_text_atomically,
-    write_jps_text_atomically_if_unchanged, write_new_jps_text_atomically,
-    RecoverySnapshotSequence, SelectedJpsFiles, MAX_JPS_FILE_BYTES, MAX_RECOVERY_SNAPSHOT_BYTES,
+    list_jps_examples as get_jps_examples, preserve_recovery_snapshot as preserve_recovery_files,
+    read_jps_example, read_jps_text, read_recovery_snapshot as read_recovery_text,
+    validate_jps_path, write_jps_text_atomically, write_jps_text_atomically_if_unchanged,
+    write_new_jps_text_atomically, RecoverySnapshotSequence, SelectedJpsFiles, MAX_JPS_FILE_BYTES,
+    MAX_RECOVERY_SNAPSHOT_BYTES,
 };
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -12,6 +13,7 @@ use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
+use super::references::reference_images_directory;
 use super::save_dialogs::{approved_save_path, confirm_replacements};
 
 #[cfg(debug_assertions)]
@@ -51,6 +53,24 @@ pub(crate) async fn read_recovery_snapshot(app: AppHandle) -> Result<Option<Stri
     })
     .await
     .map_err(|error| format!("recovery read task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn preserve_recovery_snapshot(app: AppHandle) -> Result<String, String> {
+    let snapshot = recovery_snapshot_path(&app)?;
+    let references = reference_images_directory(&app)?;
+    let backups = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("could not locate app data directory: {error}"))?
+        .join("preserved-recovery");
+    tauri::async_runtime::spawn_blocking(move || {
+        preserve_recovery_files(&snapshot, &references, &backups)
+            .map(|path| path.to_string_lossy().into_owned())
+            .map_err(|error| format!("could not preserve recovery data: {error}"))
+    })
+    .await
+    .map_err(|error| format!("recovery preservation task failed: {error}"))?
 }
 
 #[tauri::command]

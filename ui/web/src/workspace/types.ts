@@ -241,4 +241,5 @@ export type Status =
   | {kind: "rendering"; completed?: number; pages?: number}
   | { kind: "rendered"; pages: number; elapsed?: number }
   | { kind: "transcribed"; issues: number }
+  | { kind: "recovery-preserved"; path: string }
   | { kind: "error"; message: string };

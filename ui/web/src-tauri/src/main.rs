@@ -158,6 +158,7 @@ fn main() {
             documents::open_recent_jps_file,
             documents::open_jps_catalog_document,
             documents::read_recovery_snapshot,
+            documents::preserve_recovery_snapshot,
             references::prune_reference_images,
             references::resolve_reference_images,
             engine::parse_score,

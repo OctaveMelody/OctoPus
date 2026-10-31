@@ -10,7 +10,7 @@ import type { WorkspaceCopy, WorkspacePreferences, FocusPane, LifecycleAction, D
 import { beginDocumentSave, createDocumentSession, finishDocumentSave, isCurrentDocumentRevision, isDocumentDirty } from "./document.js";
 import { createNewScore, createNewScorePageConfig, normalizeJpsFileName } from "./new-score.js";
 import { destroyNativeWindow, listJpsDocuments, nativeCloseDisposition, openJpsDocument,
-  openJpsCatalogDocument, pruneReferenceImages, referenceImageUrl, readRecoverySnapshot,
+  openJpsCatalogDocument, preserveRecoverySnapshot, pruneReferenceImages, referenceImageUrl, readRecoverySnapshot,
   resolveReferenceImages, saveJpsDocument, openRecentJpsDocument, writeRecoverySnapshot,
   onNativeCloseRequested } from "./native-files.js";
 import { createRecoverySnapshot, parseRecoverySnapshot } from "./recovery.js";
@@ -513,7 +513,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
         recoverySequenceNumber,
         createRecoverySnapshot(finished, currentRecoveryDraft(), getServices().referenceAssets.currentReferences.current),
       );
-      const clean = !isDocumentDirty(finished);
+      const clean = currentDocument.current.id === original.id && !isDocumentDirty(currentDocument.current);
       setStatus(clean ? { kind: "saved" } : { kind: "changed" });
       return clean;
     } catch (error) {
@@ -776,15 +776,14 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
   async function continueWithoutRecovery() {
     if (!beginRecoveryAction()) return;
     try {
-      try {
-        await pruneReferenceImages([]);
-      } catch (error) {
-        setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-      }
+      const path = await preserveRecoverySnapshot();
       setRecoveryCandidate(null);
       setRecoveryError("");
       setRecoveryInitialized(true);
       setActiveDialog(null);
+      setStatus({kind: "recovery-preserved", path});
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : String(error));
     } finally {
       endRecoveryAction();
     }
