@@ -47,7 +47,6 @@ async function acquirePdfDocument(assetUrl: string): Promise<PdfDocumentLease> {
       iccUrl: `${baseUrl}pdfjs/iccs/`,
       standardFontDataUrl: `${baseUrl}pdfjs/standard_fonts/`,
       wasmUrl: `${baseUrl}pdfjs/wasm/`,
-      isEvalSupported: false,
       enableXfa: false,
       maxImageSize: 40_000_000,
       stopAtErrors: true,

@@ -18,11 +18,11 @@ license-files = ["LICENSE"]
 # workers always support exports. Lazy imports in octopus/export defer loading
 # the export libraries until an export is requested.
 dependencies = [
-    "fonttools==4.60.2",
-    "pillow>=10",
+    "fonttools==4.68.0",
+    "pillow>=13.0.0",
     "reportlab>=4,<5",
     "resvg-py>=0.5,<1",
-    "svglib>=2.2,<3",
+    "svglib>=2.3.2,<3",
 ]
 
 [project.optional-dependencies]
@@ -35,8 +35,8 @@ desktop-build = [
     "pyinstaller==6.22.3",
 ]
 pixel = [
-    "pillow>=10.2.0",
-    "playwright>=1.60.0",
+    "pillow>=13.0.0",
+    "playwright>=1.64.1",
 ]
 
 [project.scripts]
