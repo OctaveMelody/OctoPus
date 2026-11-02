@@ -40,7 +40,7 @@ PNG 或 JPEG。编辑、渲染和转录全部在本地运行，无需联网。
 
 
 
-### macOS
+### macOS 26 或更高版本（Apple Silicon）
 
 1. 打开 Apple Silicon 版 `OctoPus_<版本>_arm64_macos.dmg`，把**章鱼简谱**拖进「应用程序」文件夹。
 2. 该版本尚未使用 Apple Developer ID 签名或公证。Gatekeeper 可能会阻止启动，并显示「应用已损坏」

@@ -14,7 +14,7 @@
 <p>请从<a href="https://github.com/OctaveMelody/OctoPus/releases">章鱼简谱官方发布页</a>下载适合当前操作系统的安装包。安装包包含示例乐谱和离线文档。安装后，乐谱编辑、渲染和转录均可离线使用；检查更新需要网络连接。</p>
 <table><thead><tr><th>平台</th><th>安装与启动</th></tr></thead><tbody>
 <tr><td>Windows</td><td>运行安装程序并按提示操作，或解压便携 ZIP 后启动 <code>octopus.exe</code>。便携版请保持整个文件夹完整。Windows 需要 WebView2，多数系统已自带。</td></tr>
-<tr><td>macOS（Apple Silicon）</td><td>打开 DMG，将章鱼简谱拖入“应用程序”，然后从该文件夹启动。当前桌面包可能未签名或公证，Gatekeeper 可能会阻止启动。最新发布版的处理步骤请参阅快速上手中的 macOS 说明。</td></tr>
+<tr><td>macOS 26 或更高版本（Apple Silicon）</td><td>打开 DMG，将章鱼简谱拖入“应用程序”，然后从该文件夹启动。当前桌面包可能未签名或公证，Gatekeeper 可能会阻止启动。最新发布版的处理步骤请参阅快速上手中的 macOS 说明。</td></tr>
 <tr><td>Linux</td><td>使用 AppImage 时，先为下载的文件添加可执行权限再运行。使用便携版时，请保持整个文件夹完整。Linux 需要 GTK/WebKit 运行库和 Poppler 工具。</td></tr>
 </tbody></table>
 <p>启动程序后，可通过“帮助 → 快速上手”查看带界面截图的第一份乐谱教程。</p>
@@ -29,7 +29,7 @@
 <tr><td>语言</td><td>中英文界面及用户手册。</td></tr>
 </tbody>
 </table>
-<p><b>当前限制。</b>转录结果未必完整，请核对音符、变音、八度点、时值、歌词、连音线、倚音、跳房子及页序。页眉、页脚和页码采用保守过滤，特殊排版与跨页连线仍需人工检查。桌面版目前没有播放/MIDI 工作流、LilyPond 导出或 MusicXML 导入导出。五线谱识别尚属计划，不能替代简谱输入；程序也不会自动安装更新。macOS 原生打包仍未完成，Windows 和 macOS 的主机验收需单独进行，Linux 测试不能替代。</p>
+<p><b>当前限制。</b>转录结果未必完整，请核对音符、变音、八度点、时值、歌词、连音线、倚音、跳房子及页序。页眉、页脚和页码采用保守过滤，特殊排版与跨页连线仍需人工检查。桌面版目前没有播放/MIDI 工作流、LilyPond 导出或 MusicXML 导入导出。五线谱识别尚属计划，不能替代简谱输入；程序也不会自动安装更新。macOS 桌面包仅支持 Apple Silicon，并要求 macOS 26 或更高版本；Windows 和 macOS 的主机验收需单独进行，Linux 测试不能替代。</p>
 <h3>规划中的功能</h3>
 <ul><li>提升转录质量，包括复杂记号及重复的页面附属文字。</li>
 <li>导出 LilyPond 源码，以及导入、导出 MusicXML。</li>

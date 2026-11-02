@@ -106,7 +106,8 @@ Linux 运行 `python3 scripts/build_portable.py`；Windows 运行 `py scripts/bu
 其他安装包格式不会由此构建器发布。该启动器使用仓库锁定的环境；构建器会在编译前检查 Python、Node/npm、
 Rust/Cargo、Tauri CLI 和系统依赖。它先构建前端与引擎，再调用 Tauri，并关闭本次调用中的
 嵌套预构建钩子。Windows 需要 Microsoft C++ Build Tools 和 WebView2；Rust/PyInstaller
-目标架构必须与运行 Python 的主机一致，不支持引擎交叉编译。macOS 打包暂未实现。
+目标架构必须与运行 Python 的主机一致，不支持引擎交叉编译。macOS 桌面包仅支持 Apple Silicon，要求
+macOS 26.0 或更高版本，并由 GitHub Actions 的 `macos-26` 工作流构建。
 
 Linux x86_64 AppImage 使用
 `python3 scripts/build_portable.py --bundles appimage`。linuxdeploy 完成部署后，如果 AppImage

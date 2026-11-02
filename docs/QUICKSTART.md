@@ -45,7 +45,7 @@ after installation.
 
 
 
-### macOS
+### macOS 26 or later (Apple Silicon)
 
 1. Open the Apple Silicon `OctoPus_<version>_arm64_macos.dmg` and drag **OctoPus** into your
    **Applications** folder.

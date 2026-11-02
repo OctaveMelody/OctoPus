@@ -92,9 +92,10 @@ uv run --locked --extra transcription python -m ui.engine
 
 The worker reads JSON-lines on stdin and writes responses on stdout. For Python-only runtime
 setup use `python3 scripts/setup.py --runtime-only`. The optional `pixel` extra supports
-browser-DOM SVG export and requires `uv run --extra pixel playwright install chromium`; it is
-not bundled into the offline worker. Pytest, Ruff, mypy and development evidence are excluded
-from this repository's Python dependency extras.
+browser-DOM SVG export and tagged manual PDF generation; both require
+`uv run --extra pixel playwright install chromium`. The extra is not bundled into the offline
+worker. Pytest, Ruff, mypy and development evidence are excluded from this repository's Python
+dependency extras.
 
 ## Batch export and desktop capabilities
 
@@ -136,7 +137,7 @@ commit. Each run resolves one immutable source commit and passes it to every sel
 Published-release events build the event's tag; manual runs with an empty `source_ref` fall back to
 the nearest published release tag in the selected commit's history. The optional `release_tag`
 attaches packages only when its destination tag peels to the resolved source commit; mismatches are
-rejected before upload. macOS builds target Apple Silicon and declare macOS 11.0 as the minimum
+rejected before upload. macOS builds target Apple Silicon and declare macOS 26.0 as the minimum
 version.
 Rust formatting is checked on pushes and pull requests, and again before package setup. Before
 upload, Windows installer/portable and Linux AppImage jobs extract or install the built artifact

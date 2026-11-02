@@ -29,8 +29,9 @@ package for your operating system.
 
 - **Windows:** Download `OctoPus_<version>_x64_win64_setup.exe`, open it, and follow the installer
   prompts. Windows requires WebView2, which is already installed on most systems.
-- **macOS (Apple Silicon):** Download and open `OctoPus_<version>_arm64_macos.dmg`, then drag
-  **OctoPus** into **Applications**. The app is not signed with an Apple Developer ID or notarized,
+- **macOS 26 or later (Apple Silicon):** Download and open
+  `OctoPus_<version>_arm64_macos.dmg`, then drag **OctoPus** into **Applications**. The app is not
+  signed with an Apple Developer ID or notarized,
   so Gatekeeper may block the first launch and show a warning that the app is damaged. After
   copying the app to Applications, open Terminal and run:
 

@@ -1,7 +1,7 @@
 {
   "bundle": {
     "macOS": {
-      "minimumSystemVersion": "11.0"
+      "minimumSystemVersion": "26.0"
     },
     "icon": [
       "../../../build/cargo/macos-icons/icon.icns"

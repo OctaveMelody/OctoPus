@@ -42,8 +42,8 @@ runtime download. Missing, corrupt or unexpected model assets fail clearly.
 
 Production packaging stages exactly the three selected ONNX files and removes duplicate
 dependency weights and ONNX Runtime example models. Keep the full portable directory
-together. Windows requires native acceptance before release; Linux validation does not
-establish native macOS packaging support.
+together. Windows and macOS packages require native host acceptance before release; Linux
+validation does not replace that acceptance.
 
 ## Attribution and evidence
 

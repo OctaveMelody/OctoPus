@@ -14,7 +14,7 @@
 <p>Download a release package from the <a href="https://github.com/OctaveMelody/OctoPus/releases">official OctoPus Releases page</a> and choose the package for your operating system. Packages include the examples and offline documentation. After installation, scores, rendering and transcription work offline; update checks need a connection.</p>
 <table><thead><tr><th>Platform</th><th>Install and launch</th></tr></thead><tbody>
 <tr><td>Windows</td><td>Run the setup executable and follow its prompts, or extract the portable ZIP and launch <code>octopus.exe</code>. Keep the portable folder together. Windows requires WebView2, which is already present on most systems.</td></tr>
-<tr><td>macOS (Apple Silicon)</td><td>Open the DMG and drag OctoPus to Applications, then launch it there. The current desktop package may be unsigned and not notarized, so Gatekeeper may block launch. See the Quick Start's macOS steps for the current release instructions.</td></tr>
+<tr><td>macOS 26 or later (Apple Silicon)</td><td>Open the DMG and drag OctoPus to Applications, then launch it there. The current desktop package may be unsigned and not notarized, so Gatekeeper may block launch. See the Quick Start's macOS steps for the current release instructions.</td></tr>
 <tr><td>Linux</td><td>For an AppImage, make the downloaded file executable and run it. Keep the entire portable folder together if using a portable build. Linux needs GTK/WebKit runtime libraries and Poppler tools.</td></tr>
 </tbody></table>
 <p>Help → Quick Start includes a screenshot-led first score walkthrough after the app opens.</p>
@@ -29,7 +29,7 @@
 <tr><td>Languages</td><td>English/Chinese interface and user manual.</td></tr>
 </tbody>
 </table>
-<p><b>Current limits.</b> Transcription may miss parts of a score. Check notes, accidentals, octave dots, durations, lyrics, slurs, grace notes, endings and page order. Filtering for repeated running headers, footers and page numbers is conservative, so unusual layouts and spans across pages need review. The desktop app has no playback/MIDI workflow, LilyPond exporter or MusicXML import/export UI. Staff-notation recognition is planned; it is not a supported replacement for Jianpu input. Updates are not installed automatically. Native macOS packaging is deferred, and Windows/macOS host acceptance is separate from Linux testing.</p>
+<p><b>Current limits.</b> Transcription may miss parts of a score. Check notes, accidentals, octave dots, durations, lyrics, slurs, grace notes, endings and page order. Filtering for repeated running headers, footers and page numbers is conservative, so unusual layouts and spans across pages need review. The desktop app has no playback/MIDI workflow, LilyPond exporter or MusicXML import/export UI. Staff-notation recognition is planned; it is not a supported replacement for Jianpu input. Updates are not installed automatically. macOS desktop packages support Apple Silicon on macOS 26 or later; Windows/macOS host acceptance is separate from Linux testing.</p>
 <h3>Planned features</h3>
 <ul><li>Improve transcription quality, including difficult marks and repeated page furniture.</li>
 <li>Export LilyPond source and import or export MusicXML.</li>
