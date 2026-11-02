@@ -7,6 +7,9 @@ from fractions import Fraction
 
 from octopus.normalization.types import MusicEvent
 from octopus.parser.ast import MusicTokenKind
+from octopus.render.layout_engine.beat_grid_engine.grace import (
+    grace_requires_host_timing,
+)
 from octopus.render.layout_engine.beat_grid_engine.lyrics import (
     _associated_overflow,
     lyric_overflow,
@@ -14,9 +17,6 @@ from octopus.render.layout_engine.beat_grid_engine.lyrics import (
 from octopus.render.layout_engine.beat_grid_engine.spacing import (
     duration_beats,
     duration_fraction,
-)
-from octopus.render.layout_engine.beat_grid_engine.grace import (
-    grace_requires_host_timing,
 )
 from octopus.render.layout_engine.beat_grid_engine.types import (
     SYLLABLE_KINDS,

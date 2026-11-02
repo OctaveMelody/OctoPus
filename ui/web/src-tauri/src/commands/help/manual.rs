@@ -192,11 +192,11 @@ fn copy_directory_contents(source: &Path, destination: &Path) -> io::Result<()> 
     for entry in entries {
         let source_path = entry.path();
         let destination_path = destination.join(entry.file_name());
-        let file_type = entry.file_type()?;
-        if file_type.is_dir() {
+        let metadata = fs::metadata(&source_path)?;
+        if metadata.is_dir() {
             fs::create_dir(&destination_path)?;
             copy_directory_contents(&source_path, &destination_path)?;
-        } else if file_type.is_file() {
+        } else if metadata.is_file() {
             fs::copy(&source_path, &destination_path)?;
         } else {
             return Err(io::Error::new(
