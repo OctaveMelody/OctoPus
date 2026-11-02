@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from fractions import Fraction
 
+from octopus.normalization.types import MusicEvent
 from octopus.parser.ast import MusicTokenKind
 from octopus.render.layout_engine.beat_grid_engine.spacing import duration_fraction
 from octopus.render.layout_engine.beat_grid_engine.types import (
@@ -177,3 +178,32 @@ def _grace_marker_shifts(
                     row_index, offset, row_upper_at(row_index, offset), gap
                 )
     return event_shifts, barline_shifts, reservation_total, left_delta
+
+
+def grace_expires_in_host_voice(event: MusicEvent) -> bool:
+    """Return whether this grace host uses the special host-voice expiry rule."""
+    return (
+        event.octave < 0
+        and event.duration_dots > 0
+        and event.duration_slashes == 1
+        and any(
+            ":slur:" in role and role.endswith(":start")
+            for role in event.construct_roles
+        )
+        and any(
+            ":modifier:" in role and role.endswith(":host")
+            for role in event.construct_roles
+        )
+    )
+
+
+def grace_requires_host_timing(event: MusicEvent) -> bool:
+    """Whether a grace reserve depends on tied or host-specific timing.
+
+    Multi-column projection can preserve ordinary independent grace columns,
+    but tied and host-expiring reserves need the legacy timeline's detailed
+    expiry/payback semantics.
+    """
+    return bool(event.grace_reservation) and (
+        "~" in event.code or grace_expires_in_host_voice(event)
+    )

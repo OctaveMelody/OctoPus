@@ -9,14 +9,66 @@ from __future__ import annotations
 
 from dataclasses import replace
 from fractions import Fraction
-
-from octopus.normalization.types import MusicEvent
+from typing import TypeAlias
 
 from ....parser.ast import MusicTokenKind
 from ...core.layout_types import LayoutEvent
+from ..beat_grid_engine.grace import (
+    grace_expires_in_host_voice,
+    grace_requires_host_timing,
+)
 from ..hidden.hidden_streams import event_duration_fraction
 from ..profiles import SharedGraceReserve
 from .models import GraceRawByVoice
+
+_SharedGraceOwner: TypeAlias = Fraction | tuple[int, int]
+
+
+def _validated_shared_beat_column_onsets(
+    rows: list[list[LayoutEvent]],
+) -> dict[tuple[int, int], tuple[tuple[int, Fraction], ...]]:
+    """Return per-voice onsets for tags owned once by both shared rows."""
+    if len(rows) != 2 or any(not row for row in rows):
+        return {}
+    voices = tuple(row[0].voice for row in rows)
+    if len(set(voices)) != 2:
+        return {}
+
+    occurrences: dict[tuple[int, int], dict[int, list[Fraction]]] = {}
+    for voice, row in zip(voices, rows, strict=True):
+        onset = Fraction()
+        for item in row:
+            tag = item.shared_beat_column
+            if tag is not None:
+                occurrences.setdefault(tag, {}).setdefault(voice, []).append(onset)
+            if item.event.kind != MusicTokenKind.BARLINE:
+                onset += event_duration_fraction(item.event)
+
+    validated: dict[tuple[int, int], tuple[tuple[int, Fraction], ...]] = {}
+    for tag, by_voice in occurrences.items():
+        if set(by_voice) != set(voices) or any(
+            len(by_voice[voice]) != 1 for voice in voices
+        ):
+            continue
+        validated[tag] = tuple(
+            sorted((voice, by_voice[voice][0]) for voice in voices)
+        )
+    return validated
+
+
+def _shared_grace_owner_key(
+    item: LayoutEvent,
+    onset: Fraction,
+    column_onsets: dict[tuple[int, int], tuple[tuple[int, Fraction], ...]],
+) -> _SharedGraceOwner:
+    tag = item.shared_beat_column
+    if (
+        tag is not None
+        and tag in column_onsets
+        and not grace_requires_host_timing(item.event)
+    ):
+        return tag
+    return onset
 
 
 def shared_grace_timeline(
@@ -35,25 +87,30 @@ def shared_grace_timeline(
     unless that gap crosses a barline). Reserves sharing an onset merge: the
     wider one wins and the host-voice sets union. Result is sorted by onset.
     """
-    reserves_by_onset: dict[Fraction, SharedGraceReserve] = {}
+    column_onsets = _validated_shared_beat_column_onsets(rows)
+    reserves_by_owner: dict[_SharedGraceOwner, SharedGraceReserve] = {}
     for row in rows:
         grace_raw_by_host = grace_raw_by_voice.get(row[0].voice, {})
         onset = Fraction()
         bar_onsets: list[Fraction] = []
         onset_by_event_index: dict[int, Fraction] = {}
-        event_by_index: dict[int, MusicEvent] = {}
+        event_by_index: dict[int, LayoutEvent] = {}
         for item in row:
             onset_by_event_index[item.event.index] = onset
-            event_by_index[item.event.index] = item.event
+            event_by_index[item.event.index] = item
             if item.event.kind == MusicTokenKind.BARLINE:
                 bar_onsets.append(onset)
             else:
                 onset += event_duration_fraction(item.event)
         for event_index, raw in grace_raw_by_host.items():
-            host = event_by_index.get(event_index)
+            host_item = event_by_index.get(event_index)
             host_onset = onset_by_event_index.get(event_index)
-            if host is None or host_onset is None:
+            if host_item is None or host_onset is None:
                 continue
+            host = host_item.event
+            owner_key = _shared_grace_owner_key(
+                host_item, host_onset, column_onsets
+            )
             expiry = next((bar for bar in bar_onsets if bar > host_onset), onset)
             payback_onset: Fraction | None = None
             if "~" in host.code:
@@ -79,31 +136,26 @@ def shared_grace_timeline(
                 width=7.0 * sum(char in "1234567" for char in raw),
                 expiry=expiry,
                 tied="~" in host.code,
-                expires_in_host_voice=(
-                    host.octave < 0
-                    and host.duration_dots > 0
-                    and host.duration_slashes == 1
-                    and any(
-                        ":slur:" in role and role.endswith(":start")
-                        for role in host.construct_roles
-                    )
-                    and any(
-                        ":modifier:" in role and role.endswith(":host")
-                        for role in host.construct_roles
-                    )
-                ),
+                expires_in_host_voice=grace_expires_in_host_voice(host),
                 subdivision=raw.count("/"),
                 host_voices=frozenset({row[0].voice}),
+                onsets_by_voice=(
+                    column_onsets[owner_key]
+                    if isinstance(owner_key, tuple)
+                    else ()
+                ),
                 payback_onset=payback_onset,
             )
-            previous = reserves_by_onset.get(host_onset)
+            previous = reserves_by_owner.get(owner_key)
             if previous is not None:
                 reserve = replace(
                     reserve if reserve.width >= previous.width else previous,
                     host_voices=previous.host_voices | reserve.host_voices,
                 )
-            reserves_by_onset[host_onset] = reserve
-    return tuple(reserve for _, reserve in sorted(reserves_by_onset.items()))
+            reserves_by_owner[owner_key] = reserve
+    return tuple(
+        sorted(reserves_by_owner.values(), key=lambda reserve: reserve.onset)
+    )
 
 
 def shared_grace_cursor_width(
@@ -125,7 +177,15 @@ def shared_grace_cursor_width(
     """
     width = 0.0
     for reserve in timeline:
-        if onset < reserve.onset or at_barline and onset == reserve.onset:
+        voice_onset = next(
+            (
+                voice_onset
+                for reserve_voice, voice_onset in reserve.onsets_by_voice
+                if reserve_voice == voice
+            ),
+            reserve.onset,
+        )
+        if onset < voice_onset or at_barline and onset == voice_onset:
             continue
         if (
             not (reserve.tied or reserve.expires_in_host_voice)
@@ -152,7 +212,8 @@ def shared_grace_denominator_adjustment(
     the reserve's width, so the row denominator must lose the matching amount
     or every later column would scale too small.
     """
-    adjusted_onsets: set[Fraction] = set()
+    column_onsets = _validated_shared_beat_column_onsets(rows)
+    adjusted_owners: set[_SharedGraceOwner] = set()
     for row in rows:
         grace_raw_by_host = grace_raw_by_voice.get(row[0].voice, {})
         onset = Fraction()
@@ -163,7 +224,9 @@ def shared_grace_denominator_adjustment(
                 and item.event.duration_slashes == 1
                 and raw.count("/") == item.event.duration_slashes
             ):
-                adjusted_onsets.add(onset)
+                adjusted_owners.add(
+                    _shared_grace_owner_key(item, onset, column_onsets)
+                )
             if item.event.kind != MusicTokenKind.BARLINE:
                 onset += event_duration_fraction(item.event)
-    return 9.0 * len(adjusted_onsets)
+    return 9.0 * len(adjusted_owners)

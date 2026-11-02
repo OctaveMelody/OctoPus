@@ -174,6 +174,10 @@ class LayoutEvent:
     # stream_slot, which may be shared by all notes in a beam group.
     onset_slot: int | None = None
     onset_aligned: bool = False
+    # Exact source beat-column ownership for the narrowly admitted shared
+    # measure projection.  Grace reserve logic uses this semantic tag without
+    # inferring ownership from projected x coordinates or source onsets.
+    shared_beat_column: tuple[int, int] | None = None
     # Compression scale (stretched px per natural unit) of the row or shared
     # system this event was projected with.  Renderers use it to place
     # scaled-width accessories, such as temporary meter labels, at a

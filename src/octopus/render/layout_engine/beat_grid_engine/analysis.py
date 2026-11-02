@@ -15,6 +15,9 @@ from octopus.render.layout_engine.beat_grid_engine.spacing import (
     duration_beats,
     duration_fraction,
 )
+from octopus.render.layout_engine.beat_grid_engine.grace import (
+    grace_requires_host_timing,
+)
 from octopus.render.layout_engine.beat_grid_engine.types import (
     SYLLABLE_KINDS,
     TIMED_KINDS,
@@ -206,6 +209,39 @@ def _analyze_line_exact(
     if beats:
         measures.append(beats)
     return measures
+
+
+def singleton_exact_beat_columns(
+    events: Sequence[MusicEvent],
+) -> tuple[MusicEvent, ...] | None:
+    """Return each exact beat column's sole source event when ownership is complete.
+
+    The exact analyzer partitions timed events but does not model joint tuplet
+    ownership. Such measures therefore remain ineligible for single-owner
+    column decisions, including tuplets opened before the measured slice.
+    """
+    if any(
+        event.kind == MusicTokenKind.TUPLET_START
+        or any(":tuplet:" in role for role in event.construct_roles)
+        or grace_requires_host_timing(event)
+        for event in events
+    ):
+        return None
+    timed = tuple(event for event in events if duration_fraction(event) > 0)
+    if not timed or any(event.kind not in TIMED_KINDS for event in timed):
+        return None
+
+    measures = _analyze_line_exact(events, {})
+    if len(measures) != 1 or not measures[0] or any(
+        len(beat) != 1 for beat in measures[0]
+    ):
+        return None
+    owners = tuple(beat[0].event for beat in measures[0])
+    if len(owners) != len(timed) or {id(event) for event in owners} != {
+        id(event) for event in timed
+    }:
+        return None
+    return owners
 
 
 def four_voice_majority_beat_shape(

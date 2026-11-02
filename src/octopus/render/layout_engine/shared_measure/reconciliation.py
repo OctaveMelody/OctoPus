@@ -8,6 +8,7 @@ from math import isfinite
 
 from ....parser.ast import MusicTokenKind
 from ...core.layout_types import GEOMETRY_EPSILON, LayoutEvent
+from ..beat_grid_engine.analysis import singleton_exact_beat_columns
 from ..duration_partition import partition_shared_measure_widths_by_duration
 from ..hidden.hidden_streams import event_duration_fraction
 from ..profiles import LegacyIntrinsicProfile
@@ -293,6 +294,9 @@ def reconcile_shared_measure_widths(
     allows_shorter_measure_projection: bool = False,
     natural_measure_widths: Sequence[float] | None = None,
 ) -> list[tuple[float, ...]]:
+    for row in rows:
+        for item in row:
+            item.shared_beat_column = None
     widths = [list(profile.interval_widths) for profile in profiles]
     bar_indices = measure_barline_indices(rows)
     if not bar_indices or len({len(indices) for indices in bar_indices}) != 1:
@@ -324,6 +328,13 @@ def reconcile_shared_measure_widths(
         and natural_measure_widths is None
     ):
         _merge_compatible_singleton_onset_widths(
+            rows,
+            widths,
+            bar_indices,
+            terminal_punctuation_by_row=normalized_terminal_punctuation,
+            skip_connector_indices_by_row=normalized_skip_connector_indices,
+        )
+        _merge_compatible_exact_beat_column_widths(
             rows,
             widths,
             bar_indices,
@@ -493,6 +504,124 @@ def _merge_compatible_singleton_onset_widths(
                 shared_incoming,
                 shared_outgoing,
             ]
+
+
+def _merge_compatible_exact_beat_column_widths(
+    rows: list[list[LayoutEvent]],
+    widths: list[list[float]],
+    bar_indices: Sequence[Sequence[int]],
+    *,
+    terminal_punctuation_by_row: Sequence[bool],
+    skip_connector_indices_by_row: Sequence[frozenset[int]],
+) -> None:
+    """Union bounded multi-column widths when both rows own every beat column."""
+    if len(rows) != 2 or not bar_indices or len({len(indices) for indices in bar_indices}) != 1:
+        return
+    for bar_ordinal, slices in enumerate(iter_shared_measure_slices(bar_indices, widths)):
+        column_counts: list[int] = []
+        measure_durations: list[Fraction] = []
+        previous_duration_vectors: list[tuple[Fraction, ...]] = []
+        interval_widths: list[tuple[float, ...]] = []
+        source_onsets: list[Fraction] = []
+        admitted = True
+        for voice_index, (row, measure_slice) in enumerate(zip(rows, slices, strict=True)):
+            start = measure_slice.start
+            end = measure_slice.end
+            if (
+                end <= start
+                or row[start].event.kind != MusicTokenKind.BARLINE
+                or row[end].event.kind != MusicTokenKind.BARLINE
+            ):
+                admitted = False
+                break
+            content = row[start + 1 : end]
+            columns = singleton_exact_beat_columns(tuple(item.event for item in content))
+            if (
+                columns is None
+                or len(columns) < 2
+                or len(columns) != len(content)
+                or tuple(id(event) for event in columns)
+                != tuple(id(item.event) for item in content)
+                or any(
+                    item.event.index < 0
+                    or item.block is not None
+                    for item in content
+                )
+                or any(
+                    item.block is not None or item.event.kind == MusicTokenKind.HIDDEN_REST
+                    for item in row[:end]
+                )
+                or any(
+                    start <= index < end
+                    for index in skip_connector_indices_by_row[voice_index]
+                )
+                or bar_ordinal == len(bar_indices[voice_index]) - 1
+                and terminal_punctuation_by_row[voice_index]
+                or len(measure_slice.widths) != len(columns) + 1
+                or any(
+                    not isfinite(width) or width <= 0 for width in measure_slice.widths
+                )
+            ):
+                admitted = False
+                break
+            entry_codes = frozenset(
+                (row[start].event.code, rows[0][slices[0].start].event.code)
+            )
+            if len(entry_codes) > 1 and entry_codes not in _MIXED_SINGLETON_ENTRY_BARLINE_PAIRS:
+                admitted = False
+                break
+            prior_durations: list[Fraction] = []
+            prior_start = 0
+            for prior_barline in bar_indices[voice_index][:bar_ordinal]:
+                prior_content_start = prior_start + int(
+                    row[prior_start].event.kind == MusicTokenKind.BARLINE
+                )
+                prior_durations.append(
+                    sum(
+                        (
+                            event_duration_fraction(item.event)
+                            for item in row[prior_content_start:prior_barline]
+                        ),
+                        start=Fraction(),
+                    )
+                )
+                prior_start = prior_barline
+            previous_duration_vectors.append(tuple(prior_durations))
+            measure_durations.append(
+                sum(
+                    (event_duration_fraction(item.event) for item in content),
+                    start=Fraction(),
+                )
+            )
+            column_counts.append(len(columns))
+            interval_widths.append(measure_slice.widths)
+            source_onsets.append(
+                sum(
+                    (
+                        event_duration_fraction(item.event)
+                        for item in row[: start + 1]
+                    ),
+                    start=Fraction(),
+                )
+            )
+        if (
+            not admitted
+            or len(column_counts) != 2
+            or len(set(column_counts)) != 1
+            or previous_duration_vectors[0] != previous_duration_vectors[1]
+            or abs(measure_durations[0] - measure_durations[1]) != Fraction(1)
+            or source_onsets[0] != source_onsets[1]
+        ):
+            continue
+        shared_intervals = tuple(
+            max(row_widths[index] for row_widths in interval_widths)
+            for index in range(len(interval_widths[0]))
+        )
+        for voice_index, measure_slice in enumerate(slices):
+            widths[voice_index][measure_slice.start : measure_slice.end] = shared_intervals
+            content = rows[voice_index][measure_slice.start + 1 : measure_slice.end]
+            for column_ordinal, item in enumerate(content):
+                item.shared_beat_column = (bar_ordinal, column_ordinal)
 
 
 def _normalize_natural_measure_widths(

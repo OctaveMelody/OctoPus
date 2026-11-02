@@ -8,6 +8,7 @@ from ....normalization.types import MusicEvent, SystemModel, VoiceModel
 from ....parser.ast import MusicTokenKind
 from ...core.layout_types import LayoutEvent
 from ...core.layout_widths import REST_WIDTH
+from ..beat_grid_engine.analysis import singleton_exact_beat_columns
 from ..visibility import (
     is_bz_placeholder_event as _is_bz_placeholder_event,
 )
@@ -193,6 +194,13 @@ def _needs_hidden_rest_for_sustain_alignment(
                     and events[0].kind in {MusicTokenKind.NOTE, MusicTokenKind.REST}
                     for events in sibling_timed
                 )
+            ):
+                return False
+            current_columns = singleton_exact_beat_columns(current_events)
+            if current_columns is not None and all(
+                (sibling_columns := singleton_exact_beat_columns(events)) is not None
+                and len(sibling_columns) == len(current_columns)
+                for _duration, events in eligible_siblings
             ):
                 return False
         return True

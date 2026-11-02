@@ -42,6 +42,9 @@ class SharedGraceReserve:
     expires_in_host_voice: bool
     subdivision: int
     host_voices: frozenset[int]
+    # Exact host onsets for each voice in an admitted shared source column.
+    # Empty keeps the legacy written-onset activation rule.
+    onsets_by_voice: tuple[tuple[int, Fraction], ...] = ()
     # When a bracket-marked note is tied, the reference pays the reservation
     # back on the first gap after the tie group ends — but only when that gap
     # stays inside the measure (a group ending at a barline keeps the reserve
