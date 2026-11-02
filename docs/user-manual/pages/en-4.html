@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OctoPus User Manual · Notes and musical marks</title><link rel="stylesheet" href="../manual.css">
+<script src="../manual.js" defer></script></head><body><nav class="history-controls" aria-label="Manual navigation"><button type="button" data-history="back" aria-label="Go back" title="Go back">←</button><button type="button" data-history="forward" aria-label="Go forward" title="Go forward">→</button><button type="button" data-navigation="home" data-manual-home="en.html" aria-label="Go to manual home" title="Go to manual home">⌂</button><button type="button" data-scroll="top" aria-label="Go to page top" title="Go to page top">↑</button><button type="button" data-scroll="bottom" aria-label="Go to page bottom" title="Go to page bottom">↓</button></nav>
+<header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">OctoPus
+<small>by OctaveMelody</small></a>
+<nav aria-label="Manual navigation"><a href="../index.html">All topics</a> |
+<a href="zh-CN-4.html">简体中文</a></nav></header>
+<main><nav class="page-navigation" aria-label="Manual pages"><a href="en-3.html">← Previous</a><span>Page 4 of 6 · Notes and musical marks</span><a href="en-5.html">Next →</a></nav>
+<article id="manual-en" lang="en"><section id="en-notes"><h2>15. Notes, register and duration</h2>
+<table><thead><tr><th>Syntax</th><th>Meaning</th></tr>
+</thead>
+<tbody><tr><td>1-7</td><td>Scale degrees / 简谱音级</td></tr>
+<tr><td>0</td><td>Rest / 休止符</td></tr>
+<tr><td>8</td><td>Invisible rest with layout space / 占位隐藏休止符</td></tr>
+<tr><td>9</td><td>Rhythm X note / 节奏 X 音符</td></tr>
+<tr><td>1' / 1''</td><td>One/two octaves above / 高一/两个八度</td></tr>
+<tr><td>1, / 1,,</td><td>One/two octaves below / 低一/两个八度</td></tr>
+<tr><td>1 - -</td><td>Quarter note plus two extension beats / 音符加两拍增时线</td></tr>
+<tr><td>1/ / 1// / 1///</td><td>Eighth / sixteenth / thirty-second / 八分、十六分、三十二分</td></tr>
+<tr><td>1. / 1..</td><td>Single/double dot / 单附点、双附点</td></tr>
+</tbody>
+</table>
+<p>A bare digit is the basic quarter-note unit in the compatibility notation. Each attached slash halves its duration. A dot adds half the undotted duration; two dots add half plus a quarter (1.75 times the original). Extension hyphens add the Jianpu continuation strokes. They do not each need a lyric skip. Add octave commas/apostrophes after the digit; avoid spaces between the note and its suffix.</p>
+<pre><code>Q: 1 2&#x27; 3,, 0 | 1/ 2/ 3// 4// 5/ 6 7 | 6. 7/ 1&#x27; - ||</code></pre>
+<h3>Scale degree, rest, hidden rest and rhythm X</h3>
+<p>1-7 name scale degrees relative to D; they are not absolute MIDI pitches. 0 is a printed rest. 8 is an invisible rest/blank slot used to reserve layout space, especially between voices; it is not the next scale degree. 9 draws a rhythm X rather than pitch 9. Continuation - strokes extend a sounding note; they are not additional sung attacks. A hidden 8 is still a source event: when lyrics drift, compare its placement and any @ markers rather than simply deleting every invisible slot.</p>
+<h3>Calculate duration before editing layout</h3>
+<p>The basic digit is a quarter-note unit. Relative values are: no slash = 1, / = 1/2, // = 1/4, /// = 1/8. A single dot multiplies the value by 1.5 and a double dot by 1.75. Thus 5/. is 3/4 of a quarter-note unit and 5//. is 3/8; 5.. is 1.75. Each separate continuation dash adds a continuation beat in ordinary Jianpu writing. In 4/4, four bare notes fill an ordinary bar; in 6/8, six eighth notes do. Beam joins, lyric joins and extra spaces do not fix an incorrect duration total.</p>
+<h3>Keep suffixes attached to their host</h3>
+<p>Use apostrophes for high register and commas for low register; repeat them for two or more octaves. A note such as 7,/# carries low register, an eighth-note slash and a sharp. Library scores use several compatible suffix orders, so start from a working example instead of splitting a compound token into disconnected text. A period inside music is a duration dot; punctuation inside C is lyric punctuation. Do not replace the ASCII apostrophe with a typographic quote.</p>
+<!-- sample:duration-rest:start -->
+<div class="sample-example" id="en-example-duration-rest">
+<h3>Duration, register and a hidden rest</h3><p>Read 3/ and 5/ as eighth notes, 1&#x27;. as a dotted high note, and 7,/ as a low eighth note. The final 0 is visible; 8 reserves space but prints no rest digit. &amp;zkh / &amp;ykh delimit the accompaniment visually.</p>
+<p class="sample-provenance">bundled examples: Farewell.jps · source lines 10-10. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/duration-rest.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 5&amp;zkh 3/ 5/ 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 2/ 3/ 4. 7,/ | 1 - - 0 8&amp;ykh |</code></pre>
+<figure><img src="../assets/examples/duration-rest-1.png" alt="Duration, register and a hidden rest - 1" loading="eager"><figcaption>Rendered output: Duration, register and a hidden rest</figcaption></figure>
+</div>
+<!-- sample:duration-rest:end -->
+<!-- sample:short-values:start -->
+<div class="sample-example" id="en-example-short-values">
+<h3>Thirty-second notes and continuation strokes</h3><p>Three slashes produce three shortening lines. Compare the opening 0 rests, the low commas and high apostrophes, the short-note run, and 2 - at the end. The final (y...) is a tuplet, explained later.</p>
+<p class="sample-provenance">bundled examples: Flower-In-Water.jps · source lines 10-10. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/short-values.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 0&amp;zkh 0 6/// 1&#x27;/// 5/// 6/// 3/// 5/// 2/// 3/// 1/// 2/// 6,/// 1/// 5,/// 6,/// 2,/// 3,/// | 1/ 5,/ 6,/ 7,/ 5,/ 6,/ 5,/ | 2 - (y3 5 6&amp;ykh) |</code></pre>
+<figure><img src="../assets/examples/short-values-1.png" alt="Thirty-second notes and continuation strokes - 1" loading="eager"><figcaption>Rendered output: Thirty-second notes and continuation strokes</figcaption></figure>
+</div>
+<!-- sample:short-values:end -->
+</section>
+<section id="en-beaming"><h2>16. Automatic and custom grouping</h2>
+<p>OctoPus automatically groups short notes by a dotted-quarter beat in compound eighth-note meters: 6/8 uses two groups of three eighth notes, 9/8 uses three, and 12/8 uses four. The same rule applies when the denominator is 8 and the numerator is greater than 3 and divisible by 3. Other meters, including 3/8 and 2/2, retain quarter-note grouping. The note durations themselves do not change.</p>
+<pre><code>P: 6/8
+Q: 1/ 2/ 3/ 4/ 5/ 6/ |</code></pre>
+<h3>Where ~ and ^ act</h3>
+<p>The example above forms two three-eighth groups without extra marks. Use <code>~</code> and <code>^</code> only when you want to override the automatic grouping: attach ~ to join the marked note to the following note, or ^ to end the group after the marked note. For example, <code>1/~2/^3/~4/^5/~6/</code> explicitly groups six eighth notes in pairs. These controls change the visual underlines, not pitches or durations. Inspect both underline levels in a sixteenth-note run. In lyrics, ~ instead joins text into one lyric slot. Neither music ~ nor ^ adds a note.</p>
+<!-- sample:beam-control:start -->
+<div class="sample-example" id="en-example-beam-control">
+<h3>Join and split beams in compound meter</h3><p>The header lists 6/8 and 9/8; the first meter sets the initial dotted-quarter grouping. Explicit marks can customize it: in the first row, 6/^ ends the group after that note, while 5/~ 4/~ 1/ joins a group. The second row uses ~ to join longer runs. These marks change beam grouping, not note lengths.</p>
+<p class="sample-provenance">bundled examples: Autumn-Cicada - Fei-Yuqing.jps · source lines 11-12. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/beam-control.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 6/&amp;sby&amp;zkh | 5 6/^ 5/~ 4/~ 1/ | (3&#x27;. 3&#x27;) 3&#x27;/ | 2 3/ 2 1/ | (7,. 7,.) |
+Q: 5,//~ 6,//~ 7,//~ 1//~ 2//~ 3// 1//~ 2//~ 3//~ 4//~ 5//~ 6// | 4//~ 5//~ 6//~ 7//~ 1&#x27;//~ 2&#x27;// 7//~ 6//~ 5//~ 6//~ 4//~ 2// | (1. 1.) 8&amp;ykh |</code></pre>
+<figure><img src="../assets/examples/beam-control-1.png" alt="Join and split beams in compound meter - 1" loading="eager"><figcaption>Rendered output: Join and split beams in compound meter</figcaption></figure>
+</div>
+<!-- sample:beam-control:end -->
+</section>
+<section id="en-accidentals"><h2>17. Accidentals and grace notes</h2>
+<p>Write sharp #, flat $ or natural = after the host digit, for example 4#, 7$, 3=. Grace notes are attached square-bracket groups after their host: <code>1[23]</code> displays preceding grace notes; <code>1[h23]</code> displays following grace notes. Inside a group, commas/apostrophes, slashes and accidentals still apply. Grace digits default to eighth notes; a slash makes a sixteenth. A bracket attached to a note is not an ending bracket on a barline.</p>
+<pre><code>Q: 4# 7$ 3= 1[2/3&#x27;] | 5[h6,7/] - ||</code></pre>
+<h3>Accidental placement and scope</h3>
+<p>Write the accidental on its host digit, such as 4#, 7$ or 3=. Its printed position is before the digit. D changes the header key; a note accidental changes a particular written note. When copying a passage into a different key context, inspect its later repeated notes and explicit naturals. OctoPus prints the notation supplied; it does not validate the intended harmonic spelling or infer every missing cancellation.</p>
+<h3>Grace notes are smaller attached groups</h3>
+<p>1[23] means a preceding group attached to main note 1; 1[h23] means a following group. The h goes just inside [, not after the closing bracket. The group may contain several notes, register marks, accidentals and shortening slashes. Inside a grace group a bare digit already has the short eighth-note form; / makes it sixteenth. The host still has its own duration and lyric. Do not count each grace digit as a separate main lyric slot, and do not move the brackets to a barline, where they become ending syntax.</p>
+<!-- sample:accidental-return:start -->
+<div class="sample-example" id="en-example-accidental-return">
+<h3>Flat/sharp followed by a natural</h3><p>In Q2, 3$ is followed by 3=; in Q4, 4# is followed by 4=. The modifier is typed after the digit but drawn before it. Hidden 8 slots keep the choir parts aligned. These two selected voices are rendered independently of the omitted parts.</p>
+<p class="sample-provenance">bundled examples: Edelweiss - Choir ChinEng.jps · source lines 23-23, 27-27. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/accidental-return.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q2: 3 - 8 3 | 5 - - | 5 - 8 5 | 4 - - | 3 - 5 | 4 8 3$ 8 2 | 3= - - | 1&#x27; - - |
+Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; - - |</code></pre>
+<figure><img src="../assets/examples/accidental-return-1.png" alt="Flat/sharp followed by a natural - 1" loading="eager"><figcaption>Rendered output: Flat/sharp followed by a natural</figcaption></figure>
+</div>
+<!-- sample:accidental-return:end -->
+<!-- sample:grace-register:start -->
+<div class="sample-example" id="en-example-grace-register">
+<h3>Before/after grace notes and register</h3><p>The first four hosts compare before/after grace notes and their shorter values. The next bars compare low and high grace notes. [h...] follows the host visually; [...] precedes it. All groups are typed after the main note.</p>
+<p class="sample-provenance">bundled examples: Symbols.jps · source lines 8-8. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/grace-register.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 1[1/] 1[1] 1[h1] 1[h1/] | 1[1,/] 1[1,] 1[h1,,] 1[h1,,/] | 1[1&#x27;/] 1[1&#x27;&#x27;] 1[h1&#x27;] 1[h1&#x27;&#x27;/] |</code></pre>
+<figure><img src="../assets/examples/grace-register-1.png" alt="Before/after grace notes and register - 1" loading="eager"><figcaption>Rendered output: Before/after grace notes and register</figcaption></figure>
+</div>
+<!-- sample:grace-register:end -->
+<!-- sample:grace-groups:start -->
+<div class="sample-example" id="en-example-grace-groups">
+<h3>Grace groups containing several notes</h3><p>The left bar contains preceding grace groups; the right bar repeats the pattern as following grace groups with h. Slashes within a group shorten the grace notes independently of the host.</p>
+<p class="sample-provenance">bundled examples: Symbols.jps · source lines 15-15. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/grace-groups.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 1&#x27;/[23] 7/[23/4] 2,/[3/4/] 3,/[45/] 4[5/6] 5&#x27;/[1/2/3/] 6/[5/67/] | 1&#x27;/[h23] 7/[h23/4] 2,/[h3/4/] 3,/[h45/] 4[h5/6] 5&#x27;/[h1/2/3/] 6/[h5/67/] |</code></pre>
+<figure><img src="../assets/examples/grace-groups-1.png" alt="Grace groups containing several notes - 1" loading="eager"><figcaption>Rendered output: Grace groups containing several notes</figcaption></figure>
+</div>
+<!-- sample:grace-groups:end -->
+</section>
+<section id="en-dynamics"><h2>18. Dynamics and hairpins</h2>
+<p>Attach an ampersand code to a note, such as <code>3&amp;mp</code>. The reference terms are ppp, pp, p, mp, mf, f, ff, fff, cresc, dim, sf, fp, sfp, a tempo and rit. Use <code>&amp;a tempo</code> for the two-word term. Hairpins start with &lt; (crescendo) or &gt; (decrescendo) and end with !. Add + after the opening marker to move it upward when it overlaps another span. These are printed instructions; the desktop app does not interpret them as audio playback controls.</p>
+<pre><code>Q: 1&amp;p&lt; 2 3 4! | 5&gt;+ 4 3 2! | 1&amp;a tempo - - - ||</code></pre>
+<table><thead><tr><th>Code</th><th>Instruction</th></tr>
+</thead>
+<tbody><tr><td><code>&amp;ppp</code></td><td>Extremely soft</td></tr>
+<tr><td><code>&amp;pp</code></td><td>Very soft</td></tr>
+<tr><td><code>&amp;p</code></td><td>Soft</td></tr>
+<tr><td><code>&amp;mp</code></td><td>Moderately soft</td></tr>
+<tr><td><code>&amp;mf</code></td><td>Moderately loud</td></tr>
+<tr><td><code>&amp;f</code></td><td>Loud</td></tr>
+<tr><td><code>&amp;ff</code></td><td>Very loud</td></tr>
+<tr><td><code>&amp;fff</code></td><td>Extremely loud</td></tr>
+<tr><td><code>&amp;cresc</code></td><td>Crescendo</td></tr>
+<tr><td><code>&amp;dim</code></td><td>Diminuendo</td></tr>
+<tr><td><code>&amp;sf</code></td><td>Sudden accent</td></tr>
+<tr><td><code>&amp;fp</code></td><td>Loud then immediately soft</td></tr>
+<tr><td><code>&amp;sfp</code></td><td>Accented then immediately soft</td></tr>
+<tr><td><code>&amp;a tempo</code></td><td>Return to original tempo</td></tr>
+<tr><td><code>&amp;rit</code></td><td>Gradually slower</td></tr>
+</tbody>
+</table>
+<h3>Start, end and height of a hairpin</h3>
+<p>Place &lt; or &gt; on the starting host and ! on the ending host. A lone opening marker has no dependable endpoint; close it deliberately before the page boundary. &lt;+ or &gt;++ raises that span above the default height, with more + requesting a greater adjustment. Use the smallest offset that avoids a slur/ending collision, then inspect nearby systems and exports. Page spacing controls move whole rows; a + offset moves the selected mark. These are different corrections.</p>
+<h3>Dynamics are printed instructions</h3>
+<p><code>&amp;ppp</code> and <code>&amp;fff</code> use packaged vector outlines, like <code>&amp;pp</code> and <code>&amp;ff</code>. They share the same note attachment and octave/slur clearance without changing the note's duration or spacing. For example: <code>Q: 1&amp;ppp - - - | 1&amp;fff - - - |</code>.</p>
+<p>Attach &amp;mp, &amp;mf, &amp;f and the other table entries to the note where the instruction begins. Keep multiword &amp;a tempo intact. Printed ppp through fff describe loudness; cresc/dim describe change; rit and a tempo describe speed. An &amp;yc fermata is an ornament, not a loudness instruction, although it uses the same ampersand mechanism. Printed tempo/dynamics do not provide playback or MIDI output.</p>
+<!-- sample:hairpin-height:start -->
+<div class="sample-example" id="en-example-hairpin-height">
+<h3>Dynamics and raised hairpins in a choir</h3><p>Q1 and Q3 start with &amp;mp. &lt;+ begins a raised crescendo, ! ends it, then &gt; begins a decrescendo. Compare the span endpoints with the notes and rests in the other parts; lyric rows remain attached to their source system.</p>
+<p class="sample-provenance">bundled examples: Edelweiss - Choir ChinEng.jps · source lines 11-18. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/hairpin-height.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q1: 3&amp;mp -&lt;+ 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 3 | 3 8 4 8 5 | {dsb 6 - - | 5 - - | } 4 - - | 4 - - |
+C1: 雪绒花，雪绒花，清晨迎@着@我开放，
+C2: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q2: 3 - 3 | 5 - - | 5 - 5 | 4 - - | 3 - 3 | 3 8 1 8 1 | 1 - - | 2 - - |
+Q3: 5&amp;mp -&lt;+ 5 | 5 - -! | 1&#x27;&gt; - 1&#x27; | 6 - -! | 1&#x27; - 1&#x27; | 1&#x27; 8 6 8 6 | 6 - - | 7 - - |
+C3: 雪绒花，雪绒花，清晨迎@着@我开放，
+C4: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q4: 1 - 1 | 7, - - | 3 - 3 | 4 - - | 5 - 5 | 5 8 4 8 3 | 2 - - | 5 - - |</code></pre>
+<figure><img src="../assets/examples/hairpin-height-1.png" alt="Dynamics and raised hairpins in a choir - 1" loading="eager"><figcaption>Rendered output: Dynamics and raised hairpins in a choir</figcaption></figure>
+</div>
+<!-- sample:hairpin-height:end -->
+</section>
+<section id="en-ornaments"><h2>19. Ornaments, parentheses and annotations</h2>
+<table><thead><tr><th>Code after a note</th><th>Meaning</th></tr>
+</thead>
+<tbody><tr><td>&amp;yc</td><td>Fermata / 延长记号</td></tr>
+<tr><td>&amp;bc</td><td>Tenuto / 保持音</td></tr>
+<tr><td>&amp;zy</td><td>Accent / 重音</td></tr>
+<tr><td>&amp;dy</td><td>Staccato / 顿音</td></tr>
+<tr><td>&amp;hx</td><td>Breath / 呼吸</td></tr>
+<tr><td>&amp;shy / &amp;xhy</td><td>Upward / downward slide / 上、下滑音</td></tr>
+<tr><td>&amp;sby / &amp;xby</td><td>Upper / lower mordent / 上、下波音</td></tr>
+<tr><td>&amp;cy</td><td>Trill / 颤音</td></tr>
+<tr><td>&amp;sby+ / &amp;xby+ / &amp;cy+</td><td>Variant ornament forms / 装饰变体</td></tr>
+<tr><td>&amp;zkh / &amp;ykh</td><td>Left / right accompaniment parenthesis / 伴奏左右括弧</td></tr>
+</tbody>
+</table>
+<p>These short codes come from the notation reference, often from Chinese name initials. Attach them to the correct note. The + suffix selects the illustrated alternative for mordents/trills. Add a quoted annotation after a note to print text above it. Accompaniment parentheses &amp;zkh and &amp;ykh are also placed after the host digit even when the drawn parenthesis appears before the music.</p>
+<pre><code>Q: 3&amp;yc 3&amp;bc 3&amp;zy 3&amp;dy | 3&amp;hx 3&amp;shy 3&amp;xhy 3&amp;cy |
+Q: 1&amp;zkh 2 3 4&amp;ykh | 5&quot;sing gently&quot; - - - ||</code></pre>
+<h3>Use the correct attachment and variant</h3>
+<p>&amp;yc holds a note, &amp;bc marks tenuto, &amp;zy marks an accent and &amp;dy a detached/staccato note. &amp;hx is a breath indication. &amp;shy/&amp;xhy are slides; &amp;sby/&amp;xby are upper/lower mordents; &amp;cy is a trill. The + forms in the table select alternate ornament shapes: this + is not interchangeable with a hairpin-height offset. Multiple compatible codes can be attached to one host, as in 6/&amp;sby&amp;zkh. Check the rendered result for crowding.</p>
+<h3>Three kinds of text and parentheses</h3>
+<p>A quoted annotation after a note, such as 5&quot;sing gently&quot;, prints near that host; a quoted barline annotation belongs to the boundary; a full # comment never prints. For accompaniment parentheses use &amp;zkh and &amp;ykh after the first and last host. Ordinary (...) in Q makes a musical slur, not a pair of accompaniment glyphs. Ordinary punctuation and the legacy (~...~) form in C belong to lyric text, not music-span syntax.</p>
+<!-- sample:fermata-rit:start -->
+<div class="sample-example" id="en-example-fermata-rit">
+<h3>Ritardando and fermata</h3><p>5&amp;rit prints the tempo instruction. 7,/&amp;yc prints a fermata above the low eighth note. Neither command changes playback, because OctoPus currently has no playback workflow.</p>
+<p class="sample-provenance">bundled examples: Farewell.jps · source lines 34-36. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/fermata-rit.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5&amp;rit (2/ 3/) 4. 7,/&amp;yc | 1 - - 0 ||
+C: 人生@难得是欢聚，唯有@别离多。
+C: (~问君@此去几时还，来时@莫徘徊~)</code></pre>
+<figure><img src="../assets/examples/fermata-rit-1.png" alt="Ritardando and fermata - 1" loading="eager"><figcaption>Rendered output: Ritardando and fermata</figcaption></figure>
+</div>
+<!-- sample:fermata-rit:end -->
+<!-- sample:tenuto-parentheses:start -->
+<div class="sample-example" id="en-example-tenuto-parentheses">
+<h3>Tenuto and accompaniment parentheses</h3><p>The final bar attaches &amp;bc to each note. &amp;zkh is attached to its first note and &amp;ykh to its last, creating visible accompaniment parentheses without adding musical events.</p>
+<p class="sample-provenance">bundled examples: China-In-The-Lights.jps · source lines 21-21. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/tenuto-parentheses.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 8 2 (2/ 3/) (4/ 3/) 2/ 1/ | 1/. (1// 1/) 6/ 6 - | 1/ 7,/ 7,/ 1/ 2/ 1/ 2/ (3/ | 3/) (1/ 1) - - | 2&amp;bc&amp;zkh 3&amp;bc 4&amp;bc 5&amp;bc&amp;ykh |</code></pre>
+<figure><img src="../assets/examples/tenuto-parentheses-1.png" alt="Tenuto and accompaniment parentheses - 1" loading="eager"><figcaption>Rendered output: Tenuto and accompaniment parentheses</figcaption></figure>
+</div>
+<!-- sample:tenuto-parentheses:end -->
+</section></article>
+<nav class="page-navigation" aria-label="Manual pages"><a href="en-3.html">← Previous</a><span>Page 4 of 6 · Notes and musical marks</span><a href="en-5.html">Next →</a></nav></main></body></html>

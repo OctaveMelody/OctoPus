@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OctoPus User Manual · Bars, spans and voices</title><link rel="stylesheet" href="../manual.css">
+<script src="../manual.js" defer></script></head><body><nav class="history-controls" aria-label="Manual navigation"><button type="button" data-history="back" aria-label="Go back" title="Go back">←</button><button type="button" data-history="forward" aria-label="Go forward" title="Go forward">→</button><button type="button" data-navigation="home" data-manual-home="en.html" aria-label="Go to manual home" title="Go to manual home">⌂</button><button type="button" data-scroll="top" aria-label="Go to page top" title="Go to page top">↑</button><button type="button" data-scroll="bottom" aria-label="Go to page bottom" title="Go to page bottom">↓</button></nav>
+<header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">OctoPus
+<small>by OctaveMelody</small></a>
+<nav aria-label="Manual navigation"><a href="../index.html">All topics</a> |
+<a href="zh-CN-5.html">简体中文</a></nav></header>
+<main><nav class="page-navigation" aria-label="Manual pages"><a href="en-4.html">← Previous</a><span>Page 5 of 6 · Bars, spans and voices</span><a href="en-6.html">Next →</a></nav>
+<article id="manual-en" lang="en"><section id="en-barlines"><h2>20. Barlines and repeat instructions</h2>
+<table><thead><tr><th>Syntax</th><th>Appearance/use</th></tr>
+</thead>
+<tbody><tr><td>|</td><td>Single / 普通小节线</td></tr>
+<tr><td>||</td><td>Thin-left/thick-right final line / 左细右粗终止线</td></tr>
+<tr><td>||/</td><td>Two thin lines / 双细线</td></tr>
+<tr><td>|:</td><td>Start repeat / 左反复</td></tr>
+<tr><td>:|</td><td>End repeat / 右反复</td></tr>
+<tr><td>:|:</td><td>End/start repeat / 两侧反复</td></tr>
+<tr><td>|/</td><td>Hidden, no layout width / 不显示、不占位</td></tr>
+<tr><td>|*</td><td>Hidden, reserves layout width / 不显示、占位</td></tr>
+</tbody>
+</table>
+<table><thead><tr><th>Barline-attached code</th><th>Meaning</th></tr>
+</thead>
+<tbody><tr><td>||&amp;fine</td><td>Fine / 终止</td></tr>
+<tr><td>||&amp;dc.</td><td>D.C. / 从头反复</td></tr>
+<tr><td>||&amp;ds</td><td>D.S. / 从记号反复</td></tr>
+<tr><td>|&amp;ty</td><td>Coda / 尾声记号</td></tr>
+<tr><td>|&amp;hs</td><td>Segno / 反复跳转记号</td></tr>
+</tbody>
+</table>
+<p>Repeat/navigation marks belong to a barline, not an ordinary note. Use |/ at a row beginning when a barline-attached mark is needed without a visible barline. Use |* to reserve alignment space, especially with mixed single/multiple voices. These marks are printed; playback navigation is not provided.</p>
+<h3>Visible and invisible boundaries</h3>
+<p>Use | for an ordinary boundary, || for the final thin/thick boundary and ||/ for two thin lines. |:, :| and :|: mark repeat starts, ends and combined end/start boundaries. A barline divides music; it does not insert a rest. |/ is invisible and takes no barline width, useful at a row-start ending or navigation mark. |* is invisible but reserves width, useful for aligning a later voice entry. These two hidden forms are not interchangeable.</p>
+<h3>Fine, D.C., D.S., segno and coda</h3>
+<p>Attach &amp;fine, &amp;dc. and &amp;ds to a barline to print Fine, D.C. or D.S.; &amp;hs draws the segno and &amp;ty the coda sign. For a row-start sign, create a hidden |/ anchor rather than attaching the code to an unrelated note. A repeat ending label such as &quot;1,2&quot; is separate from a navigation command. The viewer displays these symbols but does not execute a playback route. Check that the written route is musically complete yourself.</p>
+<!-- sample:repeat-start:start -->
+<div class="sample-example" id="en-example-repeat-start">
+<h3>A repeat beginning inside a source row</h3><p>The |: occurs after two bars. A repeat boundary is part of the musical flow, not a request for a new source row. The lyric skip markers align unsung notes before the chorus.</p>
+<p class="sample-provenance">bundled examples: JingleBells.jps · source lines 18-20. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/repeat-start.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 6,/ 4/ 3/~ 8~ 2/ 5/~ 8~ 5/ 5/~ 8~ 5/ | 6/ 5/ 4/~ 8~ 2/ 1. 0/ |: 3/ 3/ 3 3/ 3/ 3 |
+C: fun /it /is @/to /ride @/and /sing @/a /sleigh- /ing /song @/to- /night~. @Jin- /gle /bells~, jin- /gle /bells~,
+C: 今晚滑@雪真@快乐@把滑雪歌@儿唱。@叮叮当，叮叮当，</code></pre>
+<figure><img src="../assets/examples/repeat-start-1.png" alt="A repeat beginning inside a source row - 1" loading="eager"><figcaption>Rendered output: A repeat beginning inside a source row</figcaption></figure>
+</div>
+<!-- sample:repeat-start:end -->
+<!-- sample:navigation-sign:start -->
+<div class="sample-example" id="en-example-navigation-sign">
+<h3>Coda and a barline meter annotation</h3><p>The last |&amp;ty carries a coda sign. The preceding |&quot;p:9/8&quot; introduces a local meter. A quoted barline instruction and an ampersand navigation symbol can serve different purposes on the same kind of anchor.</p>
+<p class="sample-provenance">bundled examples: Autumn-Cicada - Fei-Yuqing.jps · source lines 21-22. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/navigation-sign.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 5 3/ 5 3/ | 1&#x27; 6/ 1&#x27; 6/ | 5 5/^ (5/ 6/)~ 5/ |&quot;p:9/8&quot; (4/ 5/)~ 4/ (3. 3.) |&amp;ty
+C: 秋去冬来美景不在，莫教好@春逝@匆匆，</code></pre>
+<figure><img src="../assets/examples/navigation-sign-1.png" alt="Coda and a barline meter annotation - 1" loading="eager"><figcaption>Rendered output: Coda and a barline meter annotation</figcaption></figure>
+</div>
+<!-- sample:navigation-sign:end -->
+</section>
+<section id="en-slurs"><h2>21. Slurs and tuplets</h2>
+<p>Wrap music in parentheses for a slur: <code>(1 2 3)</code>. Spans can nest and continue across barlines or music rows on the same page. Open the span in the earlier Q row and close it in the later row of the same voice. Use <code>(y1 2 3)</code> for a tuplet; the group count is inferred from its notes. Do not use a capital Y. Cross-page slurs are not automatically continuous: split/reopen spans at manual page boundaries and inspect the result.</p>
+<pre><code>Q: (1 (2 3) 4 | 5 6
+Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
+<h3>Nested, cross-bar and cross-row spans</h3>
+<p>Open ( on the first included note and close ) on the last. Nested pairs form separate spans; keep a count while editing. A barline inside the pair does not end the slur. On the same page, leave it open at the end of a Q row and close it on a later row of that voice. If a lyric line intervenes, it remains a lyric, not a slur terminator. At a manual page break, split/reopen the span deliberately. Ending branches also need intentional span boundaries; do not place a close on an unrelated voice merely to silence a warning.</p>
+<p>For a continuation that begins before the first note, use a hidden barline inside the parentheses, for example <code>Q: (( |/ 6)) - - - |</code>. Each nested pair keeps a separate curve, including a short continuation cap at the row start. A span that crosses music rows draws an open fragment on each row, including when the curved-path style is selected. Every printed inner tie still needs its own parentheses in JPS.</p>
+<h3>A slur is not a tuplet</h3>
+<p>(1/ 2/ 3/) is an ordinary three-note slur; (y1/ 2/ 3/) is a tuplet. The renderer infers the count from the group, so changing its notes changes the printed number. Do not type a guessed number after y as though it were a ratio field. Keep the group limited to the intended notes and compare its bracket/number with the reference. A printed tuplet is not proof that every surrounding bar has been rhythmically validated.</p>
+<!-- sample:slur-bar:start -->
+<div class="sample-example" id="en-example-slur-bar">
+<h3>A slur crossing a barline</h3><p>In the second row, (3 - | 3) opens before a continuation and closes in the next bar. The same note number at both endpoints is not enough: the parentheses define the printed span.</p>
+<p class="sample-provenance">bundled examples: As-Wished.jps · source lines 11-12. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/slur-bar.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 3&amp;zkh 6,// 1// 3// 5// 4/ 3/ 2/ 1/ | 7,/ 1/ 2/ 7,/ 3 7 | 1 6,// 1// 3// 5// 4/ 3/ 2/ 1/ | 7, - 0/ 3,/ 6,/ 7,/ |
+Q: 1. 3// 5// 4 - | 0/ 7,/ 1/ 2/ (3 - | 3) 0 0 3/ 1&#x27;/ |&quot;p:2/4&quot; 7 5# |&quot;p:4/4&quot; 6 - -&amp;ykh</code></pre>
+<figure><img src="../assets/examples/slur-bar-1.png" alt="A slur crossing a barline - 1" loading="eager"><figcaption>Rendered output: A slur crossing a barline</figcaption></figure>
+</div>
+<!-- sample:slur-bar:end -->
+<!-- sample:tuplets:start -->
+<div class="sample-example" id="en-example-tuplets">
+<h3>Ordinary slurs beside triplet groups</h3><p>(5// 5) is an ordinary slur; (y1/ 2/ 3/) creates a numbered three-note tuplet. The y is lowercase and comes immediately after the opening parenthesis.</p>
+<p class="sample-provenance">bundled examples: Flower-In-Water.jps · source lines 12-13. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/tuplets.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 1&#x27;/ 5/ 6/ 3// (5// 5) (y1/ 2/ 3/) | 2. 3/ 6, (y1/ 2/ 3/) | 2. 3/ 6, 0/ 6,/ | 5,/ 3/ 3 - 0 |
+C: 凄雨冷风中 @多少繁华如梦  曾经万紫千红   @随风吹落</code></pre>
+<figure><img src="../assets/examples/tuplets-1.png" alt="Ordinary slurs beside triplet groups - 1" loading="eager"><figcaption>Rendered output: Ordinary slurs beside triplet groups</figcaption></figure>
+</div>
+<!-- sample:tuplets:end -->
+</section>
+<section id="en-endings"><h2>22. Endings and temporary meter</h2>
+<p>Ending brackets [ and ] are attached to barlines. Put their label in a quoted barline annotation. A start at the beginning of a row uses hidden |/. Add / after [ for an open right edge; add + (or several +) to raise the bracket and avoid overlapping slurs. Ending spans may cross rows; keep their endpoints in the correct voice. The same brackets attached to a note mean grace notes, so placement matters.</p>
+<pre><code>Q: |/[&quot;1&quot; 1 2 3 4 :|] |/[&quot;2&quot; 5 6 7 1&#x27; ||]
+Q: |/[+/&quot;1,2&quot; 1 2 3 4 | 5 6 7 1&#x27; |]</code></pre>
+<p>For a meter change, put <code>"p:3/4"</code> after the barline. This prints the local time signature and updates automatic grouping for the following notes in that voice. Changing to 6/8, 9/8 or 12/8 selects dotted-quarter groups; changing to 3/4 or 4/4 restores quarter-note groups. Use ~ or ^ for any intentional override.</p>
+<pre><code>Q: 1 2 3 4 |&quot;p:3/4&quot; 5 6 7 |</code></pre>
+<h3>Place each ending on barlines</h3>
+<p>An ending opens with [ attached to a barline and closes with ] attached to a later barline. The quoted label belongs to the barline, not to a note. For a beginning at the left of a music row, use |/[&quot;1&quot;. Use [+, [++ and further + to raise the line above nearby slurs. An open-edge form can use / on the bracket syntax; library scores also use a closing |]/ to omit the right corner. Copy a complete opening/closing pair and inspect it rather than moving brackets alone.</p>
+<h3>Cross-row endings and local meter</h3>
+<p>An ending may continue into the next music row on the same page. Keep its label, endpoint, repeat barline and lyric ending consistent. For a local meter, write |&quot;p:3/4&quot; with lowercase p inside the quotes. A row-start local change can use |/&quot;p:3/4&quot;. Header P: 3/4 sets the initial meter; if it lists several meters, the first is used until a local change. Within a page, later rows of the same voice retain their local meter. In compound meter, the grouping phase also continues across rows. Other voices retain their own meter, and underline segments end at each row boundary. To return to an earlier meter, write it explicitly, for example |&quot;p:4/4&quot;. Reintroduce a local meter after a manual page break when needed. Review durations and custom grouping at every change; a meter annotation does not redistribute the source notes.</p>
+<!-- sample:first-second-ending:start -->
+<div class="sample-example" id="en-example-first-second-ending">
+<h3>First and second endings on one row</h3><p>The first [&quot;1&quot; begins on a barline and ends at :|]; [&quot;2&quot; follows on that same boundary and finishes at ||]. Compare the two branches with the matching lyric endings.</p>
+<p class="sample-provenance">bundled examples: JingleBells.jps · source lines 22-24. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/first-second-ending.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q: 3/ 5/ 1/. 2// 3 - | 4/~ 8~ 4/ 4./~ 4// 4/~ 8~ 3/ 3/~ 3//~ 3// |[&quot;1&quot; 3/ 2/ 2/~ 8~ 1/ (2/ 5.) :|][&quot;2&quot; 5/ 5/ 4/~ 8~ 2/ 1. ||]
+C: Jin- /gle /all /the /way~. Oh @/what /fun /it /is @/to /ride~, in /a /one- /horse /o- @/pen /sleigh~! one- /horse /o- @/pen /sleigh~!
+C: 铃儿响叮当，我@们滑雪多@快乐，我们坐在雪@橇上。坐在雪@橇上。</code></pre>
+<figure><img src="../assets/examples/first-second-ending-1.png" alt="First and second endings on one row - 1" loading="eager"><figcaption>Rendered output: First and second endings on one row</figcaption></figure>
+</div>
+<!-- sample:first-second-ending:end -->
+<!-- sample:open-ending-meter:start -->
+<div class="sample-example" id="en-example-open-ending-meter">
+<h3>Raised ending, row-start anchor and open right edge</h3><p>|/ provides an invisible row-start anchor; [+ raises the bracket. The closing |]/ leaves an open right edge. The local &quot;p:2/4&quot; changes the printed meter during the passage.</p>
+<p class="sample-provenance">bundled examples: As-Wished.jps · source lines 32-32. Excerpt rendered with the Linux package font set; blank page space omitted. Extra top clearance separates the isolated ending from the header. <a download href="../assets/examples/open-ending-meter.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q:  |/[+&quot;2&quot; 6/ 7/ 1&#x27;/ 2&#x27;/ 2&#x27;/ 3&#x27;// (3&#x27;// 3&#x27;/.) 3&#x27;// | 3&#x27;/ 2&#x27;// (4&#x27;// 4&#x27;/) 3&#x27;/ 2&#x27;/ 1&#x27;// (1&#x27;// 1&#x27;/.) 1&#x27;// |&quot;p:2/4&quot; 7/ 1&#x27;// (2&#x27;// 2&#x27;/) 7/ |]/</code></pre>
+<figure><img src="../assets/examples/open-ending-meter-1.png" alt="Raised ending, row-start anchor and open right edge - 1" loading="eager"><figcaption>Rendered output: Raised ending, row-start anchor and open right edge</figcaption></figure>
+</div>
+<!-- sample:open-ending-meter:end -->
+</section>
+<section id="en-voices"><h2>23. Voices and temporary accompaniment</h2>
+<p>Use Q1, Q2, etc. for numbered music parts; C/C1/C2 rows supply the associated lyric lines. Preserve their ordering and inspect the preview when adapting library scores. A voice name can follow its number in quotes. Keep successive voices rhythmically aligned; numbered music rows form a system, while lyrics attach to their matching voice. Single and multiple voices can be mixed. A mid-row voice brace is indicated by &amp;sbf; use hidden rest 8 and hidden barline |* to reserve earlier space in secondary voices.</p>
+<pre><code>Q1&quot;Soprano&quot;: 1 2 3 4 |
+C1: 春 风 吹 来
+Q2&quot;Alto&quot;: 3, 4, 5, 6, |
+C2: 花 儿 开 了</code></pre>
+<p>Temporary accompaniment uses <code>{bz ...}</code>; temporary multiple voices use <code>{dsb ...}</code>. The keyword must immediately follow { and be lowercase. These inline groups are positioned against the main music. Copy an appropriate bundled example and check duration/alignment instead of assuming arbitrary blocks will align automatically.</p>
+<p>A temporary voice may begin a row, for example <code>Q: {dsb ( |/ 3 - - - | 3) } ( |/ 1 - - - | 1) 0 0 0 |</code>. The upper voice follows the written main-voice timeline; an initial hidden barline adds no beats, and a final singleton note remains visible. Following notes return to the main row when the upper voice ends. In a numbered system, the system brace supplies the opening. Keep the main voices' measure durations and separators consistent for shared columns; a missing written barline is not supplied automatically.</p>
+<p>A temporary accompaniment block may contain several measures and more notes than its host melody; its notes, visible rests and later measures are retained. In a score with multiple voices, the host melody keeps its shared duration grid with the other parts; the accompaniment does not add beats to that melody. A block at a row end can align with the following row of the same voice. When no following melody is available, including a standalone or terminal block, its contents are still displayed. Nested {bz ...} notes render once. Review alignment whenever the rhythms or measure counts differ.</p>
+<pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
+Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
+<p>A minimal mid-row brace pattern (inspect alignment in the preview):</p>
+<pre><code>Q1: 1 2 3 4 |&amp;sbf 5 6 7 1&#x27; |
+Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre>
+<h3>Build a system one part at a time</h3>
+<p>Use Q1, Q2, Q3 and Q4 for simultaneous parts, not four successive solo rows. A quoted name follows the number before the colon, for example Q1&quot;Soprano&quot;:. Enter one system, compare bar boundaries and durations across its parts, then add its lyric rows and the next system. A missing rest cannot be repaired by visually adding spaces. Library scores include unnumbered C and numbered lyric lanes; their placement is context-sensitive. Preserve a working sample&#x27;s row ordering and confirm the result when assigning new lyrics.</p>
+<h3>Temporary blocks and a mid-row brace</h3>
+<p>{bz ...} is a temporary accompaniment block; {dsb ...} is temporary multiple-voice content. The lowercase keyword follows { immediately. These attach inline to the main passage, while top-level Q2 starts another full part. Count both brace endpoints and the slurs within the block. For a mid-row voice entry, &amp;sbf marks the brace position in the first voice; secondary voices use duration-compatible hidden 8 events and |* boundaries before the entry. This technique is in the reference but no bundled example uses &amp;sbf, so the minimal pattern above is a constructed exercise, not a library quotation.</p>
+<!-- sample:temporary-accompaniment:start -->
+<div class="sample-example" id="en-example-temporary-accompaniment">
+<h3>Temporary accompaniment above the melody</h3><p>The {bz ...} group is embedded inside the second bar, while the main slur closes on the following 6. A raised second-ending bracket spans the passage. Read brace, bracket and parenthesis pairs separately.</p>
+<p class="sample-provenance">bundled examples: Azalea.jps · source lines 29-30. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/temporary-accompaniment.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q:  |/[+++&quot;2&quot; (6/ 2&#x27;/) (2&#x27;/ 1&#x27;// 6//) | (6[5] - | {bz 6/&amp;zkh 2&#x27;/ 2&#x27;/ 3&#x27;/ | } 6) - | 3&#x27;/ 2&#x27;/ 3&#x27; | 2&#x27; - | 3&#x27; - | 3&#x27; - 8&amp;ykh ||]
+C: 映@山@@红。</code></pre>
+<figure><img src="../assets/examples/temporary-accompaniment-1.png" alt="Temporary accompaniment above the melody - 1" loading="eager"><figcaption>Rendered output: Temporary accompaniment above the melody</figcaption></figure>
+</div>
+<!-- sample:temporary-accompaniment:end -->
+<!-- sample:temporary-voices:start -->
+<div class="sample-example" id="en-example-temporary-voices">
+<h3>Temporary multiple voices within a full choir system</h3><p>Q1 contains {dsb 6 - - | 5 - - | } while its main sequence continues with 4. Compare this inline branch with the ordinary Q2/Q3/Q4 parts. A brace group is not a new top-level Q row.</p>
+<p class="sample-provenance">bundled examples: Edelweiss - Choir ChinEng.jps · source lines 11-18. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/temporary-voices.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q1: 3&amp;mp -&lt;+ 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 3 | 3 8 4 8 5 | {dsb 6 - - | 5 - - | } 4 - - | 4 - - |
+C1: 雪绒花，雪绒花，清晨迎@着@我开放，
+C2: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q2: 3 - 3 | 5 - - | 5 - 5 | 4 - - | 3 - 3 | 3 8 1 8 1 | 1 - - | 2 - - |
+Q3: 5&amp;mp -&lt;+ 5 | 5 - -! | 1&#x27;&gt; - 1&#x27; | 6 - -! | 1&#x27; - 1&#x27; | 1&#x27; 8 6 8 6 | 6 - - | 7 - - |
+C3: 雪绒花，雪绒花，清晨迎@着@我开放，
+C4: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q4: 1 - 1 | 7, - - | 3 - 3 | 4 - - | 5 - 5 | 5 8 4 8 3 | 2 - - | 5 - - |</code></pre>
+<figure><img src="../assets/examples/temporary-voices-1.png" alt="Temporary multiple voices within a full choir system - 1" loading="eager"><figcaption>Rendered output: Temporary multiple voices within a full choir system</figcaption></figure>
+</div>
+<!-- sample:temporary-voices:end -->
+<!-- sample:four-voices:start -->
+<div class="sample-example" id="en-example-four-voices">
+<h3>Four aligned parts and reserved blank slots</h3><p>Q1 through Q4 form one system. Compare the simultaneous barlines and the inserted 8 slots. Numbered C rows in library files can also denote successive lyric lanes: inspect their actual preview rather than mechanically renumbering a borrowed score.</p>
+<p class="sample-provenance">bundled examples: O-Canada Choir.jps · source lines 13-17. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/four-voices.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>Q1: 3 - 5. 5/ | 1 - - 2 | 3 8 4 8 5 6 | 2 - - 0 | 3 - 4#. 4/ | 5 - - 6 |
+Q2: 1 - 7,. 7,/ | 6, - - 7, | 1 8 1 8 1 1 | 1 - 7, 0 | 1 - 2. 2/ | 2 - - 3 |
+C: O /Can- /a- /da~! Our/ home / @and /@na-tive/ land~! @@True /pa-triot /love/ in
+Q3: 5 - 4. 4/ | 3 - - 5 | 5 8 5 8 5 4 | 5 - - 0 | 5 - 1&#x27;. 1&#x27;/ | 7 - - 6 |
+Q4: 1 - 5,. 5,/ | 6, - - 5, | 1 8 2 8 3 4 | 5 - - 0 | 1 - 6,. 6,/ | 7, - - 1 |</code></pre>
+<figure><img src="../assets/examples/four-voices-1.png" alt="Four aligned parts and reserved blank slots - 1" loading="eager"><figcaption>Rendered output: Four aligned parts and reserved blank slots</figcaption></figure>
+</div>
+<!-- sample:four-voices:end -->
+</section></article>
+<nav class="page-navigation" aria-label="Manual pages"><a href="en-4.html">← Previous</a><span>Page 5 of 6 · Bars, spans and voices</span><a href="en-6.html">Next →</a></nav></main></body></html>

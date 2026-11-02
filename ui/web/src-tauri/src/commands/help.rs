@@ -208,9 +208,12 @@ fn open_external_web_url(app: &AppHandle, url: &str) {
 #[cfg(test)]
 mod tests {
     use super::{
-        app_navigation_decision, is_external_web_url, manual_pdf_filename, project_url,
-        HelpDestination, ManualNavigationDecision,
+        app_navigation_decision, copy_manual_docs, is_external_web_url, manual_html_path_from_root,
+        manual_pdf_filename, project_url, HelpDestination, ManualNavigationDecision,
     };
+    use std::fs;
+    use std::path::Path;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn manual_pdf_filename_uses_the_selected_language() {
@@ -219,6 +222,36 @@ mod tests {
             manual_pdf_filename("zh-CN"),
             "OctoPus-User-Manual-zh-CN.pdf"
         );
+    }
+
+    #[test]
+    fn manual_entries_use_localized_first_pages_and_nested_staging_keeps_all_topics() {
+        let docs_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../docs");
+        let destination = std::env::temp_dir().join(format!(
+            "octopus-manual-stage-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock is after Unix epoch")
+                .as_nanos(),
+        ));
+        copy_manual_docs(&docs_root, &destination).expect("copy bundled manual resources");
+
+        for language in ["en", "zh-CN"] {
+            let entry = manual_html_path_from_root(&destination, language);
+            assert!(
+                entry.is_file(),
+                "missing staged {language} manual entry: {entry:?}"
+            );
+        }
+        for page in ["en-6.html", "zh-CN-6.html"] {
+            assert!(destination.join("user-manual/pages").join(page).is_file());
+        }
+        assert!(destination
+            .join("user-manual/assets/screenshots/main-window-en.jpg")
+            .is_file());
+
+        fs::remove_dir_all(destination).expect("remove staged manual test copy");
     }
 
     #[test]

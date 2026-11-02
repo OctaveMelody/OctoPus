@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>章鱼简谱用户手册 · 小节线、连接与声部</title><link rel="stylesheet" href="../manual.css">
+<script src="../manual.js" defer></script></head><body><nav class="history-controls" aria-label="手册导航"><button type="button" data-history="back" aria-label="后退" title="后退">←</button><button type="button" data-history="forward" aria-label="前进" title="前进">→</button><button type="button" data-navigation="home" data-manual-home="zh-CN.html" aria-label="返回手册首页" title="返回手册首页">⌂</button><button type="button" data-scroll="top" aria-label="转到页面顶部" title="转到页面顶部">↑</button><button type="button" data-scroll="bottom" aria-label="转到页面底部" title="转到页面底部">↓</button></nav>
+<header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">章鱼简谱
+<small>by OctaveMelody</small></a>
+<nav aria-label="手册导航"><a href="../index.html">所有主题</a> |
+<a href="en-5.html">English</a></nav></header>
+<main><nav class="page-navigation" aria-label="手册分页"><a href="zh-CN-4.html">← 上一页</a><span>第 5 / 6 页 · 小节线、连接与声部</span><a href="zh-CN-6.html">下一页 →</a></nav>
+<article id="manual-zh-CN" lang="zh-CN"><section id="zh-CN-barlines"><h2>20. 小节线与反复指示</h2>
+<table><thead><tr><th>语法</th><th>外观/用途</th></tr>
+</thead>
+<tbody><tr><td>|</td><td>Single / 普通小节线</td></tr>
+<tr><td>||</td><td>Thin-left/thick-right final line / 左细右粗终止线</td></tr>
+<tr><td>||/</td><td>Two thin lines / 双细线</td></tr>
+<tr><td>|:</td><td>Start repeat / 左反复</td></tr>
+<tr><td>:|</td><td>End repeat / 右反复</td></tr>
+<tr><td>:|:</td><td>End/start repeat / 两侧反复</td></tr>
+<tr><td>|/</td><td>Hidden, no layout width / 不显示、不占位</td></tr>
+<tr><td>|*</td><td>Hidden, reserves layout width / 不显示、占位</td></tr>
+</tbody>
+</table>
+<table><thead><tr><th>小节线后编码</th><th>含义</th></tr>
+</thead>
+<tbody><tr><td>||&amp;fine</td><td>Fine / 终止</td></tr>
+<tr><td>||&amp;dc.</td><td>D.C. / 从头反复</td></tr>
+<tr><td>||&amp;ds</td><td>D.S. / 从记号反复</td></tr>
+<tr><td>|&amp;ty</td><td>Coda / 尾声记号</td></tr>
+<tr><td>|&amp;hs</td><td>Segno / 反复跳转记号</td></tr>
+</tbody>
+</table>
+<p>反复/导航记号属于小节线，不是普通音符。行首需要小节线附属记号却不应显示线时用 |/；需要占位对齐时用 |*，尤其是单、多声部混合。程序显示这些指示，但没有播放跳转功能。</p>
+<h3>可见与隐藏边界</h3>
+<p>普通边界用 |，终止细粗线用 ||，双细线用 ||/；|:、:|、:|: 分别为反复起点、终点及合并边界。小节线分隔音乐，不插入休止符。|/ 不可见且不占小节线宽度，可作行首结尾线或跳转记号锚点；|* 不可见但占位，可对齐后进入的声部。两种隐藏线不能任意互换。</p>
+<h3>Fine、D.C.、D.S. 与跳转记号</h3>
+<p>将 &amp;fine、&amp;dc.、&amp;ds 附在小节线后，分别显示 Fine、D.C.、D.S.；&amp;hs 画 Segno 反复跳转记号，&amp;ty 画 Coda 尾声记号。行首记号宜用隐藏 |/ 作锚点，不要附在无关音后。&quot;1,2&quot; 结尾标签与跳转指令不同。程序显示符号但不执行播放路线，需自行核对反复路径完整性。</p>
+<!-- sample:repeat-start:start -->
+<div class="sample-example" id="zh-CN-example-repeat-start">
+<h3>源码行内开始反复</h3><p>|: 位于两个小节之后。反复起点属于音乐内容，不表示必须另起源码行。歌词中的 @ 跳过进入副歌前未唱词的音符。</p>
+<p class="sample-provenance">示例库：JingleBells.jps · 源码行 18-20。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/repeat-start.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 6,/ 4/ 3/~ 8~ 2/ 5/~ 8~ 5/ 5/~ 8~ 5/ | 6/ 5/ 4/~ 8~ 2/ 1. 0/ |: 3/ 3/ 3 3/ 3/ 3 |
+C: fun /it /is @/to /ride @/and /sing @/a /sleigh- /ing /song @/to- /night~. @Jin- /gle /bells~, jin- /gle /bells~,
+C: 今晚滑@雪真@快乐@把滑雪歌@儿唱。@叮叮当，叮叮当，</code></pre>
+<figure><img src="../assets/examples/repeat-start-1.png" alt="源码行内开始反复 - 1" loading="eager"><figcaption>渲染结果: 源码行内开始反复</figcaption></figure>
+</div>
+<!-- sample:repeat-start:end -->
+<!-- sample:navigation-sign:start -->
+<div class="sample-example" id="zh-CN-example-navigation-sign">
+<h3>尾声记号与小节线拍号注释</h3><p>末尾 |&amp;ty 带有尾声记号，前面的 |&quot;p:9/8&quot; 显示局部拍号。小节线引号注释与 &amp; 跳转符号虽都依附小节线，含义却不同。</p>
+<p class="sample-provenance">示例库：Autumn-Cicada - Fei-Yuqing.jps · 源码行 21-22。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/navigation-sign.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 5 3/ 5 3/ | 1&#x27; 6/ 1&#x27; 6/ | 5 5/^ (5/ 6/)~ 5/ |&quot;p:9/8&quot; (4/ 5/)~ 4/ (3. 3.) |&amp;ty
+C: 秋去冬来美景不在，莫教好@春逝@匆匆，</code></pre>
+<figure><img src="../assets/examples/navigation-sign-1.png" alt="尾声记号与小节线拍号注释 - 1" loading="eager"><figcaption>渲染结果: 尾声记号与小节线拍号注释</figcaption></figure>
+</div>
+<!-- sample:navigation-sign:end -->
+</section>
+<section id="zh-CN-slurs"><h2>21. 连音线与多连音</h2>
+<p>用圆括号包围音乐表示连音线，例如 <code>(1 2 3)</code>。连线可嵌套，也可跨小节或同页曲行；在同一声部前行打开，在后行关闭。<code>(y1 2 3)</code> 表示多连音，数量由组内音符推定，y 必须小写。跨页连音线不会自动连续；手动分页时应分开并重新开始连线，检查最终效果。</p>
+<pre><code>Q: (1 (2 3) 4 | 5 6
+Q: 7 1&#x27;) | (y1/ 2/ 3/) 4 5 6 ||</code></pre>
+<h3>嵌套、跨小节与跨行连线</h3>
+<p>若延续连线从首音之前开始，可把隐藏小节线放在括号内，例如 <code>Q: (( |/ 6)) - - - |</code>。各层括号保留独立曲线，包括行首短小的延续端。跨曲行连线会在各行绘制开放的片段，即使选用了曲线路径样式也如此。原谱中的每条内部延音线仍须在 JPS 中写出相应括号。</p>
+<p>在包含的首音前写 (，末音后写 )。嵌套括号形成独立跨度，编辑时逐层计数；括号内的小节线不会结束连线。同页跨行时，可在一个 Q 行末保持开启，在同声部后续行闭合。中间 C 行仍是歌词，不会终止音乐连线。手动分页处须有意切分、重新开启；结尾分支也需明确边界，不能只为消除警告而在另一声部随意闭合。</p>
+<h3>连音线与多连音的区别</h3>
+<p>(1/ 2/ 3/) 是普通三音连线；(y1/ 2/ 3/) 是连音组。程序从组内音符推算数量，增删音符会改变显示数字。不要把猜测的数字接在 y 后，当作比例字段。限定组内范围，并对照原谱的数字和括号；显示连音数字不表示整小节时值已自动验证。</p>
+<!-- sample:slur-bar:start -->
+<div class="sample-example" id="zh-CN-example-slur-bar">
+<h3>跨小节连音线</h3><p>第二行 (3 - | 3) 在增时线前开启，跨过小节线后闭合。两端数字相同本身不会自动生成连线；括号才定义跨度。</p>
+<p class="sample-provenance">示例库：As-Wished.jps · 源码行 11-12。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/slur-bar.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 3&amp;zkh 6,// 1// 3// 5// 4/ 3/ 2/ 1/ | 7,/ 1/ 2/ 7,/ 3 7 | 1 6,// 1// 3// 5// 4/ 3/ 2/ 1/ | 7, - 0/ 3,/ 6,/ 7,/ |
+Q: 1. 3// 5// 4 - | 0/ 7,/ 1/ 2/ (3 - | 3) 0 0 3/ 1&#x27;/ |&quot;p:2/4&quot; 7 5# |&quot;p:4/4&quot; 6 - -&amp;ykh</code></pre>
+<figure><img src="../assets/examples/slur-bar-1.png" alt="跨小节连音线 - 1" loading="eager"><figcaption>渲染结果: 跨小节连音线</figcaption></figure>
+</div>
+<!-- sample:slur-bar:end -->
+<!-- sample:tuplets:start -->
+<div class="sample-example" id="zh-CN-example-tuplets">
+<h3>普通连音线与三连音并列</h3><p>(5// 5) 是普通连音线，(y1/ 2/ 3/) 是标出数字的三连音。y 必须小写，并紧跟左括号。</p>
+<p class="sample-provenance">示例库：Flower-In-Water.jps · 源码行 12-13。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/tuplets.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 1&#x27;/ 5/ 6/ 3// (5// 5) (y1/ 2/ 3/) | 2. 3/ 6, (y1/ 2/ 3/) | 2. 3/ 6, 0/ 6,/ | 5,/ 3/ 3 - 0 |
+C: 凄雨冷风中 @多少繁华如梦  曾经万紫千红   @随风吹落</code></pre>
+<figure><img src="../assets/examples/tuplets-1.png" alt="普通连音线与三连音并列 - 1" loading="eager"><figcaption>渲染结果: 普通连音线与三连音并列</figcaption></figure>
+</div>
+<!-- sample:tuplets:end -->
+</section>
+<section id="zh-CN-endings"><h2>22. 跳房子与临时拍号</h2>
+<p>跳房子 [ 和 ] 附在小节线上；标号用双引号小节线注释。行首起点使用隐藏 |/。[ 后加 / 可使右端开放，加 +（或多个 +）可上移，避免与连音线重叠。跳房子可跨行，应在正确声部设置端点。同样方括号紧附音符时表示倚音，位置很重要。</p>
+<pre><code>Q: |/[&quot;1&quot; 1 2 3 4 :|] |/[&quot;2&quot; 5 6 7 1&#x27; ||]
+Q: |/[+/&quot;1,2&quot; 1 2 3 4 | 5 6 7 1&#x27; |]</code></pre>
+<p>临时拍号在小节线后写 <code>"p:3/4"</code>。它显示局部拍号，并更新该声部后续音符的自动分组。改为 6/8、9/8、12/8 时采用附点四分音符分组；改为 3/4、4/4 时恢复四分音符分组。需要特定分组时，仍可用 ~ 或 ^ 覆盖。</p>
+<pre><code>Q: 1 2 3 4 |&quot;p:3/4&quot; 5 6 7 |</code></pre>
+<h3>在小节线上放置结尾线</h3>
+<p>结尾线以小节线后的 [ 开启，以后续小节线后的 ] 闭合，引号标签属于小节线而非音符。行首可写 |/[&quot;1&quot;。用 [+、[++ 等把线抬到相邻连音线上方。方括号语法中的 / 可表示开放端；示例也用闭合处 |]/ 省略右侧竖角。复制时应带上完整起止配对，不能只移动孤立括号。</p>
+<h3>跨行结尾与局部换拍</h3>
+<p>同页结尾线可以延续到下一曲行；标签、终点、反复线及歌词结尾应相互一致。局部换拍写 |&quot;p:3/4&quot;，引号内 p 小写；行首可用 |/&quot;p:3/4&quot;。描述头 P: 3/4 设定初始拍号；列出多个拍号时，先使用第一个，直到局部换拍。同一页中，同声部后续曲行保留局部拍号；复拍子的分组进度也跨行延续。其他声部使用各自拍号；减时线本身在每个曲行边界结束。恢复原拍号时应明确写出，例如 |&quot;p:4/4&quot;。手动分页后，如需继续局部拍号，应重新写出。每次换拍都应核对时值与自定义分组；拍号不会重新分配源码音符。</p>
+<!-- sample:first-second-ending:start -->
+<div class="sample-example" id="zh-CN-example-first-second-ending">
+<h3>同一行中的第一、第二结尾</h3><p>[&quot;1&quot; 在小节线上开始，并以 :|] 结束；同一边界紧接 [&quot;2&quot;，以 ||] 结束。比较两个结尾分支及各自歌词。</p>
+<p class="sample-provenance">示例库：JingleBells.jps · 源码行 22-24。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/first-second-ending.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 3/ 5/ 1/. 2// 3 - | 4/~ 8~ 4/ 4./~ 4// 4/~ 8~ 3/ 3/~ 3//~ 3// |[&quot;1&quot; 3/ 2/ 2/~ 8~ 1/ (2/ 5.) :|][&quot;2&quot; 5/ 5/ 4/~ 8~ 2/ 1. ||]
+C: Jin- /gle /all /the /way~. Oh @/what /fun /it /is @/to /ride~, in /a /one- /horse /o- @/pen /sleigh~! one- /horse /o- @/pen /sleigh~!
+C: 铃儿响叮当，我@们滑雪多@快乐，我们坐在雪@橇上。坐在雪@橇上。</code></pre>
+<figure><img src="../assets/examples/first-second-ending-1.png" alt="同一行中的第一、第二结尾 - 1" loading="eager"><figcaption>渲染结果: 同一行中的第一、第二结尾</figcaption></figure>
+</div>
+<!-- sample:first-second-ending:end -->
+<!-- sample:open-ending-meter:start -->
+<div class="sample-example" id="zh-CN-example-open-ending-meter">
+<h3>抬高结尾线、行首锚点与右端开放</h3><p>|/ 提供不可见的行首锚点，[+ 抬高结尾线，闭合处 |]/ 使右端开放。局部 &quot;p:2/4&quot; 在片段内改变显示拍号。</p>
+<p class="sample-provenance">示例库：As-Wished.jps · 源码行 32-32。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 独立片段增加上方间距，避免结尾线与描述头重叠。 <a download href="../assets/examples/open-ending-meter.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q:  |/[+&quot;2&quot; 6/ 7/ 1&#x27;/ 2&#x27;/ 2&#x27;/ 3&#x27;// (3&#x27;// 3&#x27;/.) 3&#x27;// | 3&#x27;/ 2&#x27;// (4&#x27;// 4&#x27;/) 3&#x27;/ 2&#x27;/ 1&#x27;// (1&#x27;// 1&#x27;/.) 1&#x27;// |&quot;p:2/4&quot; 7/ 1&#x27;// (2&#x27;// 2&#x27;/) 7/ |]/</code></pre>
+<figure><img src="../assets/examples/open-ending-meter-1.png" alt="抬高结尾线、行首锚点与右端开放 - 1" loading="eager"><figcaption>渲染结果: 抬高结尾线、行首锚点与右端开放</figcaption></figure>
+</div>
+<!-- sample:open-ending-meter:end -->
+</section>
+<section id="zh-CN-voices"><h2>23. 声部与临时伴奏</h2>
+<p>曲使用 Q1、Q2 等声部编号；C/C1/C2 行提供相关歌词。改编示例时保留行顺序，并核对预览。声部编号后可用引号写声部名。相邻声部应保持节奏对齐；带编号曲行形成声部系统，歌词依附对应声部。可混合单声部和多声部。行中开始声部括弧可用 &amp;sbf；次要声部前面的空位用隐藏休止符 8 和隐藏小节线 |* 对齐。</p>
+<pre><code>Q1&quot;高声部&quot;: 1 2 3 4 |
+C1: 春 风 吹 来
+Q2&quot;低声部&quot;: 3, 4, 5, 6, |
+C2: 花 儿 开 了</code></pre>
+<p>临时伴奏使用 <code>{bz ...}</code>，临时多声部使用 <code>{dsb ...}</code>。关键字紧跟 {，且小写。这些行内组与主旋律定位。建议参考相近内置示例并核对时值、对齐，不要假设任意块都能自动正确排列。</p>
+<p>临时声部可从行首开始，例如 <code>Q: {dsb ( |/ 3 - - - | 3) } ( |/ 1 - - - | 1) 0 0 0 |</code>。上方声部沿主声部写出的时间轴定位；开头隐藏小节线不增加拍数，末尾单个音符也会保留。上方声部结束后，后续音符回到主曲行。在编号多声部系统中，系统括弧提供左侧开口。共享列要求主声部的小节时值和分隔一致；程序不会自动补写缺失的小节线。</p>
+<p>临时伴奏块可包含多个小节，音符数也可多于其对应主旋律；音符、可见休止符及后续小节都会保留。多声部乐谱中，主旋律与其他声部仍使用共同的时值网格；临时伴奏不会给主旋律增加拍数。行末的块可与同声部下一曲行对齐。没有后续旋律时，包括独立或末尾的伴奏块，块内内容仍会显示。嵌套 {bz ...} 中的音符各显示一次。节奏或小节数不同时，请检查对齐。</p>
+<pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
+Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
+<p>行中声部括弧的简化示例（请在预览中检查对齐）：</p>
+<pre><code>Q1: 1 2 3 4 |&amp;sbf 5 6 7 1&#x27; |
+Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre>
+<h3>逐声部建立系统</h3>
+<p>Q1、Q2、Q3、Q4 表示同时发声的声部，不是连续四行独唱。声部名放在数字之后、冒号之前，如 Q1&quot;女高音&quot;:。先输入一组，对照各部小节边界与时值，再加歌词及下一组。缺少休止符不能靠空格补齐。示例含无编号 C 及编号歌词层，其依附受上下文影响；宜保留可用示例的行顺序，新增歌词后核对显示。</p>
+<h3>临时块与行中声部括弧</h3>
+<p>{bz ...} 是临时伴奏，{dsb ...} 是临时多声部，小写关键字紧跟 {。它们内嵌于主片段；顶层 Q2 则另建完整声部。需同时配对花括号及块内连线。行中进入时，第一声部的 &amp;sbf 指定括弧位置，其他声部在进入前用时值合适的 8 与 |* 占位。该技巧来自规范，但内置示例没有 &amp;sbf；上面的最小模式是构造练习，不是示例原文。</p>
+<!-- sample:temporary-accompaniment:start -->
+<div class="sample-example" id="zh-CN-example-temporary-accompaniment">
+<h3>旋律上方的临时伴奏</h3><p>{bz ...} 嵌入第二小节，主旋律连线在后面的 6 闭合。抬高的第二结尾线跨越整段。分别追踪花括号、方括号和圆括号的配对。</p>
+<p class="sample-provenance">示例库：Azalea.jps · 源码行 29-30。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/temporary-accompaniment.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q:  |/[+++&quot;2&quot; (6/ 2&#x27;/) (2&#x27;/ 1&#x27;// 6//) | (6[5] - | {bz 6/&amp;zkh 2&#x27;/ 2&#x27;/ 3&#x27;/ | } 6) - | 3&#x27;/ 2&#x27;/ 3&#x27; | 2&#x27; - | 3&#x27; - | 3&#x27; - 8&amp;ykh ||]
+C: 映@山@@红。</code></pre>
+<figure><img src="../assets/examples/temporary-accompaniment-1.png" alt="旋律上方的临时伴奏 - 1" loading="eager"><figcaption>渲染结果: 旋律上方的临时伴奏</figcaption></figure>
+</div>
+<!-- sample:temporary-accompaniment:end -->
+<!-- sample:temporary-voices:start -->
+<div class="sample-example" id="zh-CN-example-temporary-voices">
+<h3>完整合唱系统中的临时多声部</h3><p>Q1 的 {dsb 6 - - | 5 - - | } 为临时分支，主序列仍继续到 4。比较该分支与正常 Q2/Q3/Q4。花括号组不等于另一个顶层 Q 行。</p>
+<p class="sample-provenance">示例库：Edelweiss - Choir ChinEng.jps · 源码行 11-18。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/temporary-voices.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q1: 3&amp;mp -&lt;+ 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 3 | 3 8 4 8 5 | {dsb 6 - - | 5 - - | } 4 - - | 4 - - |
+C1: 雪绒花，雪绒花，清晨迎@着@我开放，
+C2: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q2: 3 - 3 | 5 - - | 5 - 5 | 4 - - | 3 - 3 | 3 8 1 8 1 | 1 - - | 2 - - |
+Q3: 5&amp;mp -&lt;+ 5 | 5 - -! | 1&#x27;&gt; - 1&#x27; | 6 - -! | 1&#x27; - 1&#x27; | 1&#x27; 8 6 8 6 | 6 - - | 7 - - |
+C3: 雪绒花，雪绒花，清晨迎@着@我开放，
+C4: E-/ del-/ weiss~, E-/ del-/ weiss~, ev-/ &#x27;~r~y morn-/ @ing/ @you/ greet/ me~.
+Q4: 1 - 1 | 7, - - | 3 - 3 | 4 - - | 5 - 5 | 5 8 4 8 3 | 2 - - | 5 - - |</code></pre>
+<figure><img src="../assets/examples/temporary-voices-1.png" alt="完整合唱系统中的临时多声部 - 1" loading="eager"><figcaption>渲染结果: 完整合唱系统中的临时多声部</figcaption></figure>
+</div>
+<!-- sample:temporary-voices:end -->
+<!-- sample:four-voices:start -->
+<div class="sample-example" id="zh-CN-example-four-voices">
+<h3>四声部对齐与隐藏占位</h3><p>Q1 至 Q4 构成一组。比较同一时刻的小节线及插入的 8。示例文件中的编号 C 行也可能用于连续歌词层；借用曲谱时应检查实际预览，不要机械改号。</p>
+<p class="sample-provenance">示例库：O-Canada Choir.jps · 源码行 13-17。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/four-voices.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q1: 3 - 5. 5/ | 1 - - 2 | 3 8 4 8 5 6 | 2 - - 0 | 3 - 4#. 4/ | 5 - - 6 |
+Q2: 1 - 7,. 7,/ | 6, - - 7, | 1 8 1 8 1 1 | 1 - 7, 0 | 1 - 2. 2/ | 2 - - 3 |
+C: O /Can- /a- /da~! Our/ home / @and /@na-tive/ land~! @@True /pa-triot /love/ in
+Q3: 5 - 4. 4/ | 3 - - 5 | 5 8 5 8 5 4 | 5 - - 0 | 5 - 1&#x27;. 1&#x27;/ | 7 - - 6 |
+Q4: 1 - 5,. 5,/ | 6, - - 5, | 1 8 2 8 3 4 | 5 - - 0 | 1 - 6,. 6,/ | 7, - - 1 |</code></pre>
+<figure><img src="../assets/examples/four-voices-1.png" alt="四声部对齐与隐藏占位 - 1" loading="eager"><figcaption>渲染结果: 四声部对齐与隐藏占位</figcaption></figure>
+</div>
+<!-- sample:four-voices:end -->
+</section></article>
+<nav class="page-navigation" aria-label="手册分页"><a href="zh-CN-4.html">← 上一页</a><span>第 5 / 6 页 · 小节线、连接与声部</span><a href="zh-CN-6.html">下一页 →</a></nav></main></body></html>

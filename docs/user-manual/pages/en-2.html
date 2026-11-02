@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OctoPus User Manual · Editing and output</title><link rel="stylesheet" href="../manual.css">
+<script src="../manual.js" defer></script></head><body><nav class="history-controls" aria-label="Manual navigation"><button type="button" data-history="back" aria-label="Go back" title="Go back">←</button><button type="button" data-history="forward" aria-label="Go forward" title="Go forward">→</button><button type="button" data-navigation="home" data-manual-home="en.html" aria-label="Go to manual home" title="Go to manual home">⌂</button><button type="button" data-scroll="top" aria-label="Go to page top" title="Go to page top">↑</button><button type="button" data-scroll="bottom" aria-label="Go to page bottom" title="Go to page bottom">↓</button></nav>
+<header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">OctoPus
+<small>by OctaveMelody</small></a>
+<nav aria-label="Manual navigation"><a href="../index.html">All topics</a> |
+<a href="zh-CN-2.html">简体中文</a></nav></header>
+<main><nav class="page-navigation" aria-label="Manual pages"><a href="en.html">← Previous</a><span>Page 2 of 6 · Editing and output</span><a href="en-3.html">Next →</a></nav>
+<article id="manual-en" lang="en"><section id="en-preview"><h2>7. Preview, cursor and navigation</h2>
+<p>The preview updates as source changes. Clicking or moving the source cursor highlights the matching score position and brings that row toward the preview center. Clicking a preview note or lyric selects its source without automatically moving the preview. Direct source clicks/keyboard movement resume following. Only uniquely mapped elements are selectable; some decorative or temporary-voice elements may not have a precise source target.</p>
+<p>Use -/+ to zoom, Fit Page for the whole page and Fit Width for width-based reading. Page arrows or View menu items navigate rendered pages. Refresh requests a new render. Click diagnostics below the preview to jump to the related source. A previous preview can remain visible during rendering; wait for completion and resolve relevant warnings before exporting.</p>
+<p>Focus the preview with Tab to use <b>Page Up / Page Down</b> for navigation and <b>Ctrl+wheel</b> for zoom. The status line reports completed pages and elapsed rendering time; during a multipage render it shows progress.</p>
+</section>
+<section id="en-reference"><h2>8. Original images/PDFs and transcription</h2>
+<p>Choose <b>Import → JPG / PNG / PDF…</b> or drop <b>one</b> PNG, JPG/JPEG or PDF into Original Image/PDF. An existing reference prompts Replace Reference or Cancel. Import is blocked while another import, replacement decision, recovery, save, transcription or conflicting dialog is active. Unsupported/multiple dropped files are rejected without import.</p>
+<figure class="ui-screenshot"><img src="../assets/screenshots/import-en.jpg" alt="The Import menu open above the source editor and score preview." loading="eager"><figcaption>Import menu: choose JPG / PNG / PDF to add a single reference image or document.</figcaption></figure>
+<p>Drag the displayed original to pan; use fit, zoom and Rotate 90°. Rotation changes the viewing orientation, not the original file. A PDF has page navigation. Closing the pane hides it and retains the managed reference; select a Transcription layout to reopen it. Input limits include 100 MiB per image/PDF, at most 200 PDF/reference pages and 40 million pixels per decoded image/PDF page. Damaged, encrypted or unsupported files may fail; reduce the input if the program reports a size or page-limit error.</p>
+<ul><li>Transcribe New: generates a provisional new score. Handle any unsaved-score prompt before replacing the working score.</li>
+<li>Transcribe Append: adds recognized music to the current source, using a page break boundary when needed and omitting repeated draft headers for a nonempty score. Undo can reverse the insertion.</li>
+<li>A PDF is transcribed as a document, not only its displayed page. Review the warnings and each page against the original; collapse warnings when you need editing space.</li>
+<li>Correct uncertain recognition manually. Check octave dots, beams, dotted durations, accidentals, grace notes, slurs, endings and lyrics before saving/exporting.</li>
+</ul>
+<figure class="ui-screenshot"><img src="../assets/screenshots/transcription-review-en.jpg" alt="A transcribed reference shown beside the score preview, with the source editor below." loading="eager"><figcaption>Transcription review: keep the original visible while comparing the rendered draft and source.</figcaption></figure>
+<p>Before inserting into a nonempty score, Append compares each nonblank explicit uppercase D/P/J draft header with the current score. It blocks a definite mismatch or a header it cannot verify, such as a missing destination value or an ambiguous D/P/J instruction inside music, and suggests Transcribe New. It does not infer omitted draft headers or add default key, meter or tempo values. Matching headers do not prove musical compatibility; review the draft against the original.</p>
+<h3>OCR model</h3>
+<p>The bundled <b>Default</b> profile uses PP-OCRv6 Small text detection and recognition models with the shared PP-OCRv4 Mobile orientation classifier. It supports English and Chinese and works offline. Transcribe New and Transcribe Append use this same profile for every crop and PDF page. The profile does not change or become part of the saved JPS score.</p>
+<h3>Review an uncertain draft</h3><p>For PDFs, transcription shows page progress and a <b>Cancel transcription</b> button. Cancel stops the task, keeps your current score and discards the unfinished draft. Afterward, expand the review list and choose a finding. The original pane opens the matching page, zooms toward the reported region and outlines it in amber. If a finding maps to one source note, that note is selected in the editor. Low digit agreement adds a warning mark to the draft; this score compares classifier results and is not a calibrated probability or a guarantee of correctness.</p>
+<figure class="ui-screenshot"><img src="../assets/screenshots/transcription-findings-en.jpg" alt="The transcription review list with an issue selected and the matching original region outlined." loading="eager"><figcaption>Review finding: select an item to open and highlight its location in the original.</figcaption></figure>
+<p>Editing the source clears obsolete note-range marks, but scan regions remain available for review. Old findings cannot select references that have been renamed, removed or replaced. A one-time hint explains how to drop in a scan or PDF and create a draft; dismiss it to clear the workspace.</p><p>OctoPus conservatively filters repeated headers, footers and isolated page numbers outside music and lyric bands. Review findings can flag continuation-page meter changes, key or tempo changes that need manual handling, unresolved score instructions, and clear measure or voice duration mismatches. Lyric findings point out differences between accepted words or slots and the rendered draft; review them manually because they neither rewrite lyrics nor verify OCR. Checks against the rendered draft compare note count, row and spacing, but none of these checks rewrites uncertain notes or proves that a draft is complete or musically correct. Compare the notation with the original before accepting it.</p>
+</section>
+<section id="en-layout"><h2>9. Modes, layouts and focus</h2>
+<table><thead><tr><th>Mode/layout</th><th>Use</th></tr>
+</thead>
+<tbody><tr><td>Normal N1</td><td>JPS source and preview side by side.</td></tr>
+<tr><td>Normal N2</td><td>JPS source and preview stacked.</td></tr>
+<tr><td>Transcription T1</td><td>Original, source and preview in three columns.</td></tr>
+<tr><td>Transcription T2</td><td>Original and preview above the source editor.</td></tr>
+</tbody>
+</table>
+<p>Drag the divider between panels to resize them. Vertical dividers move left/right; horizontal dividers move up/down. In T1, each divider resizes only its two neighboring panes. Each layout remembers its sizes. To resize with a keyboard, focus a divider with Tab and use the matching arrow keys (Shift for a larger step); Home/End select the smallest/largest size. Minimum sizes keep every panel accessible. Use a panel’s Maximize control to expand it and Restore to return to the layout. Close hides a panel while preserving its content. Choosing a layout in App Settings reopens its panels; if all panels are closed, use that menu to resume. Controls adapt as the available width changes. F11 toggles the window maximized state; the toolbar has no separate Maximize button.</p>
+<figure class="ui-screenshot"><img src="../assets/screenshots/settings-en.jpg" alt="App Settings menu showing normal and transcription layouts and display preferences." loading="eager"><figcaption>App Settings: switch between side-by-side, stacked and transcription layouts.</figcaption></figure>
+</section>
+<section id="en-settings"><h2>10. Page settings and fonts</h2>
+<p>Page Settings groups paper (A4/A5), margins and body offset; title/lyric fonts and note style; title/subtitle/lyric sizes; music-to-lyric, lyric-to-lyric, lyric-to-music and voice spacing; and slur shape (Automatic, Arc, Flat top). Sizes/margins are renderer units, not millimeters. <b>Apply</b> updates the score while keeping the dialog open; <b>OK</b> applies and closes; <b>Cancel</b> discards unapplied draft changes. Already applied changes are not reverted by Cancel. Save the score to retain changes.</p>
+<figure class="ui-screenshot"><img src="../assets/screenshots/page-settings-en.jpg" alt="Page Settings dialog with paper, margins, fonts, text sizes and spacing controls." loading="eager"><figcaption>Page Settings: adjust score page size, spacing, text size and notation fonts.</figcaption></figure>
+<table><thead><tr><th>Role</th><th>Windows installed family</th><th>macOS installed family</th><th>Linux bundled family</th></tr>
+</thead>
+<tbody><tr><td>HeiTi-1 (default)</td><td>Microsoft YaHei</td><td>PingFang SC</td><td>MiSans Regular</td></tr>
+<tr><td>HeiTi-2</td><td>SimHei</td><td>Heiti SC</td><td>LXGW Neo XiHei</td></tr>
+<tr><td>SongTi</td><td>SimSun</td><td>Songti SC</td><td>SimZhiSong</td></tr>
+<tr><td>KaiTi</td><td>KaiTi</td><td>Kaiti SC</td><td>LXGW WenKai Regular</td></tr>
+<tr><td>FangSong</td><td>FangSong</td><td>STFangsong</td><td>Zhuque Fangsong Regular</td></tr>
+</tbody>
+</table>
+<p><b>App Settings</b> selects the interface language and UI font; see section 4 for the first-use defaults. These fonts affect controls and menus only. <b>Page Settings</b> selects score font roles and styles, while exports use the same roles. On Windows and macOS, OctoPus uses the preferred installed family for each role. If it is missing, OctoPus can use a compatible installed substitute. Open <b>Help → Fonts</b> for official installation instructions or choose <b>Check again</b>. Windows links to Microsoft's supplemental-font guidance; macOS links to Apple Font Book. You can keep using installed substitutes without installing more fonts, though a character may be unavailable if none of the installed fonts contains it. Windows and macOS desktop packages do not include the 13-face score-font set. Linux portable and AppImage builds use the verified font set shipped with the application. Noto fonts provide Linux glyph fallbacks, but they do not cover every Unicode character; Latin Arial-family text uses Liberation Sans. Note styles are Regular, Italic and Bold, and saved HeiTi maps to HeiTi-2. Font substitution can change spacing. Microsoft fonts are not redistributed. MiSans has a separate Xiaomi license; other Linux score-font notices use OFL and IPA licenses. The offline manual includes only small Noto Sans SC subsets. <a href="https://learn.microsoft.com/en-us/windows/deployment/windows-missing-fonts">Microsoft font installation instructions</a> · <a href="https://support.apple.com/en-gb/guide/font-book/fntbk1000/mac">Apple Font Book instructions</a>.</p>
+<p class="keep-together">Image and scanned-PDF transcription uses the bundled Default OCR profile with RapidOCR + ONNX locally. Select <b>Transcribe</b> in the original-image/PDF panel to create a reviewable JPS draft. Review the generated source and any issue markers before saving or using the draft.</p>
+</section>
+<section id="en-export"><h2>11. Export and portable use</h2>
+<p>Choose Export, select SVG, PDF, PNG or JPG (96 or 300 DPI), and choose where to save the files. PDF creates one multipage document; SVG, PNG and JPG create separate page files. Use 300 DPI for print-quality raster output. Save the JPS as your editable master before sharing exports. PDF embeds fonts, PNG preserves lossless pixels, JPEG compresses pixels and SVG keeps vector content. External SVG viewers still need matching text fonts, so inspect exports in the viewer you plan to use. The separate Python ReportLab PDF path cannot embed CFF-outline system fonts and uses the role fallback; this limitation does not apply to native desktop export.</p>
+<figure class="ui-screenshot"><img src="../assets/screenshots/export-en.jpg" alt="The Export menu showing SVG, PDF, JPG and PNG export options and resolutions." loading="eager"><figcaption>Export menu: select a format and resolution, then choose where to save the result.</figcaption></figure>
+<p>Keep the entire portable folder together, including engine, examples and docs. On Linux run <code>dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus</code>; Windows uses <code>portable/octopus.exe</code>. The worker is bundled, so no separate Python is required. Linux still requires GTK/WebKit runtime libraries and Poppler; Windows requires WebView2. Portable does not mean every host dependency is embedded.</p>
+<h3>Batch export from the Python command line</h3><p>For a folder of JPS sources, the Python command line can produce one combined PDF or separate files per score. Files are processed in sorted path order; recursive output keeps subfolders. Existing output files are never overwritten. A failed source is reported while other valid sources continue; review the exit status and printed summary.</p><pre><code>uv run --locked octopus batch-export /path/to/scores --out combined.pdf
+uv run --locked octopus batch-export /path/to/scores --out-dir exported --format pdf --recursive
+uv run --locked octopus batch-export /path/to/scores --out-dir images --format png --dpi 300</code></pre><p>These commands use the Python installation described in ENVIRONMENT.md. They are not arguments to the portable desktop launcher.</p>
+</section>
+<section id="en-shortcuts"><h2>12. Keyboard and Help</h2>
+<table><thead><tr><th>Shortcut</th><th>Action</th></tr>
+</thead>
+<tbody><tr><td>Ctrl/Cmd+N</td><td>New score</td></tr>
+<tr><td>Ctrl/Cmd+O</td><td>Open score</td></tr>
+<tr><td>Ctrl/Cmd+S / Shift+S</td><td>Save / Save As</td></tr>
+<tr><td>Ctrl/Cmd+Z</td><td>Undo</td></tr>
+<tr><td>Ctrl/Cmd+Y or Shift+Z</td><td>Redo</td></tr>
+<tr><td>Ctrl/Cmd+X / C / V / A</td><td>Cut / Copy / Paste / Select All in the editor</td></tr>
+<tr><td>Ctrl/Cmd+F</td><td>Editor search</td></tr>
+<tr><td>Ctrl+H (Windows/Linux), Cmd+Option+F (macOS)</td><td>Replace in editor</td></tr>
+<tr><td>Page Up / Page Down; Ctrl+wheel</td><td>Navigate / zoom the focused preview</td></tr>
+<tr><td>F11</td><td>Toggle window maximization</td></tr>
+<tr><td>Arrow / Home / End / Escape</td><td>Navigate menus; Escape dismisses.</td></tr>
+</tbody>
+</table>
+<p>Some shortcuts are inactive while a modal dialog is open or a form control has focus. Help includes Quick Start, User Manual, Report Issues, Submit Requests, Check for Update and About OctoPus. Quick Start and User Manual open in the current interface language; Download PDF opens the native save dialog in the desktop app and downloads the file in a browser. Report Issues opens the project issue page, and Submit Requests opens its pull-request page. Check for Update compares the latest stable GitHub release and reports unavailable information, unfamiliar tags and network errors separately. It does not install updates. About and the logo link to the project home.</p>
+<p><b>About.</b> The dialog shows the manually assigned SemVer version, the number of commits in OctoPus product history and the short SHA of the product commit used for the build. It also displays “OctoPus: Oct(Octave) + Pus (JianPu) = The ultimate numbered notation editor.” Acknowledgments name Tomato JianPu for the adopted JPS format and rendering-compatibility goal, RapidOCR (Apache-2.0), ONNX Runtime (MIT), and the authors of the Linux score-font set and offline-manual Noto Sans SC subsets. The score-font set includes MiSans, LXGW Neo XiHei, SimZhiSong, LXGW WenKai, Zhuque Fangsong, Noto Sans SC, Noto Serif SC and Liberation Sans. Windows and macOS desktop builds use system fonts instead of these bundled score fonts. OctoPus is released under the GNU General Public License, version 3. The software is free of charge; the author provides no warranty and accepts no liability for direct or indirect losses arising from its use. Third-party licenses for included assets are bundled. Planned features are listed in section 2.</p>
+</section></article>
+<nav class="page-navigation" aria-label="Manual pages"><a href="en.html">← Previous</a><span>Page 2 of 6 · Editing and output</span><a href="en-3.html">Next →</a></nav></main></body></html>

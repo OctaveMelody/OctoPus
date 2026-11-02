@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>章鱼简谱用户手册 · 歌词、分页与校对</title><link rel="stylesheet" href="../manual.css">
+<script src="../manual.js" defer></script></head><body><nav class="history-controls" aria-label="手册导航"><button type="button" data-history="back" aria-label="后退" title="后退">←</button><button type="button" data-history="forward" aria-label="前进" title="前进">→</button><button type="button" data-navigation="home" data-manual-home="zh-CN.html" aria-label="返回手册首页" title="返回手册首页">⌂</button><button type="button" data-scroll="top" aria-label="转到页面顶部" title="转到页面顶部">↑</button><button type="button" data-scroll="bottom" aria-label="转到页面底部" title="转到页面底部">↓</button></nav>
+<header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">章鱼简谱
+<small>by OctaveMelody</small></a>
+<nav aria-label="手册导航"><a href="../index.html">所有主题</a> |
+<a href="en-6.html">English</a></nav></header>
+<main><nav class="page-navigation" aria-label="手册分页"><a href="zh-CN-5.html">← 上一页</a><span>第 6 / 6 页 · 歌词、分页与校对</span><span></span></nav>
+<article id="manual-zh-CN" lang="zh-CN"><section id="zh-CN-lyrics"><h2>24. 歌词：中文、英文与混排</h2>
+<p>C 行依附前面的曲行；多声部需使用匹配编号。中文通常一字对应一音符，标点自动识别，不另成为演唱音节。@ 跳过一个音符；每条增时线 - 不需单独 @。用 ~ 将两个汉字合在一个音符下。一行 Q 后可写多行 C，表示不同段歌词。</p>
+<pre><code>Q: 1 2 3 4 | 5 - 6 7 |
+C: 春 风 @ 来 花~儿 开 了
+C: 第 二 段 词 也 能 写</code></pre>
+<p>歌词行前可用引号标注，例如 "1."；这种兼容标签里需要空格时用下划线 _。英文按单词或音节用 / 分隔，不能将每个字母对应一个音符。/ 也可明确中英混排边界。未唱音符用 @；连唱需检查实际对应，不应把普通空格当成可靠的英文音节分隔符。</p>
+<pre><code>Q: 1 2 3 4 |
+C: &quot;Verse_1&quot; Sing/a/new/song
+C: &quot;2.&quot; 春/风/@/song</code></pre>
+<h3>按唱词位置计数，不按所有字符计数</h3>
+<p>汉字通常一字一唱词位置，标点不另占音符；@ 越过不唱词的音，~ 将相邻文字合并到一个位置，增时线不需要另一个 @。一字唱两音时，按源码模式把字放在首音，并跳过后音。还应检查隐藏 8 和休止符，它们可能影响对齐，即使没有可见数字。先完成一段，再复制 C 行修改其他段文字。</p>
+<h3>段号、空格与歌词括注</h3>
+<p>引号标签放在所标歌词之前，如 C: &quot;1.&quot; ...，也可跟在开头的 @ 跳过标记后。旧式标签中普通空格用 _，如 &quot;Verse_1&quot;。这些引号不同于 Q 的音符注释。有些示例以 (~...~) 括注替换唱词；借用时保留边界，并核对印出的括号。普通文字空格便于阅读，不能作为可靠的逐音节分配方式。</p>
+<h3>英文音节与混合语言</h3>
+<p>在唱词单词或音节之间使用 /，多音节词应有意拆分，如 Can-/a-/da，必要处保留可见连字符。C 中的 - 是歌词文字，不是音乐增时线。@ 跳过不唱词位置，中英边界可用 / 明示。规范允许汉字、@ 邻接处省略部分 /，但编辑时显式分隔更清楚。示例英文音节也使用 ~ 分组，简化前须先对照完整模式。</p>
+<!-- sample:chinese-verses:start -->
+<div class="sample-example" id="zh-CN-example-chinese-verses">
+<h3>中文多段歌词、跳过音符与歌词括注</h3><p>两段唱词跟随同一 Q 行，@ 跳过连线组中的第二音。第三个 C 行使用旧式 (~...~) 歌词括注，它属于歌词标记，不是音乐连音线。</p>
+<p class="sample-provenance">示例库：Farewell.jps · 源码行 17-20。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/chinese-verses.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 (2/ 3/) 4. 7,/ | 1 - - - |
+C: 晚风@拂柳笛声残，夕阳@山外山。
+C: 问君@此去几时还，来时@莫徘徊。
+C: (~人生@难得是欢聚，唯有@别离多~)</code></pre>
+<figure><img src="../assets/examples/chinese-verses-1.png" alt="中文多段歌词、跳过音符与歌词括注 - 1" loading="eager"><figcaption>渲染结果: 中文多段歌词、跳过音符与歌词括注</figcaption></figure>
+</div>
+<!-- sample:chinese-verses:end -->
+<!-- sample:joined-characters:start -->
+<div class="sample-example" id="zh-CN-example-joined-characters">
+<h3>中文连字与双语歌词行</h3><p>中文用 马~儿、令~人 将两个字合并到一个歌词位置。英文以 / 分开单词或音节，以 @ 表示不唱词的音符。对照同一旋律下的两种语言。</p>
+<p class="sample-provenance">示例库：JingleBells.jps · 源码行 14-16。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/joined-characters.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 5/ 5/ 4/ 2/ (3 1/) 5,/ | 5,/ 3/ 2/ 1/ 5,. 5,/ | 5,/ 3/ 2/ 1/ 6,. 6,/ |
+C:  laugh- /ing /all /the /way~.  @@Bells /on /bob- /tail /ring~, @mak- /ing /spir- /its / bright~. What
+C: 欢笑又歌唱。@马~儿铃声响叮当，令~人精神多欢畅，我~们</code></pre>
+<figure><img src="../assets/examples/joined-characters-1.png" alt="中文连字与双语歌词行 - 1" loading="eager"><figcaption>渲染结果: 中文连字与双语歌词行</figcaption></figure>
+</div>
+<!-- sample:joined-characters:end -->
+<!-- sample:english-syllables:start -->
+<div class="sample-example" id="zh-CN-example-english-syllables">
+<h3>英文与法文音节对齐</h3><p>Can- /a- /da 分成三个唱词位置。歌词中的连字符是可见文字，不是增时线。两行 C 共用旋律，长音末音节不必为每条增时线另加歌词。</p>
+<p class="sample-provenance">示例库：O-Canada.jps · 源码行 13-15。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/english-syllables.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 3 - 5. 5/ | 1 - - 2 | 3 4 5 6 | 2 - - 0 |
+C: O /Can- /a- /da~! Our/ home / and /na-tive/ land~!
+C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,</code></pre>
+<figure><img src="../assets/examples/english-syllables-1.png" alt="英文与法文音节对齐 - 1" loading="eager"><figcaption>渲染结果: 英文与法文音节对齐</figcaption></figure>
+</div>
+<!-- sample:english-syllables:end -->
+<!-- sample:verse-label:start -->
+<div class="sample-example" id="zh-CN-example-verse-label">
+<h3>先跳过音符，再写带引号的段号</h3><p>先用 @ 跳过弱起休止符，再用 &quot;1.　&quot; 与 &quot;2.　&quot; 标记段号。示例标签使用全角空格；需要兼容的普通空格时，可用规范规定的下划线写法。</p>
+<p class="sample-provenance">示例库：As-Wished.jps · 源码行 14-16。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/verse-label.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 0/. 6,// |: 3 1// 2// 3// (4// 4.) 4// 3// | 2/ 1// (2// 2/) 7,/ 3 - | 0 1/ 3/ 2/ 1// (2// 2/.) 1// | 2/ 1// (2// 2/) 7,/ 3. 0// 6,// |
+C: @&quot;1.　&quot;你是 遥遥的路   @山野大雾里@的灯  @我是孩童啊 @走在你的@眼眸 @你是 明月清风 @我是
+C: @&quot;2.　&quot;@是 岁月长河   @星火燃起的@天空  @我是仰望者 @就把你唱@成歌 @你是</code></pre>
+<figure><img src="../assets/examples/verse-label-1.png" alt="先跳过音符，再写带引号的段号 - 1" loading="eager"><figcaption>渲染结果: 先跳过音符，再写带引号的段号</figcaption></figure>
+</div>
+<!-- sample:verse-label:end -->
+</section>
+<section id="zh-CN-pagination"><h2>25. 手动分页</h2>
+<p>在独立一行写精确小写字面量 <code>[fenye]</code> 创建新谱页，它不是音符注释。应将声部系统及所属歌词放在一起。长源码不表示音乐会自动重新换行或连线自动跨页。分页处分开/重开连音线，检查跳房子，并确认导出的每页都位于边距内。</p>
+<pre><code>Q: 1 2 3 4 ||
+C: 第 一 页 词
+
+[fenye]
+
+Q: 5 6 7 1&#x27; ||
+C: 第 二 页 词</code></pre>
+<h3>在完整系统之后选择分页点</h3>
+<p>将 [fenye] 独立成行，放在完整系统之间。多声部应先写完所有 Q 及相应 C，再分页。在边界闭合或有意切分连线，并检查结尾线、渐强弱端点。新增页后浏览前后两页，核对下边距。源码控制音乐行与分页边界；改变纸张或字体不能替代明确分页。下例展示两页裁去空白的输出，而非一张长页面。</p>
+<!-- sample:page-boundary:start -->
+<div class="sample-example" id="zh-CN-example-page-boundary">
+<h3>手动分页分隔的两组声部</h3><p>第一组声部在 [fenye] 前结束，下一页从完整 Q1-Q4 声部组开始。下方显示两页输出。分页时应将同一组声部及歌词完整保留在同一页。</p>
+<p class="sample-provenance">示例库：Edelweiss - Choir ChinEng.jps · 源码行 29-47。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/page-boundary.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q1: 2&#x27;&amp;mf 0/ 5/ 8 5 | 7 8 6 8 5 | 3 - 8 5 | 1&#x27; - - | 6 - 8 1&#x27; | 2&#x27; - 8 1&#x27; | 7&gt; - - | 5 - -! |
+C1: 白@雪@般~的花@儿@愿你@芬芳，永@远开@花生长。
+C2: Blos-/ @ som/ @ of/ snow~, @may/ @you/ bloom/ @and/ grow~, bloom/ @and/ grow/ @for-/ ev-/ er.
+Q2: 5 0/ 4/ 8 4 | 4 8 4 8 4 | 3 - 8 3 | 3 - - | 4 - 8 6 | 6 - 8 6 | 5 - - | 5 - - |
+Q3: 2&#x27; 0/ 2&#x27;/ 8 2&#x27; | 2&#x27; 8 2&#x27; 8 2&#x27; | 1&#x27; - 8 1&#x27; | 1&#x27; - - | 1&#x27; - 8 1&#x27; | 2&#x27; - 8 2&#x27; | 2&#x27;&gt; - - | 7 - -! |
+C3: 白@雪@般~的花@儿@愿你@芬芳，永@远开@花生长。
+C4: Blos-/ @ som/ @ of/ snow~, @may/ @you/ bloom/ @and/ grow~, bloom/ @and/ grow/ @for-/ ev-/ er.
+Q4: 7 0/ 7/ 8 7 | 5 8 6 8 7 | (1&#x27; 7) 8 6 | 5 - - | 4 - 8 4 | 4# - 8 4 | 5 - - | 4 - - |
+
+[fenye]
+
+Q1: 3&lt;+ - 5 | 2&#x27; - -! | 1&#x27;&gt; - 5 | 4 - -! | 3 - 8 5 | 5 8 6 8 7 | 1&#x27;&lt; - - | 1&#x27;# - -! |
+C1: 雪绒花，雪绒花，永@远祝@福@我家乡。
+C2: E-/ del- /weiss~, E-/ del-/ weiss~, bless/ @my/ home-/ @land/ @for-/ ev-/ er~.
+Q2: 3 - 3 | 5 - - | 4 - 3 | 4 - - | 3 - 8 3 | 4 8 4 8 4 | 3 - - | 5 - - |
+Q3:  (3&#x27; 2&#x27;)&lt; 1&#x27; | 2&#x27; - -! | 1&#x27;&gt;++ - 1&#x27; | 1&#x27; - -! | 1&#x27; - 8 1&#x27; | 7 8 7 8 2&#x27; | 1&#x27;&lt;+ - - | 3&#x27; - -! |
+C3: 雪@绒花，雪绒花，永@远祝@福@我家乡。
+C4: E-/ @del- /weiss~, E-/ del-/ weiss~, bless/ @my/ home-/ @land/ @for-/ ev-/ er~.
+Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - |</code></pre>
+<figure><img src="../assets/examples/page-boundary-1.png" alt="手动分页分隔的两组声部 - 1" loading="eager"><figcaption>渲染结果: 手动分页分隔的两组声部 (1/2)</figcaption></figure>
+<figure><img src="../assets/examples/page-boundary-2.png" alt="手动分页分隔的两组声部 - 2" loading="eager"><figcaption>渲染结果: 手动分页分隔的两组声部 (2/2)</figcaption></figure>
+</div>
+<!-- sample:page-boundary:end -->
+</section>
+<section id="zh-CN-practice"><h2>26. 实用编辑与校对步骤</h2>
+<ul><li>先选与目标相近的内置示例：普通旋律、符号/倚音、多声部或歌词，并使用副本。</li>
+<li>先输入描述头，再逐行输入曲；加歌词前核对小节线与时值。</li>
+<li>八度、时值、变音及装饰后缀应属于正确音符；区分音符倚音括号与小节线跳房子括号。</li>
+<li>逐个增加声部及歌词段，每次修改后检查对齐。</li>
+<li>有目的地用 ~ /^、括号高度 + 和页面设置处理分组或重叠，它们不会修正错误音高。</li>
+<li>逐页比较转录结果与原稿，包括分页及注释。</li>
+<li>处理诊断，保存可编辑原稿，导出并检查最终文件。</li>
+</ul>
+<h3>用图例练习编辑</h3>
+<p>每个图例把所选原始源码行与重新生成的章鱼简谱结果配对，下载含描述头；图片只裁掉页面空白。打开标明示例可查看完整音乐上下文，打开摘录则可单独研究语法。每次只改一个符号，对照预览与导出，再撤销。成功渲染说明记谱和排版可显示，不代表转写、和声或时值已完全核实。</p>
+</section>
+<section id="zh-CN-troubleshooting"><h2>27. 排错与反馈</h2>
+<table><thead><tr><th>现象</th><th>检查内容</th></tr>
+</thead>
+<tbody><tr><td>异常符号或诊断</td><td>半角标点、前缀后的冒号、引号/括号成对、后缀归属及小写关键字。</td></tr>
+<tr><td>歌词错位</td><td>C/Q 声部配对、跳音符用 @、中文合字用 ~、英文音节间用 /。</td></tr>
+<tr><td>连线或跳房子重叠</td><td>端点、分页、手动 + 偏移及垂直间距。</td></tr>
+<tr><td>导入失败</td><td>支持类型、一次单文件、100 MiB/200 页限制、可读非加密文件及无冲突操作。</td></tr>
+<tr><td>转录不可用/失败</td><td>内置 OCR 引擎、原稿质量及 PDF 处理需要的 Poppler。</td></tr>
+<tr><td>字体外观不同</td><td>当前使用的系统字体/替代字体、Linux 乐谱字体资源、缺失字符及外部 SVG 查看器所需字体。请打开<b>帮助 → 字体</b>查看安装说明或重新检查。</td></tr>
+<tr><td>浏览器或更新失败</td><td>默认浏览器关联与网络；发布信息不可用不等于已经最新。</td></tr>
+</tbody>
+</table>
+<p>报告可复现问题时，请提供版本、系统、最小 JPS、相关设置、步骤及预期/实际结果，适当时附原稿。使用<a href="https://github.com/OctaveMelody/OctoPus/issues">报告问题</a>；改动提议使用<a href="https://github.com/OctaveMelody/OctoPus/pulls">Pull Requests 页</a>。历史规范的个人联系方式不是章鱼简谱的支持渠道。</p>
+</section>
+<section id="zh-CN-sources"><h2>28. 参考依据与兼容性</h2>
+<p>记谱章节参考本地保存的 Jianpu-Spec v1.0 简介、描述头、曲、词及反馈内容。规范中以图片呈现的符号、力度和小节线表，在此整理为可检索文本。本手册还补充了详细说明、25 个标明出处的示例库摘录和 26 张渲染图，不分发原规范截图；示例库没有对应写法时，则提供最小语法练习。源码格式化及源码/预览定位说明参考保存的 Website-Contents/Zhipu-jsCode-editor，并对照章鱼简谱的实际行为核对。保存的 Zhipu-draw 文件为空。</p>
+<p>记谱语法来自参考规范，产品界面和计划则说明章鱼简谱。历史资料中提到的 MIDI、播放、网页自动格式化选项及个人联系方式，不代表当前桌面功能。运行代码、字体策略、输入限制和示例乐谱用于核对现状。本手册依据这些资料重新编写；生产版附带手册及 PDF，参考资料和编写工具留在 OctoPus-dev。</p>
+<p><a href="https://github.com/OctaveMelody/OctoPus">项目主页</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/README.zh-CN.md">生产版说明</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/ENVIRONMENT.zh-CN.md">构建环境</a></p>
+</section></article>
+<nav class="page-navigation" aria-label="手册分页"><a href="zh-CN-5.html">← 上一页</a><span>第 6 / 6 页 · 歌词、分页与校对</span><span></span></nav></main></body></html>

@@ -13,6 +13,20 @@ use tauri::{AppHandle, Manager};
 
 static MANUAL_STAGING: OnceLock<StdMutex<Option<(PathBuf, PathBuf)>>> = OnceLock::new();
 static MANUAL_STAGING_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+const MANUAL_TOPIC_PAGES: [&str; 12] = [
+    "en.html",
+    "en-2.html",
+    "en-3.html",
+    "en-4.html",
+    "en-5.html",
+    "en-6.html",
+    "zh-CN.html",
+    "zh-CN-2.html",
+    "zh-CN-3.html",
+    "zh-CN-4.html",
+    "zh-CN-5.html",
+    "zh-CN-6.html",
+];
 
 fn manual_filename(language: &str) -> &'static str {
     if language == "zh-CN" {
@@ -272,7 +286,16 @@ pub(crate) fn stage_manual_docs(source: &Path, home_dir: &Path) -> Result<PathBu
     if let Some((cached_source, cached_destination)) = cached.as_ref() {
         if cached_source == &source
             && cached_destination.is_dir()
-            && cached_destination.join("user-manual/en.html").is_file()
+            && cached_destination.join("user-manual/index.html").is_file()
+            && MANUAL_TOPIC_PAGES.iter().all(|page| {
+                cached_destination
+                    .join("user-manual/pages")
+                    .join(page)
+                    .is_file()
+            })
+            && cached_destination
+                .join("user-manual/assets/screenshots/main-window-en.jpg")
+                .is_file()
             && cached_destination.join("quick-start/en.html").is_file()
             && cached_destination.join("quick-start/zh-CN.html").is_file()
             && cached_destination.join("quick-start/index.html").is_file()
@@ -319,6 +342,7 @@ pub(crate) fn stage_manual_docs(source: &Path, home_dir: &Path) -> Result<PathBu
 pub(crate) fn manual_html_path_from_root(resource_root: &Path, language: &str) -> PathBuf {
     resource_root
         .join("user-manual")
+        .join("pages")
         .join(manual_filename(language))
 }
 

@@ -22,3 +22,12 @@ figure img{max-height:230mm;object-fit:contain}section{break-inside:auto}}
 .history-controls button{display:grid;place-items:center;width:30px;height:30px;padding:0;color:#e6f4fc;background:transparent;font-size:16px;line-height:1;border-radius:6px}
 .history-controls button:hover{background:#ffffff24}
 @media print{.history-controls{display:none}}
+.screenshot-note{margin:18px 0;padding:10px 14px;border-left:4px solid #408699;background:#eff6f8;color:#496075;font-size:13px}
+.ui-screenshot{margin:18px 0 24px}
+.ui-screenshot img{max-width:100%;height:auto}
+.page-navigation{max-width:1040px;margin:14px auto;padding:13px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;background:#e6eef4;border:1px solid #cfdae5;border-radius:9px;font-size:14px}
+.page-navigation span{color:#52657b;text-align:center}
+.page-navigation a{font-weight:700;text-decoration:none}
+.page-navigation a:hover{text-decoration:underline}
+@media(max-width:600px){.page-navigation{margin:8px;padding:10px;flex-wrap:wrap}.page-navigation span{order:-1;width:100%;text-align:left}}
+@media print{.page-navigation{display:none}}

@@ -1,4 +1,6 @@
-import { copyFileSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync, cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -237,7 +239,14 @@ const version = readFileSync(path.join(repositoryRoot, "VERSION"), "utf8").trim(
   .replaceAll(">", "&gt;")
   .replaceAll('"', "&quot;")
   .replaceAll("'", "&#39;");
-for (const page of ["en.html", "zh-CN.html", "index.html"]) {
-  const target = path.join(frontendAssets, "user-manual", page);
-  writeFileSync(target, readFileSync(target, "utf8").replaceAll("{{APP_VERSION}}", version));
+function replaceManualVersions(directory) {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const target = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      replaceManualVersions(target);
+    } else if (entry.isFile() && entry.name.endsWith(".html")) {
+      writeFileSync(target, readFileSync(target, "utf8").replaceAll("{{APP_VERSION}}", version));
+    }
+  }
 }
+replaceManualVersions(path.join(frontendAssets, "user-manual"));

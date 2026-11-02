@@ -81,8 +81,9 @@
   forwardButton?.addEventListener('click', () => history.forward());
   homeButton?.addEventListener('click', () => {
     const language = document.documentElement.lang === 'zh-CN' ? 'zh-CN' : 'en';
-    const home = new URL('index.html', location.href);
-    home.hash = language;
+    const pageHome = homeButton.dataset.manualHome;
+    const home = new URL(pageHome || 'index.html', location.href);
+    if (!pageHome) home.hash = language;
     if (home.href === location.href) {
       select(language, true);
       window.scrollTo({ top: 0, behavior: 'smooth' });

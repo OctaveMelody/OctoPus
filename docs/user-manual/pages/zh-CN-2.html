@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>章鱼简谱用户手册 · 编辑与输出</title><link rel="stylesheet" href="../manual.css">
+<script src="../manual.js" defer></script></head><body><nav class="history-controls" aria-label="手册导航"><button type="button" data-history="back" aria-label="后退" title="后退">←</button><button type="button" data-history="forward" aria-label="前进" title="前进">→</button><button type="button" data-navigation="home" data-manual-home="zh-CN.html" aria-label="返回手册首页" title="返回手册首页">⌂</button><button type="button" data-scroll="top" aria-label="转到页面顶部" title="转到页面顶部">↑</button><button type="button" data-scroll="bottom" aria-label="转到页面底部" title="转到页面底部">↓</button></nav>
+<header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">章鱼简谱
+<small>by OctaveMelody</small></a>
+<nav aria-label="手册导航"><a href="../index.html">所有主题</a> |
+<a href="en-2.html">English</a></nav></header>
+<main><nav class="page-navigation" aria-label="手册分页"><a href="zh-CN.html">← 上一页</a><span>第 2 / 6 页 · 编辑与输出</span><a href="zh-CN-3.html">下一页 →</a></nav>
+<article id="manual-zh-CN" lang="zh-CN"><section id="zh-CN-preview"><h2>7. 预览、光标与导航</h2>
+<p>源码变化时预览自动更新。点击或移动源码光标会突出对应谱面位置，并将该行移向预览中央。点击预览音符或歌词只选择对应源码，不会自动移动预览；直接点击源码或用键盘移动会恢复跟随。仅具有唯一映射的元素可以定位；部分装饰或临时声部元素可能没有精确源码目标。</p>
+<p>用 -/+ 缩放，适合页面显示整页，适合宽度按面板宽度阅读。翻页按钮或视图菜单用于切换渲染页面；刷新重新渲染。点击预览下方诊断可跳到相关源码。渲染期间可能仍显示旧预览；导出前应等待完成并处理相关提示。</p>
+<p>用 Tab 聚焦预览后，可通过 <b>Page Up / Page Down</b> 翻页，通过 <b>Ctrl+鼠标滚轮</b> 缩放。状态栏在完成后显示页数及渲染用时；多页渲染时显示进度。</p>
+</section>
+<section id="zh-CN-reference"><h2>8. 原稿图片/PDF 与转录</h2>
+<p>选择<b>导入 → JPG / PNG / PDF…</b>，或将<b>单个</b> PNG、JPG/JPEG、PDF 拖入原稿图片/PDF 面板。已有原稿时会询问替换原稿或取消。另一次导入、替换选择、恢复、保存、转录或冲突对话框正在进行时不能导入。拖入不支持的文件或多个文件会被拒绝。</p>
+<figure class="ui-screenshot"><img src="../assets/screenshots/import-zh.jpg" alt="导入菜单已打开，背景显示源码编辑器和乐谱预览。" loading="eager"><figcaption>导入菜单：选择 JPG / PNG / PDF 来添加一张原稿图片或一个 PDF 文档。</figcaption></figure>
+<p>拖动原稿可平移；适合、缩放及旋转 90° 用于查看。旋转只改变显示方向，不修改原文件。PDF 支持翻页。关闭面板仅隐藏该面板，保留托管原稿；选择转录布局可重新打开。输入限制包括每个图片/PDF 不超过 100 MiB、PDF/原稿页不超过 200 页、每个解码图片或 PDF 页不超过四千万像素。损坏、加密或不支持的文件可能失败；出现大小或页数限制提示时请缩减输入。</p>
+<ul><li>转录新建：生成暂定的新乐谱；替换当前乐谱前先处理未保存提示。</li>
+<li>转录追加：向当前源码添加识别内容，必要时加分页边界；非空乐谱不重复加入草稿描述头。撤销可回退插入。</li>
+<li>PDF 按整份文档转录，不只处理当前显示页。阅读提示并逐页对照原稿；需要编辑空间时可折叠提示。</li>
+<li>手动修正不确定结果。保存/导出前核对八度点、减时线、附点、变音、倚音、连音线、跳房子和歌词。</li>
+</ul>
+<figure class="ui-screenshot"><img src="../assets/screenshots/transcription-review-zh.jpg" alt="原稿显示在乐谱预览旁边，源码编辑器位于下方。" loading="eager"><figcaption>转录校对：保持原稿可见，同时对照渲染草稿和源码。</figcaption></figure>
+<p>向非空乐谱插入前，追加会将草稿中每个非空的大写 D/P/J 描述头与当前乐谱比对。若发现明确冲突或无法核对（例如目标乐谱缺少相应字段，或音乐行内存在含义不明确的 D/P/J 指示），程序会阻止插入并建议使用“转录新建”。程序不会推断草稿中未写出的描述头，也不会补造调性、拍号或速度默认值。描述头一致不代表音乐兼容；仍须对照原稿校对。</p>
+<h3>OCR 模型</h3>
+<p>转录使用内置的<b>默认</b>配置：PP-OCRv6 Small 文本检测与识别模型，以及共用的 PP-OCRv4 Mobile 方向分类器。该配置支持中英文并可离线使用。转录新建、转录追加以及各个裁剪区域和 PDF 页面都使用同一配置；OCR 配置不会修改乐谱或写入保存的 JPS。</p>
+<h3>校对不确定的草稿</h3><p>PDF 转录会显示识别进度，并提供<b>取消转录</b>按钮。取消后任务停止，当前乐谱保留，未完成的草稿不会插入。转录完成后，展开检查列表并选择一项。原稿面板会打开对应页、放大相关区域并用琥珀色框标出位置；若提示能唯一对应到源码音符，也会选中该音符。数字匹配度偏低时，草稿会显示警告标记。匹配度是分类器的比较分数，并非校准概率，也不能保证识别正确。</p><figure class="ui-screenshot"><img src="../assets/screenshots/transcription-findings-zh.jpg" alt="转录检查列表中选中了一项问题，原稿上的对应区域以琥珀色标出。" loading="eager"><figcaption>检查提示：选择一项后，程序会打开原稿并标出相应位置。</figcaption></figure><p>修改源码后，失效的音符范围标记会清除，原稿区域仍可供校对。若原稿被改名、移除或替换，旧提示无法再定位对应原稿。首次使用提示会介绍如何拖入扫描件/PDF 并生成草稿，也可将它关闭。</p><p>程序会保守过滤乐谱和歌词区域之外的重复页眉、页脚及孤立页码。检查项还可能提示续页拍号变化、需手动处理的调性或速度变化、尚未处理的记谱指示，以及明显的小节或声部时值不一致。歌词项会列出已确认歌词或槽位与重新渲染结果的差异，需要人工核对；它不会改写歌词，也不能证明 OCR 正确。渲染结果检查会比较音符数量、曲行和间距。这些检查都不会改写不确定音符，也不能证明草稿完整或记谱正确。请继续对照原稿逐项核对。</p>
+</section>
+<section id="zh-CN-layout"><h2>9. 模式、布局与聚焦</h2>
+<table><thead><tr><th>模式/布局</th><th>用途</th></tr>
+</thead>
+<tbody><tr><td>普通 N1</td><td>源码和预览左右排列。</td></tr>
+<tr><td>普通 N2</td><td>源码和预览上下排列。</td></tr>
+<tr><td>转录 T1</td><td>原稿、源码及预览三栏排列。</td></tr>
+<tr><td>转录 T2</td><td>原稿和预览在上，源码编辑器在下。</td></tr>
+</tbody>
+</table>
+<p>拖动面板之间的分隔条即可调整大小：竖向分隔条左右移动，横向分隔条上下移动。T1 中每条分隔条只调整相邻两个面板。每种布局分别记住大小。键盘操作时，用 Tab 聚焦分隔条，再按相应方向键（按住 Shift 可加大步长）；Home/End 调整到最小/最大尺寸。最小尺寸限制可避免面板消失。点击面板的最大化按钮可临时放大该面板，还原按钮恢复布局。关闭面板会保留其内容；在应用设置中选择布局可重新打开对应面板。所有面板关闭后，也可通过该菜单继续。面板宽度改变时控件自动调整。F11 切换窗口最大化状态；工具栏不另设最大化按钮。</p>
+<figure class="ui-screenshot"><img src="../assets/screenshots/settings-zh.jpg" alt="应用设置菜单，显示普通和转录布局及界面偏好选项。" loading="eager"><figcaption>应用设置：切换左右排列、上下排列和转录布局。</figcaption></figure>
+</section>
+<section id="zh-CN-settings"><h2>10. 页面设置与字体</h2>
+<p>页面设置分组提供纸张（A4/A5）、边距及正文起始位置；标题/歌词字体及音符样式；标题/副标题/歌词字号；曲到词、词到词、词到曲及声部间距；连音线形状（自动、圆弧、平顶）。字号和边距使用渲染器单位，并非毫米。<b>应用</b>更新乐谱并保持窗口打开；<b>确定</b>应用并关闭；<b>取消</b>放弃尚未应用的草稿修改，不会撤回已经应用的修改。请保存乐谱以保留设置。</p>
+<figure class="ui-screenshot"><img src="../assets/screenshots/page-settings-zh.jpg" alt="页面设置对话框，显示纸张、边距、字体、字号和间距控件。" loading="eager"><figcaption>页面设置：调整乐谱纸张大小、间距、文字字号和记谱字体。</figcaption></figure>
+<table><thead><tr><th>选项</th><th>Windows 已安装字族</th><th>macOS 已安装字族</th><th>Linux 内置字族</th></tr>
+</thead>
+<tbody><tr><td>HeiTi-1（默认）</td><td>Microsoft YaHei</td><td>PingFang SC</td><td>MiSans Regular</td></tr>
+<tr><td>HeiTi-2</td><td>SimHei</td><td>Heiti SC</td><td>LXGW Neo XiHei</td></tr>
+<tr><td>SongTi</td><td>SimSun</td><td>Songti SC</td><td>SimZhiSong</td></tr>
+<tr><td>KaiTi</td><td>KaiTi</td><td>Kaiti SC</td><td>LXGW WenKai Regular</td></tr>
+<tr><td>FangSong</td><td>FangSong</td><td>STFangsong</td><td>Zhuque Fangsong Regular</td></tr>
+</tbody>
+</table>
+<p>界面语言和界面字体在<b>应用设置</b>中选择，首次使用默认简体中文和平台默认字体，之后会保存你的选择（默认字体见第 4 节）。界面字体只影响控件和菜单。<b>页面设置</b>负责选择乐谱字体角色及样式，导出也使用这些角色。Windows 和 macOS 会优先使用每个角色对应的系统字体；首选字体缺失时，可改用兼容的已安装字体。打开<b>帮助 → 字体</b>查看官方安装说明，或点击<b>重新检查</b>。Windows 链接到微软补充字体指南，macOS 链接到 Apple 字体册。无需另装字体也可继续使用现有替代项；如果已安装字体都不含某个字符，该字符仍可能无法显示。Windows/macOS 桌面包不包含 13 种乐谱字体。Linux 便携版和 AppImage 使用随程序提供并经过验证的字体集；其中 Noto 字体用于补齐缺字，但无法覆盖所有 Unicode 字符，Latin Arial 类文本使用 Liberation Sans。音符样式有常规、斜体和粗体，旧版 HeiTi 对应 HeiTi-2。字体替代可能改变间距。微软字体不随软件分发。MiSans 使用小米的独立许可，Linux 乐谱字体的其他许可包括 OFL 和 IPA。本手册另附少量 Noto Sans SC 子集。<a href="https://learn.microsoft.com/en-us/windows/deployment/windows-missing-fonts">微软字体安装说明</a> · <a href="https://support.apple.com/en-gb/guide/font-book/fntbk1000/mac">Apple 字体册说明</a>。</p>
+<p class="keep-together">图片和扫描版 PDF 使用内置的默认 OCR 配置，通过本地 RapidOCR + ONNX 转录。在原稿图片/PDF 面板中点击<b>转录</b>生成 JPS 草稿，再检查源码和问题标记。</p>
+</section>
+<section id="zh-CN-export"><h2>11. 导出与便携版使用</h2>
+<p>选择导出格式（SVG、PDF、PNG 或 JPG，96 或 300 DPI）及保存位置。PDF 生成一份多页文档，SVG、PNG 和 JPG 则按页生成文件。300 DPI 适合印刷。分享导出文件前，先保存可继续编辑的 JPS 原稿。PDF 会嵌入字体，PNG 无损保存像素，JPEG 会压缩像素，SVG 保留矢量内容。外部 SVG 查看器仍需相应字体，请在计划使用的查看器中检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，会改用角色对应的替代字体；这项限制不适用于桌面版原生导出。</p>
+<figure class="ui-screenshot"><img src="../assets/screenshots/export-zh.jpg" alt="导出菜单中列出 SVG、PDF、JPG、PNG 以及不同分辨率选项。" loading="eager"><figcaption>导出菜单：选择格式和分辨率，再指定保存位置。</figcaption></figure>
+<p>请保持便携目录完整，包括 engine、examples 和 docs。Linux 运行 <code>dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus</code>，Windows 运行 <code>portable/octopus.exe</code>。已内置引擎，无需另装 Python。Linux 仍需 GTK/WebKit 运行库及 Poppler，Windows 需 WebView2。便携并不表示包含全部主机依赖。</p>
+<h3>通过 Python 命令行批量导出</h3><p>Python 命令行可将一组 JPS 合并为一份 PDF，或按乐谱分别导出。文件按路径排序处理；递归导出保留子目录。已有输出不会被覆盖。某个源文件失败时会报告错误，并继续处理其他有效源文件；请检查退出状态和输出摘要。</p><pre><code>uv run --locked octopus batch-export /path/to/scores --out combined.pdf
+uv run --locked octopus batch-export /path/to/scores --out-dir exported --format pdf --recursive
+uv run --locked octopus batch-export /path/to/scores --out-dir images --format png --dpi 300</code></pre><p>这些命令使用 ENVIRONMENT.md 所述的 Python 安装环境，不能作为便携版桌面启动程序的参数使用。</p>
+</section>
+<section id="zh-CN-shortcuts"><h2>12. 快捷键与帮助</h2>
+<table><thead><tr><th>快捷键</th><th>操作</th></tr>
+</thead>
+<tbody><tr><td>Ctrl/Cmd+N</td><td>新建乐谱</td></tr>
+<tr><td>Ctrl/Cmd+O</td><td>打开乐谱</td></tr>
+<tr><td>Ctrl/Cmd+S / Shift+S</td><td>保存 / 另存为</td></tr>
+<tr><td>Ctrl/Cmd+Z</td><td>撤销</td></tr>
+<tr><td>Ctrl/Cmd+Y 或 Shift+Z</td><td>重做</td></tr>
+<tr><td>Ctrl/Cmd+X / C / V / A</td><td>在编辑器中剪切 / 复制 / 粘贴 / 全选</td></tr>
+<tr><td>Ctrl/Cmd+F</td><td>编辑器查找</td></tr>
+<tr><td>Ctrl+H（Windows/Linux）、Cmd+Option+F（macOS）</td><td>编辑器替换</td></tr>
+<tr><td>Page Up / Page Down；Ctrl+滚轮</td><td>已聚焦预览的翻页 / 缩放</td></tr>
+<tr><td>F11</td><td>切换窗口最大化</td></tr>
+<tr><td>方向键 / Home / End / Escape</td><td>导航菜单，Escape 关闭。</td></tr>
+</tbody>
+</table>
+<p>模态对话框打开或表单控件获得焦点时，部分快捷键会停用。帮助菜单包括快速上手、用户手册、报告问题、反馈建议、检查更新和关于章鱼简谱。快速上手和用户手册会按当前界面语言在独立窗口中打开；桌面版点击“下载 PDF”会弹出保存对话框，浏览器则直接下载。报告问题会打开项目 Issues 页，反馈建议会打开 Pull Requests 页。检查更新会比较 GitHub 上最新的稳定版，并分别说明版本信息不可用、标签不熟悉或网络出错；它不会安装更新。关于窗口和品牌标识都链接到项目主页。</p>
+<p><b>关于。</b>窗口显示手动设置的 SemVer 应用版本、章鱼简谱产品历史中的提交数、构建所用产品提交的短 SHA，以及标语 <b>OctoPus: Octave + Jianpu for editing numbered-notation scores.</b> <b>章鱼简谱：玩转八度，轻松制谱。</b> 致谢包括番茄简谱的 JPS 格式与渲染兼容目标、RapidOCR（Apache-2.0）、ONNX Runtime（MIT），以及 Linux 乐谱字体集和离线手册 Noto Sans SC 子集的作者。字体集包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。Windows/macOS 桌面版使用系统字体，不随程序提供这组乐谱字体。章鱼简谱按 GNU 通用公共许可证第 3 版发布，免费提供；作者不提供任何形式的担保，也不对使用本软件造成的直接或间接损失承担责任。随程序附带资源的第三方许可均完整保留。规划中的功能见第 2 节。</p>
+</section></article>
+<nav class="page-navigation" aria-label="手册分页"><a href="zh-CN.html">← 上一页</a><span>第 2 / 6 页 · 编辑与输出</span><a href="zh-CN-3.html">下一页 →</a></nav></main></body></html>

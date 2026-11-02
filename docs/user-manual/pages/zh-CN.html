@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>章鱼简谱用户手册 · 入门</title><link rel="stylesheet" href="../manual.css">
+<script src="../manual.js" defer></script></head><body><nav class="history-controls" aria-label="手册导航"><button type="button" data-history="back" aria-label="后退" title="后退">←</button><button type="button" data-history="forward" aria-label="前进" title="前进">→</button><button type="button" data-navigation="home" data-manual-home="zh-CN.html" aria-label="返回手册首页" title="返回手册首页">⌂</button><button type="button" data-scroll="top" aria-label="转到页面顶部" title="转到页面顶部">↑</button><button type="button" data-scroll="bottom" aria-label="转到页面底部" title="转到页面底部">↓</button></nav>
+<header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">章鱼简谱
+<small>by OctaveMelody</small></a>
+<nav aria-label="手册导航"><a href="../index.html">所有主题</a> |
+<a href="en.html">English</a></nav></header>
+<main><nav class="page-navigation" aria-label="手册分页"><span></span><span>第 1 / 6 页 · 入门</span><a href="zh-CN-2.html">下一页 →</a></nav>
+<article id="manual-zh-CN" lang="zh-CN"><div class="cover"><p class="eyebrow">章鱼简谱 · OctaveMelody</p>
+<h1>章鱼简谱用户手册</h1>
+<p class="manual-version">版本：{{APP_VERSION}}</p>
+<p class="pdf-download"><a href="../../PDF/OctoPus-User-Manual-zh-CN.pdf" download="OctoPus-User-Manual-zh-CN.pdf">下载 PDF</a></p>
+</div>
+<nav class="contents" aria-label="Contents"><a href="zh-CN.html#zh-CN-introduction">1. 简介</a><a href="zh-CN.html#zh-CN-capabilities">2. 功能、限制与计划</a><a href="zh-CN.html#zh-CN-quickstart">3. 第一份乐谱</a><a href="zh-CN.html#zh-CN-workspace">4. 工作区与界面</a><a href="zh-CN.html#zh-CN-files">5. 文件、保存与恢复</a><a href="zh-CN.html#zh-CN-source">6. 编辑 JPS 源码</a><a href="zh-CN-2.html#zh-CN-preview">7. 预览、光标与导航</a><a href="zh-CN-2.html#zh-CN-reference">8. 原稿图片/PDF 与转录</a><a href="zh-CN-2.html#zh-CN-layout">9. 模式、布局与聚焦</a><a href="zh-CN-2.html#zh-CN-settings">10. 页面设置与字体</a><a href="zh-CN-2.html#zh-CN-export">11. 导出与便携版使用</a><a href="zh-CN-2.html#zh-CN-shortcuts">12. 快捷键与帮助</a><a href="zh-CN-3.html#zh-CN-jps-structure">13. JPS 结构与约定</a><a href="zh-CN-3.html#zh-CN-headers">14. 描述头</a><a href="zh-CN-4.html#zh-CN-notes">15. 音符、音区与时值</a><a href="zh-CN-4.html#zh-CN-beaming">16. 自动与自定义节拍分组</a><a href="zh-CN-4.html#zh-CN-accidentals">17. 变音与倚音</a><a href="zh-CN-4.html#zh-CN-dynamics">18. 力度与渐强渐弱</a><a href="zh-CN-4.html#zh-CN-ornaments">19. 装饰、括弧与注释</a><a href="zh-CN-5.html#zh-CN-barlines">20. 小节线与反复指示</a><a href="zh-CN-5.html#zh-CN-slurs">21. 连音线与多连音</a><a href="zh-CN-5.html#zh-CN-endings">22. 跳房子与临时拍号</a><a href="zh-CN-5.html#zh-CN-voices">23. 声部与临时伴奏</a><a href="zh-CN-6.html#zh-CN-lyrics">24. 歌词：中文、英文与混排</a><a href="zh-CN-6.html#zh-CN-pagination">25. 手动分页</a><a href="zh-CN-6.html#zh-CN-practice">26. 实用编辑与校对步骤</a><a href="zh-CN-6.html#zh-CN-troubleshooting">27. 排错与反馈</a><a href="zh-CN-6.html#zh-CN-sources">28. 参考依据与兼容性</a></nav>
+<section id="zh-CN-introduction"><h2>1. 简介</h2>
+<p>章鱼简谱是一款桌面简谱编辑器。用 JPS（Jianpu Script，简谱脚本）记录乐谱，可实时查看 SVG 预览、对照原稿图片或 PDF，并导出排版后的页面。JPS 源码记录音乐内容，页面设置控制排版。已安装版本可在“关于”窗口查看。本手册更新于 2026 年 11 月 1 日。</p>
+<p>安装后，编辑、渲染和受支持的转录流程都在本地运行。帮助链接会在系统默认浏览器中打开，检查更新则需要网络。手册可离线阅读，中英文版的主题和示例一致。可使用每个主题页面上的语言链接切换，也可下载对应 PDF。</p>
+<p class="screenshot-note">界面截图来自 Windows 版本；macOS 和 Linux 的菜单文字及系统字体可能不同。</p>
+<h3>安装并启动章鱼简谱</h3>
+<p>请从<a href="https://github.com/OctaveMelody/OctoPus/releases">章鱼简谱官方发布页</a>下载适合当前操作系统的安装包。安装包包含示例乐谱和离线文档。安装后，乐谱编辑、渲染和转录均可离线使用；检查更新需要网络连接。</p>
+<table><thead><tr><th>平台</th><th>安装与启动</th></tr></thead><tbody>
+<tr><td>Windows</td><td>运行安装程序并按提示操作，或解压便携 ZIP 后启动 <code>octopus.exe</code>。便携版请保持整个文件夹完整。Windows 需要 WebView2，多数系统已自带。</td></tr>
+<tr><td>macOS（Apple Silicon）</td><td>打开 DMG，将章鱼简谱拖入“应用程序”，然后从该文件夹启动。当前桌面包可能未签名或公证，Gatekeeper 可能会阻止启动。最新发布版的处理步骤请参阅快速上手中的 macOS 说明。</td></tr>
+<tr><td>Linux</td><td>使用 AppImage 时，先为下载的文件添加可执行权限再运行。使用便携版时，请保持整个文件夹完整。Linux 需要 GTK/WebKit 运行库和 Poppler 工具。</td></tr>
+</tbody></table>
+<p>启动程序后，可通过“帮助 → 快速上手”查看带界面截图的第一份乐谱教程。</p>
+</section>
+<section id="zh-CN-capabilities"><h2>2. 功能、限制与计划</h2>
+<table><thead><tr><th>现有功能</th><th>范围</th></tr>
+</thead>
+<tbody><tr><td>JPS 编辑</td><td>新建、打开、保存、撤销/重做、剪贴板、查找替换、源码格式化及内置示例。</td></tr>
+<tr><td>实时 SVG 预览</td><td>源码与谱面对应、翻页、缩放及页面排版控制。</td></tr>
+<tr><td>原稿转录</td><td>导入 PNG/JPG/JPEG/PDF，显示原稿并生成待校对的 JPS 草稿。</td></tr>
+<tr><td>导出</td><td>SVG、PDF、PNG、JPEG；内置本地引擎及按平台处理乐谱字体。</td></tr>
+<tr><td>语言</td><td>中英文界面及用户手册。</td></tr>
+</tbody>
+</table>
+<p><b>当前限制。</b>转录结果未必完整，请核对音符、变音、八度点、时值、歌词、连音线、倚音、跳房子及页序。页眉、页脚和页码采用保守过滤，特殊排版与跨页连线仍需人工检查。桌面版目前没有播放/MIDI 工作流、LilyPond 导出或 MusicXML 导入导出。五线谱识别尚属计划，不能替代简谱输入；程序也不会自动安装更新。macOS 原生打包仍未完成，Windows 和 macOS 的主机验收需单独进行，Linux 测试不能替代。</p>
+<h3>规划中的功能</h3>
+<ul><li>提升转录质量，包括复杂记号及重复的页面附属文字。</li>
+<li>导出 LilyPond 源码，以及导入、导出 MusicXML。</li>
+<li>导出 MIDI。</li>
+<li>导入五线谱并识别为 JPS。</li>
+<li>以上是计划中的工作，目前尚无发布日期，也不属于现有功能。</li>
+</ul>
+</section>
+<section id="zh-CN-quickstart"><h2>3. 第一份乐谱</h2>
+<ul><li>启动章鱼简谱，选择<b>新建</b>，输入标题及基本乐谱字段并确认。拍号的分子和分母为正整数，支持 12/8 等复拍子。</li>
+<li>将源码替换为下面示例，或通过<b>打开</b>加载便携版 examples 目录中的示例乐谱。</li>
+<li>等待 SVG 预览渲染完成。点击音符定位源码，修改文本并检查结果。</li>
+<li>通过<b>页面设置</b>调整边距与字体，用<b>另存为</b>保存 .jps，再通过<b>导出</b>生成最终谱面。</li>
+</ul>
+<figure class="ui-screenshot"><img src="../assets/screenshots/new-zh.jpg" alt="新建乐谱对话框，包含文件名、标题、调号和拍号栏位。" loading="eager"><figcaption>新建乐谱：编辑前先填写标题和基本乐谱信息。</figcaption></figure>
+<pre><code>V: 1.0
+B: 第一份乐谱
+Z: 练习示例
+D: C
+P: 4/4
+J: 90
+
+Q: 1 2 3 4 | 5 6 7 1&#x27; ||
+C: 春 风 吹 来 花 儿 开 了</code></pre>
+<p>该示例有两个小节，每小节四个音符；最后一个音符高一个八度。八个歌词汉字分别对应八个音符。</p>
+<h3>从示例曲谱入门</h3>
+<p>通过“打开”选择便携版 examples 目录中的 Farewell.jps，或下载下方摘录。先读描述头，再找到以 Q: 5 (3/ 5/) 开头的行。将源码光标放在 1&#x27;. 上，对照预览中的高音附点。只删改附点，比较结果，再撤销。然后在复制的歌词行中移动一个 @，观察哪个音失去唱词。需要保留练习时先另存为。下方可下载的摘录都包含原描述头，即使页面只展示主体行。</p>
+<!-- sample:first-score:start -->
+<div class="sample-example" id="zh-CN-example-first-score">
+<h3>单声部旋律与两段歌词</h3><p>通过“打开”加载 Farewell.jps（送别），或下载下方摘录。此处摘录第二行演唱旋律。逐一对照四个小节线、高音 1 的附点、低音 7 和两行歌词。下载摘录可单独练习该片段。</p>
+<p class="sample-provenance">示例库：Farewell.jps · 源码行 17-19。 摘录采用 Linux 版本的应用字体集渲染，省略页面空白。 <a download href="../assets/examples/first-score.jps">下载此 JPS 摘录</a></p>
+<p class="example-label">JPS 源码</p><pre><code>Q: 5 (3/ 5/) 1&#x27;. 7/ | 6 1&#x27; 5 - | 5 (2/ 3/) 4. 7,/ | 1 - - - |
+C: 晚风@拂柳笛声残，夕阳@山外山。
+C: 问君@此去几时还，来时@莫徘徊。</code></pre>
+<figure><img src="../assets/examples/first-score-1.png" alt="单声部旋律与两段歌词 - 1" loading="eager"><figcaption>渲染结果: 单声部旋律与两段歌词</figcaption></figure>
+</div>
+<!-- sample:first-score:end -->
+</section>
+<section id="zh-CN-workspace"><h2>4. 工作区与界面</h2>
+<p>顶栏包含新建、打开、保存、另存为、导入、导出、关闭、帮助、页面设置、应用设置和退出。应用设置集中管理 N1/N2 普通布局、T1/T2 转录布局、示例库显示、界面语言和界面字体。首次使用默认简体中文和平台默认字体，之后会记住你的选择。字体列表会标出默认项：Windows 使用 Microsoft YaHei，另有 SimSun；macOS 使用 PingFang SC，另有 Songti SC；Linux 使用内置 Noto Sans SC，另有 Liberation Sans。界面字体只影响控件和菜单，乐谱及导出字体仍由页面设置中的字体角色决定。</p>
+<figure class="ui-screenshot"><img src="../assets/screenshots/main-window-zh.jpg" alt="章鱼简谱同时显示 JPS 源码编辑器和渲染后的乐谱预览。" loading="eager"><figcaption>主工作区：在左侧编辑 JPS 源码，并在右侧检查对应的乐谱预览。</figcaption></figure>
+<p>导入菜单提供 JPG / PNG / PDF 操作，转录使用内置的默认 OCR 配置。点击图标或品牌文字可打开项目主页。每个面板都有最大化、还原和关闭按钮；拖动面板间的边界可调整大小。</p>
+<table><thead><tr><th>面板</th><th>用途</th></tr>
+</thead>
+<tbody><tr><td>JPS 源码</td><td>编辑文本。文件名及未保存标记位于右侧格式化源码按钮前；编辑工具位于 JPS 源码标题后。</td></tr>
+<tr><td>SVG 预览</td><td>显示渲染乐谱、适合/缩放/翻页控制及渲染诊断。</td></tr>
+<tr><td>原稿图片/PDF</td><td>显示原稿页及适合/缩放/旋转控制、转录菜单；在转录模式中可见。</td></tr>
+</tbody>
+</table>
+<p>面板较窄时，视图工具会收进<b>视图（View）</b>菜单，源码工具会收进<b>编辑（Edit）</b>菜单。SVG 视图提供适合页面、适合宽度、上一页和下一页；原稿视图提供适合、旋转，PDF 还可翻页。面板极窄时，也可从视图菜单缩放。相关操作仍显示在面板标题行。</p>
+</section>
+<section id="zh-CN-files"><h2>5. 文件、保存与恢复</h2>
+<p><b>打开</b>加载 .jps 乐谱。如果加载期间修改了当前乐谱或页面设置，程序会保留修改并提示你重试。支持纯 JPS 文本及兼容的 JSON 封装文档；封装可包含源码、页面设置和已有元数据。<b>保存</b>写入当前文档，新文档首次保存时需选择位置；<b>另存为</b>则更改保存位置。纯文本 JPS 可能无法保存页面设置，遇到这种情况时请按对话框提示改用封装格式。</p>
+<p><b>关闭</b>关闭乐谱，<b>退出</b>关闭程序。有未保存修改时，可选择保存、放弃或取消。程序中断后，恢复功能可还原最近可恢复的草稿和托管原稿，但不能替代常规备份。原稿图片/PDF 与乐谱源码分别保存，请保留原始文件。打开示例会创建工作文档；覆盖已有文件前，请先选择自己的保存位置。</p>
+<p>使用<b>打开</b>重新打开已保存乐谱，或加载便携版 examples 目录中的示例。手册中可下载的摘录也可直接打开。</p>
+</section>
+<section id="zh-CN-source"><h2>6. 编辑 JPS 源码</h2>
+<p>从标题行或折叠的编辑菜单使用撤销/重做、剪切/复制/粘贴、查找、替换及全选。查找打开搜索界面；替换显示替换控制。标准编辑器快捷键仍可用。剪贴板能力取决于操作系统。<b>格式化源码</b>调整音乐标记间距并保留记谱内容，不能纠正音乐错误或确认转录正确。修改后应仔细检查带引号的注释及紧附音符的倚音组。</p>
+<p>手动选择 JPS 文本时，选区显示为蓝色；编辑器失去焦点时，颜色变淡。点击预览中的音符时，仍使用绿色标记显示对应的源码音符。</p>
+<p>语法标点请使用半角 ASCII：冒号 :、双引号 "、逗号 ,、单引号 '、斜线 /。整行 # 注释可说明源码。不要将弯引号或全角冒号当作语法符号粘贴。附属记号应紧跟所属音符。大量替换前先备份，必要时使用撤销。</p>
+<p>输入时会检查语法：行号栏符号和源码下划线提示错误或警告。选择行号栏标记可跳到对应范围。<b>↳</b> 表示同一源代码行的折行续行，并非新的乐谱行。格式整理只作用于带冒号的有效音乐前缀；“Queen: some value”等描述文本保留原有空格。</p>
+</section></article>
+<nav class="page-navigation" aria-label="手册分页"><span></span><span>第 1 / 6 页 · 入门</span><a href="zh-CN-2.html">下一页 →</a></nav></main></body></html>

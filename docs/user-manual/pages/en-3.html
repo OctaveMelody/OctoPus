@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OctoPus User Manual · JPS structure and headers</title><link rel="stylesheet" href="../manual.css">
+<script src="../manual.js" defer></script></head><body><nav class="history-controls" aria-label="Manual navigation"><button type="button" data-history="back" aria-label="Go back" title="Go back">←</button><button type="button" data-history="forward" aria-label="Go forward" title="Go forward">→</button><button type="button" data-navigation="home" data-manual-home="en.html" aria-label="Go to manual home" title="Go to manual home">⌂</button><button type="button" data-scroll="top" aria-label="Go to page top" title="Go to page top">↑</button><button type="button" data-scroll="bottom" aria-label="Go to page bottom" title="Go to page bottom">↓</button></nav>
+<header><a class="brand" href="https://github.com/OctaveMelody/OctoPus">OctoPus
+<small>by OctaveMelody</small></a>
+<nav aria-label="Manual navigation"><a href="../index.html">All topics</a> |
+<a href="zh-CN-3.html">简体中文</a></nav></header>
+<main><nav class="page-navigation" aria-label="Manual pages"><a href="en-2.html">← Previous</a><span>Page 3 of 6 · JPS structure and headers</span><a href="en-4.html">Next →</a></nav>
+<article id="manual-en" lang="en"><section id="en-jps-structure"><h2>13. JPS structure and conventions</h2>
+<p>JPS is ordinary text, normally stored with extension .jps. A score has a descriptive header followed by music Q: and lyrics C:. One Q line represents a printed music row; following C lines belong to that row. Numbered prefixes identify voices. Blank lines improve source readability. A whole line beginning with # is a comment; inside a Q line, # is an accidental, not a comment.</p>
+<p>The original specification calls V, B, D and P required fields. Include them for a complete portable score even though OctoPus tolerates incomplete drafts. Use uppercase header/prefix letters and the exact, case-sensitive lowercase literal <code>[fenye]</code>. Preserve the header/body distinction; repeated B/Z fields serve specific layout purposes. Unknown syntax may be preserved with diagnostics rather than rendered as intended.</p>
+<h3>Read a score in three passes</h3>
+<p>First read the header for title, key, meter and tempo. Then read only Q rows: digits and rests are musical events, suffixes modify their host, and barlines divide the flow. Finally read C rows and count lyric slots against the notes. The source order is also layout order: moving an entire Q row changes where music appears; moving its C row away may attach the words to a different row. Start the body with music, not unattached lyrics.</p>
+<h3>Plain JPS versus a saved document wrapper</h3>
+<p>A library .jps can be a JSON document whose code field contains the JPS and whose page_config field stores layout settings. Edit the code in JPS source, not the JSON punctuation. Downloadable manual excerpts are plain UTF-8 JPS for copying and opening. They carry musical headers and body text; to reproduce the pictured spacing exactly, open the named library sample so its page settings are restored.</p>
+</section>
+<section id="en-headers"><h2>14. Descriptive header</h2>
+<table><thead><tr><th>Field</th><th>Example value</th><th>Meaning</th></tr>
+</thead>
+<tbody><tr><td>V</td><td>1.0</td><td>Script version / 脚本版本</td></tr>
+<tr><td>B</td><td>Practice</td><td>Title; repeats become subtitles / 标题，重复成为副标题</td></tr>
+<tr><td>Z</td><td>Name - composer</td><td>Author/credit; multiple right-aligned lines / 作者，可多行右对齐</td></tr>
+<tr><td>D</td><td>E$</td><td>Key; A-G with # sharp or $ flat / 调号，A-G 加 # 或 $</td></tr>
+<tr><td>P</td><td>4/4</td><td>Meter; alternatives may follow / 拍号，可附其他拍号</td></tr>
+<tr><td>J</td><td>90</td><td>Tempo number and/or descriptive text / 速度数值及/或文字</td></tr>
+<tr><td>X</td><td>10</td><td>Score sequence number / 乐谱序号</td></tr>
+</tbody>
+</table>
+<pre><code>V: 1.0
+B: Main title
+B: Subtitle
+Z: Writer - lyrics
+Z: Composer - music
+D: F#
+P: 4/4 (2/4 1/4)
+J: 90 Allegro
+X: 10</code></pre>
+<p>Use a capital A-G key letter: C, F#, E$. Multiple B lines put subtitle text under the first title; multiple Z lines place credits at the upper right. P uses slash-separated numerator/denominator; spaces and parentheses can describe auxiliary meters. J may be numeric beats per minute, words, or both. X is metadata, not a voice number. Header values describe the score; a tempo field does not enable playback.</p>
+<h3>Required fields and repeated fields</h3>
+<p>For a complete score include V, B, D and P. V: 1.0 declares the syntax version; it is not the OctoPus application version. The first B is the centered main title and later B lines are centered subtitles. Each Z creates a separate right-aligned credit line. Optional J describes speed, and X can carry a catalog number. Keep these lines above the first Q. Empty or incomplete drafts may render, but do not rely on that as a portable document format.</p>
+<h3>Key, meter, tempo and comments</h3>
+<p>D: F# and D: E$ mean sharp and flat keys; use capital A-G and ASCII #/$, not full-width punctuation. P: 6/8 describes the meter; P: 4/4 (2/4 1/4) also lists auxiliary meters. It does not replace local barline meter changes. J: 90 uses a numeric tempo, J: Allegro uses text, and both can coexist. A full line starting # is ignored as a source comment, whereas 4# inside Q is a sharp note. Quoted annotations are printed; source comments are not.</p>
+<!-- sample:header-layout:start -->
+<div class="sample-example" id="en-example-header-layout">
+<h3>Header placement and a multilingual title</h3><p>The second B is a subtitle; the three Z lines are separate credits. D: E$ displays the flat key. P sets 4/4 and J supplies a numeric tempo. The title punctuation is text, not a musical barline.</p>
+<p class="sample-provenance">bundled examples: O-Canada.jps · source lines 13-15. Excerpt rendered with the Linux package font set; blank page space omitted. <a download href="../assets/examples/header-layout.jps">Download this JPS excerpt</a></p>
+<p class="example-label">JPS source</p><pre><code>V: 1.0
+B: O Canada | Ô Canada
+B: --- Canada National Anthem
+D: E$
+P: 4/4
+J: 93
+Z: Sir Adolphe-Basile Routhier 　词
+Z: Calixa Lavallee 　曲
+Z: Robert Stanley Weir 英译
+
+Q: 3 - 5. 5/ | 1 - - 2 | 3 4 5 6 | 2 - - 0 |
+C: O /Can- /a- /da~! Our/ home / and /na-tive/ land~!
+C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,
+</code></pre>
+<figure><img src="../assets/examples/header-layout-1.png" alt="Header placement and a multilingual title - 1" loading="eager"><figcaption>Rendered output: Header placement and a multilingual title</figcaption></figure>
+</div>
+<!-- sample:header-layout:end -->
+</section></article>
+<nav class="page-navigation" aria-label="Manual pages"><a href="en-2.html">← Previous</a><span>Page 3 of 6 · JPS structure and headers</span><a href="en-4.html">Next →</a></nav></main></body></html>
