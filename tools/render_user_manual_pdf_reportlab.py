@@ -789,7 +789,11 @@ def build_pdf(source: Path, output: Path, language: str) -> tuple[int, int]:
     chinese = language.lower().startswith("zh")
     title = "章鱼简谱用户手册" if chinese else "OctoPus User Manual"
     eyebrow = "章鱼简谱 · OctaveMelody" if chinese else "OctoPus · OctaveMelody"
-    version = "版本：请查看“关于”窗口" if chinese else "Version: See the About dialog"
+    version_path = Path(__file__).resolve().parents[1] / "VERSION"
+    app_version = version_path.read_text(encoding="utf-8").strip()
+    if not app_version:
+        raise ValueError(f"Application version is empty: {version_path}")
+    version = f"版本：{app_version}" if chinese else f"Version: {app_version}"
     home_label = "首页" if chinese else "Home"
 
     sections = [
