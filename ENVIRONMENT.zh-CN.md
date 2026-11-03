@@ -37,7 +37,7 @@ Linux 使用 `python3 scripts/setup.py`，Windows 使用 `py scripts/setup.py` �
   `rapidocr==3.10.0` 和 `onnxruntime==1.30.0`。工作进程和界面直接使用该引擎，不提供
   后端切换设置。
 - 引擎冻结打包：`desktop-build` 可选依赖组，PyInstaller 6.22.3。
-- Node.js 22.23.3（`.node-version`）、npm 10.9.9（`.npm-version`）；前端锁定文件为
+- Node.js 22.23.4（`.node-version`）、npm 10.9.9（`.npm-version`）；前端锁定文件为
   `ui/web/package-lock.json`。
 - Rust 1.98.1（`rust-toolchain.toml`），Cargo 锁定文件为 `ui/Cargo.lock`。
 - Tauri CLI 2.11.5：`cargo install tauri-cli --version 2.11.5 --locked`。

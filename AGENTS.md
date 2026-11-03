@@ -64,7 +64,7 @@ Build natively on Windows 10 or later, x64. Do not cross-compile the Python work
   Windows 10/11 SDK. The production builder locates Visual Studio with `vswhere` and initializes
   its x64 environment; an x64 Native Tools or Developer PowerShell also works.
 - Microsoft Edge WebView2 Evergreen Runtime.
-- Python 3.12, uv 0.12.21, Node.js 22.23.3 with npm 10.9.9, and Rust/Cargo 1.98.1. The version
+- Python 3.12, uv 0.12.21, Node.js 22.23.4 with npm 10.9.9, and Rust/Cargo 1.98.1. The version
   pins are recorded in `.python-version`, `.node-version`, `.npm-version`, and
   `rust-toolchain.toml`;
   `ui/web/package-lock.json` and `ui/Cargo.lock` pin their dependencies.

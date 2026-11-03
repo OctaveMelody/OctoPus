@@ -48,7 +48,7 @@ worker.
   are bundled offline; [model documentation](docs/OCR_MODELS.md) links checksums, attribution
   and preparation workflow.
 - Worker freezing: `desktop-build` extra, PyInstaller 6.22.3.
-- Node.js 22.23.3 (`.node-version`), npm 10.9.9 (`.npm-version`); frontend
+- Node.js 22.23.4 (`.node-version`), npm 10.9.9 (`.npm-version`); frontend
   `ui/web/package-lock.json`.
 - Rust 1.98.1 (`rust-toolchain.toml`), Cargo lock `ui/Cargo.lock`.
 - Tauri CLI 2.11.5: `cargo install tauri-cli --version 2.11.5 --locked`.
