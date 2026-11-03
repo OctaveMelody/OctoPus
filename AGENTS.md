@@ -101,6 +101,13 @@ repository's manifests. Do not replace it with `uv sync` against OctoPus-dev or 
 
 ## Build the production application
 
+Run requested builds, compiles, and packaging locally on the current host by default. Do not
+dispatch GitHub Actions workflows, start hosted runners, or use another remote/CI build service
+unless the user explicitly requests a remote build. If the local host cannot perform the requested
+build, report the blocker instead of switching to remote CI. A normal authorized push may still
+trigger workflows configured for push events; do not dispatch or wait on those workflows unless
+the user asks.
+
 From the repository root (or pass the full script path from any working directory):
 
 ```powershell
