@@ -22,8 +22,8 @@
 请从[章鱼简谱 GitHub 官方发布页](https://github.com/OctaveMelody/OctoPus/releases)直接下载最新版，
 并选择适用于你操作系统的安装包。
 
-- **Windows：** 下载 `OctoPus_<版本>_x64_win64_setup.exe`，双击并按安装向导操作。Windows 需要
-  WebView2；多数系统已安装。
+- **Windows：** 下载安装程序 `OctoPus_<版本>_x64_win64_setup.exe`，或便携 ZIP
+  `OctoPus_<版本>_x64_win64_portable.zip`。Windows 需要 WebView2；多数系统已安装。
 - **macOS 26 或更高版本（Apple Silicon）：** 下载并打开 `OctoPus_<版本>_arm64_macos.dmg`，将
   **章鱼简谱**拖入「应用程序」文件夹。该应用尚未使用 Apple Developer ID 签名或公证，因此首次启动时，Gatekeeper
   可能会阻止打开并显示应用已损坏的警告。将应用复制到「应用程序」后，打开「终端」并运行：
@@ -47,36 +47,38 @@
 
 ## 后续计划
 
-- 持续提升图片和 PDF 的识谱准确率。
-- 增加音频播放和 MIDI 导出。
-- 增加 LilyPond 和 MusicXML 导出。
-- 支持导入 MusicXML 并转换为 JPS。
-- 支持使用大语言模型提高图片和 PDF 转录的准确率。
+- 增加音频播放，以及 MIDI 导入/导出。
+- 支持 MusicXML 导入/导出。
+- 导出 LilyPond 源码文件。
+- 为生成的乐谱增加颜色支持。
+- 持续提升图片和 PDF 的识谱准确率，并可选择使用大语言模型辅助。
 
 ## 用户手册
 
-可在程序中打开**帮助 → 快速上手**阅读简短入门指南，或打开**帮助 → 用户手册**查看完整参考。快速上手指南提供[英文版](docs/QUICKSTART.md)和[简体中文版](docs/QUICKSTART.zh-CN.md)。[中英文离线手册](docs/user-manual/index.html)介绍编辑流程、支持的 JPS 记谱方式和当前限制，并随安装包和便携版一同提供。另有[英文 PDF](docs/PDF/OctoPus-User-Manual-en.pdf)和[中文 PDF](docs/PDF/OctoPus-User-Manual-zh-CN.pdf)。
+可在程序中打开**帮助 → 快速上手**阅读简短入门指南，或打开**帮助 → 用户手册**查看完整参考。快速上手指南提供[英文版](docs/QUICKSTART.md)和[简体中文版](docs/QUICKSTART.zh-CN.md)。[中英文离线手册](docs/user-manual/index.html)介绍编辑流程、支持的 JPS 记谱方式和当前限制，并随发布包提供，包括 Windows 便携 ZIP 和 Linux AppImage。另有[英文 PDF](docs/PDF/OctoPus-User-Manual-en.pdf)和[中文 PDF](docs/PDF/OctoPus-User-Manual-zh-CN.pdf)。
 
 JPS 格式规范见 [Tomato JPS Spec](https://github.com/yetist/jianpu-spec)。章鱼简谱的 JPS 输入遵循该规范。
 
 ## 字体
 
-Windows 和 Apple Silicon macOS 桌面版优先使用系统中已安装的首选字体；缺少首选字族时，会改用兼容的已安装字体。可通过**帮助 → 字体**查看官方安装说明或重新检查。这两个平台的桌面包不包含程序的 13 种乐谱字体。Linux 便携版和 AppImage 直接使用随程序提供并经过验证的乐谱字体集。
+Windows 和 Apple Silicon macOS 桌面版优先使用系统中已安装的首选字体；缺少首选字族时，会改用兼容的已安装字体。可通过**帮助 → 字体状态**查看官方安装说明或重新检查。这两个平台的桌面包不包含程序的 13 种乐谱字体。Linux AppImage 使用随程序提供并经过验证的乐谱字体集。
 
 ## 源码构建
 
-运行环境和构建要求请参阅[环境说明](ENVIRONMENT.zh-CN.md)。生产构建使用锁定版本的 Python、Node/npm、Rust 和 Tauri CLI。在仓库根目录运行配置脚本：
+运行环境和各平台构建命令请参阅[环境说明](ENVIRONMENT.zh-CN.md)。生产构建使用锁定版本的
+Python、Node/npm、Rust 和 Tauri CLI。在仓库根目录运行配置脚本：
 
 ```sh
 python3 scripts/setup.py
 ```
 
-Linux 构建还需要 GTK/WebKit 开发包和 Poppler 工具，详见 [Linux 系统依赖](ENVIRONMENT.zh-CN.md#linux-系统依赖包)。请在目标操作系统上构建；Python 引擎不支持交叉编译。
+Linux 构建还需要 GTK/WebKit 开发包和 Poppler 工具，详见
+[Linux 系统依赖](ENVIRONMENT.zh-CN.md#linux-系统依赖包)。请在目标操作系统上构建；Python 引擎不支持交叉编译。
 
-构建 Linux 便携版：
+在 Linux 上本地构建 AppImage：
 
 ```sh
-python3 scripts/build_portable.py
+python3 scripts/build_portable.py --bundles appimage
 ```
 
 在 Windows 上构建便携版：
@@ -85,17 +87,9 @@ python3 scripts/build_portable.py
 py scripts\build_portable.py
 ```
 
-明确需要安装包时，可在 Linux 命令中添加 `--bundles appimage`，或在 Windows 命令中添加 `--bundles nsis`。启动器会根据脚本位置定位仓库、检查构建依赖，因此可从任意工作目录调用。
+## 运行 Windows 便携版
 
-## 运行便携版
-
-在 Linux x86_64 上运行：
-
-```sh
-./dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus
-```
-
-在 Windows 上运行 `dist/<target>/portable/` 中的 `octopus.exe`。请保留完整的便携版目录，其中包含程序资源、Python 引擎和示例乐谱。Linux 需要系统提供 GTK/WebKit 运行库和 Poppler 工具；Windows 需要 WebView2。
+在 Windows 上运行 `dist/<target>/portable/` 中的 `octopus.exe`。请保留完整的便携版目录，其中包含程序资源、Python 引擎和示例乐谱。Windows 需要 WebView2。
 
 ## 免责声明
 

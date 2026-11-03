@@ -121,18 +121,18 @@ Linux x86_64 AppImage 使用
 
 发布文件统一命名为 `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}`，其中架构为 `x64` 或
 `arm64`，系统为 `win64` 或 `linux`。Linux AppImage 不带 purpose 后缀，例如
-`OctoPus_1.0.0-RC1_x64_linux.AppImage`。Windows 构建会生成便携 ZIP，例如
-`OctoPus_1.0.0-RC1_x64_win64_portable.zip`；使用 `--bundles nsis` 时还会生成安装程序，例如
-`OctoPus_1.0.0-RC1_x64_win64_setup.exe`。检查通过的
-`dist/<target-triple>/portable/` 目录仍会保留，供本机启动和检查。
+`OctoPus_1.0.0-RC3_x64_linux.AppImage`。Windows 构建会生成便携 ZIP，例如
+`OctoPus_1.0.0-RC3_x64_win64_portable.zip`；使用 `--bundles nsis` 时还会生成安装程序，例如
+`OctoPus_1.0.0-RC3_x64_win64_setup.exe`。检查通过的
+`dist/<target-triple>/portable/` 目录仅供本机启动和冒烟检查；Linux 发布包为 AppImage。
 Windows ZIP 发布会重试临时文件共享锁；重试仍失败时，恢复上一个便携目录并保留原有 ZIP。
 
 手动设置的应用版本是仓库根目录 `VERSION` 文件中的 SemVer 值，不带开头的 `v`。当前版本为
-`1.0.0-RC1`。发布时应有意更新 `VERSION`；Git 标签和当前时间不会改变应用版本。`build.py`
+`1.0.0-RC3`。发布时应有意更新 `VERSION`；Git 标签和当前时间不会改变应用版本。`build.py`
 会校验该值并注入 Tauri 和前端；`package.json` 和源码中的字面值不是应用版本来源。
 
 更新检查器会将该 SemVer 值与 GitHub 最新正式版比较。SemVer 预发布标识区分大小写：
-`1.0.0-RC1` 的排序低于 `1.0.0-beta3`。发布此版本前，请确认现有 `beta3` 版本已标记为
+`1.0.0-RC3` 的排序低于 `1.0.0-beta3`。发布此版本前，请确认现有 `beta3` 版本已标记为
 预发布版，或选择一个符合预期发布顺序的标识。
 
 数字构建号为 OctoPus 产品仓库 `HEAD` 可达的提交数（`git rev-list --count HEAD`）。同时显示的
@@ -172,12 +172,12 @@ Linux 可从任意工作目录运行，以下路径按生产仓库根目录给�
 Windows 运行 `dist/<target-triple>/portable/octopus.exe`。请保持便携版目录完整。
 Linux 仍需要主机 GTK/WebKit 库和 Poppler 工具；Windows 需要 WebView2。
 这是带应用本地资源的生产测试版本，并非静态打包整个操作系统运行环境。
-`build/` 和 `dist/` 均由 Git 忽略。Linux 便携版包含经过验证的乐谱字体集；Windows 便携版
-使用系统字体及兼容的已安装替代字体，不包含 13 种程序乐谱字体。
+`build/` 和 `dist/` 均由 Git 忽略。Linux 本地便携测试目录包含经过验证的乐谱字体集；
+Windows 便携版使用系统字体及兼容的已安装替代字体，不包含 13 种程序乐谱字体。
 
 Linux 发布字体目录为工作进程旁的 `usr/lib/OctoPus/fonts/`，并带有清单和许可资源。
 Windows/macOS 桌面包不暂存该目录或程序乐谱字体。源码/CLI 在所选字体配置需要时继续使用
-仓库内资源。请保持 Linux 便携目录完整。离线手册的少量 Noto 子集和 PDF.js 标准字体并非
+仓库内资源。请保持 Linux 本地测试目录完整。离线手册的少量 Noto 子集和 PDF.js 标准字体并非
 乐谱字体资源。
 打包 OCR 模型、RapidOCR 和 ONNX Runtime 的许可与归属说明见
 [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)。

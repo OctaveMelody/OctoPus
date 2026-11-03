@@ -6,13 +6,13 @@ Page Settings offers the score roles HeiTi-1, HeiTi-2, SongTi, KaiTi and FangSon
 source is selected automatically by the desktop target; users do not choose OS versus bundled
 fonts in Preferences.
 
-Help → Font Status lists every role, its resolved font family and whether the preferred installed
+Help → Font status lists every role, its resolved font family and whether the preferred installed
 family is available. Family names follow the selected app language, including Chinese display names.
 
 - Windows and macOS desktop builds use the preferred installed family for each role below.
   When it is unavailable, the application searches compatible installed faces and provides
   official installation help. These desktop packages omit the 13 application score-font faces.
-- Linux production portable and AppImage builds use the verified bundled family in the table
+- The Linux AppImage and its local test tree use the verified bundled family in the table
   directly, independently of conflicting system fonts. Noto faces back up missing glyphs.
 - Source/reference and Python/CLI profiles retain checked-in font assets for development and
   command-line export. This is distinct from the frozen Windows/macOS desktop worker.

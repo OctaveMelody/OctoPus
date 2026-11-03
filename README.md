@@ -27,8 +27,9 @@ Download the latest release directly from the
 [official GitHub Releases page](https://github.com/OctaveMelody/OctoPus/releases), then choose the
 package for your operating system.
 
-- **Windows:** Download `OctoPus_<version>_x64_win64_setup.exe`, open it, and follow the installer
-  prompts. Windows requires WebView2, which is already installed on most systems.
+- **Windows:** Download the installer `OctoPus_<version>_x64_win64_setup.exe` or the portable ZIP
+  `OctoPus_<version>_x64_win64_portable.zip`. Windows requires WebView2, which is already installed
+  on most systems.
 - **macOS 26 or later (Apple Silicon):** Download and open
   `OctoPus_<version>_arm64_macos.dmg`, then drag **OctoPus** into **Applications**. The app is not
   signed with an Apple Developer ID or notarized,
@@ -58,11 +59,11 @@ the source. A finding can open the related scan region and, when available, the 
 
 ## Planned improvements
 
-- Continue improving image and PDF transcription accuracy over the long term.
-- Add audio playback, MIDI export.
-- Add LilyPond and MusicXML export.
-- Import MusicXML and convert it to JPS.
-- Add optional LLM support for more accurate image and PDF transcription.
+- Add audio playback and MIDI import/export.
+- Support MusicXML import and export.
+- Export LilyPond source files.
+- Add color support for generated sheet music.
+- Continue improving image and PDF transcription accuracy, with optional LLM assistance.
 
 ## User manual
 
@@ -70,8 +71,8 @@ Open **Help → Quick Start** for a short guided introduction, or **Help → Use
 full reference. The bilingual quick start is also available in
 [English](docs/QUICKSTART.md) and [简体中文](docs/QUICKSTART.zh-CN.md). Read the
 [offline English/Chinese manual](docs/user-manual/index.html). It documents the editing workflow,
-supported JPS notation and current limitations. The manual is included with installation and
-portable packages. PDF editions are available in
+supported JPS notation and current limitations. The manual ships with release packages, including
+the Windows portable ZIP and Linux AppImage. PDF editions are available in
 [English](docs/PDF/OctoPus-User-Manual-en.pdf) and
 [Chinese](docs/PDF/OctoPus-User-Manual-zh-CN.pdf).
 
@@ -82,16 +83,16 @@ which OctoPus uses for JPS input.
 
 Windows and Apple Silicon macOS desktop builds use the preferred fonts installed on the system and
 compatible installed substitutes when a preferred family is missing. The macOS DMG is currently
-unsigned and not notarized. Use **Help → Fonts** for official
+unsigned and not notarized. Use **Help → Font status** for official
 installation instructions or to check again. These desktop builds do not bundle the application's
-13 score-font faces. Linux portable and AppImage builds use the verified score-font set shipped
-with the application directly.
+13 score-font faces. The Linux AppImage uses the verified score-font set shipped with the
+application directly.
 
 ## Build from source
 
-See [environment instructions](ENVIRONMENT.md) for runtime and build requirements. Production
-builds use the pinned Python, Node/npm and Rust versions plus Tauri CLI. Run the setup
-script from the repository root:
+See [environment instructions](ENVIRONMENT.md) for runtime requirements and platform-specific build
+commands. Production builds use the pinned Python, Node/npm and Rust versions plus Tauri CLI. Run
+the setup script from the repository root:
 
 ```sh
 python3 scripts/setup.py
@@ -101,33 +102,23 @@ Linux builds also require GTK/WebKit development packages and Poppler tools; see
 [Linux prerequisites](ENVIRONMENT.md#linux-host-packages). Build on the target operating system.
 The Python worker is not cross-compiled.
 
-Build a Linux portable application with:
+To build a Linux AppImage locally, run:
 
 ```sh
-python3 scripts/build_portable.py
+python3 scripts/build_portable.py --bundles appimage
 ```
 
-On Windows, build the portable application with:
+On Windows, build the portable package with:
 
 ```powershell
 py scripts\build_portable.py
 ```
 
-The same launcher accepts `--bundles appimage` on Linux or `--bundles nsis` on Windows when a
-package is explicitly needed. It locates the repository from its script path, validates build
-prerequisites, and can be called from any working directory.
-
-## Run the portable application
-
-On Linux x86_64, run:
-
-```sh
-./dist/x86_64-unknown-linux-gnu/portable/usr/bin/octopus
-```
+## Run the Windows portable application
 
 On Windows, run `octopus.exe` in `dist/<target>/portable/`. Keep the entire portable directory
-together; it contains the application resources, Python worker and score examples. Linux requires
-the host GTK/WebKit runtime libraries and Poppler tools. Windows requires WebView2.
+together; it contains the application resources, Python worker and score examples. Windows requires
+WebView2.
 
 ## Disclaimer
 

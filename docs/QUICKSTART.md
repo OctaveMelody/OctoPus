@@ -62,7 +62,7 @@ after installation.
 3. Launch **OctoPus** from Applications.
 
 > The macOS desktop build uses your installed Apple system fonts (PingFang SC, Songti SC, …). See
-> **Help → Font Status** if a character is missing.
+> **Help → Font status** if a character is missing.
 
 ### Linux
 
@@ -103,7 +103,7 @@ language. Use **App Settings** to choose a workspace layout and UI font.
 | **Samples Library** | Open bundled examples. Shown when enabled in App Settings. |
 | **Page Settings** | Paper, margins, fonts, sizes, spacing, slur shape; available while a score is open. |
 | **App Settings** | Layout, interface language and UI font. |
-| **Help** | Quick Start, User Manual, Fonts, About, updates. |
+| **Help** | Quick Start, User Manual, Issues & Requests, Font status, Check for Update (when enabled), About. |
 | **Exit** | Quit OctoPus. |
 
 Choose **JPG / PNG / PDF…** from the **Import** menu to select an original image or PDF for

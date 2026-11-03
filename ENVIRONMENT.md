@@ -125,8 +125,8 @@ change the version. Use it only when a distribution intentionally omits that men
 
 ## Build packages
 
-During development, build only the portable by default. Do not build installers or other
-variants unless the user explicitly asks for them. Run `python3 scripts/build_portable.py` on
+During development, create only the local portable tree by default. Do not build installers or
+other variants unless the user explicitly asks for them. Run `python3 scripts/build_portable.py` on
 Linux/macOS or `py scripts/build_portable.py` on Windows. Use `--bundles appimage` on Linux,
 `--bundles nsis` on Windows, or `--bundles dmg` on macOS only when a package is explicitly needed.
 To build only a Windows installer while retaining portable-tree smoke checks, add
@@ -172,8 +172,8 @@ Published files use `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}` with `x64` o
 `OctoPus_1.0.0-RC3_x64_win64_portable.zip`; `--bundles nsis` also creates a setup executable such
 as `OctoPus_1.0.0-RC3_x64_win64_setup.exe`. The installer-only workflow adds
 `--no-portable-zip`, so it uploads only the setup executable. The checked
-`dist/<target-triple>/portable/` tree is kept for local launch and inspection.
-Windows ZIP publication retries transient sharing locks. If it still fails, the previous portable
+`dist/<target-triple>/portable/` tree is a local launch and smoke-test artifact, not a Linux
+release package. Windows ZIP publication retries transient sharing locks. If it still fails, the previous portable
 tree is restored and the existing ZIP is retained.
 
 The manually assigned app version is the single SemVer value in the repository-root `VERSION`
@@ -238,14 +238,14 @@ On Linux, run from any working directory:
 On Windows, run `dist/<target-triple>/portable/octopus.exe`. Keep the complete portable
 folder together. Linux still requires the host GTK/WebKit libraries and Poppler tools; Windows
 requires WebView2. This is an application-local production testing tree, not a static OS runtime.
-Both build/ and dist/ are ignored by Git. Linux portable includes its verified score-font set;
-Windows portable uses installed system fonts and compatible installed substitutes without the
+Both build/ and dist/ are ignored by Git. The local Linux portable test tree includes its verified
+score-font set; Windows portable uses installed system fonts and compatible installed substitutes without the
 13 application score-font faces.
 
 The Linux release font directory is `usr/lib/OctoPus/fonts/`, next to the worker and its
 manifest/license resources. Windows/macOS desktop packages do not stage that directory or
 application score-font faces. Source/CLI builds continue to use repository assets where their
-font profile requires them. Keep the complete Linux portable tree together. The offline manual's
+font profile requires them. Keep the complete local Linux test tree together. The offline manual's
 small Noto subsets and PDF.js standard fonts are not score-font payloads.
 Bundled OCR packages and default model attributions are listed in
 [THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md).
