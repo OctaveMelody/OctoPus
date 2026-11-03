@@ -11,7 +11,7 @@ rendering and transcription — runs locally on your computer.
 This guide takes you from a fresh install to a finished, exported score in about ten minutes, using
 the classic song **Farewell (送别)** as the running example.
 
-> Screenshots show the current Windows desktop interface. Menu labels and available fonts can vary
+> Screenshots are based on the Windows desktop UI. Menu labels and available fonts can vary
 > slightly by operating system.
 
 ---
@@ -31,8 +31,8 @@ the classic song **Farewell (送别)** as the running example.
 ## 1. Install and run
 
 Download the latest release package for your operating system directly from the
-[official OctoPus GitHub Releases page](https://github.com/OctaveMelody/OctoPus/releases). Select the
-installer, portable archive, disk image, or AppImage from the release's asset list. The package
+[official OctoPus GitHub Releases page](https://github.com/OctaveMelody/OctoPus/releases). Select a
+package offered for your operating system from the release's asset list. The package
 includes score examples, this quick start, and the offline user manual, so no internet is needed
 after installation.
 
@@ -74,9 +74,6 @@ after installation.
   ./OctoPus_*_x64_linux.AppImage
   ```
 
-- **Portable:** if you have a portable build, keep its entire folder together and run
-  `portable/usr/bin/octopus`. Linux needs GTK/WebKit runtime libraries and Poppler tools.
-
 ### From source (developers)
 
 See [ENVIRONMENT.md](../ENVIRONMENT.md) for setup and commands.
@@ -98,14 +95,16 @@ language. Use **App Settings** to choose a workspace layout and UI font.
 | --- | --- |
 | **New** | Create a score using the New score dialog. |
 | **Open** | Load a `.jps` score or a bundled example. |
-| **Save / Save As** | Write the current document; Save As picks a new location. |
+| **Save** | Write the current document. |
+| **Save As** | Choose a new location for the current document. |
 | **Import** | Import a JPG / PNG / PDF original for transcription. |
 | **Export** | Choose SVG, PDF, or PNG/JPG at 96 or 300 DPI. |
 | **Close** | Close the current score and keep OctoPus open. |
-| **Exit** | Quit OctoPus. |
-| **Page Settings** | Paper, margins, fonts, sizes, spacing, slur shape. |
+| **Samples Library** | Open bundled examples. Shown when enabled in App Settings. |
+| **Page Settings** | Paper, margins, fonts, sizes, spacing, slur shape; available while a score is open. |
 | **App Settings** | Layout, interface language and UI font. |
 | **Help** | Quick Start, User Manual, Fonts, About, updates. |
+| **Exit** | Quit OctoPus. |
 
 Choose **JPG / PNG / PDF…** from the **Import** menu to select an original image or PDF for
 transcription:
