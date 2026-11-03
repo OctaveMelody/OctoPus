@@ -149,8 +149,8 @@ fn running_appimage_docs_root(resource_root: &Path) -> Option<PathBuf> {
 }
 
 pub(crate) fn manual_docs_match(source: &Path, candidate: &Path) -> io::Result<bool> {
-    let source_type = fs::symlink_metadata(source)?.file_type();
-    let candidate_type = fs::symlink_metadata(candidate)?.file_type();
+    let source_type = fs::metadata(source)?.file_type();
+    let candidate_type = fs::metadata(candidate)?.file_type();
     if !source_type.is_dir() || !candidate_type.is_dir() {
         return Ok(false);
     }
@@ -169,8 +169,8 @@ pub(crate) fn manual_docs_match(source: &Path, candidate: &Path) -> io::Result<b
         }
         let source_path = source_entry.path();
         let candidate_path = candidate_entry.path();
-        let source_type = source_entry.file_type()?;
-        let candidate_type = candidate_entry.file_type()?;
+        let source_type = fs::metadata(&source_path)?.file_type();
+        let candidate_type = fs::metadata(&candidate_path)?.file_type();
         if source_type.is_dir() && candidate_type.is_dir() {
             if !manual_docs_match(&source_path, &candidate_path)? {
                 return Ok(false);

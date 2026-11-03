@@ -18,6 +18,10 @@ def render_pdf(source: Path, output: Path, language: str) -> None:
         raise ValueError(f"unsupported manual language: {language}")
     if not source.is_file():
         raise FileNotFoundError(f"manual source is missing: {source}")
+    if source.resolve() == output.resolve() or (
+        output.exists() and source.samefile(output)
+    ):
+        raise ValueError("manual source and output must be different files")
 
     version_path = ROOT / "VERSION"
     version = version_path.read_text(encoding="utf-8").strip()
