@@ -16,7 +16,28 @@ export default defineConfig(({ mode }) => ({
     })),
   },
   publicDir: "../../build/pdfjs-assets",
-  build: { outDir: "../../build/frontend", emptyOutDir: true },
+  build: {
+    outDir: "../../build/frontend",
+    emptyOutDir: true,
+    // shortcut: 501 kB accommodates the PDF.js core; recheck after PDF.js upgrades.
+    chunkSizeWarningLimit: 501,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const path = id.replace(/\\/g, "/");
+          if (path.includes("/node_modules/pdfjs-dist/")) return "pdfjs";
+          if (path.includes("/node_modules/react/") || path.includes("/node_modules/react-dom/")) {
+            return "react-vendor";
+          }
+          if (path.includes("/node_modules/@codemirror/")
+            || path.includes("/node_modules/@lezer/")
+            || path.includes("/node_modules/codemirror/")) {
+            return "editor-vendor";
+          }
+        },
+      },
+    },
+  },
   plugins: [react()],
   clearScreen: false,
 }));
