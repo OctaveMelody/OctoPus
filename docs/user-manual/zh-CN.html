@@ -167,7 +167,7 @@ uv run --locked octopus batch-export /path/to/scores --out-dir images --format p
 <p><b>关于。</b>窗口显示手动设置的 SemVer 应用版本、章鱼简谱产品历史中的提交数、构建所用产品提交的短 SHA，以及标语 <b>OctoPus: Octave + Jianpu for editing numbered-notation scores.</b> <b>章鱼简谱：玩转八度，轻松制谱。</b> 致谢包括番茄简谱的 JPS 格式与渲染兼容目标、RapidOCR（Apache-2.0）、ONNX Runtime（MIT），以及 Linux 乐谱字体集和离线手册 Noto Sans SC 子集的作者。字体集包括 MiSans、LXGW Neo XiHei、SimZhiSong、LXGW WenKai、Zhuque Fangsong、Noto Sans SC、Noto Serif SC 和 Liberation Sans。Windows/macOS 桌面版使用系统字体，不随程序提供这组乐谱字体。章鱼简谱按 GNU 通用公共许可证第 3 版发布，免费提供；作者不提供任何形式的担保，也不对使用本软件造成的直接或间接损失承担责任。随程序附带资源的第三方许可均完整保留。规划中的功能见第 2 节。</p>
 </section>
 <section id="zh-CN-jps-structure"><h2>13. JPS 结构与约定</h2>
-<p>JPS 是普通文本，通常以 .jps 为扩展名。乐谱由描述头及曲 Q:、词 C: 组成。一个 Q 行对应一行印刷曲谱；随后 C 行依附该曲行。带数字前缀标识声部。空行便于阅读。以 # 开始的整行是注释；Q 行中的 # 是升音记号，不是注释。</p>
+<p>JPS 是普通文本，通常以 .jps 为扩展名。乐谱由描述头及曲 Q:、词 C: 组成。一个 Q 行对应一行印刷曲谱；随后 C 行依附该曲行。带数字前缀标识声部。空行会结束当前谱行组并开始新的谱行组，是结构分隔符，不只是阅读留白。以 # 开始的整行是注释；Q 行中的 # 是升音记号，不是注释。</p>
 <p>原规范将 V、B、D、P 列为必需字段。虽然 章鱼简谱可容忍不完整草稿，完整乐谱仍应包含这些字段。建议使用大写字段/行前缀及严格区分大小写的小写字面量 <code>[fenye]</code>。注意描述头和主体的区别；重复 B/Z 字段有特定排版用途。未知语法可能被保留并提示，不代表能按预期渲染。</p>
 <h3>分三步阅读源码</h3>
 <p>先读描述头中的标题、调号、拍号和速度；再只读 Q 行：数字与休止符是音乐事件，后缀修饰前面的主音，小节线分隔音乐；最后读 C 行，将歌词位置与音符逐一核对。源码顺序也决定排版顺序：移动整行 Q 会改变音乐位置，把 C 从原行移走则可能使歌词依附另一行。主体应从曲开始，不要先放无所属的歌词。</p>
@@ -195,7 +195,7 @@ D: F#
 P: 4/4 (2/4 1/4)
 J: 90 欢快地
 X: 10</code></pre>
-<p>调号使用大写 A-G，例如 C、F#、E$。多个 B 行在主标题下显示副标题；多个 Z 行将作者文字列于右上方。P 用斜线分隔分子/分母，空格与括号可列出辅助拍号。J 可以是每分钟拍数、文字或两者。X 是序号元数据，不是声部编号。描述头用于记谱，速度字段不会启用播放。</p>
+<p>调号使用大写 A-G，例如 C、F#、E$。多个 B 行在主标题下显示副标题；多个 Z 行将作者文字列于右上方。P 用斜线分隔分子/分母，空格与括号可列出辅助拍号。J 可以是每分钟拍数、文字或两者。规范将 X 定义为乐谱序号，不是声部编号；当前章鱼简谱会保留 X 描述头，但不会将其渲染到谱面。描述头用于记谱，速度字段不会启用播放。</p>
 <h3>必需字段与重复字段</h3>
 <p>完整曲谱应写 V、B、D、P。V: 1.0 是语法版本，不是章鱼简谱的程序版本。首个 B 为居中主标题，后续 B 为居中副标题；每个 Z 产生一行右对齐署名。J 可选，表示速度；X 可保存目录序号。把这些字段放在首个 Q 之前。未完成稿可能仍可预览，但不应以缺字段的形式作为通用文档。</p>
 <h3>调号、拍号、速度与注释</h3>
@@ -266,7 +266,7 @@ C: Ô Can- /a- /da~! Ter- /re /de /nos /ai- /eus~,
 <pre><code>P: 6/8
 Q: 1/ 2/ 3/ 4/ 5/ 6/ |</code></pre>
 <h3>~ 与 ^ 的作用位置</h3>
-<p>上例无需额外标记便可分成两个三音组。只有需要覆盖自动分组时，才使用 <code>~</code> 和 <code>^</code>：~ 将所在音符与后音连为一组，^ 在所在音符后结束该组。例如，<code>1/~2/^3/~4/^5/~6/</code> 将六个八分音符明确分成三个双音组。这些标记改变减时线的视觉连接，不改变音高或时值。十六分音符串还需检查两层减时线。在歌词中，~ 用于合并一个唱词位置。曲中的 ~、^ 都不会增加音符。</p>
+<p>Jianpu-Spec 将 <code>~</code> 和 <code>^</code> 说明为临时控制节拍分组与拆分的符号；当前章鱼简谱也按此用途处理。上例无需额外标记便可分成两个三音组。只有需要覆盖自动分组时，才使用这两个符号：~ 将所在音符与后音连为一组，^ 在所在音符后结束该组。例如，<code>1/~2/^3/~4/^5/~6/</code> 将六个八分音符明确分成三个双音组。这些标记改变减时线的视觉连接，不改变音高或时值。十六分音符串还需检查两层减时线。在歌词中，~ 用于合并一个唱词位置。曲中的 ~、^ 都不会增加音符。</p>
 <!-- sample:beam-control:start -->
 <div class="sample-example" id="zh-CN-example-beam-control">
 <h3>复合拍中的连接与拆分</h3><p>描述头列出 6/8 与 9/8，第一个拍号决定初始的附点四分音符分组。显式标记可自定义分组：第一行的 6/^ 在该音后结束分组，5/~ 4/~ 1/ 连成一组；第二行以 ~ 连接较长音群。这些符号改变分组，不改变时值。</p>
@@ -311,32 +311,14 @@ Q4: 1 - 8 1 | 7, - - | 3 - 8 3 | 4 - - | 3 - 5 | 5 8 4# 8 4= | 3 - - | 1&#x27; -
 <!-- sample:grace-groups:end -->
 </section>
 <section id="zh-CN-dynamics"><h2>18. 力度与渐强渐弱</h2>
-<p>在音符后附加 &amp; 编码，例如 <code>3&amp;mp</code>。参考术语包括 ppp、pp、p、mp、mf、f、ff、fff、cresc、dim、sf、fp、sfp、a tempo 和 rit；双词术语写作 <code>&amp;a tempo</code>。渐强以 &lt; 开始，渐弱以 &gt; 开始，以 ! 结束；开头记号后加 + 可上移以避免重叠。这些是印刷演奏提示，桌面程序不会将其转换为音频播放控制。</p>
+<p>在音符后附加 &amp; 编码，例如 <code>3&amp;mp</code>。规范使用 <code>&amp;tempo</code> 表示恢复原速；OctoPus 也接受旧式写法 <code>&amp;a tempo</code>。下表展示当前版本实际绘制的结果，也标出已接受但没有可见记号的术语。渐强以 &lt; 开始，渐弱以 &gt; 开始，以 ! 结束；开头记号后加 + 可上移以避免重叠。这些是印刷演奏提示，桌面程序不会将其转换为音频播放控制。</p>
 <pre><code>Q: 1&amp;p&lt; 2 3 4! | 5&gt;+ 4 3 2! | 1&amp;a tempo - - - ||</code></pre>
-<table><thead><tr><th>编码</th><th>演奏提示</th></tr>
-</thead>
-<tbody><tr><td><code>&amp;ppp</code></td><td>极弱</td></tr>
-<tr><td><code>&amp;pp</code></td><td>很弱</td></tr>
-<tr><td><code>&amp;p</code></td><td>弱</td></tr>
-<tr><td><code>&amp;mp</code></td><td>稍弱</td></tr>
-<tr><td><code>&amp;mf</code></td><td>稍强</td></tr>
-<tr><td><code>&amp;f</code></td><td>强</td></tr>
-<tr><td><code>&amp;ff</code></td><td>很强</td></tr>
-<tr><td><code>&amp;fff</code></td><td>最强</td></tr>
-<tr><td><code>&amp;cresc</code></td><td>渐强</td></tr>
-<tr><td><code>&amp;dim</code></td><td>渐弱</td></tr>
-<tr><td><code>&amp;sf</code></td><td>突强</td></tr>
-<tr><td><code>&amp;fp</code></td><td>强后立即弱</td></tr>
-<tr><td><code>&amp;sfp</code></td><td>突强后立即弱</td></tr>
-<tr><td><code>&amp;a tempo</code></td><td>回到原速度</td></tr>
-<tr><td><code>&amp;rit</code></td><td>渐慢</td></tr>
-</tbody>
-</table>
+<table class="symbol-preview-table"><colgroup><col style="width:19%"><col style="width:24%"><col style="width:27%"><col style="width:30%"></colgroup><thead><tr><th scope="col">编码</th><th scope="col">OctoPus 样例</th><th scope="col">含义</th><th scope="col">当前 OctoPus 显示</th></tr></thead><tbody><tr><td><code>&amp;ppp</code></td><td><img class="symbol-preview" src="assets/symbols/ppp.png" alt="&amp;ppp 样例" loading="eager"></td><td>极弱</td><td>此版本可见</td></tr><tr><td><code>&amp;pp</code></td><td><img class="symbol-preview" src="assets/symbols/pp.png" alt="&amp;pp 样例" loading="eager"></td><td>很弱</td><td>此版本可见</td></tr><tr><td><code>&amp;p</code></td><td><img class="symbol-preview" src="assets/symbols/p.png" alt="&amp;p 样例" loading="eager"></td><td>弱</td><td>此版本可见</td></tr><tr><td><code>&amp;mp</code></td><td><img class="symbol-preview" src="assets/symbols/mp.png" alt="&amp;mp 样例" loading="eager"></td><td>稍弱</td><td>此版本可见</td></tr><tr><td><code>&amp;mf</code></td><td><img class="symbol-preview" src="assets/symbols/mf.png" alt="&amp;mf 样例" loading="eager"></td><td>稍强</td><td>此版本可见</td></tr><tr><td><code>&amp;f</code></td><td><img class="symbol-preview" src="assets/symbols/f.png" alt="&amp;f 样例" loading="eager"></td><td>强</td><td>此版本可见</td></tr><tr><td><code>&amp;ff</code></td><td><img class="symbol-preview" src="assets/symbols/ff.png" alt="&amp;ff 样例" loading="eager"></td><td>很强</td><td>此版本可见</td></tr><tr><td><code>&amp;fff</code></td><td><img class="symbol-preview" src="assets/symbols/fff.png" alt="&amp;fff 样例" loading="eager"></td><td>最强</td><td>此版本可见</td></tr><tr><td><code>&amp;cresc</code></td><td><img class="symbol-preview" src="assets/symbols/cresc.png" alt="&amp;cresc 样例" loading="eager"></td><td>渐强</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;dim</code></td><td><img class="symbol-preview" src="assets/symbols/dim.png" alt="&amp;dim 样例" loading="eager"></td><td>渐弱</td><td>此版本可见</td></tr><tr><td><code>&amp;sf</code></td><td><img class="symbol-preview" src="assets/symbols/sf.png" alt="&amp;sf 样例" loading="eager"></td><td>突强</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;fp</code></td><td><img class="symbol-preview" src="assets/symbols/fp.png" alt="&amp;fp 样例" loading="eager"></td><td>强后立即弱</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;sfp</code></td><td><img class="symbol-preview" src="assets/symbols/sfp.png" alt="&amp;sfp 样例" loading="eager"></td><td>突强后立即弱</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;tempo</code></td><td><img class="symbol-preview" src="assets/symbols/tempo.png" alt="&amp;tempo 样例" loading="eager"></td><td>回到原来的速度</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;a tempo</code></td><td><img class="symbol-preview" src="assets/symbols/a-tempo.png" alt="&amp;a tempo 样例" loading="eager"></td><td>a tempo 的兼容写法</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;rit</code></td><td><img class="symbol-preview" src="assets/symbols/rit.png" alt="&amp;rit 样例" loading="eager"></td><td>渐慢（rit.）</td><td>此版本可见</td></tr></tbody></table>
 <h3>渐强弱的起点、终点与高度</h3>
-<p>在起点主音上写 &lt; 或 &gt;，在终点写 !。单独开启的线没有可靠终点，应在分页前明确闭合。&lt;+、&gt;++ 比默认位置更高，+ 越多请求的抬高越大。先使用能避开连音线或结尾线的最小偏移，再检查相邻系统及导出。页面间距移动整行，+ 移动指定记号，两者是不同调整。</p>
+<p>在起点主音上写 &lt; 或 &gt;，在终点写 !。单独开启的线没有可靠终点，应在分页前明确闭合。&lt;+、&gt;++ 比默认位置更高，+ 越多请求的抬高越大。先使用能避开连音线或结尾线的最小偏移，再检查相邻系统及导出。页面间距移动整行，+ 移动指定记号，两者是不同调整。</p><p class="symbol-table-note">每张裁剪图展示当前 OctoPus 版本实际渲染的记谱。</p><table class="symbol-preview-table hairpin-preview-table"><colgroup><col style="width:14%"><col style="width:46%"><col style="width:20%"><col style="width:20%"></colgroup><thead><tr><th scope="col">记号</th><th scope="col">OctoPus 样例</th><th scope="col">作用</th><th scope="col">当前 OctoPus 显示</th></tr></thead><tbody><tr><td><code>&lt;</code></td><td><img class="symbol-preview" src="assets/symbols/hairpin-crescendo.png" alt="&lt; 样例" loading="eager"></td><td>渐强从此处开始</td><td>绘制指向后续 ! 的渐强楔形线</td></tr><tr><td><code>&gt;</code></td><td><img class="symbol-preview" src="assets/symbols/hairpin-decrescendo.png" alt="&gt; 样例" loading="eager"></td><td>渐弱从此处开始</td><td>绘制收拢到后续 ! 的渐弱楔形线</td></tr><tr><td><code>!</code></td><td><img class="symbol-preview" src="assets/symbols/hairpin-end.png" alt="! 样例" loading="eager"></td><td>结束渐强/渐弱线</td><td>结束跨度；不会单独绘制此字符</td></tr><tr><td><code>+</code></td><td><img class="symbol-preview" src="assets/symbols/hairpin-height.png" alt="+ 样例" loading="eager"></td><td>抬高起始渐强/渐弱线；多个 + 表示更高</td><td>抬高楔形线；+ 本身不会印出</td></tr></tbody></table>
 <h3>力度术语是谱面指示</h3>
 <p><code>&amp;ppp</code> 和 <code>&amp;fff</code> 与 <code>&amp;pp</code>、<code>&amp;ff</code> 一样使用随程序提供的矢量字形。它们采用相同的音符附着及高音、连音线避让规则，不改变音符时值或间距。例如：<code>Q: 1&amp;ppp - - - | 1&amp;fff - - - |</code>。</p>
-<p>把 &amp;mp、&amp;mf、&amp;f 等表中术语写在指示开始的音后，保留多词 &amp;a tempo 的完整写法。ppp 至 fff 表示强弱，cresc/dim 表示渐变，rit、a tempo 表示速度。&amp;yc 延长记号不是力度，但同样使用 &amp; 机制。这些印刷术语不会提供播放或 MIDI 输出。</p>
+<p>将术语写在指示开始的音后；若使用旧式写法，请保留多词 &amp;a tempo。表中列出了它们的音乐含义；标注“未显示额外符号”的项目虽可识别，但当前版本不绘制记号。&amp;yc 延长记号不是力度，但同样使用 &amp; 机制。这些印刷术语不会提供播放或 MIDI 输出。</p>
 <!-- sample:hairpin-height:start -->
 <div class="sample-example" id="zh-CN-example-hairpin-height">
 <h3>合唱中的力度与抬高渐强线</h3><p>Q1 与 Q3 以 &amp;mp 开始。&lt;+ 开启抬高的渐强线，! 结束；随后 &gt; 开启渐弱线。对照其端点及其他声部的音符、休止符，并检查同一系统中的歌词。</p>
@@ -354,25 +336,12 @@ Q4: 1 - 1 | 7, - - | 3 - 3 | 4 - - | 5 - 5 | 5 8 4 8 3 | 2 - - | 5 - - |</code><
 <!-- sample:hairpin-height:end -->
 </section>
 <section id="zh-CN-ornaments"><h2>19. 装饰、括弧与注释</h2>
-<table><thead><tr><th>音符后编码</th><th>含义</th></tr>
-</thead>
-<tbody><tr><td>&amp;yc</td><td>Fermata / 延长记号</td></tr>
-<tr><td>&amp;bc</td><td>Tenuto / 保持音</td></tr>
-<tr><td>&amp;zy</td><td>Accent / 重音</td></tr>
-<tr><td>&amp;dy</td><td>Staccato / 顿音</td></tr>
-<tr><td>&amp;hx</td><td>Breath / 换气</td></tr>
-<tr><td>&amp;shy / &amp;xhy</td><td>Upward / downward slide / 上、下滑音</td></tr>
-<tr><td>&amp;sby / &amp;xby</td><td>Upper / lower mordent / 上、下波音</td></tr>
-<tr><td>&amp;cy</td><td>Trill / 颤音</td></tr>
-<tr><td>&amp;sby+ / &amp;xby+ / &amp;cy+</td><td>Variant ornament forms / 装饰变体</td></tr>
-<tr><td>&amp;zkh / &amp;ykh</td><td>Left / right accompaniment parenthesis / 伴奏左右括弧</td></tr>
-</tbody>
-</table>
-<p>这些短编码来自记谱参考，多以中文名称拼音首字母构成，应附到正确音符。波音/颤音的 + 后缀选用图例中的另一形态。音符后加双引号注释可在上方显示文字。伴奏括弧 &amp;zkh、&amp;ykh 同样写在所属数字后，即使绘制的左括弧位于音乐前方。</p>
+<table class="symbol-preview-table"><colgroup><col style="width:19%"><col style="width:24%"><col style="width:27%"><col style="width:30%"></colgroup><thead><tr><th scope="col">音符后编码</th><th scope="col">OctoPus 样例</th><th scope="col">含义</th><th scope="col">当前 OctoPus 显示</th></tr></thead><tbody><tr><td><code>&amp;yc</code></td><td><img class="symbol-preview" src="assets/symbols/yc.png" alt="&amp;yc 样例" loading="eager"></td><td>延长记号</td><td>此版本可见</td></tr><tr><td><code>&amp;bc</code></td><td><img class="symbol-preview" src="assets/symbols/bc.png" alt="&amp;bc 样例" loading="eager"></td><td>保持音</td><td>此版本可见</td></tr><tr><td><code>&amp;zy</code></td><td><img class="symbol-preview" src="assets/symbols/zy.png" alt="&amp;zy 样例" loading="eager"></td><td>重音</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;dy</code></td><td><img class="symbol-preview" src="assets/symbols/dy.png" alt="&amp;dy 样例" loading="eager"></td><td>顿音</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;hx</code></td><td><img class="symbol-preview" src="assets/symbols/hx.png" alt="&amp;hx 样例" loading="eager"></td><td>换气记号</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;shy</code></td><td><img class="symbol-preview" src="assets/symbols/shy.png" alt="&amp;shy 样例" loading="eager"></td><td>上滑音</td><td>此版本可见</td></tr><tr><td><code>&amp;xhy</code></td><td><img class="symbol-preview" src="assets/symbols/xhy.png" alt="&amp;xhy 样例" loading="eager"></td><td>下滑音</td><td>此版本可见</td></tr><tr><td><code>&amp;sby</code></td><td><img class="symbol-preview" src="assets/symbols/sby.png" alt="&amp;sby 样例" loading="eager"></td><td>上波音</td><td>此版本可见</td></tr><tr><td><code>&amp;xby</code></td><td><img class="symbol-preview" src="assets/symbols/xby.png" alt="&amp;xby 样例" loading="eager"></td><td>下波音</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;cy</code></td><td><img class="symbol-preview" src="assets/symbols/cy.png" alt="&amp;cy 样例" loading="eager"></td><td>颤音</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;sby+</code></td><td><img class="symbol-preview" src="assets/symbols/sby-plus.png" alt="&amp;sby+ 样例" loading="eager"></td><td>上波音变体</td><td>与基础符号样例形状相同</td></tr><tr><td><code>&amp;xby+</code></td><td><img class="symbol-preview" src="assets/symbols/xby-plus.png" alt="&amp;xby+ 样例" loading="eager"></td><td>下波音变体</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;cy+</code></td><td><img class="symbol-preview" src="assets/symbols/cy-plus.png" alt="&amp;cy+ 样例" loading="eager"></td><td>颤音变体</td><td>此版本未显示额外符号</td></tr><tr><td><code>&amp;zkh</code></td><td><img class="symbol-preview" src="assets/symbols/zkh.png" alt="&amp;zkh 样例" loading="eager"></td><td>伴奏左括弧</td><td>此版本可见</td></tr><tr><td><code>&amp;ykh</code></td><td><img class="symbol-preview" src="assets/symbols/ykh.png" alt="&amp;ykh 样例" loading="eager"></td><td>伴奏右括弧</td><td>此版本可见</td></tr></tbody></table>
+<p>这些短编码来自记谱参考，多以中文名称拼音首字母构成，应附到正确音符。装饰 + 变体与渐强线高度偏移不同；当前显示和支持状态见表。音符后加双引号注释可在上方显示文字。伴奏括弧 &amp;zkh、&amp;ykh 同样写在所属数字后，即使绘制的左括弧位于音乐前方。</p>
 <pre><code>Q: 3&amp;yc 3&amp;bc 3&amp;zy 3&amp;dy | 3&amp;hx 3&amp;shy 3&amp;xhy 3&amp;cy |
 Q: 1&amp;zkh 2 3 4&amp;ykh | 5&quot;轻柔地&quot; - - - ||</code></pre>
 <h3>选择正确主音与变体</h3>
-<p>&amp;yc 为延长，&amp;bc 为保持音，&amp;zy 为重音，&amp;dy 为顿音，&amp;hx 为换气。&amp;shy/&amp;xhy 为上、下滑音，&amp;sby/&amp;xby 为上、下波音，&amp;cy 为颤音。表中的 + 形式选择装饰记号变体，此处 + 不等同于渐强线高度偏移。可兼容的多种代码能附在一个主音上，如 6/&amp;sby&amp;zkh；需检查是否拥挤。</p>
+<p>规范中，&amp;yc 为延长，&amp;bc 为保持音，&amp;zy 为重音，&amp;dy 为顿音，&amp;hx 为换气；&amp;shy/&amp;xhy 为上、下滑音，&amp;sby/&amp;xby 为上、下波音，&amp;cy 为颤音。多种兼容代码能附在一个主音上，如 6/&amp;sby&amp;zkh；需检查是否拥挤。</p>
 <h3>三种文字与括号用途</h3>
 <p>音后引号注释如 5&quot;轻柔地唱&quot; 印在该音附近；小节线引号注释属于边界；整行 # 注释不印刷。伴奏括弧应在首、末音后写 &amp;zkh、&amp;ykh。Q 中 (...) 是音乐连线，不是一对伴奏字形。C 中的普通标点及旧式 (~...~) 属于歌词，不是音乐跨度语法。</p>
 <!-- sample:fermata-rit:start -->
@@ -395,27 +364,7 @@ C: (~问君@此去几时还，来时@莫徘徊~)</code></pre>
 <!-- sample:tenuto-parentheses:end -->
 </section>
 <section id="zh-CN-barlines"><h2>20. 小节线与反复指示</h2>
-<table><thead><tr><th>语法</th><th>外观/用途</th></tr>
-</thead>
-<tbody><tr><td>|</td><td>Single / 普通小节线</td></tr>
-<tr><td>||</td><td>Thin-left/thick-right final line / 左细右粗终止线</td></tr>
-<tr><td>||/</td><td>Two thin lines / 双细线</td></tr>
-<tr><td>|:</td><td>Start repeat / 左反复</td></tr>
-<tr><td>:|</td><td>End repeat / 右反复</td></tr>
-<tr><td>:|:</td><td>End/start repeat / 两侧反复</td></tr>
-<tr><td>|/</td><td>Hidden, no layout width / 不显示、不占位</td></tr>
-<tr><td>|*</td><td>Hidden, reserves layout width / 不显示、占位</td></tr>
-</tbody>
-</table>
-<table><thead><tr><th>小节线后编码</th><th>含义</th></tr>
-</thead>
-<tbody><tr><td>||&amp;fine</td><td>Fine / 终止</td></tr>
-<tr><td>||&amp;dc.</td><td>D.C. / 从头反复</td></tr>
-<tr><td>||&amp;ds</td><td>D.S. / 从记号反复</td></tr>
-<tr><td>|&amp;ty</td><td>Coda / 尾声记号</td></tr>
-<tr><td>|&amp;hs</td><td>Segno / 反复跳转记号</td></tr>
-</tbody>
-</table>
+<table class="symbol-preview-table"><colgroup><col style="width:19%"><col style="width:24%"><col style="width:27%"><col style="width:30%"></colgroup><thead><tr><th scope="col">小节线编码</th><th scope="col">OctoPus 样例</th><th scope="col">含义</th><th scope="col">当前 OctoPus 显示</th></tr></thead><tbody><tr><td><code>||/&amp;fine</code></td><td><img class="symbol-preview" src="assets/symbols/fine.png" alt="||&amp;fine 样例" loading="eager"></td><td>Fine，曲终</td><td>仅显示文字；没有专用字形</td></tr><tr><td><code>||/&amp;dc.</code></td><td><img class="symbol-preview" src="assets/symbols/dc.png" alt="||&amp;dc. 样例" loading="eager"></td><td>D.C.，从头反复</td><td>仅显示文字；没有专用字形</td></tr><tr><td><code>:|&amp;ds</code></td><td><img class="symbol-preview" src="assets/symbols/ds.png" alt="||&amp;ds 样例" loading="eager"></td><td>D.S.，从记号反复</td><td>此版本可见</td></tr><tr><td><code>|&amp;ty</code></td><td><img class="symbol-preview" src="assets/symbols/ty.png" alt="|&amp;ty 样例" loading="eager"></td><td>Coda 尾声记号</td><td>此版本可见</td></tr><tr><td><code>|&amp;hs</code></td><td><img class="symbol-preview" src="assets/symbols/hs.png" alt="|&amp;hs 样例" loading="eager"></td><td>Segno 反复跳转记号</td><td>此版本可见</td></tr></tbody></table>
 <p>反复/导航记号属于小节线，不是普通音符。行首需要小节线附属记号却不应显示线时用 |/；需要占位对齐时用 |*，尤其是单、多声部混合。程序显示这些指示，但没有播放跳转功能。</p>
 <h3>可见与隐藏边界</h3>
 <p>普通边界用 |，终止细粗线用 ||，双细线用 ||/；|:、:|、:|: 分别为反复起点、终点及合并边界。小节线分隔音乐，不插入休止符。|/ 不可见且不占小节线宽度，可作行首结尾线或跳转记号锚点；|* 不可见但占位，可对齐后进入的声部。两种隐藏线不能任意互换。</p>
@@ -509,13 +458,13 @@ C2: 花 儿 开 了</code></pre>
 <p>临时伴奏块可包含多个小节，音符数也可多于其对应主旋律；音符、可见休止符及后续小节都会保留。多声部乐谱中，主旋律与其他声部仍使用共同的时值网格；临时伴奏不会给主旋律增加拍数。行末的块可与同声部下一曲行对齐。没有后续旋律时，包括独立或末尾的伴奏块，块内内容仍会显示。嵌套 {bz ...} 中的音符各显示一次。节奏或小节数不同时，请检查对齐。</p>
 <pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
 Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
-<p>行中声部括弧的简化示例（请在预览中检查对齐）：</p>
+<p>规范将 &amp;sbf 定义为行中声部括弧位置；当前版本样例如下：它会印出字面文字 sbf，括弧仍留在行首。行中声部括弧的简化示例（请在预览中检查对齐）：</p>
 <pre><code>Q1: 1 2 3 4 |&amp;sbf 5 6 7 1&#x27; |
-Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre>
+Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre><p class="symbol-table-note">当前 OctoPus 的 &amp;sbf 样例（会印出字面文字 sbf；括弧留在行首）：</p><table class="symbol-preview-table"><colgroup><col style="width:19%"><col style="width:24%"><col style="width:27%"><col style="width:30%"></colgroup><thead><tr><th scope="col">编码</th><th scope="col">OctoPus 样例</th><th scope="col">含义</th><th scope="col">当前 OctoPus 显示</th></tr></thead><tbody><tr><td><code>&amp;sbf</code></td><td><img class="symbol-preview" src="assets/symbols/sbf.png" alt="&amp;sbf 当前样例" loading="eager"></td><td>行中声部括弧位置（规范定义）</td><td>显示文字 sbf；括弧仍留在行首</td></tr></tbody></table>
 <h3>逐声部建立系统</h3>
 <p>Q1、Q2、Q3、Q4 表示同时发声的声部，不是连续四行独唱。声部名放在数字之后、冒号之前，如 Q1&quot;女高音&quot;:。先输入一组，对照各部小节边界与时值，再加歌词及下一组。缺少休止符不能靠空格补齐。示例含无编号 C 及编号歌词层，其依附受上下文影响；宜保留可用示例的行顺序，新增歌词后核对显示。</p>
 <h3>临时块与行中声部括弧</h3>
-<p>{bz ...} 是临时伴奏，{dsb ...} 是临时多声部，小写关键字紧跟 {。它们内嵌于主片段；顶层 Q2 则另建完整声部。需同时配对花括号及块内连线。行中进入时，第一声部的 &amp;sbf 指定括弧位置，其他声部在进入前用时值合适的 8 与 |* 占位。该技巧来自规范，但内置示例没有 &amp;sbf；上面的最小模式是构造练习，不是示例原文。</p>
+<p>{bz ...} 是临时伴奏，{dsb ...} 是临时多声部，小写关键字紧跟 {。它们内嵌于主片段；顶层 Q2 则另建完整声部。需同时配对花括号及块内连线。规范将 &amp;sbf 定义为行中括弧位置；但下方当前版本样例显示它会印出字面文字 sbf，且不会移动括弧，因此暂不能用它控制位置。其他声部仍可在进入前用时值合适的 8 与 |* 占位。上面的最小模式是构造练习，不是示例原文。</p>
 <!-- sample:temporary-accompaniment:start -->
 <div class="sample-example" id="zh-CN-example-temporary-accompaniment">
 <h3>旋律上方的临时伴奏</h3><p>{bz ...} 嵌入第二小节，主旋律连线在后面的 6 闭合。抬高的第二结尾线跨越整段。分别追踪花括号、方括号和圆括号的配对。</p>
@@ -558,7 +507,7 @@ Q4: 1 - 5,. 5,/ | 6, - - 5, | 1 8 2 8 3 4 | 5 - - 0 | 1 - 6,. 6,/ | 7, - - 1 |</
 <pre><code>Q: 1 2 3 4 | 5 - 6 7 |
 C: 春 风 @ 来 花~儿 开 了
 C: 第 二 段 词 也 能 写</code></pre>
-<p>歌词行前可用引号标注，例如 "1."；这种兼容标签里需要空格时用下划线 _。英文按单词或音节用 / 分隔，不能将每个字母对应一个音符。/ 也可明确中英混排边界。未唱音符用 @；连唱需检查实际对应，不应把普通空格当成可靠的英文音节分隔符。</p>
+<p>歌词行前可用引号标注，例如 "1."。Jianpu-Spec 规定在带引号的歌词标签中用 _ 表示空格，但当前章鱼简谱会原样显示 _，并删除标签中的普通半角空格。需要显示空格时请使用全角空格，并检查渲染结果。英文按单词或音节用 / 分隔，不能将每个字母对应一个音符。/ 也可明确中英混排边界。未唱音符用 @；连唱需检查实际对应，不应把普通空格当成可靠的英文音节分隔符。</p>
 <pre><code>Q: 1 2 3 4 |
 C: &quot;Verse_1&quot; Sing/a/new/song
 C: &quot;2.&quot; 春/风/@/song</code></pre>
@@ -678,6 +627,13 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 <section id="zh-CN-sources"><h2>28. 参考依据与兼容性</h2>
 <p>记谱章节参考本地保存的 Jianpu-Spec v1.0 简介、描述头、曲、词及反馈内容。规范中以图片呈现的符号、力度和小节线表，在此整理为可检索文本。本手册还补充了详细说明、25 个标明出处的示例库摘录和 26 张渲染图，不分发原规范截图；示例库没有对应写法时，则提供最小语法练习。源码格式化及源码/预览定位说明参考保存的 Website-Contents/Zhipu-jsCode-editor，并对照章鱼简谱的实际行为核对。保存的 Zhipu-draw 文件为空。</p>
 <p>记谱语法来自参考规范，产品界面和计划则说明章鱼简谱。历史资料中提到的 MIDI、播放、网页自动格式化选项及个人联系方式，不代表当前桌面功能。运行代码、字体策略、输入限制和示例乐谱用于核对现状。本手册依据这些资料重新编写；生产版附带手册及 PDF，参考资料和编写工具留在 OctoPus-dev。</p>
+<h3>Jianpu-Spec v1.0 主题索引与当前支持</h3>
+<table><thead><tr><th>规范主题</th><th>手册章节</th><th>章鱼简谱当前状态</th></tr></thead><tbody>
+<tr><td>简介、文件结构、描述头/主体顺序、注释与分页（第 01–02 章）</td><td>13–14</td><td>支持 Q/C 结构与分页；空行分隔谱行组。已说明 V/B/Z/D/P/J；X 会保留但不渲染。</td></tr>
+<tr><td>乐曲记谱：音级、休止符、音区、时值、变音、力度、装饰、连音线、多连音、小节线、反复/跳房子、分组与声部（第 03 章）</td><td>15–23</td><td>按对应章节所述支持记谱。反复与速度记号只打印、不执行播放。曲中的 ~ 和 ^ 用于自定义节拍分组，不改变时值。</td></tr>
+<tr><td>歌词：C 行、中英文对齐、跳过、合并、标点及带引号的注释（第 04 章）</td><td>24</td><td>按第 24 节说明支持。规范的“下划线表示空格”约定尚未实现：带引号的标签中 _ 会原样显示。</td></tr>
+<tr><td>建议与反馈（第 05 章）</td><td>27</td><td>已覆盖反馈指引。历史个人联系方式及 MIDI/音频建议不是当前产品功能。</td></tr>
+</tbody></table>
 <p><a href="https://github.com/OctaveMelody/OctoPus">项目主页</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/README.zh-CN.md">生产版说明</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/ENVIRONMENT.zh-CN.md">构建环境</a></p>
 </section>
 </article>

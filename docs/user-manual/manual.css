@@ -31,3 +31,14 @@ figure img{max-height:230mm;object-fit:contain}section{break-inside:auto}}
 .page-navigation a:hover{text-decoration:underline}
 @media(max-width:600px){.page-navigation{margin:8px;padding:10px;flex-wrap:wrap}.page-navigation span{order:-1;width:100%;text-align:left}}
 @media print{.page-navigation{display:none}}
+
+/* Small rendered samples make symbol-command behavior directly inspectable. */
+.symbol-preview-table{font-size:10px;line-height:1.35;margin:10px 0 18px}
+.symbol-preview-table th,.symbol-preview-table td{padding:5px 6px;vertical-align:middle}
+.symbol-preview-table td:nth-child(2){text-align:center}
+.symbol-preview{display:block;width:100%;max-width:126px;height:56px;object-fit:contain;margin:0 auto}
+.symbol-table-note{font-size:11px;color:#52657b;margin:8px 0}
+@media print{.symbol-preview-table{font-size:9px;line-height:1.28}.symbol-preview-table th,.symbol-preview-table td{padding:4px}.symbol-preview{max-width:112px;height:48px}.symbol-table-note{font-size:9px}}
+
+
+.hairpin-preview-table .symbol-preview{max-width:230px}

@@ -10,27 +10,7 @@
 <a href="en-5.html">English</a></nav></header>
 <main><nav class="page-navigation" aria-label="手册分页"><a href="zh-CN-4.html">← 上一页</a><span>第 5 / 6 页 · 小节线、连接与声部</span><a href="zh-CN-6.html">下一页 →</a></nav>
 <article id="manual-zh-CN" lang="zh-CN"><section id="zh-CN-barlines"><h2>20. 小节线与反复指示</h2>
-<table><thead><tr><th>语法</th><th>外观/用途</th></tr>
-</thead>
-<tbody><tr><td>|</td><td>Single / 普通小节线</td></tr>
-<tr><td>||</td><td>Thin-left/thick-right final line / 左细右粗终止线</td></tr>
-<tr><td>||/</td><td>Two thin lines / 双细线</td></tr>
-<tr><td>|:</td><td>Start repeat / 左反复</td></tr>
-<tr><td>:|</td><td>End repeat / 右反复</td></tr>
-<tr><td>:|:</td><td>End/start repeat / 两侧反复</td></tr>
-<tr><td>|/</td><td>Hidden, no layout width / 不显示、不占位</td></tr>
-<tr><td>|*</td><td>Hidden, reserves layout width / 不显示、占位</td></tr>
-</tbody>
-</table>
-<table><thead><tr><th>小节线后编码</th><th>含义</th></tr>
-</thead>
-<tbody><tr><td>||&amp;fine</td><td>Fine / 终止</td></tr>
-<tr><td>||&amp;dc.</td><td>D.C. / 从头反复</td></tr>
-<tr><td>||&amp;ds</td><td>D.S. / 从记号反复</td></tr>
-<tr><td>|&amp;ty</td><td>Coda / 尾声记号</td></tr>
-<tr><td>|&amp;hs</td><td>Segno / 反复跳转记号</td></tr>
-</tbody>
-</table>
+<table class="symbol-preview-table"><colgroup><col style="width:19%"><col style="width:24%"><col style="width:27%"><col style="width:30%"></colgroup><thead><tr><th scope="col">小节线编码</th><th scope="col">OctoPus 样例</th><th scope="col">含义</th><th scope="col">当前 OctoPus 显示</th></tr></thead><tbody><tr><td><code>||/&amp;fine</code></td><td><img class="symbol-preview" src="../assets/symbols/fine.png" alt="||&amp;fine 样例" loading="eager"></td><td>Fine，曲终</td><td>仅显示文字；没有专用字形</td></tr><tr><td><code>||/&amp;dc.</code></td><td><img class="symbol-preview" src="../assets/symbols/dc.png" alt="||&amp;dc. 样例" loading="eager"></td><td>D.C.，从头反复</td><td>仅显示文字；没有专用字形</td></tr><tr><td><code>:|&amp;ds</code></td><td><img class="symbol-preview" src="../assets/symbols/ds.png" alt="||&amp;ds 样例" loading="eager"></td><td>D.S.，从记号反复</td><td>此版本可见</td></tr><tr><td><code>|&amp;ty</code></td><td><img class="symbol-preview" src="../assets/symbols/ty.png" alt="|&amp;ty 样例" loading="eager"></td><td>Coda 尾声记号</td><td>此版本可见</td></tr><tr><td><code>|&amp;hs</code></td><td><img class="symbol-preview" src="../assets/symbols/hs.png" alt="|&amp;hs 样例" loading="eager"></td><td>Segno 反复跳转记号</td><td>此版本可见</td></tr></tbody></table>
 <p>反复/导航记号属于小节线，不是普通音符。行首需要小节线附属记号却不应显示线时用 |/；需要占位对齐时用 |*，尤其是单、多声部混合。程序显示这些指示，但没有播放跳转功能。</p>
 <h3>可见与隐藏边界</h3>
 <p>普通边界用 |，终止细粗线用 ||，双细线用 ||/；|:、:|、:|: 分别为反复起点、终点及合并边界。小节线分隔音乐，不插入休止符。|/ 不可见且不占小节线宽度，可作行首结尾线或跳转记号锚点；|* 不可见但占位，可对齐后进入的声部。两种隐藏线不能任意互换。</p>
@@ -124,13 +104,13 @@ C2: 花 儿 开 了</code></pre>
 <p>临时伴奏块可包含多个小节，音符数也可多于其对应主旋律；音符、可见休止符及后续小节都会保留。多声部乐谱中，主旋律与其他声部仍使用共同的时值网格；临时伴奏不会给主旋律增加拍数。行末的块可与同声部下一曲行对齐。没有后续旋律时，包括独立或末尾的伴奏块，块内内容仍会显示。嵌套 {bz ...} 中的音符各显示一次。节奏或小节数不同时，请检查对齐。</p>
 <pre><code>Q: 3 4 | {bz 1&amp;zkh 2 3 4 | 5 6 7 1&#x27;&amp;ykh} 5 6 7 1&#x27; |
 Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
-<p>行中声部括弧的简化示例（请在预览中检查对齐）：</p>
+<p>规范将 &amp;sbf 定义为行中声部括弧位置；当前版本样例如下：它会印出字面文字 sbf，括弧仍留在行首。行中声部括弧的简化示例（请在预览中检查对齐）：</p>
 <pre><code>Q1: 1 2 3 4 |&amp;sbf 5 6 7 1&#x27; |
-Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre>
+Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre><p class="symbol-table-note">当前 OctoPus 的 &amp;sbf 样例（会印出字面文字 sbf；括弧留在行首）：</p><table class="symbol-preview-table"><colgroup><col style="width:19%"><col style="width:24%"><col style="width:27%"><col style="width:30%"></colgroup><thead><tr><th scope="col">编码</th><th scope="col">OctoPus 样例</th><th scope="col">含义</th><th scope="col">当前 OctoPus 显示</th></tr></thead><tbody><tr><td><code>&amp;sbf</code></td><td><img class="symbol-preview" src="../assets/symbols/sbf.png" alt="&amp;sbf 当前样例" loading="eager"></td><td>行中声部括弧位置（规范定义）</td><td>显示文字 sbf；括弧仍留在行首</td></tr></tbody></table>
 <h3>逐声部建立系统</h3>
 <p>Q1、Q2、Q3、Q4 表示同时发声的声部，不是连续四行独唱。声部名放在数字之后、冒号之前，如 Q1&quot;女高音&quot;:。先输入一组，对照各部小节边界与时值，再加歌词及下一组。缺少休止符不能靠空格补齐。示例含无编号 C 及编号歌词层，其依附受上下文影响；宜保留可用示例的行顺序，新增歌词后核对显示。</p>
 <h3>临时块与行中声部括弧</h3>
-<p>{bz ...} 是临时伴奏，{dsb ...} 是临时多声部，小写关键字紧跟 {。它们内嵌于主片段；顶层 Q2 则另建完整声部。需同时配对花括号及块内连线。行中进入时，第一声部的 &amp;sbf 指定括弧位置，其他声部在进入前用时值合适的 8 与 |* 占位。该技巧来自规范，但内置示例没有 &amp;sbf；上面的最小模式是构造练习，不是示例原文。</p>
+<p>{bz ...} 是临时伴奏，{dsb ...} 是临时多声部，小写关键字紧跟 {。它们内嵌于主片段；顶层 Q2 则另建完整声部。需同时配对花括号及块内连线。规范将 &amp;sbf 定义为行中括弧位置；但下方当前版本样例显示它会印出字面文字 sbf，且不会移动括弧，因此暂不能用它控制位置。其他声部仍可在进入前用时值合适的 8 与 |* 占位。上面的最小模式是构造练习，不是示例原文。</p>
 <!-- sample:temporary-accompaniment:start -->
 <div class="sample-example" id="zh-CN-example-temporary-accompaniment">
 <h3>旋律上方的临时伴奏</h3><p>{bz ...} 嵌入第二小节，主旋律连线在后面的 6 闭合。抬高的第二结尾线跨越整段。分别追踪花括号、方括号和圆括号的配对。</p>

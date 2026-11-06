@@ -10,27 +10,7 @@
 <a href="zh-CN-5.html">简体中文</a></nav></header>
 <main><nav class="page-navigation" aria-label="Manual pages"><a href="en-4.html">← Previous</a><span>Page 5 of 6 · Bars, spans and voices</span><a href="en-6.html">Next →</a></nav>
 <article id="manual-en" lang="en"><section id="en-barlines"><h2>20. Barlines and repeat instructions</h2>
-<table><thead><tr><th>Syntax</th><th>Appearance/use</th></tr>
-</thead>
-<tbody><tr><td>|</td><td>Single / 普通小节线</td></tr>
-<tr><td>||</td><td>Thin-left/thick-right final line / 左细右粗终止线</td></tr>
-<tr><td>||/</td><td>Two thin lines / 双细线</td></tr>
-<tr><td>|:</td><td>Start repeat / 左反复</td></tr>
-<tr><td>:|</td><td>End repeat / 右反复</td></tr>
-<tr><td>:|:</td><td>End/start repeat / 两侧反复</td></tr>
-<tr><td>|/</td><td>Hidden, no layout width / 不显示、不占位</td></tr>
-<tr><td>|*</td><td>Hidden, reserves layout width / 不显示、占位</td></tr>
-</tbody>
-</table>
-<table><thead><tr><th>Barline-attached code</th><th>Meaning</th></tr>
-</thead>
-<tbody><tr><td>||&amp;fine</td><td>Fine / 终止</td></tr>
-<tr><td>||&amp;dc.</td><td>D.C. / 从头反复</td></tr>
-<tr><td>||&amp;ds</td><td>D.S. / 从记号反复</td></tr>
-<tr><td>|&amp;ty</td><td>Coda / 尾声记号</td></tr>
-<tr><td>|&amp;hs</td><td>Segno / 反复跳转记号</td></tr>
-</tbody>
-</table>
+<table class="symbol-preview-table"><colgroup><col style="width:19%"><col style="width:24%"><col style="width:27%"><col style="width:30%"></colgroup><thead><tr><th scope="col">Barline code</th><th scope="col">OctoPus sample</th><th scope="col">Meaning</th><th scope="col">Current OctoPus rendering</th></tr></thead><tbody><tr><td><code>||/&amp;fine</code></td><td><img class="symbol-preview" src="../assets/symbols/fine.png" alt="||&amp;fine sample" loading="eager"></td><td>Fine, end of piece</td><td>Text only; no dedicated glyph</td></tr><tr><td><code>||/&amp;dc.</code></td><td><img class="symbol-preview" src="../assets/symbols/dc.png" alt="||&amp;dc. sample" loading="eager"></td><td>D.C., repeat from the beginning</td><td>Text only; no dedicated glyph</td></tr><tr><td><code>:|&amp;ds</code></td><td><img class="symbol-preview" src="../assets/symbols/ds.png" alt="||&amp;ds sample" loading="eager"></td><td>D.S., repeat from the segno</td><td>Visible in this OctoPus preview</td></tr><tr><td><code>|&amp;ty</code></td><td><img class="symbol-preview" src="../assets/symbols/ty.png" alt="|&amp;ty sample" loading="eager"></td><td>Coda sign</td><td>Visible in this OctoPus preview</td></tr><tr><td><code>|&amp;hs</code></td><td><img class="symbol-preview" src="../assets/symbols/hs.png" alt="|&amp;hs sample" loading="eager"></td><td>Segno sign</td><td>Visible in this OctoPus preview</td></tr></tbody></table>
 <p>Repeat/navigation marks belong to a barline, not an ordinary note. Use |/ at a row beginning when a barline-attached mark is needed without a visible barline. Use |* to reserve alignment space, especially with mixed single/multiple voices. These marks are printed; playback navigation is not provided.</p>
 <h3>Visible and invisible boundaries</h3>
 <p>Use | for an ordinary boundary, || for the final thin/thick boundary and ||/ for two thin lines. |:, :| and :|: mark repeat starts, ends and combined end/start boundaries. A barline divides music; it does not insert a rest. |/ is invisible and takes no barline width, useful at a row-start ending or navigation mark. |* is invisible but reserves width, useful for aligning a later voice entry. These two hidden forms are not interchangeable.</p>
@@ -114,7 +94,7 @@ C: 铃儿响叮当，我@们滑雪多@快乐，我们坐在雪@橇上。坐在�
 <!-- sample:open-ending-meter:end -->
 </section>
 <section id="en-voices"><h2>23. Voices and temporary accompaniment</h2>
-<p>Use Q1, Q2, etc. for numbered music parts; C/C1/C2 rows supply the associated lyric lines. Preserve their ordering and inspect the preview when adapting library scores. A voice name can follow its number in quotes. Keep successive voices rhythmically aligned; numbered music rows form a system, while lyrics attach to their matching voice. Single and multiple voices can be mixed. A mid-row voice brace is indicated by &amp;sbf; use hidden rest 8 and hidden barline |* to reserve earlier space in secondary voices.</p>
+<p>Use Q1, Q2, etc. for numbered music parts; C/C1/C2 rows supply the associated lyric lines. Preserve their ordering and inspect the preview when adapting library scores. A voice name can follow its number in quotes. Keep successive voices rhythmically aligned; numbered music rows form a system, while lyrics attach to their matching voice. Single and multiple voices can be mixed. The spec assigns &amp;sbf to a mid-row voice-brace position; compare its current preview below, where this OctoPus build prints the literal text and leaves the brace at the row start. Use hidden rest 8 and hidden barline |* to reserve earlier space in secondary voices.</p>
 <pre><code>Q1&quot;Soprano&quot;: 1 2 3 4 |
 C1: 春 风 吹 来
 Q2&quot;Alto&quot;: 3, 4, 5, 6, |
@@ -126,11 +106,11 @@ C2: 花 儿 开 了</code></pre>
 Q: 3 4 | {dsb 1 2 3 4 | 5 6 7 1&#x27;} 5 6 7 1&#x27; |</code></pre>
 <p>A minimal mid-row brace pattern (inspect alignment in the preview):</p>
 <pre><code>Q1: 1 2 3 4 |&amp;sbf 5 6 7 1&#x27; |
-Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre>
+Q2: 8 8 8 8 |* 3 4 5 6 |</code></pre><p class="symbol-table-note">Current OctoPus sample of &amp;sbf (the literal text is printed; the brace stays at the row start):</p><table class="symbol-preview-table"><colgroup><col style="width:19%"><col style="width:24%"><col style="width:27%"><col style="width:30%"></colgroup><thead><tr><th scope="col">Code</th><th scope="col">OctoPus sample</th><th scope="col">Meaning</th><th scope="col">Current OctoPus rendering</th></tr></thead><tbody><tr><td><code>&amp;sbf</code></td><td><img class="symbol-preview" src="../assets/symbols/sbf.png" alt="&amp;sbf current sample" loading="eager"></td><td>Mid-row voice-brace position (spec meaning)</td><td>Prints “sbf” as text; brace remains at row start</td></tr></tbody></table>
 <h3>Build a system one part at a time</h3>
 <p>Use Q1, Q2, Q3 and Q4 for simultaneous parts, not four successive solo rows. A quoted name follows the number before the colon, for example Q1&quot;Soprano&quot;:. Enter one system, compare bar boundaries and durations across its parts, then add its lyric rows and the next system. A missing rest cannot be repaired by visually adding spaces. Library scores include unnumbered C and numbered lyric lanes; their placement is context-sensitive. Preserve a working sample&#x27;s row ordering and confirm the result when assigning new lyrics.</p>
 <h3>Temporary blocks and a mid-row brace</h3>
-<p>{bz ...} is a temporary accompaniment block; {dsb ...} is temporary multiple-voice content. The lowercase keyword follows { immediately. These attach inline to the main passage, while top-level Q2 starts another full part. Count both brace endpoints and the slurs within the block. For a mid-row voice entry, &amp;sbf marks the brace position in the first voice; secondary voices use duration-compatible hidden 8 events and |* boundaries before the entry. This technique is in the reference but no bundled example uses &amp;sbf, so the minimal pattern above is a constructed exercise, not a library quotation.</p>
+<p>{bz ...} is a temporary accompaniment block; {dsb ...} is temporary multiple-voice content. The lowercase keyword follows { immediately. These attach inline to the main passage, while top-level Q2 starts another full part. Count both brace endpoints and the slurs within the block. The spec assigns &amp;sbf to the mid-row brace position. In the current OctoPus preview below, it prints the literal text “sbf” and does not move the brace; treat the code as unsupported for placement in this build. Secondary voices can still use duration-compatible hidden 8 events and |* boundaries before the entry. The minimal pattern is a constructed exercise, not a library quotation.</p>
 <!-- sample:temporary-accompaniment:start -->
 <div class="sample-example" id="en-example-temporary-accompaniment">
 <h3>Temporary accompaniment above the melody</h3><p>The {bz ...} group is embedded inside the second bar, while the main slur closes on the following 6. A raised second-ending bracket spans the passage. Read brace, bracket and parenthesis pairs separately.</p>
