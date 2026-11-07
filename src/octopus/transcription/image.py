@@ -495,6 +495,7 @@ def _music_row(
     components: list[Component], digit_height: int, gray: Image.Image,
     *, joined_underlines: bool = False,
     accompaniment: bool = False,
+    shared_barlines: tuple[int, ...] = (),
     barline_candidates: list[Component] | None = None,
 ) -> MusicRow:
     group.sort(key=lambda pair: pair[0].box[0])
@@ -506,7 +507,13 @@ def _music_row(
         # stands to the left of every note. Ordinary leading measure bars remain.
         if component.height > bar_height * 3 and component.box[2] < group[0][0].box[0]:
             return False
-        return _barline(component, row_y, bar_height, gray, shared=accompaniment)
+        if _barline(component, row_y, bar_height, gray, shared=accompaniment):
+            return True
+        return (
+            any(abs(component.box[0] - x) <= max(2, round(digit_height * 0.25))
+                for x in shared_barlines)
+            and _barline(component, row_y, bar_height, gray, shared=True)
+        )
 
     nearby = [
         component for component in components
@@ -567,6 +574,7 @@ def _music_row(
         component.box for component in nearby
         if component.box not in note_boxes
         and component.box not in used_marks
+        and component.box[0] not in bars
         and not _barline(component, row_y, digit_height, gray)
         and component.area >= 3
     )
@@ -580,6 +588,41 @@ def _music_row(
         ),
         unresolved,
     )
+
+
+def _shared_row_barlines(
+    group: list[tuple[Component, DigitMatch]], peers: list[MusicRow],
+    barline_candidates: list[Component], digit_height: int, gray: Image.Image,
+) -> tuple[int, ...]:
+    """Return long strokes independently confirmed by a nearby retained row."""
+    if not peers:
+        return ()
+    row_y = sum(component.center_y for component, _ in group) / len(group)
+    bar_height = max(digit_height, round(median(component.height for component, _ in group)))
+    first_note_x = min(component.box[0] for component, _ in group)
+    shared = sorted({
+        component.box[0] for component in barline_candidates
+        if not (component.height > bar_height * 3 and component.box[2] < first_note_x)
+        and _barline(component, row_y, bar_height, gray, shared=True)
+    })
+    if len(shared) < 2:
+        return ()
+
+    tolerance = max(2, round(digit_height * 0.25))
+    for peer in peers:
+        peer_y = (peer.box[1] + peer.box[3]) / 2
+        if not digit_height <= abs(peer_y - row_y) <= digit_height * 3.5:
+            continue
+        supported = tuple(x for x in shared if any(
+            abs(x - peer_x) <= tolerance for peer_x in peer.barlines
+        ))
+        distinct = sum(
+            index == 0 or x - supported[index - 1] > digit_height * 0.5
+            for index, x in enumerate(supported)
+        )
+        if distinct >= 2 and len(supported) * 2 >= len(shared):
+            return supported
+    return ()
 
 
 def _exclude_voice_label_notes(
@@ -1118,7 +1161,8 @@ def _classify_working_row_candidates(
         ) else component.height
         if not (
             any(_barline(bar, component.center_y, component.height, gray)
-                or _barline(bar, component.center_y, anchor_height, gray) for bar in possible_bars)
+                or _barline(bar, component.center_y, anchor_height, gray)
+                for bar in possible_bars)
             or any(abs(component.center_y - y) <= component.height * 0.4 for y in trusted_rows)
         ):
             continue
@@ -1135,6 +1179,38 @@ def _classify_working_row_candidates(
     barline_candidates = [
         *possible_bars, *_fragmented_vertical_barlines(components, digit_height, gray),
     ]
+    peer_rows = []
+    for group in _groups(candidates, digit_height):
+        if len(group) < 3:
+            continue
+        row = _music_row(
+            group, components, digit_height, gray, barline_candidates=barline_candidates,
+        )
+        if len(row.barlines) >= 2:
+            peer_rows.append(row)
+    if peer_rows:
+        candidate_boxes = {component.box for component, _ in candidates}
+        candidate_components = [
+            (component, ("0", 0.0, False))
+            for component in components
+            if component.box not in candidate_boxes
+            and abs(component.height - digit_height) <= max(3, digit_height * 0.12)
+            and digit_height * 0.2 <= component.width <= digit_height
+            and component.area >= max(18, component.height)
+        ]
+        for group in _groups(candidate_components, digit_height):
+            left = min(component.box[0] for component, _ in group)
+            right = max(component.box[2] for component, _ in group)
+            if len(group) < 3 or right - left < gray.width * 0.12:
+                continue
+            if not _shared_row_barlines(
+                group, peer_rows, barline_candidates, digit_height, gray,
+            ):
+                continue
+            for component, _ in group:
+                match = classify_digit(gray, component, page_templates=trusted_templates)
+                if match is not None:
+                    candidates.append((component, match))
     return _WorkingRowCandidates(candidates, digit_height, barline_candidates, possible_bars)
 
 
@@ -1195,17 +1271,29 @@ def _recognize_working_rows(
             )
             main.extend(recovered)
             candidates.extend(recovered)
-    rows = []
     main_groups = _groups(main, digit_height)
     candidate_rows = []
     for group in main_groups:
         group.sort(key=lambda pair: pair[0].box[0])
-        local_branch = _by_local_brace(group, components, gray.width, digit_height)
-        row = _music_row(
+        candidate_rows.append(_music_row(
             group, components, digit_height, gray, joined_underlines=resized,
             barline_candidates=barline_candidates,
-        )
-        candidate_rows.append(row)
+        ))
+    rows = []
+    for index, (group, row) in enumerate(zip(main_groups, candidate_rows, strict=True)):
+        if all(match[2] for _, match in group) and not row.barlines:
+            peers = [peer for peer_index, peer in enumerate(candidate_rows)
+                     if peer_index != index and len(peer.barlines) >= 2]
+            shared_barlines = _shared_row_barlines(
+                group, peers, barline_candidates, digit_height, gray,
+            )
+            if shared_barlines:
+                row = _music_row(
+                    group, components, digit_height, gray, joined_underlines=resized,
+                    shared_barlines=shared_barlines, barline_candidates=barline_candidates,
+                )
+                candidate_rows[index] = row
+        local_branch = _by_local_brace(group, components, gray.width, digit_height)
         sustained_row = len(row.barlines) >= 2 and len(row_sustains(
             tuple(note.box for note in row.notes), row.unresolved_marks,
         )) >= 3
