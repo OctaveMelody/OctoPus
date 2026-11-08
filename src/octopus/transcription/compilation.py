@@ -657,7 +657,7 @@ def assemble(
         for group in page.voice_groups:
             issues.append(Issue(
                 "voice_group_review", page_number,
-                "Verify simultaneous voice identity and order across this bracketed system.",
+                "Verify simultaneous voice identity and order across this detected group.",
                 (group.box,),
             ))
         overlay_by_anchor = {overlay.anchor: overlay for overlay in page.dsb_overlays}

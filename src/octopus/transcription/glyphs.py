@@ -7,7 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import cast
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from .components import Component
 from .text import image_digit
@@ -71,6 +71,31 @@ def _similarity(candidate: int, template: int) -> float:
     intersection = (candidate & template).bit_count()
     union = (candidate | template).bit_count()
     return intersection / union if union else 0.0
+
+
+@lru_cache(maxsize=64)
+def _dilated_black_pixels(pixels: int) -> int:
+    """Allow one raster pixel of tolerance when comparing small accidental glyphs."""
+    bitmap = Image.frombytes(
+        "L", NORMALIZED_SIZE, pixels.to_bytes(NORMALIZED_SIZE[0] * NORMALIZED_SIZE[1], "little"),
+    )
+    return int.from_bytes(bitmap.filter(ImageFilter.MaxFilter(3)).tobytes(), "little")
+
+
+def _tolerant_similarity(candidate: int, template: int) -> float:
+    """Score mutual one-pixel neighborhood coverage for rasterized glyphs."""
+    candidate_area = candidate.bit_count()
+    template_area = template.bit_count()
+    if not candidate_area or not template_area:
+        return 0.0
+    candidate_coverage = (
+        candidate & _dilated_black_pixels(template)
+    ).bit_count() / candidate_area
+    template_coverage = (
+        template & _dilated_black_pixels(candidate)
+    ).bit_count() / template_area
+    total = candidate_coverage + template_coverage
+    return 2 * candidate_coverage * template_coverage / total if total else 0.0
 
 
 def _digit_scores(
@@ -215,15 +240,30 @@ def _wavy_mordent_stroke(gray: Image.Image, component: Component) -> bool:
 
 def classify_accidental(gray: Image.Image, component: Component) -> str | None:
     candidate = _normalized_black_pixels(gray.crop(component.box))
+    templates = tuple((symbol, template) for _, symbol, template in _templates(accidentals=True))
     ranked = sorted(
-        ((symbol, _similarity(candidate, template))
-         for _, symbol, template in _templates(accidentals=True)),
+        ((symbol, _similarity(candidate, template)) for symbol, template in templates),
         key=lambda item: item[1], reverse=True,
     )
     if ranked[0][1] >= 0.78 and ranked[0][1] - ranked[1][1] >= 0.1:
         return ranked[0][0]
     ocr = image_digit(gray, component.box, "#♯♭♮")
-    return {"#": "#", "♯": "#", "♭": "$", "♮": "="}[ocr[0]] if ocr else None
+    if ocr:
+        return {"#": "#", "♯": "#", "♭": "$", "♮": "="}[ocr[0]]
+
+    # Low-resolution flats have a long stem and a compact bowl, so exact
+    # overlap can rank the natural-sign template slightly higher. Recover only
+    # a clear flat from one-pixel-tolerant shape agreement; nearby note glyphs
+    # and ambiguous signs remain unresolved.
+    tolerant = sorted(
+        ((symbol, _tolerant_similarity(candidate, template))
+         for symbol, template in templates),
+        key=lambda item: item[1], reverse=True,
+    )
+    if (tolerant[0][0] == "$" and tolerant[0][1] >= 0.7
+            and tolerant[0][1] - tolerant[1][1] >= 0.02):
+        return "$"
+    return None
 
 
 def classify_digit(

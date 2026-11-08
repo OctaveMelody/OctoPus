@@ -80,6 +80,12 @@ Sans SC subsets separately. Microsoft YaHei/SimHei/SimSun/Arial are needed for a
 corpus comparisons, which live in development. Font replacement changes rendering and is not
 proof of reference parity.
 
+## PDF transcription tools
+
+PDF transcription on every platform requires Poppler's `pdfinfo`, `pdftotext`, and `pdftoppm`
+on PATH. On Windows, install a trusted Poppler distribution and add its `bin` directory to PATH;
+the Windows package does not include these tools. Restart OctoPus after updating PATH.
+
 ## Setup and run from source
 
 From this directory with uv/Node/Rust available:
@@ -236,8 +242,9 @@ On Linux, run from any working directory:
 ```
 
 On Windows, run `dist/<target-triple>/portable/octopus.exe`. Keep the complete portable
-folder together. Linux still requires the host GTK/WebKit libraries and Poppler tools; Windows
-requires WebView2. This is an application-local production testing tree, not a static OS runtime.
+folder together. Linux still requires the host GTK/WebKit libraries; Windows requires WebView2.
+PDF transcription also requires the Poppler tools on PATH on both platforms. This is an
+application-local production testing tree, not a static OS runtime.
 Both build/ and dist/ are ignored by Git. The local Linux portable test tree includes its verified
 score-font set; Windows portable uses installed system fonts and compatible installed substitutes without the
 13 application score-font faces.

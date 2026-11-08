@@ -750,9 +750,10 @@ def music_characters(gray: Image.Image, box: Box) -> tuple[tuple[str, float, flo
 def pdf_text(path: Path) -> tuple[tuple[TextSpan, ...], ...]:
     """Read selectable PDF words; scanned pages simply return empty lists."""
     result = subprocess.run(
-        ["pdftotext", "-bbox-layout", str(path), "-"],
+        ["pdftotext", "-enc", "UTF-8", "-bbox-layout", str(path), "-"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=120,
         check=True,
     )

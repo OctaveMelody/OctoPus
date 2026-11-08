@@ -29,7 +29,8 @@ package for your operating system.
 
 - **Windows:** Download the installer `OctoPus_<version>_x64_win64_setup.exe` or the portable ZIP
   `OctoPus_<version>_x64_win64_portable.zip`. Windows requires WebView2, which is already installed
-  on most systems.
+  on most systems. PDF transcription additionally requires the Poppler tools on PATH; see
+  [environment setup](ENVIRONMENT.md#pdf-transcription-tools).
 - **macOS 26 or later (Apple Silicon):** Download and open
   `OctoPus_<version>_arm64_macos.dmg`, then drag **OctoPus** into **Applications**. The app is not
   signed with an Apple Developer ID or notarized,

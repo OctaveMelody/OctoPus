@@ -56,11 +56,28 @@ def row_sustains(notes: tuple[Box, ...], marks: tuple[Box, ...]) -> tuple[Box, .
     ))
 
 
+def _accidental_before_note(
+    notes: tuple[Box, ...], component: Component, height: float, gray: Image.Image,
+) -> bool:
+    """Keep a note's prefix accidental from becoming a closing accompaniment bracket."""
+    from .glyphs import classify_accidental
+
+    accidental = classify_accidental(gray, component)
+    if accidental is None:
+        return False
+    vertical_tolerance = height * (0.85 if accidental == "$" else 0.5)
+    return any(
+        0 <= note[0] - component.box[2] <= height * 0.6
+        and abs(component.center_y - (note[1] + note[3]) / 2) <= vertical_tolerance
+        for note in notes
+    )
+
+
 def row_parentheses(
     notes: tuple[Box, ...], height: float,
     components: list[Component], gray: Image.Image,
 ) -> tuple[tuple[int, str], ...]:
-    """Attach tall curved accompaniment brackets, excluding straight bars and voice braces."""
+    """Attach tall curved accompaniment brackets, excluding accidentals and straight bars."""
     found = []
     for component in components:
         if not (height * 0.9 <= component.height <= height * 2.2
@@ -68,6 +85,8 @@ def row_parentheses(
                 and component.area <= component.width * component.height * 0.6
                 and not any(box[0] <= (component.box[0] + component.box[2]) / 2 <= box[2]
                             and box[1] <= component.center_y <= box[3] for box in notes)):
+            continue
+        if _accidental_before_note(notes, component, height, gray):
             continue
         bend = vertical_bend(component, gray)
         if bend is None or abs(bend) < max(1.25, component.width * 0.25):

@@ -23,7 +23,8 @@
 并选择适用于你操作系统的安装包。
 
 - **Windows：** 下载安装程序 `OctoPus_<版本>_x64_win64_setup.exe`，或便携 ZIP
-  `OctoPus_<版本>_x64_win64_portable.zip`。Windows 需要 WebView2；多数系统已安装。
+  `OctoPus_<版本>_x64_win64_portable.zip`。Windows 需要 WebView2；多数系统已安装。PDF 转录
+  还需要在 PATH 中安装 Poppler 工具，详见[环境说明](ENVIRONMENT.zh-CN.md)。
 - **macOS 26 或更高版本（Apple Silicon）：** 下载并打开 `OctoPus_<版本>_arm64_macos.dmg`，将
   **章鱼简谱**拖入「应用程序」文件夹。该应用尚未使用 Apple Developer ID 签名或公证，因此首次启动时，Gatekeeper
   可能会阻止打开并显示应用已损坏的警告。将应用复制到「应用程序」后，打开「终端」并运行：

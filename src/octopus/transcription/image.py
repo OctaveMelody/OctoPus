@@ -490,12 +490,163 @@ def _recover_shared_barlines(
     return result
 
 
+def _matched_barline_positions(
+    positions: tuple[int, ...], reference: tuple[int, ...], tolerance: int,
+) -> tuple[int, ...]:
+    """Match nearby bar columns one-to-one, preserving double-bar structure."""
+    remaining = sorted(reference)
+    matched = []
+    for position in sorted(positions):
+        if not remaining:
+            break
+        nearest = min(range(len(remaining)), key=lambda index: abs(remaining[index] - position))
+        if abs(remaining[nearest] - position) <= tolerance:
+            matched.append(position)
+            remaining.pop(nearest)
+    return tuple(matched)
+
+
+def _shared_barline_support(
+    row: MusicRow,
+    peers: list[MusicRow],
+    possible_bars: list[Component],
+    digit_height: int,
+    gray: Image.Image,
+) -> tuple[int, ...]:
+    """Return shared bars corroborated by a nearby row with ordinary bar evidence."""
+    row_y = median((note.box[1] + note.box[3]) / 2 for note in row.notes)
+    shared_positions = tuple(sorted({
+        bar.box[0]
+        for bar in possible_bars
+        if row.box[0] - digit_height <= bar.box[0] <= row.box[2] + digit_height * 4
+        and _barline(bar, row_y, digit_height, gray, shared=True)
+    }))
+    if len(shared_positions) < 3:
+        return ()
+
+    tolerance = max(2, round(digit_height * 0.25))
+    supported = []
+    for peer in peers:
+        if not peer.barlines or not peer.notes:
+            continue
+        peer_y = median((note.box[1] + note.box[3]) / 2 for note in peer.notes)
+        if abs(peer_y - row_y) > digit_height * 3.25:
+            continue
+        matches = _matched_barline_positions(shared_positions, peer.barlines, tolerance)
+        denominator = min(len(shared_positions), len(peer.barlines))
+        required = max(3, ceil(denominator * 0.6))
+        if len(matches) >= required:
+            supported.append((len(matches), -abs(peer_y - row_y), matches))
+    return max(supported)[2] if supported else ()
+
+
+def _aligned_onset_count(first: MusicRow, second: MusicRow, tolerance: int) -> int:
+    first_x = sorted(round((note.box[0] + note.box[2]) / 2) for note in first.notes)
+    second_x = sorted(round((note.box[0] + note.box[2]) / 2) for note in second.notes)
+    first_index = second_index = matches = 0
+    while first_index < len(first_x) and second_index < len(second_x):
+        delta = first_x[first_index] - second_x[second_index]
+        if abs(delta) <= tolerance:
+            matches += 1
+            first_index += 1
+            second_index += 1
+        elif delta < 0:
+            first_index += 1
+        else:
+            second_index += 1
+    return matches
+
+
+def _repeated_aligned_voice_groups(
+    rows: tuple[MusicRow, ...], digit_height: int,
+) -> tuple[VoiceGroup, ...]:
+    """Infer unbraced voices only from repeated, aligned multirow system geometry."""
+    if len(rows) < 6 or digit_height <= 0 or any(
+        not row.notes or len(row.barlines) < 3 for row in rows
+    ):
+        return ()
+
+    bar_reference = max(rows, key=lambda row: len(row.barlines)).barlines
+    bar_tolerance = max(2, round(digit_height * 0.25))
+    for row in rows:
+        shared_bars = _matched_barline_positions(row.barlines, bar_reference, bar_tolerance)
+        required = max(3, ceil(min(len(row.barlines), len(bar_reference)) * 0.75))
+        if len(shared_bars) < required:
+            return ()
+
+    onset_reference = min(rows, key=lambda row: len(row.notes))
+    onset_tolerance = max(2, round(digit_height * 0.16))
+    for row in rows:
+        shared_onsets = _aligned_onset_count(row, onset_reference, onset_tolerance)
+        required = max(4, ceil(min(len(row.notes), len(onset_reference.notes)) * 0.65))
+        if shared_onsets < required:
+            return ()
+
+    row_centers = tuple(median((note.box[1] + note.box[3]) / 2 for note in row.notes)
+                        for row in rows)
+    for block_size in range(len(rows) // 2, 2, -1):
+        if len(rows) % block_size:
+            continue
+        block_count = len(rows) // block_size
+        if block_count < 2:
+            continue
+        reference_gaps = tuple(
+            row_centers[index + 1] - row_centers[index]
+            for index in range(block_size - 1)
+        )
+        if any(gap <= 0 or gap > digit_height * 5.5 for gap in reference_gaps):
+            continue
+        matched_layout = True
+        for block_index in range(1, block_count):
+            start = block_index * block_size
+            gaps = tuple(
+                row_centers[start + index + 1] - row_centers[start + index]
+                for index in range(block_size - 1)
+            )
+            if any(abs(gap - reference) > max(2, digit_height * 0.4)
+                   for gap, reference in zip(gaps, reference_gaps, strict=True)):
+                matched_layout = False
+                break
+        if not matched_layout:
+            continue
+
+        # Without a visible break between blocks, equally spaced melody lines
+        # are just as plausible as simultaneous voices. Leave them independent.
+        internal_gaps = [
+            row_centers[start + offset + 1] - row_centers[start + offset]
+            for start in range(0, len(rows), block_size)
+            for offset in range(block_size - 1)
+        ]
+        boundary_gaps = [
+            row_centers[start] - row_centers[start - 1]
+            for start in range(block_size, len(rows), block_size)
+        ]
+        if any(gap <= median(internal_gaps) + digit_height * 0.5 for gap in boundary_gaps):
+            continue
+
+        groups = []
+        for block_index in range(block_count):
+            start = block_index * block_size
+            members = tuple(range(start, start + block_size))
+            block_rows = tuple(rows[index] for index in members)
+            box = (
+                min(row.box[0] for row in block_rows),
+                min(row.box[1] for row in block_rows),
+                max(row.box[2] for row in block_rows),
+                max(row.box[3] for row in block_rows),
+            )
+            groups.append(VoiceGroup(members, box))
+        return tuple(groups)
+    return ()
+
+
 def _music_row(
     group: list[tuple[Component, DigitMatch]],
     components: list[Component], digit_height: int, gray: Image.Image,
     *, joined_underlines: bool = False,
     accompaniment: bool = False,
     barline_candidates: list[Component] | None = None,
+    shared_barline_positions: tuple[int, ...] = (),
 ) -> MusicRow:
     group.sort(key=lambda pair: pair[0].box[0])
     row_y = sum(component.center_y for component, _ in group) / len(group)
@@ -506,7 +657,11 @@ def _music_row(
         # stands to the left of every note. Ordinary leading measure bars remain.
         if component.height > bar_height * 3 and component.box[2] < group[0][0].box[0]:
             return False
-        return _barline(component, row_y, bar_height, gray, shared=accompaniment)
+        tolerance = max(2, round(digit_height * 0.25))
+        shared = accompaniment or any(
+            abs(component.box[0] - x) <= tolerance for x in shared_barline_positions
+        )
+        return _barline(component, row_y, bar_height, gray, shared=shared)
 
     nearby = [
         component for component in components
@@ -536,15 +691,18 @@ def _music_row(
             gray if joined_underlines else None, right_limit,
             duration_gray=gray, barlines=tuple(bars),
         )
-        signs = [
-            (sign, accidental) for sign in modifier_components
-            if sign.box not in note_boxes
-            and digit_height * 0.55 <= sign.height <= digit_height * 1.3
-            and sign.width <= digit_height * 0.6
-            and 0 <= component.box[0] - sign.box[2] <= digit_height * 0.6
-            and abs(sign.center_y - component.center_y) <= digit_height * 0.5
-            and (accidental := classify_accidental(gray, sign)) is not None
-        ]
+        signs: list[tuple[Component, str]] = []
+        for sign in modifier_components:
+            if (sign.box in note_boxes
+                    or not digit_height * 0.55 <= sign.height <= digit_height * 1.3
+                    or sign.width > digit_height * 0.6
+                    or not 0 <= component.box[0] - sign.box[2] <= digit_height * 0.6):
+                continue
+            accidental = classify_accidental(gray, sign)
+            vertical_tolerance = digit_height * (0.85 if accidental == "$" else 0.5)
+            if (accidental is not None
+                    and abs(sign.center_y - component.center_y) <= vertical_tolerance):
+                signs.append((sign, accidental))
         accidental = signs[0][1] if len(signs) == 1 else ""
         mordents = [
             mark for mark in nearby
@@ -567,7 +725,7 @@ def _music_row(
         component.box for component in nearby
         if component.box not in note_boxes
         and component.box not in used_marks
-        and not _barline(component, row_y, digit_height, gray)
+        and not is_bar(component)
         and component.area >= 3
     )
     return MusicRow(
@@ -1117,8 +1275,13 @@ def _classify_working_row_candidates(
             abs(component.height - fallback_height) <= max(3, fallback_height * 0.12)
         ) else component.height
         if not (
-            any(_barline(bar, component.center_y, component.height, gray)
-                or _barline(bar, component.center_y, anchor_height, gray) for bar in possible_bars)
+            any(
+                _barline(bar, component.center_y, component.height, gray)
+                or _barline(bar, component.center_y, anchor_height, gray)
+                or _barline(bar, component.center_y, component.height, gray, shared=True)
+                or _barline(bar, component.center_y, anchor_height, gray, shared=True)
+                for bar in possible_bars
+            )
             or any(abs(component.center_y - y) <= component.height * 0.4 for y in trusted_rows)
         ):
             continue
@@ -1195,9 +1358,9 @@ def _recognize_working_rows(
             )
             main.extend(recovered)
             candidates.extend(recovered)
-    rows = []
     main_groups = _groups(main, digit_height)
     candidate_rows = []
+    row_records: list[tuple[list[tuple[Component, DigitMatch]], MusicRow, bool]] = []
     for group in main_groups:
         group.sort(key=lambda pair: pair[0].box[0])
         local_branch = _by_local_brace(group, components, gray.width, digit_height)
@@ -1209,15 +1372,43 @@ def _recognize_working_rows(
         sustained_row = len(row.barlines) >= 2 and len(row_sustains(
             tuple(note.box for note in row.notes), row.unresolved_marks,
         )) >= 3
-        if (
+        shape_supported = not (
             len(group) < 3 and not local_branch and not sustained_row
             or group[-1][0].box[0] - group[0][0].box[0] < gray.width * 0.12
             and not local_branch
+        )
+        row_records.append((group, row, shape_supported))
+
+    accepted: dict[int, MusicRow] = {
+        index: row
+        for index, (group, row, shape_supported) in enumerate(row_records)
+        if shape_supported and (not all(match[2] for _, match in group) or row.barlines)
+    }
+    ordinary_rows = list(accepted.values())
+    tolerance = max(2, round(digit_height * 0.25))
+    for index, (group, row, shape_supported) in enumerate(row_records):
+        if not shape_supported or index in accepted or not all(
+            match[2] for _, match in group
         ):
             continue
-        if all(match[2] for _, match in group) and not row.barlines:
+        shared_positions = _shared_barline_support(
+            row, ordinary_rows, possible_bars, digit_height, gray,
+        )
+        if not shared_positions:
             continue
-        rows.append(row)
+        shared_row = _music_row(
+            group, components, digit_height, gray, joined_underlines=resized,
+            barline_candidates=barline_candidates,
+            shared_barline_positions=shared_positions,
+        )
+        shared_barlines = _matched_barline_positions(
+            shared_row.barlines, shared_positions, tolerance,
+        )
+        required = max(3, ceil(min(len(shared_positions), len(shared_row.barlines)) * 0.6))
+        if len(shared_barlines) >= required:
+            accepted[index] = replace(shared_row, barlines=shared_barlines)
+
+    rows = [accepted[index] for index in sorted(accepted)]
     row_boxes = tuple(row.box for row in rows)
     initial_groups = recognize_voice_groups(
         voice_components(components, row_boxes, digit_height, gray),
@@ -1255,22 +1446,27 @@ def _recognize_working_rows(
     rows = _recover_shared_barlines(rows, gray, digit_height)
     row_boxes = tuple(row.box for row in rows)
     overlays = recognize_dsb_overlays(components, row_boxes, gray.width, digit_height)
-    voice_groups = recognize_voice_groups(
+    bracketed_groups = recognize_voice_groups(
         voice_components(components, row_boxes, digit_height, gray),
         row_boxes, gray.width, digit_height,
         {index for overlay in overlays
          for index in ((overlay.lower,) if overlay.standalone
                        else (overlay.upper, overlay.lower))},
     )
-    rows = _exclude_voice_label_notes(rows, voice_groups)
+    voice_groups = bracketed_groups or _repeated_aligned_voice_groups(
+        tuple(rows), digit_height,
+    )
+    rows = _exclude_voice_label_notes(rows, bracketed_groups)
     # Broken pieces of a system brace can pass the local barline shape test.
     # Once the complete brace is known, its ink cannot also be a measure bar.
     rows = [replace(row, barlines=tuple(x for x in row.barlines if not any(
         group.box[0] <= x <= group.box[2]
         and group.box[1] <= (row.box[1] + row.box[3]) / 2 <= group.box[3]
-        for group in voice_groups
+        for group in bracketed_groups
     ))) for row in rows]
-    used_braces = {overlay.box for overlay in overlays} | {group.box for group in voice_groups}
+    used_braces = {overlay.box for overlay in overlays} | {
+        group.box for group in bracketed_groups
+    }
     closing_braces = {overlay.closing_x for overlay in overlays}
     unresolved_braces = tuple(
         component.box for component in components

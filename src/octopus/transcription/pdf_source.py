@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+import shutil
 import subprocess
 import tempfile
 from collections.abc import Callable
@@ -46,9 +47,15 @@ def _pdf_pages(
 ) -> tuple[PageObservation, ...]:
     if path.stat().st_size > MAX_PDF_BYTES:
         raise ValueError("PDF exceeds the 100 MB input limit")
+    missing = [name for name in ("pdfinfo", "pdftotext", "pdftoppm") if not shutil.which(name)]
+    if missing:
+        raise RuntimeError(
+            "PDF transcription requires Poppler tools on PATH: " + ", ".join(missing)
+            + ". Install Poppler and add its bin directory to PATH."
+        )
     metadata = subprocess.run(
-        ["pdfinfo", "-f", "1", "-l", str(MAX_PDF_PAGES), "-box", str(path)],
-        capture_output=True, text=True, timeout=30, check=True
+        ["pdfinfo", "-enc", "UTF-8", "-f", "1", "-l", str(MAX_PDF_PAGES), "-box", str(path)],
+        capture_output=True, text=True, encoding="utf-8", timeout=30, check=True
     ).stdout
     count = next(
         (int(line.split(":", 1)[1]) for line in metadata.splitlines() if line.startswith("Pages:")),

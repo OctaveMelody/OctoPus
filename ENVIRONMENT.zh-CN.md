@@ -57,6 +57,10 @@ sudo apt-get install -y build-essential pkg-config libwebkit2gtk-4.1-dev libgtk-
   libayatana-appindicator3-dev librsvg2-dev poppler-utils
 ```
 
+各平台的 PDF 转录都需要在 PATH 中提供 Poppler 的 `pdfinfo`、`pdftotext` 和 `pdftoppm`。
+Windows 安装包不包含这些工具；请安装可信的 Poppler 发行版，将其 `bin` 目录加入 PATH，
+然后重新启动章鱼简谱。
+
 通过 Debian 包安装后，应用使用包管理器安装的 GTK/WebKit 运行库及 `poppler-utils`；
 内置 Python 引擎无需另行安装 Python。请保留相邻的 engine/examples/docs 资源。
 Linux 生产包包含经过验证的乐谱字体集。Windows/macOS 桌面版不包含 13 种程序乐谱字体，
@@ -170,7 +174,7 @@ Linux 可从任意工作目录运行，以下路径按生产仓库根目录给�
 ```
 
 Windows 运行 `dist/<target-triple>/portable/octopus.exe`。请保持便携版目录完整。
-Linux 仍需要主机 GTK/WebKit 库和 Poppler 工具；Windows 需要 WebView2。
+Linux 仍需要主机 GTK/WebKit 库；Windows 需要 WebView2。两个平台的 PDF 转录都需要 PATH 中的 Poppler 工具。
 这是带应用本地资源的生产测试版本，并非静态打包整个操作系统运行环境。
 `build/` 和 `dist/` 均由 Git 忽略。Linux 本地便携测试目录包含经过验证的乐谱字体集；
 Windows 便携版使用系统字体及兼容的已安装替代字体，不包含 13 种程序乐谱字体。

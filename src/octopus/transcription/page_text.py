@@ -398,9 +398,22 @@ def _header_spans(
     key = printed_key_span(path, page.rows[0].box[1], page.excluded_regions)
     if key is not None:
         # Whole-page OCR can omit a raised accidental while accepting the key letter.
-        spans = (key, *(span for span in spans if "D" in extract_headers(
-            (span,), page.width, page.rows[0].box[1],
-        ).missing))
+        retained: list[TextSpan] = []
+        for span in spans:
+            parsed = extract_headers((span,), page.width, page.rows[0].box[1])
+            if "D" in parsed.missing:
+                retained.append(span)
+                continue
+            # A single OCR span may contain both the key and meter. Replace its
+            # key with the image-anchored reading but keep its independent meter.
+            meter = next((line[3:].strip() for line in parsed.lines
+                          if line.startswith("P:")), None)
+            if meter is not None:
+                retained.append(replace(
+                    span, text=meter, character_centers=(), lyric_baselines=(),
+                    character_boxes=(),
+                ))
+        spans = (key, *retained)
     if "P" not in extract_headers(spans, page.width, page.rows[0].box[1]).missing:
         return spans
     meter = stacked_meter_span(path, spans, page.rows[0].box[1])
