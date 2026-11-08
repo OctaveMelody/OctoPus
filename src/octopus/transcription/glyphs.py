@@ -223,7 +223,12 @@ def classify_accidental(gray: Image.Image, component: Component) -> str | None:
     if ranked[0][1] >= 0.78 and ranked[0][1] - ranked[1][1] >= 0.1:
         return ranked[0][0]
     ocr = image_digit(gray, component.box, "#♯♭♮b")
-    return {"#": "#", "♯": "#", "♭": "$", "♮": "=", "b": "$"}[ocr[0]] if ocr else None
+    if ocr is not None:
+        return {"#": "#", "♯": "#", "♭": "$", "♮": "=", "b": "$"}[ocr[0]]
+    if ranked[0][0] == "#" and ranked[0][1] - ranked[1][1] >= 0.1:
+        sharp = image_digit(gray, component.box, "#♯", tight_padding=True)
+        return "#" if sharp is not None else None
+    return None
 
 
 def classify_digit(
