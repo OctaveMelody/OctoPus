@@ -14,7 +14,7 @@ pub fn validate_recovery_references(snapshot: Option<&str>) -> Result<(), String
     let value: Value = serde_json::from_str(snapshot)
         .map_err(|error| format!("recovery snapshot is invalid JSON: {error}"))?;
     let version = value.get("version").and_then(Value::as_u64);
-    if version != Some(3) && version != Some(4) {
+    if version != Some(3) && version != Some(4) && version != Some(5) {
         return Ok(());
     }
     let references = value

@@ -39,6 +39,7 @@ type LifecycleServices = {
   bindReview(context: TranscriptionContext): void;
   clearReview(): void;
   isTranscribing(): boolean;
+  refreshSession(): void;
 };
 
 const EMPTY_NEW_SCORE: NewScoreFields = {
@@ -302,6 +303,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
         source: pending.draft.jps,
         savedSource: "",
         pageConfig: createNewScorePageConfig(),
+        originAssetIds: [pending.sourceAssetId],
       }));
       getServices().bindReview(pending);
       setStatus({ kind: "transcribed", issues: pending.draft.issues.length });
@@ -486,6 +488,8 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
       const fileText = serialized.result.text;
       const isSaveAs = saveAs || original.path === null;
       const savedPath = await saveJpsDocument({
+        documentId: begun.snapshot.documentId,
+        documentName: begun.snapshot.name,
         path: original.path,
         suggestedPath: original.suggestedPath ?? original.path,
         suggestedName: original.name.toLowerCase().endsWith(".jps")
@@ -508,6 +512,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
       const finished = finishDocumentSave(currentDocument.current, snapshot, fileText);
       currentDocument.current = finished;
       setScore(finished);
+      getServices().refreshSession();
       const recoverySequenceNumber = ++recoverySequence.current;
       await writeRecoverySnapshot(
         recoverySequenceNumber,
@@ -732,6 +737,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
         pageConfig: recovered.pageConfig,
         savedPageConfig: recovered.savedPageConfig,
         jsonWrapped: recovered.jsonWrapped,
+        originAssetIds: recovered.originAssetIds,
         revision: recovered.revision,
       }));
       getServices().referenceAssets.restoreReferences(recovery.references, sourcePaths);

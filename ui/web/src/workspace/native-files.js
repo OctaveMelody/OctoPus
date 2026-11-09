@@ -1,6 +1,6 @@
 /** @typedef {{name: string, path: string, suggestedPath: string, text: string}} OpenedJpsDocument */
 /** @typedef {{name: string, kind: "example" | "working-copy"}} JpsCatalogDocument */
-/** @typedef {{path: string | null, suggestedPath?: string | null, suggestedName?: string | null, recentSavedPath?: string | null, expectedText?: string | null, text: string, saveAs?: boolean}} SaveJpsDocumentOptions */
+/** @typedef {{documentId: string, documentName: string, path: string | null, suggestedPath?: string | null, suggestedName?: string | null, recentSavedPath?: string | null, expectedText?: string | null, text: string, saveAs?: boolean}} SaveJpsDocumentOptions */
 /** @typedef {{documentId: string, revision: number, pageCount: number, filenames: string[], customMarkupOmitted: boolean}} SvgExportReceipt */
 /** @typedef {"pdf" | "jpg" | "png"} ScoreExportFormat */
 /** @typedef {{documentId: string, revision: number, format: ScoreExportFormat, dpi: number | null, pageCount: number, filenames: string[], customMarkupOmitted: boolean}} ScoreExportReceipt */
@@ -184,6 +184,8 @@ export function refreshEngineCapabilities() {
 
 /** @param {SaveJpsDocumentOptions} options @returns {Promise<string | null>} */
 export function saveJpsDocument({
+  documentId,
+  documentName,
   path,
   suggestedPath,
   suggestedName,
@@ -193,6 +195,8 @@ export function saveJpsDocument({
   saveAs = false,
 }) {
   return invokeNative("save_jps_file", {
+    ...(documentId ? { documentId } : {}),
+    ...(documentName ? { documentName } : {}),
     path: saveAs ? null : path,
     suggestedPath: suggestedPath ?? path,
     suggestedName: suggestedName ?? null,
@@ -201,6 +205,16 @@ export function saveJpsDocument({
     text,
     saveAs,
   });
+}
+
+/** @param {{documentId: string, documentName: string, path: string | null, referenceIds: string[], retainedReferenceIds: string[], dirty: boolean, generation: number, sequence: number}} args */
+export function syncEditorSession(args) {
+  return invokeNative("sync_editor_session", args);
+}
+
+/** @param {number} generation @param {number} sequence */
+export function closeEditorSession(generation, sequence) {
+  return invokeNative("close_editor_session", {generation, sequence});
 }
 
 /** @param {Record<string, unknown>} args @param {string | null} suggestedPath @param {string} suggestedName @returns {Promise<SvgExportReceipt | null>} */

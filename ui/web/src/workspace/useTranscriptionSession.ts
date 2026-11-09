@@ -7,7 +7,7 @@ import {transcriptionAppendIssue} from "./transcription-append.js";
 import type {DocumentSnapshot, TranscriptionDraft, WorkspaceCopy} from "./types";
 
 type ReferenceSet = ReturnType<typeof import("./reference-set.js").createReferenceSet>;
-export type TranscriptionContext = {pages: string[]; draft: TranscriptionDraft; name: string};
+export type TranscriptionContext = {pages: string[]; draft: TranscriptionDraft; name: string; sourceAssetId: string};
 export type TranscriptionProgress = {completed: number; total: number; stage: string};
 
 /** Owns request identity, progress subscription and cancellation. Draft adoption stays guarded. */
@@ -116,7 +116,7 @@ export function useTranscriptionSession({currentDocument, getReferences, isBusy,
       })) throw new Error(copyRef.current.transcriptionDocumentChanged);
       let name = "Untitled.jps";
       try { name = normalizeJpsFileName(sourceName.replace(/\.(png|jpe?g|pdf)$/i, "")); } catch { /* byte cap */ }
-      callbacks.current.onDraft(mode, {draft, name, pages});
+      callbacks.current.onDraft(mode, {draft, name, pages, sourceAssetId: assetId});
     } catch (error) {
       if (active.current === job && !job.cancelled) callbacks.current.onError(error instanceof Error ? error.message : String(error));
     } finally {

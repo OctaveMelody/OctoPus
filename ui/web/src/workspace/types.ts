@@ -162,6 +162,7 @@ export type RecoverySnapshot = {
     pageConfig: Record<string, unknown>;
     savedPageConfig: Record<string, unknown>;
     jsonWrapped: boolean;
+    originAssetIds: string[];
     revision: number;
   };
   draft: RecoveryDraft | null;

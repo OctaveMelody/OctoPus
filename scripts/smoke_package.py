@@ -27,6 +27,7 @@ def extract_portable(archive: Path, destination: Path) -> None:
 def smoke(package: Path, kind: str, work: Path, source_root: Path = ROOT) -> None:
     if not package.is_file() or not package.stat().st_size:
         raise RuntimeError(f"package is missing or empty: {package}")
+    work = work.resolve()
     work.mkdir(parents=True, exist_ok=True)
     package = package.resolve()
     if kind == "linux-appimage":
@@ -58,13 +59,19 @@ def smoke(package: Path, kind: str, work: Path, source_root: Path = ROOT) -> Non
     if not (engine / worker_name).is_file():
         raise RuntimeError(f"package is missing its worker executable: {engine / worker_name}")
     sys.path.insert(0, str(source_root.resolve()))
-    from build_desktop_engine import _request, _smoke_test
+    import build_desktop_engine as checker
 
-    _smoke_test(engine, _request("packaged-render", "render", 1, {
+    checker._smoke_test(engine, checker._request("packaged-render", "render", 1, {
         "name": "package-check.jps", "code": "B: 简谱你好\nQ: 1 2 3 4 |",
         "custom_code": "", "page_config": {},
     }))
-    print(f"Packaged worker smoke check passed: {package}")
+    # An older selected release may predate the headless mode.
+    headless_check = getattr(checker, "smoke_headless_export", None)
+    if headless_check:
+        command = ([str(root / "AppRun"), "--headless"] if kind == "linux-appimage"
+                   else [str(root / "octopus-cli.exe")])
+        headless_check(command, work)
+    print(f"Package smoke checks passed: {package}")
 
 
 def main() -> None:

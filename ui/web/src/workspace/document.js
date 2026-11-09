@@ -1,4 +1,4 @@
-/** @typedef {{id: string, name: string, path: string | null, suggestedPath: string | null, source: string, savedSource: string, savedFileText: string | null, wrapperFields: Record<string, unknown>, customCode: string, pageConfig: Record<string, unknown>, savedPageConfig: Record<string, unknown>, jsonWrapped: boolean, revision: number, saveSequence: number}} DocumentSession */
+/** @typedef {{id: string, name: string, path: string | null, suggestedPath: string | null, source: string, savedSource: string, savedFileText: string | null, wrapperFields: Record<string, unknown>, customCode: string, pageConfig: Record<string, unknown>, savedPageConfig: Record<string, unknown>, jsonWrapped: boolean, originAssetIds: string[], revision: number, saveSequence: number}} DocumentSession */
 /** @typedef {{documentId: string, revision: number, saveSequence: number, name: string, path: string | null, suggestedPath: string | null, source: string, wrapperFields: Record<string, unknown>, pageConfig: Record<string, unknown>, pageConfigChanged: boolean, jsonWrapped: boolean}} SaveSnapshot */
 
 /** @param {Record<string, unknown>} pageConfig */
@@ -9,7 +9,7 @@ function withoutRetiredFontSources(pageConfig) {
   return normalized;
 }
 
-/** @param {{id: string, name: string, source: string, path?: string | null, suggestedPath?: string | null, savedSource?: string, savedFileText?: string | null, wrapperFields?: Record<string, unknown>, customCode?: string, pageConfig?: Record<string, unknown>, savedPageConfig?: Record<string, unknown>, jsonWrapped?: boolean, revision?: number}} input @returns {DocumentSession} */
+/** @param {{id: string, name: string, source: string, path?: string | null, suggestedPath?: string | null, savedSource?: string, savedFileText?: string | null, wrapperFields?: Record<string, unknown>, customCode?: string, pageConfig?: Record<string, unknown>, savedPageConfig?: Record<string, unknown>, jsonWrapped?: boolean, originAssetIds?: string[], revision?: number}} input @returns {DocumentSession} */
 export function createDocumentSession({
   id,
   name,
@@ -23,6 +23,7 @@ export function createDocumentSession({
   pageConfig = {},
   savedPageConfig = pageConfig,
   jsonWrapped = false,
+  originAssetIds = [],
   revision = 0,
 }) {
   if (
@@ -49,6 +50,7 @@ export function createDocumentSession({
     pageConfig: normalizedPageConfig,
     savedPageConfig: normalizedSavedPageConfig,
     jsonWrapped,
+    originAssetIds: [...new Set(originAssetIds)],
     revision,
     saveSequence: 0,
   };
@@ -65,6 +67,12 @@ export function updateDocumentPageConfig(document, pageConfig) {
   const normalizedPageConfig = withoutRetiredFontSources(pageConfig);
   if (samePageConfig(normalizedPageConfig, document.pageConfig)) return document;
   return { ...document, pageConfig: normalizedPageConfig, revision: document.revision + 1 };
+}
+
+/** @param {DocumentSession} document @param {string} assetId @returns {DocumentSession} */
+export function addOriginAsset(document, assetId) {
+  if (!assetId || document.originAssetIds.includes(assetId)) return document;
+  return { ...document, originAssetIds: [...document.originAssetIds, assetId] };
 }
 
 /** @param {DocumentSession} document @param {{documentId: string, revision: number}} snapshot */

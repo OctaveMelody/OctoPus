@@ -397,6 +397,8 @@ def publish_portable(
         executable.parent.mkdir(parents=True, exist_ok=True)
         resources.mkdir(parents=True)
         shutil.copy2(release / executable.name, executable)
+        if system == "Windows":
+            shutil.copy2(release / "octopus-cli.exe", executable.with_name("octopus-cli.exe"))
         shutil.copy2(ROOT / "LICENSE", resources / "LICENSE")
         shutil.copytree(ROOT / "build/desktop-engine/octopus-engine", resources / "engine")
         shutil.copytree(ROOT / "samples/jps_files", resources / "examples")
@@ -614,6 +616,8 @@ def main() -> None:
             raise RuntimeError("Tauri did not generate the required macOS icon.icns")
     version_config.write_text(json.dumps(version_configuration), encoding="utf-8")
     command = _tauri_build_command_for(tools["cargo"], args.bundles)
+    if platform.system() == "Windows":
+        command.extend(("--features", "console-launcher"))
     command.extend(("--config", str(version_config)))
     if args.target:
         command.extend(("--target", args.target))

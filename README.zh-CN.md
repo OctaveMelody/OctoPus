@@ -17,6 +17,24 @@
 - 将乐谱导出为 SVG、PDF、PNG 或 JPEG；PNG 和 JPEG 支持 96 和 300 DPI。
 - 可在普通布局和转录布局之间切换。
 
+## 无界面命令
+
+外部智能体可以通过技能调用已安装的章鱼简谱。Windows 用户可在安装目录或便携目录中运行与
+`octopus.exe` 同目录的命令行程序。
+
+```powershell
+.\octopus-cli.exe capabilities --json
+.\octopus-cli.exe transcribe scan.png --out draft.jps --issues issues.json --json
+.\octopus-cli.exe inspect draft.jps --json
+.\octopus-cli.exe export draft.jps --format svg --out-dir pages --json
+.\octopus-cli.exe export draft.jps --format pdf --out score.pdf --json
+```
+
+Linux 用户可以在 AppImage 或便携版的 `usr/bin/octopus` 后加 `--headless`，再传入相同参数。
+macOS 用户可通过应用内 `Contents/MacOS` 目录中的可执行文件传入 `--headless`。
+相对路径以调用时的工作目录为准。命令将 JSON 结果写入标准输出，导出文件使用新名称。
+如果输入文件在编辑器中有未保存的更改，请关闭该文档后重试，或取消本次任务。
+
 ## 下载与安装
 
 请从[章鱼简谱 GitHub 官方发布页](https://github.com/OctaveMelody/OctoPus/releases)直接下载最新版，

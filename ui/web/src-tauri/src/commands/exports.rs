@@ -11,7 +11,7 @@ use tauri_plugin_dialog::DialogExt;
 
 use super::save_dialogs::{confirm_replacements, normalized_save_path};
 
-fn export_svg_pages(
+pub(crate) fn export_svg_pages(
     response: Value,
     document_id: &str,
     revision: u64,

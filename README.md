@@ -21,6 +21,25 @@ grouping in 6/8, 9/8 and 12/8 meters, along with image and PDF transcription.
 - Export scores as SVG, PDF, PNG or JPEG. Raster exports support 96 and 300 DPI.
 - The app offers Normal and Transcription layouts.
 
+## Headless commands
+
+OctoPus-Skill can run the packaged engine without opening a window. In a Windows
+portable or installed folder, use the console launcher beside `octopus.exe`.
+
+```powershell
+.\octopus-cli.exe capabilities --json
+.\octopus-cli.exe transcribe scan.png --out draft.jps --issues issues.json --json
+.\octopus-cli.exe inspect draft.jps --json
+.\octopus-cli.exe export draft.jps --format svg --out-dir pages --json
+.\octopus-cli.exe export draft.jps --format pdf --out score.pdf --json
+```
+
+On Linux, use the AppImage or portable `usr/bin/octopus` followed by `--headless`
+and the same arguments. On macOS, use the executable inside the app's `Contents/MacOS`
+directory with `--headless`. Paths are relative to the calling directory. Commands write
+a JSON result to stdout and use new output files. If the input has unsaved edits in an
+open OctoPus session, close that document and retry, or cancel the job.
+
 ## Download and install
 
 Download the latest release directly from the

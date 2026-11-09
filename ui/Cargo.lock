@@ -2753,9 +2753,11 @@ dependencies = [
 name = "octopus"
 version = "0.1.0"
 dependencies = [
+ "dirs",
  "jps-document-io",
  "jps-engine-bridge",
  "reqwest",
+ "same-file",
  "semver",
  "serde",
  "serde_json",
@@ -2763,6 +2765,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
+ "tempfile",
 ]
 
 [[package]]

@@ -1,3 +1,4 @@
+use crate::session::SessionCoordinator;
 use jps_document_io::reference_recovery::validate_recovery_references;
 use jps_document_io::{
     list_jps_examples as get_jps_examples, preserve_recovery_snapshot as preserve_recovery_files,
@@ -90,7 +91,7 @@ pub(crate) async fn write_recovery_snapshot(
         let value: Value = serde_json::from_str(snapshot)
             .map_err(|error| format!("recovery snapshot is invalid JSON: {error}"))?;
         if !value.is_object()
-            || !matches!(value.get("version").and_then(Value::as_u64), Some(1..=4))
+            || !matches!(value.get("version").and_then(Value::as_u64), Some(1..=5))
             || !value.get("document").is_some_and(Value::is_object)
             || !value
                 .get("draft")
@@ -243,7 +244,10 @@ pub(crate) async fn open_jps_catalog_document(
 #[tauri::command]
 pub(crate) async fn save_jps_file(
     window: WebviewWindow,
+    session_coordinator: State<'_, SessionCoordinator>,
     selected_files: State<'_, SelectedJpsFiles>,
+    document_id: String,
+    document_name: String,
     path: Option<String>,
     suggested_path: Option<String>,
     suggested_name: Option<String>,
@@ -261,6 +265,7 @@ pub(crate) async fn save_jps_file(
     if path.is_some() && !save_as && expected_text.is_none() {
         return Err("the saved file snapshot is required for a direct save".into());
     }
+    let window_label = window.label().to_owned();
 
     let (target, expected_path, replace_existing) = if let Some(path) = path.filter(|_| !save_as) {
         let path = validate_jps_path(Path::new(&path)).map_err(|error| error.to_string())?;
@@ -336,17 +341,30 @@ pub(crate) async fn save_jps_file(
         )
     };
 
-    let write_path = target.clone();
     let expected = expected_text.filter(|_| expected_path.as_deref() == Some(target.as_path()));
+    let coordinator = session_coordinator.inner().clone();
+    let save_target = target.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let result = match expected.as_deref() {
-            Some(expected_text) => {
-                write_jps_text_atomically_if_unchanged(&write_path, expected_text, &text)
-            }
-            None if replace_existing => write_jps_text_atomically(&write_path, &text),
-            None => write_new_jps_text_atomically(&write_path, &text),
-        };
-        result.map_err(|error| error.to_string())
+        coordinator
+            .coordinate_save(
+                &window_label,
+                &document_id,
+                &document_name,
+                &save_target,
+                || {
+                    match expected.as_deref() {
+                        Some(expected_text) => write_jps_text_atomically_if_unchanged(
+                            &save_target,
+                            expected_text,
+                            &text,
+                        ),
+                        None if replace_existing => write_jps_text_atomically(&save_target, &text),
+                        None => write_new_jps_text_atomically(&save_target, &text),
+                    }
+                    .map_err(|error| error.to_string())
+                },
+            )
+            .map_err(|error| error.to_string())
     })
     .await
     .map_err(|error| format!("JPS write task failed: {error}"))??;

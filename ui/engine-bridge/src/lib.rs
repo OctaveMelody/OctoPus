@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 mod process;
 mod protocol;
 pub mod transcription_jobs;
-use process::WorkerProcess;
+pub use process::WorkerProcess;
 #[cfg(test)]
 use protocol::read_bounded_line;
 use protocol::{

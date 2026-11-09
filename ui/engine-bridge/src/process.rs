@@ -3,7 +3,7 @@
 use std::io;
 use std::process::{Child, Command};
 
-pub(super) struct WorkerProcess {
+pub struct WorkerProcess {
     pub child: Child,
     stopped: bool,
     #[cfg(windows)]

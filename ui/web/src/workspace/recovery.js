@@ -17,7 +17,7 @@ const NEW_SCORE_FIELDS = [
 
 /** @typedef {{title: string, subtitle: string, lyricist: string, composer: string, otherAuthors: string, keyNote: string, keyAccidental: "" | "#" | "$", beatNumerator: number, beatDenominator: number, tempo: string}} NewScoreFields */
 /** @typedef {{kind: "new", name: string, fields: NewScoreFields}} RecoveryDraft */
-/** @typedef {{name: string, source: string, savedSource: string, savedFileText: string | null, suggestedPath: string | null, wrapperFields: Record<string, unknown>, customCode: string, pageConfig: Record<string, unknown>, savedPageConfig: Record<string, unknown>, jsonWrapped: boolean, revision: number}} RecoveryDocument */
+/** @typedef {{name: string, source: string, savedSource: string, savedFileText: string | null, suggestedPath: string | null, wrapperFields: Record<string, unknown>, customCode: string, pageConfig: Record<string, unknown>, savedPageConfig: Record<string, unknown>, jsonWrapped: boolean, originAssetIds: string[], revision: number}} RecoveryDocument */
 /** @typedef {{document: RecoveryDocument, draft: RecoveryDraft | null, references: import("./reference-set.js").ReferenceSet}} RecoveryState */
 
 /** @param {unknown} value @returns {value is Record<string, unknown>} */
@@ -89,7 +89,7 @@ export function createRecoverySnapshot(document, draft = null, references = crea
     && referenceSet.pdfs.length === 0
   ) return null;
   const snapshot = {
-    version: 4,
+    version: 5,
     document: {
       name: document.name,
       source: document.source,
@@ -101,6 +101,7 @@ export function createRecoverySnapshot(document, draft = null, references = crea
       pageConfig: document.pageConfig,
       savedPageConfig: document.savedPageConfig,
       jsonWrapped: document.jsonWrapped,
+      originAssetIds: document.originAssetIds ?? [],
       revision: document.revision,
     },
     draft: draft ? validateNewScoreDraft(draft) : null,
@@ -124,7 +125,7 @@ export function parseRecoverySnapshot(text) {
   }
   if (!isRecord(snapshot)) throw new TypeError("recovery snapshot is invalid");
   const snapshotVersion = snapshot.version;
-  if (snapshotVersion !== 1 && snapshotVersion !== 2 && snapshotVersion !== 3 && snapshotVersion !== 4) {
+  if (snapshotVersion !== 1 && snapshotVersion !== 2 && snapshotVersion !== 3 && snapshotVersion !== 4 && snapshotVersion !== 5) {
     throw new TypeError("recovery snapshot version is unsupported");
   }
   requireKeys(
@@ -148,6 +149,7 @@ export function parseRecoverySnapshot(text) {
     "revision",
   ];
   if (snapshotVersion >= 2) documentFields.push("savedPageConfig");
+  if (snapshotVersion >= 5) documentFields.push("originAssetIds");
   requireKeys(snapshot.document, documentFields, "recovery document");
   const document = snapshot.document;
   const savedPageConfig = snapshotVersion >= 2
@@ -183,6 +185,11 @@ export function parseRecoverySnapshot(text) {
   if (typeof document.jsonWrapped !== "boolean") {
     throw new TypeError("recovery wrapper flag is invalid");
   }
+  const originAssetIds = snapshotVersion >= 5 ? document.originAssetIds : [];
+  if (!Array.isArray(originAssetIds) || originAssetIds.length > 200
+    || !originAssetIds.every(id => typeof id === "string" && /^[A-Za-z0-9._-]{1,255}$/.test(id))) {
+    throw new TypeError("recovery source identity is invalid");
+  }
   if (
     typeof document.revision !== "number"
     || !Number.isSafeInteger(document.revision)
@@ -210,6 +217,7 @@ export function parseRecoverySnapshot(text) {
       pageConfig: document.pageConfig,
       savedPageConfig,
       jsonWrapped: document.jsonWrapped,
+      originAssetIds,
       revision: document.revision,
     },
     draft,

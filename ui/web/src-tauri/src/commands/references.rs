@@ -7,8 +7,11 @@ use jps_document_io::reference_images::{
 use jps_document_io::reference_pdfs::StagedReferencePdf;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use tauri::State;
 use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
+
+use crate::session::SessionCoordinator;
 
 pub(super) fn reference_images_directory(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
@@ -53,6 +56,7 @@ fn staged_reference_pdf_values(pdfs: Vec<StagedReferencePdf>) -> Vec<Value> {
 pub(crate) async fn stage_reference_assets(
     app: AppHandle,
     window: WebviewWindow,
+    session_coordinator: State<'_, SessionCoordinator>,
     paths: Option<Vec<String>>,
     suggested_path: Option<String>,
 ) -> Result<Option<Value>, String> {
@@ -85,9 +89,43 @@ pub(crate) async fn stage_reference_assets(
         return Ok(None);
     };
     let directory = reference_images_directory(&app)?;
+    let coordinator = session_coordinator.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let staged =
-            stage_reference_asset_files(&paths, &directory).map_err(|error| error.to_string())?;
+        let staged = coordinator
+            .coordinate_reference_stage(|| {
+                let staged = stage_reference_asset_files(&paths, &directory)
+                    .map_err(|error| error.to_string())?;
+                let image_paths = paths.iter().filter(|path| {
+                    matches!(
+                        path.extension()
+                            .and_then(|value| value.to_str())
+                            .unwrap_or_default()
+                            .to_ascii_lowercase()
+                            .as_str(),
+                        "png" | "jpg" | "jpeg"
+                    )
+                });
+                let pdf_paths = paths.iter().filter(|path| {
+                    path.extension()
+                        .and_then(|value| value.to_str())
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("pdf"))
+                });
+                let origins = staged
+                    .images
+                    .iter()
+                    .zip(image_paths)
+                    .map(|(asset, path)| (asset.id.clone(), path.clone()))
+                    .chain(
+                        staged
+                            .pdfs
+                            .iter()
+                            .zip(pdf_paths)
+                            .map(|(asset, path)| (asset.id.clone(), path.clone())),
+                    )
+                    .collect::<Vec<_>>();
+                Ok((staged, origins))
+            })
+            .map_err(|error| error.to_string())?;
         Ok(Some(serde_json::json!({
             "images": staged_reference_image_values(staged.images),
             "pdfs": staged_reference_pdf_values(staged.pdfs),
@@ -101,14 +139,20 @@ pub(crate) async fn stage_reference_assets(
 #[tauri::command]
 pub(crate) async fn discard_reference_images(
     app: AppHandle,
+    session_coordinator: State<'_, SessionCoordinator>,
     ids: Vec<String>,
 ) -> Result<(), String> {
     if ids.len() > MAX_REFERENCE_IMAGE_FILES {
         return Err("too many image IDs".into());
     }
     let directory = reference_images_directory(&app)?;
+    let coordinator = session_coordinator.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        remove_reference_images(&directory, &ids).map_err(|error| error.to_string())
+        coordinator
+            .coordinate_reference_discard(&ids, |removable| {
+                remove_reference_images(&directory, removable).map_err(|error| error.to_string())
+            })
+            .map_err(|error| error.to_string())
     })
     .await
     .map_err(|error| format!("image cleanup task failed: {error}"))?
@@ -117,14 +161,21 @@ pub(crate) async fn discard_reference_images(
 #[tauri::command]
 pub(crate) async fn prune_reference_images(
     app: AppHandle,
+    session_coordinator: State<'_, SessionCoordinator>,
     retained_ids: Vec<String>,
 ) -> Result<(), String> {
     if retained_ids.len() > MAX_REFERENCE_IMAGE_FILES {
         return Err("too many image IDs".into());
     }
     let directory = reference_images_directory(&app)?;
+    let coordinator = session_coordinator.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        prune_managed_reference_images(&directory, &retained_ids).map_err(|error| error.to_string())
+        coordinator
+            .coordinate_reference_prune(&retained_ids, |effective_retained| {
+                prune_managed_reference_images(&directory, effective_retained)
+                    .map_err(|error| error.to_string())
+            })
+            .map_err(|error| error.to_string())
     })
     .await
     .map_err(|error| format!("image cleanup task failed: {error}"))?

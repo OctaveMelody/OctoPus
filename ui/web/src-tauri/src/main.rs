@@ -1,6 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod headless;
+mod session;
 
 use commands::{documents, engine, exports, help, references, transcription};
 use jps_document_io::{RecoverySnapshotSequence, SelectedJpsFiles};
@@ -114,10 +116,24 @@ async fn exit_application(
 }
 
 fn main() {
+    let mut args = std::env::args_os().skip(1);
+    if args.next().as_deref() == Some(std::ffi::OsStr::new("--headless")) {
+        let Ok(args) = args
+            .map(|arg| arg.into_string())
+            .collect::<Result<Vec<_>, _>>()
+        else {
+            eprintln!("OctoPus headless arguments must be valid Unicode");
+            std::process::exit(2);
+        };
+        std::process::exit(headless::run(args));
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            app.manage(session::SessionCoordinator::for_data_directory(
+                &app.path().app_data_dir()?,
+            )?);
             let engine = engine_supervisor(app.handle()).map_err(std::io::Error::other)?;
             let transcription = engine_supervisor(app.handle()).map_err(std::io::Error::other)?;
             let engine_shutdown = engine.shutdown_signal();
@@ -147,6 +163,8 @@ fn main() {
         .manage(RecoverySnapshotSequence::default())
         .invoke_handler(tauri::generate_handler![
             font_directory,
+            session::sync_editor_session,
+            session::close_editor_session,
             references::discard_reference_images,
             exports::export_score,
             exports::export_svg,

@@ -36,13 +36,16 @@ import type {
   Status,
 } from "./types";
 import {
+  addOriginAsset,
   isDocumentDirty,
   isPageConfigDirty,
   updateDocumentPageConfig,
   updateDocumentSource,
 } from "./document.js";
-import { getEngineCapabilities, refreshEngineCapabilities } from "./native-files.js";
+import { closeEditorSession, getEngineCapabilities, refreshEngineCapabilities,
+  pruneReferenceImages, syncEditorSession } from "./native-files.js";
 import {
+  referenceAssetIds,
   selectReferenceImage,
   updateReferenceView,
 } from "./reference-set.js";
@@ -59,6 +62,18 @@ function AppBrand({ label, onOpen }: { label: string; onOpen: () => void }) {
       </span>
     </a>
   );
+}
+
+function nextSessionGeneration(): number {
+  const key = "octopus.editor-session-generation.v1";
+  let generation = Date.now();
+  try {
+    generation = Math.max(generation, Number(localStorage.getItem(key)) + 1 || generation);
+    localStorage.setItem(key, String(generation));
+  } catch {
+    // Browser storage is optional; the OS owner lease still releases crashed sessions.
+  }
+  return generation;
 }
 
 export function App() {
@@ -82,8 +97,12 @@ export function App() {
   const [fontHelpError, setFontHelpError] = useState("");
   const [fontRefreshing, setFontRefreshing] = useState(false);
   const [fontGeneration, setFontGeneration] = useState(0);
+  const [sessionRefresh, setSessionRefresh] = useState(0);
   const [dismissedFontNoticeKey, setDismissedFontNoticeKey] = useState("");
   const fontRequestSequence = useRef(0);
+  const sessionSequence = useRef(0);
+  const [sessionGeneration] = useState(nextSessionGeneration);
+  const prunedReferenceIdsKey = useRef("");
   const fontRefreshInFlight = useRef(false);
   const [transcriptionIssues, setTranscriptionIssues] = useState<TranscriptionIssue[]>([]);
   const [reviewSource, setReviewSource] = useState<{id: string; source: string; context: TranscriptionContext} | null>(null);
@@ -110,10 +129,11 @@ export function App() {
   const lifecycle = useDocumentLifecycle({copyRef, setStatus, setPreferences, setFocusPane,
     editorController, getServices: () => ({referenceAssets, resetPreview, bindReview,
       clearReview: () => {setTranscriptionIssues([]); setReviewSource(null); setReviewRegion(null);},
-      isTranscribing: () => transcribing.current})});
+      isTranscribing: () => transcribing.current,
+      refreshSession: () => setSessionRefresh(value => value + 1)})});
   const {score, setScore, currentDocument, documentOpen, setActiveDialog, activeDialogRef,
     setDialogError, settingsDraftRef, settingsDraftReset, isSaving, saving, recoveryReady,
-    recoveryReadyRef, recoverySequence, currentRecoveryDraft, requestAction, requestNativeClose,
+    recoveryReadyRef, recoveryInitialized, recoverySequence, currentRecoveryDraft, requestAction, requestNativeClose,
     closeRequestPending,
     saveDocument} = lifecycle;
   const transcription = useTranscriptionSession({currentDocument,
@@ -146,6 +166,45 @@ export function App() {
   const { referenceDropActive, references, referenceSources, currentReferences, pendingReferenceImport,
     isImportingReferences, isCommittingReferences, isHandlingReferenceChoice,
     importReferences, updateReferences } = referenceAssets;
+
+  const dirty = isDocumentDirty(score);
+  const originIdsKey = score.originAssetIds.join("\u0000");
+  const retainedReferenceIdsKey = referenceAssetIds(references).join("\u0000");
+  useEffect(() => {
+    if (!window.__TAURI__) return;
+    const sequence = ++sessionSequence.current;
+    let cancelled = false;
+    const referencesChanged = recoveryInitialized
+      && prunedReferenceIdsKey.current !== retainedReferenceIdsKey;
+    const update = documentOpen
+      ? syncEditorSession({
+        documentId: score.id,
+        documentName: score.name,
+        path: score.path,
+        referenceIds: score.originAssetIds,
+        retainedReferenceIds: retainedReferenceIdsKey
+          ? retainedReferenceIdsKey.split("\u0000") : [],
+        dirty,
+        generation: sessionGeneration,
+        sequence,
+      })
+      : closeEditorSession(sessionGeneration, sequence);
+    void update.then(async () => {
+      if (cancelled) return;
+      if (referencesChanged) {
+        const retainedReferenceIds = retainedReferenceIdsKey
+          ? retainedReferenceIdsKey.split("\u0000") : [];
+        await pruneReferenceImages(retainedReferenceIds);
+        prunedReferenceIdsKey.current = retainedReferenceIdsKey;
+      }
+    }).catch((error: unknown) => {
+      if (!cancelled && sequence === sessionSequence.current) {
+        setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [documentOpen, score.id, score.name, score.path, dirty, originIdsKey,
+    retainedReferenceIdsKey, sessionGeneration, sessionRefresh, recoveryInitialized]);
 
   const preview = useScorePreview({ score, currentDocument, documentOpen, recoveryReady, copy,
     setStatus, editorController, revealEditor: () => revealPane("editor"),
@@ -208,6 +267,9 @@ export function App() {
       source_end: issue.source_end != null && issue.source_end >= removed ? issue.source_end + shift : null,
     }));
     editor.appendSource(addition);
+    const nextDocument = addOriginAsset(currentDocument.current, context.sourceAssetId);
+    currentDocument.current = nextDocument;
+    setScore(nextDocument);
     bindReview(context, mapFormattedIssueSpans(existing + addition, currentDocument.current.source, issues));
     setStatus({kind: "transcribed", issues: issues.length});
     setFocusPane(null);

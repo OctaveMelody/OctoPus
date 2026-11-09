@@ -325,6 +325,25 @@ def _smoke_test(
         _smoke_test_with_image(bundle, render_request, Path(temporary))
 
 
+def smoke_headless_export(command: list[str], work: Path) -> None:
+    """Verify the installed command, worker lookup and native PDF exporter together."""
+    with tempfile.TemporaryDirectory(prefix="headless-", dir=work) as directory:
+        job = Path(directory)
+        score = job / "两页 score.jps"
+        score.write_text("B: 乐谱\nQ: 1 2 3 4 |\n[fenye]\nQ: 4 3 2 1 |\n", encoding="utf-8")
+        result = subprocess.run(
+            [*command, "export", score.name, "--format", "pdf", "--out", "score.pdf", "--json"],
+            cwd=job, capture_output=True, check=False, timeout=120,
+        )
+        if result.returncode:
+            raise RuntimeError(f"headless export failed: {result.stdout!r} {result.stderr!r}")
+        report = json.loads(result.stdout)
+        if report.get("status") != "ok" or report.get("page_count") != 2:
+            raise RuntimeError(f"unexpected headless export result: {report}")
+        if not (job / "score.pdf").read_bytes().startswith(b"%PDF-"):
+            raise RuntimeError("packaged headless command did not produce a PDF")
+
+
 def _smoke_test_with_image(
     bundle: Path,
     render_request: dict[str, object],
