@@ -340,10 +340,54 @@ def _normalize_recognition_contrast(gray: Image.Image) -> Image.Image:
     return ImageOps.autocontrast(gray, cutoff=0.5)
 
 
+def _short_measure_bars(
+    bars: list[Component], components: list[Component], height: int, gray: Image.Image,
+) -> frozenset[Component]:
+    """Find repeated, baseline-aligned strokes on scores with compact measure bars."""
+    if not height:
+        return frozenset()
+    strokes = []
+    for bar in bars:
+        if not (height * 1.05 <= bar.height <= height * 1.35
+                and bar.width <= bar.height * 0.20):
+            continue
+        bend = vertical_bend(bar, gray)
+        if bend is not None and abs(bend) <= max(1, bar.width * 0.2):
+            strokes.append(bar)
+    rows: list[list[Component]] = []
+    for bar in sorted(strokes, key=lambda item: item.center_y):
+        if not rows or bar.center_y - rows[-1][0].center_y > height * 0.4:
+            rows.append([])
+        rows[-1].append(bar)
+    supported = set()
+    for row in rows:
+        boundaries = sorted(row, key=lambda bar: bar.box[0])
+        spaced = []
+        for bar in boundaries:
+            if not spaced or bar.box[0] - spaced[-1].box[0] >= height * 3:
+                spaced.append(bar)
+        if len(spaced) < 3 or spaced[-1].box[0] - spaced[0].box[0] < gray.width * 0.3:
+            continue
+        # Require note-sized ink in multiple intervening measures. A row of thin
+        # strokes on its own provides no evidence for running the digit recognizer.
+        centers = [
+            (c.box[0] + c.box[2]) / 2 for c in components
+            if abs(c.center_y - row[0].center_y) <= height * 0.4
+            and abs(c.height - height) <= height * 0.15
+            and height * 0.2 <= c.width <= height
+        ]
+        if sum(any(left.box[2] < x < right.box[0] for x in centers)
+               for left, right in zip(spaced, spaced[1:])) >= 2:
+            supported.update(boundaries)
+    return frozenset(supported)
+
+
 def _barline(
     component: Component, row_y: float, digit_height: int, gray: Image.Image,
-    *, shared: bool = False,
+    *, shared: bool = False, short_bars: frozenset[Component] = frozenset(),
 ) -> bool:
+    if component in short_bars and abs(component.center_y - row_y) <= digit_height * 0.4:
+        return True
     if not (
         component.width <= max(3, component.height * 0.22)
         and digit_height * 1.25 <= component.height <= digit_height * 5.2
@@ -647,6 +691,7 @@ def _music_row(
     accompaniment: bool = False,
     barline_candidates: list[Component] | None = None,
     shared_barline_positions: tuple[int, ...] = (),
+    short_bars: frozenset[Component] = frozenset(),
 ) -> MusicRow:
     group.sort(key=lambda pair: pair[0].box[0])
     row_y = sum(component.center_y for component, _ in group) / len(group)
@@ -661,7 +706,7 @@ def _music_row(
         shared = accompaniment or any(
             abs(component.box[0] - x) <= tolerance for x in shared_barline_positions
         )
-        return _barline(component, row_y, bar_height, gray, shared=shared)
+        return _barline(component, row_y, bar_height, gray, shared=shared, short_bars=short_bars)
 
     nearby = [
         component for component in components
@@ -1222,10 +1267,12 @@ class _WorkingRowCandidates(NamedTuple):
     digit_height: int
     barline_candidates: list[Component]
     possible_bars: list[Component]
+    short_bars: frozenset[Component]
 
 
 def _classify_working_row_candidates(
     gray: Image.Image, components: list[Component],
+    *, enlarged: bool = False,
 ) -> _WorkingRowCandidates | None:
     trusted = [
         (component, match)
@@ -1266,16 +1313,21 @@ def _classify_working_row_candidates(
     fallback_height, fallback_count = (
         fallback_heights.most_common(1)[0] if fallback_heights else (0, 0)
     )
-    candidates = list(trusted)
+    height = trusted_height if trusted_rows else fallback_height
+    short_bars = (
+        _short_measure_bars(possible_bars, components, height, gray) if enlarged else frozenset()
+    )
+    candidates = [pair for pair in trusted if pair[0] not in short_bars]
     for component in components:
-        if component.box in known_boxes:
+        if component.box in known_boxes or component in short_bars:
             continue
         # Use the same music-height band as row grouping when no template row is available.
         anchor_height = fallback_height if fallback_count >= 12 and (
             abs(component.height - fallback_height) <= max(3, fallback_height * 0.12)
         ) else component.height
         if not (
-            any(
+            any(abs(component.center_y - bar.center_y) <= height * 0.4 for bar in short_bars)
+            or any(
                 _barline(bar, component.center_y, component.height, gray)
                 or _barline(bar, component.center_y, anchor_height, gray)
                 or _barline(bar, component.center_y, component.height, gray, shared=True)
@@ -1298,7 +1350,9 @@ def _classify_working_row_candidates(
     barline_candidates = [
         *possible_bars, *_fragmented_vertical_barlines(components, digit_height, gray),
     ]
-    return _WorkingRowCandidates(candidates, digit_height, barline_candidates, possible_bars)
+    return _WorkingRowCandidates(
+        candidates, digit_height, barline_candidates, possible_bars, short_bars,
+    )
 
 
 def _recognize_working_rows(
@@ -1310,7 +1364,9 @@ def _recognize_working_rows(
         prepared.working_excluded, prepared.transform,
     )
     resized = not transform.is_identity
-    classification = _classify_working_row_candidates(gray, components)
+    classification = _classify_working_row_candidates(
+        gray, components, enlarged=transform.scale_y > 1,
+    )
     if classification is None:
         return None
     candidates = classification.candidates
@@ -1341,7 +1397,9 @@ def _recognize_working_rows(
             and bar.height >= digit_height * 1.5 for bar in possible_bars
         ) >= 2:
             main.extend(admitted)
-    known_boxes = {component.box for component, _ in main}
+    known_boxes = {component.box for component, _ in main} | {
+        bar.box for bar in classification.short_bars
+    }
     templates = page_digit_templates(gray, main)
     antialiased_templates = page_digit_templates(gray, main, antialias=True)
     for group in _groups(main, digit_height):
@@ -1350,7 +1408,8 @@ def _recognize_working_rows(
                        - min(component.box[0] for component, _ in group) >= gray.width * 0.12
                        or _by_local_brace(group, components, gray.width, digit_height))
         if established and len(group) >= 3 and any(
-            _barline(bar, group[0][0].center_y, digit_height, gray) for bar in possible_bars
+            _barline(bar, group[0][0].center_y, digit_height, gray,
+                     short_bars=classification.short_bars) for bar in possible_bars
         ):
             recovered = _recover_row_digits(
                 group, components, digit_height, gray, known_boxes, templates,
@@ -1367,6 +1426,7 @@ def _recognize_working_rows(
         row = _music_row(
             group, components, digit_height, gray, joined_underlines=resized,
             barline_candidates=barline_candidates,
+            short_bars=classification.short_bars,
         )
         candidate_rows.append(row)
         sustained_row = len(row.barlines) >= 2 and len(row_sustains(
