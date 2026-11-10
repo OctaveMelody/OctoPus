@@ -10,6 +10,9 @@ from ..core.glyphs import get_key_glyphs, get_time_signature_glyphs
 from ..core.layout_types import LayoutPage
 from .primitives import use_element as _use_element
 
+_TEMPO_NUMBER = re.compile(r"\d+(?:\.\d+)?")
+_TEMPO_NUMBER_WITH_WORDS = re.compile(r"(\d+(?:\.\d+)?)\s+(\S.*)")
+
 
 def _attrs(*items: tuple[str, object | None]) -> tuple[tuple[str, str], ...]:
     return tuple((key, str(value)) for key, value in items if value is not None)
@@ -171,23 +174,34 @@ def key_sig_elements(layout: LayoutPage, key: str, time_sig: str) -> list[SvgEle
 
 
 def tempo_elements(layout: LayoutPage, tempo: str) -> list[SvgElement]:
+    """Project the tempo marking onto the header line.
+
+    A bare number prints the beat glyph and the number. A number printed with words after it
+    ("♩=56 中速") keeps that regular numeric rendering and puts the words directly behind it on
+    the same line. Marking that is only words is printed as it stands at the tempo position.
+    """
     metrics = layout.metrics
-    if not re.fullmatch(r"\d+(?:\.\d+)?", tempo.strip()):
-        return [
-            _text_element(
-                x=metrics.margin_left,
-                y=metrics.tempo_y + 1,
-                text=tempo,
-                layer="header",
-                synthetic=True,
-                extra_attrs=_attrs(
-                    ("dy", _dy(0.3355, HEADER_TEXT_SIZE)),
-                    ("fill", "#1b1b1b"),
-                    ("font-size", HEADER_TEXT_SIZE),
-                    ("font-family", metrics.lyric_font),
-                ),
-            )
-        ]
+    value = tempo.strip()
+    with_words = _TEMPO_NUMBER_WITH_WORDS.fullmatch(value)
+    if not _TEMPO_NUMBER.fullmatch(value):
+        if with_words is None:
+            return [
+                _text_element(
+                    x=metrics.margin_left,
+                    y=metrics.tempo_y + 1,
+                    text=tempo,
+                    layer="header",
+                    synthetic=True,
+                    extra_attrs=_attrs(
+                        ("dy", _dy(0.3355, HEADER_TEXT_SIZE)),
+                        ("fill", "#1b1b1b"),
+                        ("font-size", HEADER_TEXT_SIZE),
+                        ("font-family", metrics.lyric_font),
+                    ),
+                )
+            ]
+    number = with_words.group(1) if with_words is not None else value
+    text = f"{value}" if with_words is None else f"{number} {with_words.group(2)}"
     return [
         _use_element(
             "jiepaifu",
@@ -199,7 +213,7 @@ def tempo_elements(layout: LayoutPage, tempo: str) -> list[SvgElement]:
         _text_element(
             x=metrics.margin_left + 32,
             y=metrics.tempo_y + 1,
-            text=tempo,
+            text=text,
             layer="header",
             synthetic=True,
             extra_attrs=_attrs(
@@ -207,7 +221,7 @@ def tempo_elements(layout: LayoutPage, tempo: str) -> list[SvgElement]:
                 ("fill", "#1b1b1b"),
                 ("font-size", HEADER_TEXT_SIZE),
                 ("font-family", metrics.lyric_font),
-                ("data-jiepai", tempo),
+                ("data-jiepai", number),
             ),
         ),
     ]
