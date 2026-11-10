@@ -282,14 +282,27 @@ def extract_headers(
 
     tempo_rows = []
     for row in _text_rows(candidates):
-        for end in range(1, len(row) + 1):
-            match = _TEMPO.match(_join(row[:end]))
-            if match is None:
-                continue
-            lines.append(f"J: {match.group(1)}")
-            used.update(row[:end])
-            tempo_rows.append(row[:end])
-            break
+        # A printed header is one text row - key at the left, meter beside it, tempo at the
+        # right - and recognition order must not depend on where the tempo sits in it, so try
+        # every span as the tempo's first span rather than only the row's first one. A tempo
+        # may still span several spans when OCR splits the note glyph from "=90". A window
+        # holding the opus-number form is not tempo text: "X:12" is a number, not "♩=12".
+        for start in range(len(row)):
+            matched = False
+            for end in range(start + 1, len(row) + 1):
+                window = row[start:end]
+                if any(_NUMBER.fullmatch(span.text.strip()) for span in window):
+                    continue
+                match = _TEMPO.match(_join(window))
+                if match is None:
+                    continue
+                lines.append(f"J: {match.group(1)}")
+                used.update(window)
+                tempo_rows.append(window)
+                matched = True
+                break
+            if matched:
+                break
 
     number = next((span for span in candidates if _NUMBER.fullmatch(span.text.strip())), None)
     if number is not None:
