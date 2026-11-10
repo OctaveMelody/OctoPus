@@ -48,6 +48,11 @@ development-only dependencies and is not a substitute for this repository's prod
 - Resolve “Latest” against the current host model list when assigning work. Use the exact
   supported model identifier and effort; do not silently substitute another family or effort.
   A user's explicit model choice takes precedence. Follow the active session's delegation rules.
+- Models served by Strata (provider `strata`, `PI_PROVIDER=strata`) are single-session: they share
+  one local inference slot with no request concurrency. When work runs on a Strata-served model, keep
+  exactly one session active at any time. Never start parallel, concurrent, background, forked or
+  subagent Strata sessions, and never send simultaneous requests from multiple sessions to the Strata
+  endpoint. Serialize Strata work, or report the constraint if a plan needs parallel sessions.
 - For mixed work, route analysis to Sol, implementation to Luna, and independent review to Sol.
   Build failures are diagnosed with Sol `high`; code changes to fix them use Luna `xhigh`;
   compilation/package work uses Luna `medium`. Do not claim a session changed models unless the
