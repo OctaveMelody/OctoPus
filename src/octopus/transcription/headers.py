@@ -18,6 +18,50 @@ _METER = re.compile(r"(?<!\d)(\d{1,2})\s*[/／]\s*(\d{1,2})(?!\d)")
 _TEMPO = re.compile(r"(?:[A-Za-z]|[♩♪𝅘𝅥𝅘𝅥𝅮])?\s*[=＝:]\s*(\d{2,3})(?!\d)")
 _NUMBER = re.compile(r"[Xx]\s*[:：=]\s*(\d+)")
 
+_CREDIT_MARKERS = ("词曲", "词", "曲")
+_TEMPO_TAIL_MAX = 12
+_SEPARATORS = " \t、，,；;｜|/／([{（【《"
+
+
+def _tempo_at_boundary(text: str) -> re.Match[str] | None:
+    """Find a tempo marking at the start of the text or after a separator.
+
+    A printed header line is frequently one OCR span ("1=C 4/4 J=90"), so the marking can
+    start part-way through the text. It still has to begin at a word boundary so a stray
+    "=NN" fragment inside another token is not mistaken for a tempo.
+    """
+    for offset in range(len(text)):
+        if offset and text[offset - 1] not in _SEPARATORS:
+            continue
+        match = _TEMPO.match(text, offset)
+        if match is not None:
+            return match
+    return None
+
+
+def _tempo_qualifier(spans: list[TextSpan]) -> tuple[str, list[TextSpan]]:
+    """Words that qualify a numeric tempo on its own row, and the spans they came from.
+
+    A printed marking is often qualified in words ("♩=56 中速"). That text belongs to the tempo
+    line, so it is taken before the title and credit branches can claim it. A credit owns its own
+    name, so the run stops before a credit marker and before the name in front of it; key, meter
+    and bracketed instructions are separate fields too.
+    """
+    words: list[str] = []
+    taken: list[TextSpan] = []
+    for index, span in enumerate(spans):
+        text = span.text.strip()
+        if not text or any(text.endswith(marker) for marker in _CREDIT_MARKERS):
+            break
+        following = spans[index + 1].text.strip() if index + 1 < len(spans) else ""
+        if any(following.endswith(marker) for marker in _CREDIT_MARKERS):
+            break
+        if text.startswith(("（", "(")) or _KEY.search(text) or _METER.search(text):
+            break
+        words.append(text)
+        taken.append(span)
+    return " ".join(words), taken
+
 
 @dataclass(frozen=True, slots=True)
 class HeaderResult:
@@ -280,25 +324,34 @@ def extract_headers(
             lines.append(f"P: {top.text}/{bottom.text}")
             used.update(digits)
 
-    tempo_rows = []
+    tempo_line: int | None = None
     for row in _text_rows(candidates):
         # A printed header is one text row - key at the left, meter beside it, tempo at the
         # right - and recognition order must not depend on where the tempo sits in it, so try
         # every span as the tempo's first span rather than only the row's first one. A tempo
-        # may still span several spans when OCR splits the note glyph from "=90". A window
-        # holding the opus-number form is not tempo text: "X:12" is a number, not "♩=12".
+        # may still span several spans when OCR splits the note glyph from "=90", and the whole
+        # header line may be merged into one span. A window holding the opus-number form is not
+        # tempo text: "X:12" is a number, not "♩=12".
         for start in range(len(row)):
             matched = False
             for end in range(start + 1, len(row) + 1):
                 window = row[start:end]
                 if any(_NUMBER.fullmatch(span.text.strip()) for span in window):
                     continue
-                match = _TEMPO.match(_join(window))
+                joined = _join(window)
+                match = _tempo_at_boundary(joined)
                 if match is None:
                     continue
-                lines.append(f"J: {match.group(1)}")
+                qualifier, qualifier_spans = _tempo_qualifier(row[end:])
+                inner = joined[match.end():].strip()
+                value = match.group(1)
+                for tail in (inner, qualifier):
+                    if tail:
+                        value = f"{value} {tail}"
+                lines.append(f"J: {value}")
+                tempo_line = len(lines) - 1
                 used.update(window)
-                tempo_rows.append(window)
+                used.update(qualifier_spans)
                 matched = True
                 break
             if matched:
@@ -326,10 +379,18 @@ def extract_headers(
         elif width * 0.3 <= center <= width * 0.7 and not _KEY.search(text):
             lines.append(f"B: {text}")
             used.update(row)
-        elif (center <= width * 0.3 and text and not text[0].isdigit()
-              and not tempo_rows):
-            lines.append(f"J: {text}")
-            used.update(row)
+        elif (center <= width * 0.3 and text and not text[0].isdigit()):
+            if tempo_line is None:
+                # A text-only tempo marking is the tempo line, printed as it stands.
+                lines.append(f"J: {text}")
+                used.update(row)
+            elif (len(text) <= _TEMPO_TAIL_MAX
+                  and not text.startswith(("（", "("))
+                  and not any(text.endswith(marker) for marker in _CREDIT_MARKERS)):
+                # The header carries one J field, so words printed with a numeric tempo join it
+                # on the same line instead of being dropped or promoted to another field.
+                lines[tempo_line] = f"{lines[tempo_line]} {text}"
+                used.update(row)
 
     # Head fields precede music in the spec; keep repeated B/Z in visible vertical order.
     rank = {"V": 0, "B": 1, "Z": 2, "D": 3, "P": 4, "J": 5, "X": 6}
