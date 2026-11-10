@@ -406,11 +406,11 @@ def _header_spans(
                 continue
             # A single OCR span may contain both the key and meter. Replace its
             # key with the image-anchored reading but keep its independent meter.
-            meter = next((line[3:].strip() for line in parsed.lines
+            meter_text = next((line[3:].strip() for line in parsed.lines
                           if line.startswith("P:")), None)
-            if meter is not None:
+            if meter_text is not None:
                 retained.append(replace(
-                    span, text=meter, character_centers=(), lyric_baselines=(),
+                    span, text=meter_text, character_centers=(), lyric_baselines=(),
                     character_boxes=(),
                 ))
         spans = (key, *retained)

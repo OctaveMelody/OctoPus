@@ -73,7 +73,7 @@ pub(super) fn executable_on_path(name: &str) -> bool {
             .collect::<Vec<_>>()
     };
     #[cfg(not(windows))]
-    let names = vec![PathBuf::from(name)];
+    let names = [PathBuf::from(name)];
     std::env::split_paths(&path).any(|directory| {
         names
             .iter()

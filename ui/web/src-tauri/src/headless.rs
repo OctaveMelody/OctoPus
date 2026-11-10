@@ -78,6 +78,9 @@ impl CliFailure {
                         .unwrap_or_else(|_| json!({ "path": null, "sessions": [] })),
                 ),
             },
+            crate::session::SessionError::RegistryUnavailable(message) => {
+                Self::execution("registry_unavailable", message)
+            }
             error => Self::input("input_read_failed", error.to_string()),
         }
     }
@@ -384,6 +387,24 @@ fn transcribe_command(options: CliOptions) -> Result<Value, CliFailure> {
             "transcription response has no JPS draft",
         )
     })?;
+    if draft.trim().is_empty() {
+        return Err(CliFailure::execution(
+            "empty_transcription",
+            "transcription returned an empty JPS draft",
+        ));
+    }
+    let score = load_score(&mut engine, &output, draft)
+        .map_err(|error| CliFailure::execution("invalid_transcription", error.message))?;
+    let parse_response = engine
+        .parse(render_args(&score))
+        .map_err(|error| CliFailure::execution("invalid_transcription", error))?;
+    let parse = response_result(&parse_response, &score.document_id, score.revision, "parse")?;
+    let offset_unit = parse["source_offset_unit"].as_str().ok_or_else(|| {
+        CliFailure::execution(
+            "invalid_engine_response",
+            "parse response has no offset unit",
+        )
+    })?;
     let issues = result["issues"].as_array().ok_or_else(|| {
         CliFailure::execution(
             "invalid_engine_response",
@@ -399,7 +420,7 @@ fn transcribe_command(options: CliOptions) -> Result<Value, CliFailure> {
     let issue_document = json!({
         "schema_version": CLI_SCHEMA_VERSION,
         "status": "review_required",
-        "source_offset_unit": "codepoint",
+        "source_offset_unit": offset_unit,
         "page_count": page_count,
         "page_dimensions": result["page_dimensions"],
         "issues": issues,
@@ -421,7 +442,7 @@ fn transcribe_command(options: CliOptions) -> Result<Value, CliFailure> {
         "page_count": page_count,
         "issue_count": issues.len(),
         "issues": issues,
-        "source_offset_unit": "codepoint",
+        "source_offset_unit": offset_unit,
     });
     Ok(value)
 }
@@ -488,11 +509,6 @@ fn export_command(options: CliOptions) -> Result<Value, CliFailure> {
                 "export output must use the .{} extension",
                 format_extension(format)
             ),
-        ));
-    }
-    if format == ExportFormat::Svg && options.value("dpi").is_some() {
-        return Err(CliFailure::usage(
-            "--dpi is only valid for PNG and JPG export",
         ));
     }
     let source = crate::session::read_input_snapshot(&input).map_err(CliFailure::session)?;

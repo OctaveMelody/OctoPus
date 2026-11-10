@@ -9,14 +9,15 @@ use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, TryLockError};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tempfile::NamedTempFile;
 
 const PRODUCT_IDENTIFIER: &str = "org.octopus.desktop";
 const REGISTRY_LIMIT: u64 = 4 * 1024 * 1024;
 const MAX_JPS_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_REFERENCE_BYTES: u64 = 100 * 1024 * 1024;
+const LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone)]
 pub(crate) struct SessionCoordinator(Arc<CoordinatorInner>);
@@ -138,6 +139,7 @@ impl SessionCoordinator {
     /// Register or replace one editor's current source identity. Input paths must already have
     /// been selected or saved by native document commands; staged reference IDs resolve only to
     /// source paths recorded by `stage_reference_assets`.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn update_editor(
         &self,
         window_label: &str,
@@ -461,7 +463,7 @@ impl SessionCoordinator {
     pub(crate) fn read_input_snapshot(&self, path: &Path) -> Result<Vec<u8>, SessionError> {
         let expected_max = input_size_limit(path)?;
         let input = canonical_input(path)?;
-        let file = self.with_registry(|registry| {
+        self.with_registry(|registry| {
             let origins = registry.reference_origins.clone();
             let mut conflicts = Vec::new();
             for session in &mut registry.sessions {
@@ -503,33 +505,32 @@ impl SessionCoordinator {
                     "input exceeds the {expected_max}-byte limit"
                 )));
             }
-            Ok(file)
-        })?;
-        let mut bytes = Vec::new();
-        file.take(expected_max + 1)
-            .read_to_end(&mut bytes)
-            .map_err(session_io)?;
-        if bytes.len() as u64 > expected_max {
-            return Err(SessionError::InvalidInput(format!(
-                "input exceeds the {expected_max}-byte limit"
-            )));
-        }
-        Ok(bytes)
+            let mut bytes = Vec::new();
+            file.take(expected_max + 1)
+                .read_to_end(&mut bytes)
+                .map_err(session_io)?;
+            if bytes.len() as u64 > expected_max {
+                return Err(SessionError::InvalidInput(format!(
+                    "input exceeds the {expected_max}-byte limit"
+                )));
+            }
+            Ok(bytes)
+        })
     }
 
     fn with_registry<T>(
         &self,
         operation: impl FnOnce(&mut Registry) -> Result<T, SessionError>,
     ) -> Result<T, SessionError> {
-        let _local = self.0.local_lock.lock().map_err(|_| {
-            SessionError::RegistryUnavailable("file session registry is unavailable".into())
-        })?;
+        let _local = acquire_local_lock(&self.0.local_lock, "file session registry")?;
         let _registry_lock = acquire_registry_lock(&self.0.root)?;
         let registry_path = self.0.root.join("registry.json");
         let mut registry = read_registry(&registry_path)?;
         prune_dead_owners(&self.0.root, &self.0.owner_id, &mut registry)?;
         let result = operation(&mut registry);
-        write_registry(&self.0.root, &registry)?;
+        if result.is_ok() || matches!(result, Err(SessionError::Conflict(_))) {
+            write_registry(&self.0.root, &registry)?;
+        }
         result
     }
 
@@ -537,22 +538,22 @@ impl SessionCoordinator {
         &self,
         operation: impl FnOnce() -> Result<T, SessionError>,
     ) -> Result<T, SessionError> {
-        let _local = self.0.local_asset_lock.lock().map_err(|_| {
-            SessionError::RegistryUnavailable("reference asset coordination is unavailable".into())
-        })?;
+        let _local = acquire_local_lock(&self.0.local_asset_lock, "reference asset coordination")?;
         let path = self.0.root.join("reference-assets.lock");
         let file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
-            .open(path)
+            .truncate(false)
+            .open(&path)
             .map_err(session_io)?;
-        let _lock = FileLock::acquire(file).map_err(session_io)?;
+        let _lock = FileLock::acquire(file, &path)?;
         operation()
     }
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn sync_editor_session(
     window: tauri::WebviewWindow,
     coordinator: tauri::State<'_, SessionCoordinator>,
@@ -808,10 +809,46 @@ fn session_io(error: io::Error) -> SessionError {
 
 struct FileLock(File);
 
+fn acquire_local_lock<'a>(
+    lock: &'a Mutex<()>,
+    name: &str,
+) -> Result<MutexGuard<'a, ()>, SessionError> {
+    let start = Instant::now();
+    loop {
+        match lock.try_lock() {
+            Ok(guard) => return Ok(guard),
+            Err(TryLockError::WouldBlock) if start.elapsed() < LOCK_TIMEOUT => {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Err(_) => {
+                return Err(SessionError::RegistryUnavailable(format!(
+                    "{name} is unavailable"
+                )))
+            }
+        }
+    }
+}
+
 impl FileLock {
-    fn acquire(file: File) -> io::Result<Self> {
-        lock_file(&file, true)?;
-        Ok(Self(file))
+    fn acquire(file: File, path: &Path) -> Result<Self, SessionError> {
+        let start = Instant::now();
+        loop {
+            match lock_file(&file, false) {
+                Ok(()) => return Ok(Self(file)),
+                Err(error)
+                    if error.kind() == io::ErrorKind::WouldBlock
+                        && start.elapsed() < LOCK_TIMEOUT =>
+                {
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                Err(error) => {
+                    return Err(SessionError::RegistryUnavailable(format!(
+                        "cannot acquire {}: {error}",
+                        path.display()
+                    )))
+                }
+            }
+        }
     }
 }
 
@@ -827,9 +864,10 @@ fn acquire_registry_lock(root: &Path) -> Result<FileLock, SessionError> {
         .read(true)
         .write(true)
         .create(true)
-        .open(path)
+        .truncate(false)
+        .open(&path)
         .map_err(session_io)?;
-    FileLock::acquire(file).map_err(session_io)
+    FileLock::acquire(file, &path)
 }
 
 fn lock_file(file: &File, wait: bool) -> io::Result<()> {

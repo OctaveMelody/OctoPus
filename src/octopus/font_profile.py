@@ -264,13 +264,14 @@ def system_font_path(family: str) -> Path | None:
             result = subprocess.check_output(
                 ["fc-match", "-f", "%{family}|%{file}", family],
                 text=True,
+                timeout=10,
             )
             names, filename = result.split("|", 1)
             if family.casefold() in {name.casefold() for name in names.split(",")}:
                 path = Path(filename)
                 if path.is_file():
                     return path
-        except (OSError, ValueError, subprocess.CalledProcessError):
+        except (OSError, ValueError, subprocess.SubprocessError):
             pass
     return None
 

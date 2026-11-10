@@ -362,7 +362,7 @@ def _short_measure_bars(
     supported = set()
     for row in rows:
         boundaries = sorted(row, key=lambda bar: bar.box[0])
-        spaced = []
+        spaced: list[Component] = []
         for bar in boundaries:
             if not spaced or bar.box[0] - spaced[-1].box[0] >= height * 3:
                 spaced.append(bar)
@@ -377,7 +377,7 @@ def _short_measure_bars(
             and height * 0.2 <= c.width <= height
         ]
         if sum(any(left.box[2] < x < right.box[0] for x in centers)
-               for left, right in zip(spaced, spaced[1:])) >= 2:
+               for left, right in zip(spaced, spaced[1:], strict=False)) >= 2:
             supported.update(boundaries)
     return frozenset(supported)
 
