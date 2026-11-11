@@ -54,6 +54,9 @@ development-only dependencies and is not a substitute for this repository's prod
 - Resolve “Latest” against the current host model list when assigning work. Use the exact
   supported model identifier and effort; do not silently substitute another family or effort.
   A user's explicit model choice takes precedence. Follow the active session's delegation rules.
+- Worked on inside the OctaveMelody workspace, `../OctoPus-dev/AGENTS.md` is the canonical task
+  routing policy and takes precedence over the table above, including its exact model identifiers
+  and reasoning efforts. The table here is the standalone form for this repository published alone.
 - LLM calls to Strata-served models (provider `strata`, `PI_PROVIDER=strata`) are strictly serial:
   they share one local inference slot with no request concurrency. Keep exactly one Strata LLM call
   in flight at any time, from any source. Never start parallel, concurrent, background, forked or
