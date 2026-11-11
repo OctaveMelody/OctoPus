@@ -184,7 +184,7 @@ uv run --locked octopus batch-export /path/to/scores --out-dir images --format p
 <tr><td>Z</td><td>Name - composer</td><td>Author/credit; multiple right-aligned lines / 作者，可多行右对齐</td></tr>
 <tr><td>D</td><td>E$</td><td>Key; A-G with # sharp or $ flat / 调号，A-G 加 # 或 $</td></tr>
 <tr><td>P</td><td>4/4</td><td>Meter; alternatives may follow / 拍号，可附其他拍号</td></tr>
-<tr><td>J</td><td>90</td><td>Tempo number and/or descriptive text / 速度数值及/或文字</td></tr>
+<tr><td>J</td><td>90</td><td>Tempo: a number, words, or a number followed by words / 速度：数值、文字，或数字加文字</td></tr>
 <tr><td>X</td><td>10</td><td>Score sequence number / 乐谱序号</td></tr>
 </tbody>
 </table>
@@ -197,11 +197,11 @@ D: F#
 P: 4/4 (2/4 1/4)
 J: 90 Allegro
 X: 10</code></pre>
-<p>Use a capital A-G key letter: C, F#, E$. Multiple B lines put subtitle text under the first title; multiple Z lines place credits at the upper right. P uses slash-separated numerator/denominator; spaces and parentheses can describe auxiliary meters. J may be numeric beats per minute, words, or both. The spec defines X as a score sequence number, not a voice number; current OctoPus preserves X as header text but does not render it. Header values describe the score; a tempo field does not enable playback.</p>
+<p>Use a capital A-G key letter: C, F#, E$. Multiple B lines put subtitle text under the first title; multiple Z lines place credits at the upper right. P uses slash-separated numerator/denominator; spaces and parentheses can describe auxiliary meters. J may be numeric beats per minute, words, or a number followed by words; it prints on its own line at the left margin, below the key and meter. The spec defines X as a score sequence number, not a voice number; current OctoPus preserves X as header text but does not render it. Header values describe the score; a tempo field does not enable playback.</p>
 <h3>Required fields and repeated fields</h3>
 <p>For a complete score include V, B, D and P. V: 1.0 declares the syntax version; it is not the OctoPus application version. The first B is the centered main title and later B lines are centered subtitles. Each Z creates a separate right-aligned credit line. Optional J describes speed, and X can carry a catalog number. Keep these lines above the first Q. Empty or incomplete drafts may render, but do not rely on that as a portable document format.</p>
 <h3>Key, meter, tempo and comments</h3>
-<p>D: F# and D: E$ mean sharp and flat keys; use capital A-G and ASCII #/$, not full-width punctuation. P: 6/8 describes the meter; P: 4/4 (2/4 1/4) also lists auxiliary meters. It does not replace local barline meter changes. J: 90 uses a numeric tempo, J: Allegro uses text, and both can coexist. A full line starting # is ignored as a source comment, whereas 4# inside Q is a sharp note. Quoted annotations are printed; source comments are not.</p>
+<p>D: F# and D: E$ mean sharp and flat keys; use capital A-G and ASCII #/$, not full-width punctuation. P: 6/8 describes the meter; P: 4/4 (2/4 1/4) also lists auxiliary meters. It does not replace local barline meter changes. J: 90 prints the ♩= mark followed by the number, J: Allegro prints the words as they stand, and a number followed by words (J: 56 中速) prints the mark, the number and the words together on that same line. Words are printed as written and are not interpreted as a beats-per-minute value. A full line starting # is ignored as a source comment, whereas 4# inside Q is a sharp note. Quoted annotations are printed; source comments are not.</p>
 <!-- sample:header-layout:start -->
 <div class="sample-example" id="en-example-header-layout">
 <h3>Header placement and a multilingual title</h3><p>The second B is a subtitle; the three Z lines are separate credits. D: E$ displays the flat key. P sets 4/4 and J supplies a numeric tempo. The title punctuation is text, not a musical barline.</p>

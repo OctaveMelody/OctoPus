@@ -169,7 +169,7 @@ J: 富于表情地
 | `Z` | Author / credit (repeat `Z` for more lines) | `李叔同 　　词` |
 | `D` | Key — a capital A–G, `#` sharp or `$` flat | `D` |
 | `P` | Meter (time signature) | `4/4` |
-| `J` | Tempo — a number and/or words | `富于表情地` |
+| `J` | Tempo — a number, words, or a number followed by words; printed on its own line at the left margin (a number shows the `♩=` mark) | `富于表情地` |
 
 > ⚠️ Use **ASCII punctuation**: a half-width colon `:`, quote `"`, comma `,`, apostrophe `'` and
 > slash `/`. A full-line `#` is a comment; inside a note, `#` means sharp.

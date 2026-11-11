@@ -182,7 +182,7 @@ uv run --locked octopus batch-export /path/to/scores --out-dir images --format p
 <tr><td>Z</td><td>Name - composer</td><td>Author/credit; multiple right-aligned lines / 作者，可多行右对齐</td></tr>
 <tr><td>D</td><td>E$</td><td>Key; A-G with # sharp or $ flat / 调号，A-G 加 # 或 $</td></tr>
 <tr><td>P</td><td>4/4</td><td>Meter; alternatives may follow / 拍号，可附其他拍号</td></tr>
-<tr><td>J</td><td>90</td><td>Tempo number and/or descriptive text / 速度数值及/或文字</td></tr>
+<tr><td>J</td><td>90</td><td>Tempo: a number, words, or a number followed by words / 速度：数值、文字，或数字加文字</td></tr>
 <tr><td>X</td><td>10</td><td>Score sequence number / 乐谱序号</td></tr>
 </tbody>
 </table>
@@ -195,11 +195,11 @@ D: F#
 P: 4/4 (2/4 1/4)
 J: 90 欢快地
 X: 10</code></pre>
-<p>调号使用大写 A-G，例如 C、F#、E$。多个 B 行在主标题下显示副标题；多个 Z 行将作者文字列于右上方。P 用斜线分隔分子/分母，空格与括号可列出辅助拍号。J 可以是每分钟拍数、文字或两者。规范将 X 定义为乐谱序号，不是声部编号；当前章鱼简谱会保留 X 描述头，但不会将其渲染到谱面。描述头用于记谱，速度字段不会启用播放。</p>
+<p>调号使用大写 A-G，例如 C、F#、E$。多个 B 行在主标题下显示副标题；多个 Z 行将作者文字列于右上方。P 用斜线分隔分子/分母，空格与括号可列出辅助拍号。J 可以是每分钟拍数、文字，或数字后接文字；速度单独占一行，显示在调号/拍号下方的左边距。规范将 X 定义为乐谱序号，不是声部编号；当前章鱼简谱会保留 X 描述头，但不会将其渲染到谱面。描述头用于记谱，速度字段不会启用播放。</p>
 <h3>必需字段与重复字段</h3>
 <p>完整曲谱应写 V、B、D、P。V: 1.0 是语法版本，不是章鱼简谱的程序版本。首个 B 为居中主标题，后续 B 为居中副标题；每个 Z 产生一行右对齐署名。J 可选，表示速度；X 可保存目录序号。把这些字段放在首个 Q 之前。未完成稿可能仍可预览，但不应以缺字段的形式作为通用文档。</p>
 <h3>调号、拍号、速度与注释</h3>
-<p>D: F# 与 D: E$ 分别表示升、降调；使用大写 A-G 和半角 #/$。P: 6/8 指定拍号，P: 4/4 (2/4 1/4) 还列出辅助拍号，但不能代替小节线上的局部换拍。J: 90 表示数字速度，J: 欢快的 表示文字，也可兼用。整行以 # 开头是源码注释；Q 内的 4# 却是升音。带引号的注释会印在谱上，源码注释不会。</p>
+<p>D: F# 与 D: E$ 分别表示升、降调；使用大写 A-G 和半角 #/$。P: 6/8 指定拍号，P: 4/4 (2/4 1/4) 还列出辅助拍号，但不能代替小节线上的局部换拍。J: 90 显示为 ♩= 加数字；J: 欢快的 将文字按原样显示在速度行；数字后接文字（J: 56 中速）则将节拍符、数字与文字排在同一行。文字按原样显示，不会被解读为具体拍数。整行以 # 开头是源码注释；Q 内的 4# 却是升音。带引号的注释会印在谱上，源码注释不会。</p>
 <!-- sample:header-layout:start -->
 <div class="sample-example" id="zh-CN-example-header-layout">
 <h3>描述头排版与多语言标题</h3><p>第二个 B 是副标题；三个 Z 分别表示署名。D: E$ 显示降 E 调，P 指定 4/4，J 指定数字速度。标题中的竖线是普通文字，不是音乐小节线。</p>
