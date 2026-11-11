@@ -183,7 +183,7 @@ release package. Windows ZIP publication retries transient sharing locks. If it 
 tree is restored and the existing ZIP is retained.
 
 The manually assigned app version is the single SemVer value in the repository-root `VERSION`
-file. Store it without a leading `v`; the current value is `1.0.0-RC3`. Update `VERSION`
+file. Store it without a leading `v`; the current value is `1.0.0`. Update `VERSION`
 intentionally for a release. Git tags and the clock do not change the app version. `build.py`
 validates this value and injects it into Tauri and the frontend, so `package.json` and source
 literals are not the app version source.

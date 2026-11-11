@@ -132,7 +132,7 @@ Linux x86_64 AppImage 使用
 Windows ZIP 发布会重试临时文件共享锁；重试仍失败时，恢复上一个便携目录并保留原有 ZIP。
 
 手动设置的应用版本是仓库根目录 `VERSION` 文件中的 SemVer 值，不带开头的 `v`。当前版本为
-`1.0.0-RC3`。发布时应有意更新 `VERSION`；Git 标签和当前时间不会改变应用版本。`build.py`
+`1.0.0`。发布时应有意更新 `VERSION`；Git 标签和当前时间不会改变应用版本。`build.py`
 会校验该值并注入 Tauri 和前端；`package.json` 和源码中的字面值不是应用版本来源。
 
 更新检查器会将该 SemVer 值与 GitHub 最新正式版比较。SemVer 预发布标识区分大小写：
