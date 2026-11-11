@@ -33,6 +33,12 @@ development-only dependencies and is not a substitute for this repository's prod
 
 - Preserve existing user changes. Begin with `git status --short --branch`; do not reset or clean
   the checkout to make a build appear reproducible.
+- Never run `git push` automatically or as a side effect of something else. No push from a build,
+  compile, packaging, release, checkpoint, validation or suite flow; none from a script, hook,
+  alias, scheduled or background job; and never as the closing step of an otherwise authorized
+  task. Each push needs its own explicit request in the current session — a push authorized
+  earlier, or for another branch or repository, does not carry over. Commit locally and report
+  that commits are unpushed instead.
 - State findings and validation evidence plainly. Complete the requested implementation and
   relevant verification before reporting.
 - Route supported delegated work using the current host's available models:
