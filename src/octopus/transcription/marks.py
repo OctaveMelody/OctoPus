@@ -323,6 +323,30 @@ def _add_duration_band(bands: list[tuple[int, int]], candidate: tuple[int, int])
     bands.append((first, last))
 
 
+def group_thicknesses(gray: Image.Image, component: Component) -> list[int]:
+    """Row thickness of each dark tier group in a flat stroke ([] when the stroke has no structure).
+
+    Paired with `_fused_tier_groups`: a printed tier is thin, so a two-group stroke whose groups are
+    both 1-2 rows is a fused pair of underlines, while one fat group is a single smeared tier. The
+    fused-tier candidate guessed at that difference and was reverted (plan §11A); this is the
+    measurement that decides whether the difference is real.
+    """
+    left, top = max(0, component.box[0]), max(0, component.box[1])
+    right, bottom = min(gray.width - 1, component.box[2]), min(gray.height - 1, component.box[3])
+    thicknesses: list[int] = []
+    start = 0
+    previous = False
+    for y in range(top, bottom + 2):
+        on = y <= bottom and sum(1 for x in range(left, right + 1)
+                                 if cast(int, gray.getpixel((x, y))) < 160) * 2 >= right + 1 - left
+        if on and not previous:
+            start = y
+        elif previous and not on:
+            thicknesses.append(y - start)
+        previous = on
+    return thicknesses
+
+
 def _local_duration_tiers(
     note: Box, gray: Image.Image, digit_height: int, barlines: tuple[int, ...],
     required: int, confirmed_centers: tuple[float, ...] = (),
@@ -491,6 +515,10 @@ def note_modifiers(
         if component.box in bridged:
             continue
         c_left, c_top, c_right, c_bottom = component.box
+        # Observation only (plan §11A): the stroke's own tier structure, read only when a dump is
+        # asked for, so an observation-free run pays nothing for it.
+        thicknesses = (group_thicknesses(duration_gray, component)
+                       if observe is not None and duration_gray is not None else [])
         # Measured on this corpus (plan §6 step 3): 一帘幽梦 prints its octave dots at 0.28-0.33
         # digit heights on an 18px digit, and the 0.32 ceiling rejected 76 of them — 77 missing
         # octaves, two fifths of the campaign's whole octave deficit — by about a tenth of a pixel.
@@ -628,7 +656,18 @@ def note_modifiers(
                        w_limit=round(max(10, round((right - left) * 0.65)), 2),
                        overlap=round(_overlap(left, right, c_left, c_right), 2),
                        overlap_limit=round((right - left) * 0.65, 2),
-                       dh=digit_height)
+                       dh=digit_height,
+                       # What the fused-tier reading needs before any rule is written
+                       # the stroke's own tier structure and whether it reaches into a
+                       # neighbour's column. Attempt 1 counted groups blindly and doubled a
+                       # pinned fixture: a thick stroke under a digit that already has a tier is
+                       # usually another note's beam, so the dump says which of the two it is.
+                       span_ratio=round(component.width / max(1, right - left), 2),
+                       ext_left=max(0, left - c_left), ext_right=max(0, c_right - right),
+                       groups=len(thicknesses),
+                       gt=";".join(str(thick) for thick in thicknesses),
+                       gt_limit=2,
+                       gap=round(component.height - sum(thicknesses), 2))
             elif (
                 duration_gray is not None
                 and c_top <= bottom < c_bottom
