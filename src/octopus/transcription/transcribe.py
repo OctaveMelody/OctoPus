@@ -10,7 +10,7 @@ from . import compilation, page_text, pdf_source
 from .image import recognize_image
 from .observations import PageObservation
 from .results import Draft, Issue, RowBinding
-from .review import note_confidence_findings, render_back_findings
+from .review import note_confidence_findings, pitch_mark_findings, render_back_findings
 from .text import image_text
 
 MAX_PDF_BYTES = pdf_source.MAX_PDF_BYTES
@@ -30,6 +30,7 @@ def _review_assembled(
     """Append review-only findings after notation and row bindings are complete."""
     findings = (
         *note_confidence_findings(draft.jps, draft.pages, bindings),
+        *pitch_mark_findings(draft.pages),
         *render_back_findings(draft.jps, draft.pages, bindings),
     )
     issues = (*draft.issues, *(Issue(

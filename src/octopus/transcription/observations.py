@@ -40,6 +40,9 @@ class MusicRow:
     decoration_regions: tuple[Box, ...] = ()
     score_directions: tuple[tuple[int, str], ...] = ()
     # Observation only (plan §6 step 1): never read by compilation or rendering.
+    # Plausible octave dots the rules refused (plan §6 step 5): located losses for review, never
+    # emitted marks. Empty unless a row actually rejected a mark-shaped component near a digit.
+    pitch_mark_regions: tuple[Box, ...] = ()
     pitch_mark_candidates: tuple[PitchMarkCandidate, ...] = ()
 
 

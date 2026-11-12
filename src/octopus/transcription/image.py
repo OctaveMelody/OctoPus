@@ -258,6 +258,9 @@ def _source_row(row: MusicRow, transform: _CoordinateTransform) -> MusicRow:
         unresolved_marks=tuple(
             transform.to_source_box(box) for box in row.unresolved_marks
         ),
+        pitch_mark_regions=tuple(
+            transform.to_source_box(box) for box in row.pitch_mark_regions
+        ),
         graces=tuple(
             replace(group, box=transform.to_source_box(group.box)) for group in row.graces
         ),
@@ -741,6 +744,9 @@ def _music_row(
     used_marks: set[Box] = set()
     # Observation only (plan §6 step 1): every pitch-mark candidate a rule below rejects.
     mark_candidates: list[PitchMarkCandidate] = []
+    # Plan §6 step 5: a plausible octave dot the rules refuse must be located, not silently dropped.
+    # These boxes change no emitted mark; they become `low_pitch_mark_confidence` review findings.
+    plausible_marks: list[Box] = []
     for index, (component, match) in enumerate(group):
         right_limit = min(
             ([group[index + 1][0].box[0]] if index + 1 < len(group) else [])
@@ -748,11 +754,13 @@ def _music_row(
             default=None,
         )
         observed: list[PitchMarkCandidate] = []
+        pending: list[Box] = []
         octave, slashes, dots, marks = note_modifiers(
             component.box, modifier_components, digit_height,
             gray if joined_underlines else None, right_limit,
-            duration_gray=gray, barlines=tuple(bars), observe=observed,
+            duration_gray=gray, barlines=tuple(bars), observe=observed, unresolved=pending,
         )
+        plausible_marks.extend(pending)
 
         signs: list[tuple[Component, str]] = []
         for sign in modifier_components:
@@ -819,6 +827,7 @@ def _music_row(
             max(note.box[3] for note in notes),
         ),
         unresolved,
+        pitch_mark_regions=tuple(plausible_marks),
         pitch_mark_candidates=tuple(mark_candidates),
     )
 

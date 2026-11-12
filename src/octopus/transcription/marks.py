@@ -34,6 +34,14 @@ def vertical_bend(component: Component, gray: Image.Image) -> float | None:
     return centers[1] - (centers[0] + centers[2]) / 2
 
 
+# The band past the acceptance window in which a rejected octave dot is still plausible as a mark,
+# in digit heights. Measured on this corpus (plan §6 step 4): the printed dots the acceptance window
+# rejects sit at median 1.29x, p90 1.70x and at most 1.87x of it. No rule was found that separates
+# them from dot-shaped ink, so this value never widens acceptance — it only decides which silent
+# losses become review findings (step 5).
+OCTAVE_DOT_REACH = 0.8
+
+
 def row_sustains(notes: tuple[Box, ...], marks: tuple[Box, ...]) -> tuple[Box, ...]:
     """Share sustain ownership between mark recognition and the JPS compiler."""
     height = median(box[3] - box[1] for box in notes)
@@ -371,6 +379,7 @@ def note_modifiers(
     gray: Image.Image | None = None, right_limit: int | None = None,
     *, duration_gray: Image.Image | None = None, barlines: tuple[int, ...] = (),
     observe: list[PitchMarkCandidate] | None = None,
+    unresolved: list[Box] | None = None,
 ) -> tuple[int, int, int, set[Box]]:
     """Return octave, duration slashes/dots and used boxes for a main digit.
 
@@ -459,6 +468,12 @@ def note_modifiers(
                     used_joined.update((line.box, stub.box))
                     break
     dot_reach = digit_height * (0.55 if gray is not None else 0.8)
+    # Acceptance stays exactly where it was. `plausible_reach` is only where a rejected dot is still
+    # reported as an unresolved mark: measured on this corpus (plan §6 step 4), the printed octave
+    # dots the acceptance band misses sit at median 1.29x and at most 1.87x of it, and neither
+    # exclusivity nor tier context separates those from dot-shaped ink — so nothing is emitted in
+    # that band, and per step 5 the loss is located instead of silent.
+    plausible_reach = digit_height * OCTAVE_DOT_REACH
     line_reach = digit_height * (0.55 if gray is not None else 0.72)
 
     def mark_band(component: Component) -> bool:
@@ -509,6 +524,11 @@ def note_modifiers(
         below = dot and 0 < c_top - bottom <= dot_reach
         if round_dot and dot and not above and not below and near_note(component) \
                 and mark_band(component):
+            if unresolved is not None and round_dot and dot and (
+                dot_reach < top - c_bottom <= plausible_reach
+                or dot_reach < c_top - bottom <= plausible_reach
+            ):
+                unresolved.append(component.box)
             reject(component, MarkRejection.OUT_OF_REACH, "octave_dot",
                    reach=round(dot_reach, 2), dh=digit_height,
                    above_gap=round(top - c_bottom, 2), below_gap=round(c_top - bottom, 2),

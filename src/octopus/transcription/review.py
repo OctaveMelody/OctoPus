@@ -15,7 +15,7 @@ from octopus.render.core.layout_types import LayoutPage
 from octopus.render.svg import render_score_model_page_with_layout
 
 from .components import Box
-from .observations import MusicRow, PageObservation
+from .observations import MusicRow, Note, PageObservation
 from .results import RowBinding, finite_confidence
 
 LOW_NOTE_CONFIDENCE = 0.90
@@ -52,6 +52,64 @@ class ReviewFinding:
     confidence: float | None = None
     source_start: int | None = None
     source_end: int | None = None
+
+
+def _mark_distance(note: Box, mark: Box) -> float:
+    """How far a mark sits from a digit: its vertical clearance, plus a discount column offset.
+
+    Only the vertical gap alone cannot answer "which digit was this refused for" — a whole row of
+    digits shares one clearance above or below it — so the column distance breaks the tie.
+    """
+    if mark[3] <= note[1]:
+        vertical = float(note[1] - mark[3])
+    elif mark[1] >= note[3]:
+        vertical = float(mark[1] - note[3])
+    else:
+        vertical = 0.0
+    horizontal = max(0, max(note[0] - mark[2], mark[0] - note[2]))
+    return vertical + 0.5 * horizontal
+
+
+def _nearest_note(notes: tuple[Note, ...], mark: Box) -> Note | None:
+    """The digit a rejected mark is closest to, vertically first, then by column."""
+    best: Note | None = None
+    best_distance: float | None = None
+    for note in notes:
+        distance = _mark_distance(note.box, mark)
+        if best_distance is None or distance < best_distance:
+            best, best_distance = note, distance
+    return best
+
+
+def pitch_mark_findings(pages: tuple[PageObservation, ...]) -> tuple[ReviewFinding, ...]:
+    """Locate the plausible octave dots the recognition rules refused (plan §6 step 5).
+
+    Past the acceptance window a round mark cannot be told from dot-shaped ink: reach, exclusivity
+    and duration-tier context were each measured against this corpus and none separated them (§6
+    step 4). So no mark is emitted there. Instead of a silent drop, the loss gets a region, its
+    nearest digit and the measured gap — what a review pass or a second recognition scale needs to
+    decide. Emission-neutral by construction: no note changes, and it only ever adds a finding.
+    """
+    result = []
+    for page_index, page in enumerate(pages, start=1):
+        for row in (*page.rows, *(bz.row for bz in page.bz_overlays)):
+            for box in row.pitch_mark_regions:
+                note = _nearest_note(row.notes, box)
+                gap = round(_mark_distance(note.box, box)) if note else 0
+                side = ""
+                if note is not None:
+                    side = ("above" if note.box[1] > box[3]
+                            else "below" if box[1] > note.box[3] else "beside")
+                digit = note.digit if note else "?"
+                result.append(ReviewFinding(
+                    "low_pitch_mark_confidence", page_index,
+                    f"Round mark at x {box[0]}-{box[2]}, y {box[1]}-{box[3]} sits about {gap}px "
+                    f"{side} digit {digit} and resembles an octave dot, but printed marks and "
+                    "stray ink are indistinguishable at this distance, so it was not emitted. "
+                    "Verify the octave against the scan.",
+                    (note.box, box) if note else (box,),
+                ))
+    return tuple(result)
 
 
 def note_confidence_findings(
