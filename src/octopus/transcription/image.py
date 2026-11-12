@@ -32,6 +32,7 @@ from .glyphs import (
 from .marks import note_modifiers, row_parentheses, row_sustains, vertical_bend
 from .observations import BzOverlay, MusicRow, Note, PageObservation
 from .ornaments import EndingSegment, row_endings, row_graces, voice_components
+from .pitch_marks import MarkRejection, PitchMarkCandidate
 from .slurs import curve_core_parts, row_slurs
 from .text import image_digit, music_characters
 from .voices import (
@@ -237,6 +238,15 @@ def _working_scale(components: list[Component], width: int, height: int,
     return max(1 / MAX_WORKING_REDUCTION, MAX_WORKING_GLYPH_HEIGHT / oversized_height)
 
 
+def _observe(observed: list[PitchMarkCandidate], sign: Component, stage: MarkRejection,
+             **features: object) -> None:
+    """Record one rejected pitch-mark candidate (plan §6 step 1); observation only."""
+    observed.append(PitchMarkCandidate(
+        sign.box, "accidental", stage, -1,
+        ",".join(f"{key}={value}" for key, value in features.items() if value is not None),
+    ))
+
+
 def _source_row(row: MusicRow, transform: _CoordinateTransform) -> MusicRow:
     return replace(
         row,
@@ -253,6 +263,10 @@ def _source_row(row: MusicRow, transform: _CoordinateTransform) -> MusicRow:
         ),
         endings=tuple(
             replace(frame, box=transform.to_source_box(frame.box)) for frame in row.endings
+        ),
+        pitch_mark_candidates=tuple(
+            replace(candidate, box=transform.to_source_box(candidate.box))
+            for candidate in row.pitch_mark_candidates
         ),
     )
 
@@ -725,29 +739,50 @@ def _music_row(
     notes = []
     note_boxes = {component.box for component, _ in group}
     used_marks: set[Box] = set()
+    # Observation only (plan §6 step 1): every pitch-mark candidate a rule below rejects.
+    mark_candidates: list[PitchMarkCandidate] = []
     for index, (component, match) in enumerate(group):
         right_limit = min(
             ([group[index + 1][0].box[0]] if index + 1 < len(group) else [])
             + [x for x in bars if x > component.box[2]],
             default=None,
         )
+        observed: list[PitchMarkCandidate] = []
         octave, slashes, dots, marks = note_modifiers(
             component.box, modifier_components, digit_height,
             gray if joined_underlines else None, right_limit,
-            duration_gray=gray, barlines=tuple(bars),
+            duration_gray=gray, barlines=tuple(bars), observe=observed,
         )
+
         signs: list[tuple[Component, str]] = []
         for sign in modifier_components:
+            gap = component.box[0] - sign.box[2]
             if (sign.box in note_boxes
                     or not digit_height * 0.55 <= sign.height <= digit_height * 1.3
                     or sign.width > digit_height * 0.6
-                    or not 0 <= component.box[0] - sign.box[2] <= digit_height * 0.6):
+                    or not 0 <= gap <= digit_height * 0.6):
+                # Only report a component that really stands to the left of this digit: otherwise
+                # the dump measures the whole system instead of the accidental rule.
+                if (sign.box not in note_boxes and -digit_height * 0.2 <= gap <= digit_height * 1.5
+                        and abs(sign.center_y - component.center_y) <= digit_height * 1.2):
+                    _observe(observed, sign, MarkRejection.ACCIDENTAL_SIZE, h=sign.height,
+                             w=sign.width, dh=digit_height, gap=gap)
                 continue
             accidental = classify_accidental(gray, sign)
             vertical_tolerance = digit_height * (0.85 if accidental == "$" else 0.5)
-            if (accidental is not None
-                    and abs(sign.center_y - component.center_y) <= vertical_tolerance):
+            if accidental is None:
+                _observe(observed, sign, MarkRejection.ACCIDENTAL_UNCLASSIFIED, h=sign.height,
+                         w=sign.width, gap=gap)
+            elif abs(sign.center_y - component.center_y) > vertical_tolerance:
+                _observe(observed, sign, MarkRejection.ACCIDENTAL_VERTICAL_OFFSET,
+                         found=accidental, dy=round(sign.center_y - component.center_y, 2),
+                         tolerance=round(vertical_tolerance, 2))
+            else:
                 signs.append((sign, accidental))
+        if len(signs) > 1:
+            for sign, kind in signs:
+                _observe(observed, sign, MarkRejection.ACCIDENTAL_AMBIGUOUS_MULTIPLE, found=kind,
+                         candidates=len(signs), kinds="".join(seen for _, seen in signs))
         accidental = signs[0][1] if len(signs) == 1 else ""
         mordents = [
             mark for mark in nearby
@@ -766,6 +801,8 @@ def _music_row(
         if accidental:
             marks.add(signs[0][0].box)
         used_marks.update(marks)
+        mark_candidates.extend(replace(candidate, note_index=len(notes) - 1)
+                               for candidate in observed)
     unresolved = tuple(
         component.box for component in nearby
         if component.box not in note_boxes
@@ -782,6 +819,7 @@ def _music_row(
             max(note.box[3] for note in notes),
         ),
         unresolved,
+        pitch_mark_candidates=tuple(mark_candidates),
     )
 
 

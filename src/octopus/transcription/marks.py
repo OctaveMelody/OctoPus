@@ -10,6 +10,7 @@ from PIL import Image
 
 from . import slurs
 from .components import Box, Component, connected_components
+from .pitch_marks import MarkRejection, PitchMarkCandidate
 
 curve_core_parts = slurs.curve_core_parts
 row_slurs = slurs.row_slurs
@@ -369,10 +370,31 @@ def note_modifiers(
     note: Box, components: list[Component], digit_height: int,
     gray: Image.Image | None = None, right_limit: int | None = None,
     *, duration_gray: Image.Image | None = None, barlines: tuple[int, ...] = (),
+    observe: list[PitchMarkCandidate] | None = None,
 ) -> tuple[int, int, int, set[Box]]:
-    """Return octave, duration slashes/dots and used boxes for a main digit."""
+    """Return octave, duration slashes/dots and used boxes for a main digit.
+
+    `observe` is the development observation channel of plan §6 step 1: when a list is supplied,
+    every pitch-mark candidate this rule rejects is appended with the bucket and the measurements it
+    failed. It is None on every production call, changes no decision, and is never read back.
+    """
     left, top, right, bottom = note
     center = (left + right) / 2
+
+    def reject(component: Component, stage: MarkRejection, kind: str, **features: object) -> None:
+        if observe is None:
+            return
+        observe.append(PitchMarkCandidate(
+            component.box, kind, stage, -1,
+            ",".join(f"{key}={value}" for key, value in features.items() if value is not None),
+        ))
+
+    def near_note(component: Component) -> bool:
+        # Only candidates in this digit's mark neighbourhood are worth reporting: a page-wide dump
+        # of every rejected component would measure the page, not the rule.
+        return (abs((component.box[0] + component.box[2]) / 2 - center) <= digit_height * 1.2
+                and component.box[3] > top - digit_height * 2.5
+                and component.box[1] < bottom + digit_height * 2.5)
     dots_above: list[Component] = []
     dots_below: list[Component] = []
     duration_dots: list[Component] = []
@@ -423,11 +445,9 @@ def note_modifiers(
         if component.box in bridged:
             continue
         c_left, c_top, c_right, c_bottom = component.box
-        round_dot = (
-            3 <= component.width <= digit_height * 0.32
-            and 3 <= component.height <= digit_height * 0.32
-            and component.area >= component.width * component.height * 0.45
-        )
+        size_ok = (3 <= component.width <= digit_height * 0.32
+                   and 3 <= component.height <= digit_height * 0.32)
+        round_dot = size_ok and component.area >= component.width * component.height * 0.45
         dot_image = gray if gray is not None else duration_gray
         if round_dot and dot_image is not None:
             ink = [(x, y) for x in range(c_left, c_right) for y in range(c_top, c_bottom)
@@ -438,14 +458,38 @@ def note_modifiers(
                              and abs(correlation(xs, ys)) <= 0.6)
             else:
                 round_dot = False
+            if not round_dot and size_ok and near_note(component):
+                reject(component, MarkRejection.INK_CORRELATION, "octave_dot",
+                       w=component.width, h=component.height, ink=len(ink))
+        if not size_ok and near_note(component) and component.area >= 9:
+            reject(component, MarkRejection.SIZE_WINDOW, "octave_dot",
+                   w=component.width, h=component.height, dh=digit_height,
+                   limit=round(digit_height * 0.32, 2))
+        elif size_ok and not round_dot and near_note(component):
+            reject(component, MarkRejection.FILL_RATIO, "octave_dot",
+                   w=component.width, h=component.height,
+                   fill=round(component.area / max(1, component.width * component.height), 2))
         if round_dot and _inside_fermata_dot(component, components, right - left):
+            if near_note(component):
+                reject(component, MarkRejection.INSIDE_FERMATA_DOT, "octave_dot",
+                       w=component.width, h=component.height)
             continue
         dot = round_dot and (
             abs((c_left + c_right) / 2 - center) <= max(4, (right - left) * 0.23)
         )
-        if dot and 0 < top - c_bottom <= dot_reach:
+        above = dot and 0 < top - c_bottom <= dot_reach
+        below = dot and 0 < c_top - bottom <= dot_reach
+        if round_dot and dot and not above and not below and near_note(component):
+            reject(component, MarkRejection.OUT_OF_REACH, "octave_dot",
+                   reach=round(dot_reach, 2), above_gap=top - c_bottom,
+                   below_gap=c_top - bottom)
+        if round_dot and not dot and near_note(component):
+            reject(component, MarkRejection.HORIZONTAL_OFFSET, "octave_dot",
+                   dx=round(abs((c_left + c_right) / 2 - center), 2),
+                   limit=round(max(4, (right - left) * 0.23), 2))
+        if above:
             dots_above.append(component)
-        elif dot and 0 < c_top - bottom <= dot_reach:
+        elif below:
             dots_below.append(component)
         elif (
             round_dot and 0 < c_left - right <= digit_height * 0.8
@@ -514,6 +558,9 @@ def note_modifiers(
                 used_joined.add(component.box)
     # Above and below marks on one digit are ambiguous; keep them for review.
     if dots_above and dots_below:
+        for component in (*dots_above, *dots_below):
+            reject(component, MarkRejection.ABOVE_AND_BELOW, "octave_dot",
+                   above=len(dots_above), below=len(dots_below))
         dots_above.clear()
         dots_below.clear()
     if len(lines) > 4:
@@ -526,6 +573,9 @@ def note_modifiers(
             note, duration_gray, digit_height, barlines, 4, tuple(clipped_centers),
         )
     if len(duration_dots) > 2:
+        for component in duration_dots:
+            reject(component, MarkRejection.DURATION_DOT_LIMIT, "duration_dot",
+                   count=len(duration_dots))
         duration_dots.clear()
     existing_duration_boxes = [component.box for component in lines]
     existing_duration_boxes.extend(box for box in used_joined)
@@ -591,6 +641,9 @@ def note_modifiers(
                                             max(band_bottom, component.box[3]),
                                             max(previous_count, count))
     # Dark islands in a confirmed faded beam are stroke ink, not octave dots.
+    for below_dot in dots_below:
+        if below_dot.box in used_joined:
+            reject(below_dot, MarkRejection.JOINED_BEAM_OWNED, "octave_dot")
     dots_below = [dot for dot in dots_below if dot.box not in used_joined]
     # Global pixels inside a joined beam's bounds can include an already detached dot.
     # Count that physical mark once, while retaining a second dot outside those bounds.

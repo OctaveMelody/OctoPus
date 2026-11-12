@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from .components import Box
 from .decorations import Hairpin
 from .ornaments import EndingSegment, GraceGroup
+from .pitch_marks import PitchMarkCandidate
 from .text import TextMergeConflict, TextSpan
 from .voices import DsbOverlay, VoiceGroup
 
@@ -38,6 +39,8 @@ class MusicRow:
     hairpins: tuple[Hairpin, ...] = ()
     decoration_regions: tuple[Box, ...] = ()
     score_directions: tuple[tuple[int, str], ...] = ()
+    # Observation only (plan §6 step 1): never read by compilation or rendering.
+    pitch_mark_candidates: tuple[PitchMarkCandidate, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
