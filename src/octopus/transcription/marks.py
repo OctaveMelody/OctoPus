@@ -607,6 +607,28 @@ def note_modifiers(
                 if has_dot:
                     joined_dot_boxes.add(component.box)
                 used_joined.add(component.box)
+            elif observe is not None and (
+                # Duration-band filter: below this digit, roughly on a tier, and overlapping its
+                # column. Without it the dump measures the lyric rows and barlines under the staff
+                # instead of the underlines — 40,396 of 52,826 first-pass records were `too_thick`
+                # text. Mirrors the real condition's neighbourhood, widened by 2.5 on the reach.
+                0 < c_top - bottom <= line_reach * 2.5
+                and component.height <= digit_height * 0.6
+                and _overlap(left, right, c_left, c_right) > 0
+            ):
+                # Duration ink the rules could not use (plan §8 step 1: attribution before rules).
+                # One bucket with every limit beside the measurement it failed, so the dump says
+                # which clause dropped the stroke instead of leaving 227 missing underlines a bare
+                # counter. Observation only: the branch decision below is unchanged.
+                reject(component, MarkRejection.LINE_NEAR_MISS, "duration_line",
+                       below_gap=round(c_top - bottom, 2),
+                       reach=round(line_reach, 2),
+                       h=component.height, h_limit=round(max(4, digit_height * 0.17), 2),
+                       w=component.width,
+                       w_limit=round(max(10, round((right - left) * 0.65)), 2),
+                       overlap=round(_overlap(left, right, c_left, c_right), 2),
+                       overlap_limit=round((right - left) * 0.65, 2),
+                       dh=digit_height)
             elif (
                 duration_gray is not None
                 and c_top <= bottom < c_bottom
@@ -637,6 +659,9 @@ def note_modifiers(
         dots_above.clear()
         dots_below.clear()
     if len(lines) > 4:
+        for component in lines:
+            reject(component, MarkRejection.LINE_CAP, "duration_line",
+                   count=len(lines), limit=4)
         lines.clear()
     if clipped_candidates and duration_gray is not None:
         clipped_centers = [*joined_local_centers, *(line.center_y for line in lines)]
