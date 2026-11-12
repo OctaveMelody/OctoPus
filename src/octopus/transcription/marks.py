@@ -395,6 +395,27 @@ def note_modifiers(
         return (abs((component.box[0] + component.box[2]) / 2 - center) <= digit_height * 1.2
                 and component.box[3] > top - digit_height * 2.5
                 and component.box[1] < bottom + digit_height * 2.5)
+    line_tiers: list[float] = []
+    if observe is not None:
+        # Observation only (plan §6 step 4): the height tiers this digit's duration lines live on.
+        # Two rounds of gating proved a rejected dot's distance from the digit says nothing about
+        # whether it is a mark; the open question is tier semantics — ink lying on a line tier reads
+        # as a broken underline fragment, a printed octave dot lives between tiers. Recorded only
+        # for the dump, so production behaviour and cost are untouched.
+        line_tiers = sorted({
+            round(nearby.center_y, 1) for nearby in components
+            if nearby.box != note
+            and nearby.width >= digit_height * 1.3
+            and nearby.height <= max(4, digit_height * 0.17)
+            and abs((nearby.box[0] + nearby.box[2]) / 2 - center) <= digit_height * 1.5
+            and top - digit_height * 2 <= nearby.center_y <= bottom + digit_height * 2
+        })
+
+    def tier_distance(component: Component) -> float:
+        # Distance from the candidate's own height to the nearest duration tier, -1 when the digit
+        # has no tier near it to compare against.
+        return round(min((abs(component.center_y - tier) for tier in line_tiers), default=-1.0), 2)
+
     dots_above: list[Component] = []
     dots_below: list[Component] = []
     duration_dots: list[Component] = []
@@ -490,7 +511,10 @@ def note_modifiers(
                 and mark_band(component):
             reject(component, MarkRejection.OUT_OF_REACH, "octave_dot",
                    reach=round(dot_reach, 2), dh=digit_height,
-                   above_gap=round(top - c_bottom, 2), below_gap=round(c_top - bottom, 2))
+                   above_gap=round(top - c_bottom, 2), below_gap=round(c_top - bottom, 2),
+                   note=f"{left},{top},{right},{bottom}",
+                   tiers=";".join(str(tier) for tier in line_tiers),
+                   tier_dist=tier_distance(component))
         if round_dot and not dot and near_note(component) and mark_band(component):
             reject(component, MarkRejection.HORIZONTAL_OFFSET, "octave_dot",
                    dx=round(abs((c_left + c_right) / 2 - center), 2),
