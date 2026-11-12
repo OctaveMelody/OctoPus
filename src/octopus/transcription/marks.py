@@ -439,6 +439,13 @@ def note_modifiers(
                     break
     dot_reach = digit_height * (0.55 if gray is not None else 0.8)
     line_reach = digit_height * (0.55 if gray is not None else 0.72)
+
+    def mark_band(component: Component) -> bool:
+        # Rejections are only worth reporting while the component sits in the band a pitch mark can
+        # really occupy; lyric rows and system braces would otherwise swamp the dump.
+        above, below = top - component.box[3], component.box[1] - bottom
+        return (-(digit_height * 0.2) <= above <= dot_reach * 2.5
+                or -(digit_height * 0.2) <= below <= dot_reach * 2.5)
     for component in components:
         if component.box == note:
             continue
@@ -458,14 +465,14 @@ def note_modifiers(
                              and abs(correlation(xs, ys)) <= 0.6)
             else:
                 round_dot = False
-            if not round_dot and size_ok and near_note(component):
+            if not round_dot and size_ok and near_note(component) and mark_band(component):
                 reject(component, MarkRejection.INK_CORRELATION, "octave_dot",
                        w=component.width, h=component.height, ink=len(ink))
-        if not size_ok and near_note(component) and component.area >= 9:
+        if not size_ok and near_note(component) and mark_band(component) and component.area >= 9:
             reject(component, MarkRejection.SIZE_WINDOW, "octave_dot",
                    w=component.width, h=component.height, dh=digit_height,
                    limit=round(digit_height * 0.32, 2))
-        elif size_ok and not round_dot and near_note(component):
+        elif size_ok and not round_dot and near_note(component) and mark_band(component):
             reject(component, MarkRejection.FILL_RATIO, "octave_dot",
                    w=component.width, h=component.height,
                    fill=round(component.area / max(1, component.width * component.height), 2))
@@ -479,11 +486,12 @@ def note_modifiers(
         )
         above = dot and 0 < top - c_bottom <= dot_reach
         below = dot and 0 < c_top - bottom <= dot_reach
-        if round_dot and dot and not above and not below and near_note(component):
+        if round_dot and dot and not above and not below and near_note(component) \
+                and mark_band(component):
             reject(component, MarkRejection.OUT_OF_REACH, "octave_dot",
-                   reach=round(dot_reach, 2), above_gap=top - c_bottom,
-                   below_gap=c_top - bottom)
-        if round_dot and not dot and near_note(component):
+                   reach=round(dot_reach, 2), dh=digit_height,
+                   above_gap=round(top - c_bottom, 2), below_gap=round(c_top - bottom, 2))
+        if round_dot and not dot and near_note(component) and mark_band(component):
             reject(component, MarkRejection.HORIZONTAL_OFFSET, "octave_dot",
                    dx=round(abs((c_left + c_right) / 2 - center), 2),
                    limit=round(max(4, (right - left) * 0.23), 2))
