@@ -41,6 +41,9 @@ def vertical_bend(component: Component, gray: Image.Image) -> float | None:
 # losses become review findings (step 5).
 OCTAVE_DOT_REACH = 0.8
 
+# Largest octave dot above or below a digit, as a fraction of digit height. See `size_ok` below.
+OCTAVE_DOT_MAX = 0.4
+
 
 def row_sustains(notes: tuple[Box, ...], marks: tuple[Box, ...]) -> tuple[Box, ...]:
     """Share sustain ownership between mark recognition and the JPS compiler."""
@@ -488,8 +491,26 @@ def note_modifiers(
         if component.box in bridged:
             continue
         c_left, c_top, c_right, c_bottom = component.box
-        size_ok = (3 <= component.width <= digit_height * 0.32
-                   and 3 <= component.height <= digit_height * 0.32)
+        # Measured on this corpus (plan §6 step 3): 一帘幽梦 prints its octave dots at 0.28-0.33
+        # digit heights on an 18px digit, and the 0.32 ceiling rejected 76 of them — 77 missing
+        # octaves, two fifths of the campaign's whole octave deficit — by about a tenth of a pixel.
+        # Widening it everywhere was gated and cost duration ink instead (dot_extra 2 -> 39,
+        # extension_missing 74 -> 110), because one size decision feeds both channels and the octave
+        # extractor claims first. So the wider window is positional: only ink lying wholly above or
+        # below the digit can be an octave mark at that size. Ink beside the digit at note height is
+        # duration ink and keeps the narrow window, so duration keeps ownership of its own dots.
+        octave_side = component.box[3] <= top or component.box[1] >= bottom
+        size_limit = digit_height * (OCTAVE_DOT_MAX if octave_side else 0.32)
+        # A component that only fits because the window was widened also has to be square-ish: an
+        # octave mark is round, while the short underline stubs a duration row is built from are two
+        # or three times wider than they are tall. Without this the widened window reaches into the
+        # duration row and claims its stubs (measured: slash_missing 227 -> 229, plan §6 step 3).
+        # Dots inside the narrow window are untouched, so no mark already emitted is lost here.
+        wide = octave_side and max(component.width, component.height) > digit_height * 0.32
+        square = (component.width <= component.height * 1.7
+                  and component.height <= component.width * 1.7)
+        size_ok = (3 <= component.width <= size_limit and 3 <= component.height <= size_limit
+                   and (not wide or square))
         round_dot = size_ok and component.area >= component.width * component.height * 0.45
         dot_image = gray if gray is not None else duration_gray
         if round_dot and dot_image is not None:
