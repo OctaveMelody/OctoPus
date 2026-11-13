@@ -508,6 +508,7 @@ def note_modifiers(
                     bridged.update((line.box, stub.box))
                     used_joined.update((line.box, stub.box))
                     break
+    band_components = 0
     dot_reach = digit_height * (0.55 if gray is not None else 0.8)
     # Acceptance stays exactly where it was. `plausible_reach` is only where a rejected dot is still
     # reported as an unresolved mark: measured on this corpus (plan §6 step 4), the printed octave
@@ -533,6 +534,9 @@ def note_modifiers(
         # asked for, so an observation-free run pays nothing for it.
         thicknesses = (group_thicknesses(duration_gray, component)
                        if observe is not None and duration_gray is not None else [])
+        if observe is not None and c_top > bottom and c_top - bottom <= line_reach * 3 \
+                and _overlap(left, right, c_left, c_right) > 0:
+            band_components += 1
         # Measured on this corpus (plan §6 step 3): 一帘幽梦 prints its octave dots at 0.28-0.33
         # digit heights on an 18px digit, and the 0.32 ceiling rejected 76 of them — 77 missing
         # octaves, two fifths of the campaign's whole octave deficit — by about a tenth of a pixel.
@@ -826,6 +830,28 @@ def note_modifiers(
         )
     base_slashes = len(lines) + joined_lines + sum(count for _, _, count in faint_bands)
     slash_count = max(base_slashes, clipped_duration_total)
+    if observe is not None:
+        # Emission attribution (plan §11A): what the duration paths concluded for this digit, beside
+        # the ink that is actually there. The rejection channel cannot answer where `slash_missing`
+        # comes from — two gated candidates over dropped ink moved no byte of any draft — because it
+        # measures counts emitted, not ink refused. `raw_tiers` is the decisive field: dark row
+        # groups under the digit in the untouched raster, with no components and no rules involved.
+        # Where
+        # `raw_tiers` exceeds `slash`, tiers are being lost after the ink exists (a counting path);
+        # where `raw_tiers` is 0 and `slash` is too, the ink never became a component at all and no
+        # constant in this file can help.
+        raw = (len(group_thicknesses(
+            duration_gray,
+            Component((left, bottom + 1, right, bottom + max(4, round(digit_height * 0.6))), 0),
+        )) if duration_gray is not None else -1)
+        observe.append(PitchMarkCandidate(
+            note, "duration_emit", MarkRejection.EMISSION, -1,
+            f"lines={len(lines)},joined={joined_lines},bridged={bridged_lines},"
+            f"faint={sum(count for _, _, count in faint_bands)},"
+            f"clipped={clipped_duration_total},base={base_slashes},slash={slash_count},"
+            f"dots={len(duration_dots)},band={band_components},raw_tiers={raw},"
+            f"dh={digit_height},width={right - left}",
+        ))
     used = {
         component.box for component in (*dots_above, *dots_below, *duration_dots, *lines)
     }

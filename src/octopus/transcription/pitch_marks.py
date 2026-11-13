@@ -25,6 +25,7 @@ class MarkRejection(StrEnum):
     INK_CORRELATION = "ink_correlation"
     INSIDE_FERMATA_DOT = "inside_fermata_dot"
     LINE_NEAR_MISS = "line_near_miss"
+    EMISSION = "emission"
     LINE_CAP = "line_cap"
     HORIZONTAL_OFFSET = "horizontal_offset"
     OUT_OF_REACH = "out_of_reach"
