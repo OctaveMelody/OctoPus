@@ -330,8 +330,53 @@ def _measure_slot_priors(
     return result
 
 
+@dataclass(frozen=True, slots=True)
+class LyricSpanRejection:
+    """One text span seen near one music row, and every reason it is not a lyric of that row.
+
+    The filter used to be a single `or` chain, so nothing could say *why* a printed syllable was
+    not taken - and "why" is what the P0-2 attribution needs (plan §7.0c): 27 missing syllables are
+    spans OCR returned and reported as unowned, so a clause here refused them. Letters, not numbers,
+    read without re-deriving constants: C confidence, H height, B band position, T text role, D DSB
+    branch, P pagination, R page corner. Empty means the span was taken.
+    """
+
+    box: Box
+    text: str
+    row_index: int
+    fails: str
+    features: str
+
+
+def _span_refusals(
+    span: TextSpan, *, digit_height: int, top: float, bottom: float,
+    branch_boxes: tuple[Box, ...], page: PageObservation, next_index: int,
+) -> str:
+    """Every reason this span is not a lyric of this row, as letters ("" means it is one).
+
+    Mirrors the filter in `extract_lyrics` exactly; the filter asks this function instead of holding
+    the same conditions twice, so a record can never describe a rule the code does not apply.
+    """
+    tall_enough = (span.height >= digit_height * 0.58
+                   or span.text == "一" and span.confidence >= 0.95
+                   or _is_lyric_punctuation(span.text))
+    return (
+        ("C" if span.confidence < MIN_TEXT_SPAN_CONFIDENCE else "")
+        + ("" if tall_enough else "H")
+        + ("" if top <= span.center_y < bottom else "B")
+        + ("" if _is_lyric_text(span.text) or _is_lyric_punctuation(span.text) else "T")
+        + ("D" if any(left <= span.center_x <= right and upper <= span.center_y <= lower
+                      for left, upper, right, lower in branch_boxes) else "")
+        + ("P" if next_index == len(page.rows) and span.box[3] >= page.height - digit_height
+                    and _PAGINATION.fullmatch(span.text.strip()) else "")
+        + ("R" if span.box[0] > page.width * 0.6 and span.box[2] > page.width * 0.9
+                    and span.box[3] > page.height - digit_height else "")
+    )
+
+
 def extract_lyrics(
     page: PageObservation, row_index: int, band_after_index: int | None = None,
+    observe: list[LyricSpanRejection] | None = None,
 ) -> tuple[LyricDraft, ...]:
     row = page.rows[row_index]
     after_index = band_after_index if band_after_index is not None else row_index
@@ -384,20 +429,20 @@ def extract_lyrics(
     lyric_spans = []
     punctuation_spans = []
     for span in page.text_spans:
-        if (span.confidence < MIN_TEXT_SPAN_CONFIDENCE
-                or not (span.height >= digit_height * 0.58
-                        or span.text == "一" and span.confidence >= 0.95
-                        or _is_lyric_punctuation(span.text))
-                or not top <= span.center_y < bottom
-                or not (_is_lyric_text(span.text) or _is_lyric_punctuation(span.text))
-                or any(left <= span.center_x <= right and upper <= span.center_y <= lower
-                       for left, upper, right, lower in branch_boxes)
-                or (next_index == len(page.rows)
-                    and span.box[3] >= page.height - digit_height
-                    and _PAGINATION.fullmatch(span.text.strip()))
-                or (span.box[0] > page.width * 0.6
-                    and span.box[2] > page.width * 0.9
-                    and span.box[3] > page.height - digit_height)):
+        refusals = _span_refusals(span, digit_height=digit_height, top=top, bottom=bottom,
+                                  branch_boxes=branch_boxes, page=page, next_index=next_index)
+        if observe is not None and after.box[3] - digit_height <= span.center_y < next_top:
+            # Only spans in this row's lyric corridor: a page of rows would otherwise multiply every
+            # span by the row count. The corridor runs from one digit height above the row to the
+            # next row's top - deliberately wider than the band, because a printed syllable just
+            # outside the band is exactly the case that needs a number on it.
+            observe.append(LyricSpanRejection(
+                span.box, span.text, row_index, refusals,
+                f"conf={span.confidence:.2f},h={span.height},dh={digit_height},"
+                f"band=({top},{bottom}),dy={round(span.center_y - top)},"
+                f"next_top={next_top},ordinary_bottom={round(ordinary_bottom)}",
+            ))
+        if refusals:
             continue
         if _is_lyric_punctuation(span.text):
             punctuation_spans.append(span)
