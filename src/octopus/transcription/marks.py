@@ -347,6 +347,19 @@ def group_thicknesses(gray: Image.Image, component: Component) -> list[int]:
     return thicknesses
 
 
+def _digits_covered(digit_boxes: tuple[Box, ...], component: Component) -> int:
+    """How many digits of the row a flat stroke's box overlaps.
+
+    The ownership axis the duration candidates keep dying on (plan §11A). Dumped beside every
+    dropped stroke because the first reading of the near-miss table was wrong in a way only this
+    field could show: the strokes dropped for width are not short underlines that the width limit
+    alone rejected — they fail the overlap requirement too. Overlap count also separates a digit's
+    own stroke from a neighbour's partial beam, which no extent heuristic managed.
+    """
+    return sum(1 for box in digit_boxes
+               if _overlap(box[0], box[2], component.box[0], component.box[2]) > 0)
+
+
 def _local_duration_tiers(
     note: Box, gray: Image.Image, digit_height: int, barlines: tuple[int, ...],
     required: int, confirmed_centers: tuple[float, ...] = (),
@@ -407,6 +420,7 @@ def note_modifiers(
     *, duration_gray: Image.Image | None = None, barlines: tuple[int, ...] = (),
     observe: list[PitchMarkCandidate] | None = None,
     unresolved: list[Box] | None = None,
+    digit_boxes: tuple[Box, ...] = (),
 ) -> tuple[int, int, int, set[Box]]:
     """Return octave, duration slashes/dots and used boxes for a main digit.
 
@@ -667,7 +681,21 @@ def note_modifiers(
                        groups=len(thicknesses),
                        gt=";".join(str(thick) for thick in thicknesses),
                        gt_limit=2,
-                       gap=round(component.height - sum(thicknesses), 2))
+                       gap=round(component.height - sum(thicknesses), 2),
+                       # Ownership facts, per `_digits_covered`: `owner_side` is where the stroke's
+                       # centre falls relative to this digit, `covers` counts the digits of the row
+                       # its box overlaps, and `fails` lists every clause it failed, not one:
+                       # reading of the earlier table had hidden a two-clause population behind a
+                       # single label — how candidate #2 came to be built on a misreading.
+                       owner_side=("self" if left <= (c_left + c_right) / 2 <= right
+                                   else "left" if (c_left + c_right) / 2 < left else "right"),
+                       covers=_digits_covered(digit_boxes, component),
+                       fails=("F" if top - c_bottom < 0 or c_top - bottom > line_reach else "")
+                       + ("T" if component.height > max(4, digit_height * 0.17) else "")
+                       + ("N" if component.width < max(10, round((right - left) * 0.65)) else "")
+                       + ("O" if _overlap(left, right, c_left, c_right)
+                          < (right - left) * 0.65 else ""),
+                       digits=len(digit_boxes))
             elif (
                 duration_gray is not None
                 and c_top <= bottom < c_bottom

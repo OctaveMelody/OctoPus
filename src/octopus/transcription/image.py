@@ -759,6 +759,7 @@ def _music_row(
             component.box, modifier_components, digit_height,
             gray if joined_underlines else None, right_limit,
             duration_gray=gray, barlines=tuple(bars), observe=observed, unresolved=pending,
+            digit_boxes=tuple(item[0].box for item in group),
         )
         plausible_marks.extend(pending)
 
