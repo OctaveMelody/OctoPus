@@ -1904,6 +1904,10 @@ def _row_with_source_marks(
     ) and not any(
         component.box[0] < right and component.box[2] > left
         and component.box[1] < bottom and component.box[3] > top
+        and not (
+            component.box[0] < left and component.box[3] > bottom
+            and component.box[2] <= notes[0][2] + height * 0.5
+        )
         for left, top, right, bottom in ending_boxes
     ) and not any(
         left <= component.box[0] and component.box[2] <= right
