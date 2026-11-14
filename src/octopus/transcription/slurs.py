@@ -269,7 +269,7 @@ def _faint_curve_bridges(
                 for part in connected_components(local, threshold)]
 
     dark_parts = source_parts(160)
-    recovered: list[tuple[tuple[int | None, int | None], Box]] = []
+    recovered: list[tuple[tuple[int | None, int | None], Box, tuple[int, int]]] = []
     for threshold, component in (
         (level, part) for level in (180, 200)
         for inset in (0, round(height * 0.9)) for part in source_parts(level, inset)
@@ -330,11 +330,21 @@ def _faint_curve_bridges(
                 if not any(all(
                     abs(a - b) <= max(2, height * 0.15)
                     for a, b in zip(box, component.box, strict=True)
-                ) for span, box in recovered):
-                    recovered.extend((span, component.box) for span in _split_curve_at_cusps(
+                ) for span, box, _ in recovered):
+                    for span in _split_curve_at_cusps(
                         notes, component, bridged, height, ((start, end),),
-                    ))
-    return tuple(recovered)
+                    ):
+                        if not any(
+                            previous == span
+                            and left <= box[0] and box[2] <= right
+                            and top <= box[1] and box[3] <= bottom
+                            and bridged.getpixel(seed) == 0
+                            for previous, box, seed in recovered
+                        ):
+                            seed = (left, next(y for y in range(top, bottom)
+                                               if bridged.getpixel((left, y)) == 0))
+                            recovered.append((span, component.box, seed))
+    return tuple((span, box) for span, box, _ in recovered)
 
 
 def _nested_shorter_slurs(
