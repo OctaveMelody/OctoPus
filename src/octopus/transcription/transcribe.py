@@ -10,7 +10,12 @@ from . import compilation, page_text, pdf_source
 from .image import recognize_image
 from .observations import PageObservation
 from .results import Draft, Issue, RowBinding
-from .review import note_confidence_findings, pitch_mark_findings, render_back_findings
+from .review import (
+    note_confidence_findings,
+    pitch_mark_findings,
+    render_back_findings,
+    span_review_findings,
+)
 from .text import image_text
 
 MAX_PDF_BYTES = pdf_source.MAX_PDF_BYTES
@@ -31,9 +36,17 @@ def _review_assembled(
     findings = (
         *note_confidence_findings(draft.jps, draft.pages, bindings),
         *pitch_mark_findings(draft.pages),
+        *span_review_findings(draft.jps, draft.pages, bindings),
         *render_back_findings(draft.jps, draft.pages, bindings),
     )
-    issues = (*draft.issues, *(Issue(
+    located_imbalances = {
+        (item.page, item.regions) for item in findings
+        if item.code == "span_imbalance" and item.source_start is not None
+        and item.source_end is not None and draft.jps[item.source_start:item.source_end] == "("
+    }
+    issues = (*(item for item in draft.issues if not (
+        item.code == "slur_cut_barline_missing" and (item.page, item.regions) in located_imbalances
+    )), *(Issue(
         item.code, item.page, item.detail, item.regions, item.confidence,
         item.source_start, item.source_end,
     ) for item in findings))

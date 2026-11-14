@@ -54,6 +54,99 @@ class ReviewFinding:
     source_end: int | None = None
 
 
+def span_review_findings(
+    code: str, pages: tuple[PageObservation, ...], bindings: tuple[RowBinding, ...],
+) -> tuple[ReviewFinding, ...]:
+    """Review simple-voice delimiters and detected curve topology without editing JPS."""
+    document = parse_code(code)
+    lines = {line.span.start.line: line for line in document.lines if isinstance(line, MusicLine)}
+    by_line = {binding.source_line: binding for binding in bindings}
+    by_row = {(binding.page, binding.row): binding for binding in bindings}
+    complex_voices = {
+        lines[binding.source_line].source_voice
+        if lines[binding.source_line].source_voice is not None
+        else lines[binding.source_line].voice
+        for binding in bindings if not binding.simple and binding.source_line in lines
+        if any(token.kind in {
+            MusicTokenKind.SPAN_START, MusicTokenKind.TUPLET_START, MusicTokenKind.SPAN_END,
+        } for token in lines[binding.source_line].tokens)
+    }
+    findings: list[ReviewFinding] = []
+
+    def imbalance(token: MusicToken) -> None:
+        binding = by_line.get(token.span.start.line)
+        if binding is None or not binding.simple or not 1 <= binding.page <= len(pages):
+            return
+        page = pages[binding.page - 1]
+        rows = (*page.rows, *(overlay.row for overlay in page.bz_overlays))
+        if not 0 <= binding.row < len(rows):
+            return
+        row = rows[binding.row]
+        cut_without_bar = token.kind == MusicTokenKind.SPAN_START and not row.barlines and any(
+            start is not None and end is None for start, end in row.slurs
+        )
+        detail = (
+            "A row-cut curve has no detected barline and an opening span is unmatched. "
+            if cut_without_bar else
+            "A span or tuplet delimiter has no matching partner in this voice. "
+        )
+        findings.append(ReviewFinding(
+            "span_imbalance", binding.page, detail
+            + "Check the printed curve and any continuation across rows.",
+            (row.box,), source_start=token.span.start.offset,
+            source_end=token.span.end.offset,
+        ))
+
+    stacks: dict[int, list[MusicToken]] = {}
+    for line in document.lines:
+        if not isinstance(line, MusicLine):
+            continue
+        voice = line.source_voice if line.source_voice is not None else line.voice
+        if voice in complex_voices:
+            continue
+        stack = stacks.setdefault(voice, [])
+        for token in line.tokens:
+            if token.kind in {MusicTokenKind.SPAN_START, MusicTokenKind.TUPLET_START}:
+                stack.append(token)
+            elif token.kind == MusicTokenKind.SPAN_END:
+                if stack:
+                    stack.pop()
+                else:
+                    imbalance(token)
+    for stack in stacks.values():
+        for token in stack:
+            imbalance(token)
+
+    for page_number, page in enumerate(pages, start=1):
+        for row_number, row in enumerate((*page.rows, *(item.row for item in page.bz_overlays))):
+            binding = by_row.get((page_number, row_number))
+            source_line = (
+                lines.get(binding.source_line) if binding is not None and binding.simple else None
+            )
+            source_start = source_line.span.start.offset if source_line is not None else None
+            source_end = source_line.span.end.offset if source_line is not None else None
+            located = [(start, end) for start, end in row.slurs
+                       if start is not None and end is not None
+                       and 0 <= start <= end < len(row.notes)]
+            if len(set(located)) != len(located):
+                findings.append(ReviewFinding(
+                    "span_doubled", page_number,
+                    "More than one detected curve has the same endpoints. "
+                    "Parallel curves can be intentional; compare the marks with the scan.",
+                    (row.box,), source_start=source_start, source_end=source_end,
+                ))
+            complete = [(start, end) for start, end in located if start < end]
+            if any(a < c < b < d or c < a < d < b
+                   for index, (a, b) in enumerate(complete) for c, d in complete[index + 1:]):
+                findings.append(ReviewFinding(
+                    "span_crossing", page_number,
+                    "Detected curves cross in their note ownership; nested JPS delimiters "
+                    "may pair them differently. Check both curves against the scan.",
+                    (row.box,), source_start=source_start, source_end=source_end,
+                ))
+    return tuple(findings)
+
+
 def _mark_distance(note: Box, mark: Box) -> float:
     """How far a mark sits from a digit: its vertical clearance, plus a discount column offset.
 
