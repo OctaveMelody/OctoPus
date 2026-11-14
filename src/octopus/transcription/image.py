@@ -1480,10 +1480,16 @@ def _recognize_working_rows(
         sustained_row = len(row.barlines) >= 2 and len(row_sustains(
             tuple(note.box for note in row.notes), row.unresolved_marks,
         )) >= 3
+        row_y = sum(component.center_y for component, _ in group) / len(group)
         shape_supported = not (
             len(group) < 3 and not local_branch and not sustained_row
             or group[-1][0].box[0] - group[0][0].box[0] < gray.width * 0.12
             and not local_branch
+            and not any(
+                group[0][0].box[0] <= bar.box[0] <= group[-1][0].box[2] + digit_height
+                and bar.box[1] < row_y < bar.box[3] and bar.box[0] in row.barlines
+                for bar in barline_candidates
+            )
         )
         row_records.append((group, row, shape_supported))
 
