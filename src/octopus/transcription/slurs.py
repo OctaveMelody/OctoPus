@@ -77,7 +77,12 @@ def row_slurs(
     ] = []
     centers = [(box[0] + box[2]) / 2 for box in notes]
     joined_ink: dict[tuple[int | None, int | None], set[Box]] = {}
-    for joined, fragments in _joined_curve_fragments(components, row_top, height):
+    joins = list(_joined_curve_fragments(components, row_top, height))
+    if any(count > 1 for count in Counter(found).values()):
+        joins.extend((joined, fragments) for joined, fragments in _joined_curve_fragments(
+            components, row_top, height, include_short=True,
+        ) if any(fragment.width < height * 0.8 for fragment in fragments))
+    for joined, fragments in joins:
         # Independently complete neighboring arches are separate marks, not fragments.
         if all(_complete_curve_component(part, gray, height, 2) for part in fragments):
             continue
@@ -97,13 +102,23 @@ def row_slurs(
         joined_spans = _detached_row_slurs(
             notes, row_top, height, [joined], isolated, barlines,
         )
-        if any(fragment.height < max(2, height * 0.15) for fragment in fragments):
+        if any(fragment.height < max(2, height * 0.15) or fragment.width < height * 0.8
+               for fragment in fragments):
             apex_supported = _short_fragments_form_curve_apex(fragments, gray, height)
             joined_spans = tuple(span for span in joined_spans if (
                 apex_supported or span[0] is None and span[1] is not None
                 and any(existing_end == span[1] for _, existing_end in found)
             ))
         joined_spans = _split_curve_at_cusps(notes, joined, isolated, height, joined_spans)
+        if any(fragment.width < height * 0.8 for fragment in fragments):
+            duplicates = {span for span, count in Counter(found).items() if count > 1}
+            joined_spans = tuple(span for span in joined_spans if (
+                span[0] is not None and span[1] is not None and any(
+                    start is not None and end is not None
+                    and span[0] <= start < end <= span[1] and (start, end) != span
+                    for start, end in duplicates
+                )
+            ))
         joined_spans = tuple(span for span in joined_spans if not any(
             part.box in joined_ink.get(span, set()) for part in fragments
         ))
@@ -430,13 +445,17 @@ def _short_fragments_form_curve_apex(
     pixels = gray.load()
     assert pixels is not None
     for index, fragment in enumerate(fragments):
-        if fragment.height >= max(2, height * 0.15):
+        if fragment.height >= max(2, height * 0.15) and fragment.width >= height * 0.8:
             continue
         if index == 0 or index == len(fragments) - 1:
             return False
         left, bridge, right = fragments[index - 1:index + 2]
-        if (bridge.box[0] - left.box[2] > edge
-                or right.box[0] - bridge.box[2] > edge):
+        left_gap = (max(edge, ceil(height * 0.5))
+                    if left.width < height * 0.8 and bridge.width < height * 0.8 else edge)
+        right_gap = (max(edge, ceil(height * 0.5))
+                     if right.width < height * 0.8 and bridge.width < height * 0.8 else edge)
+        if (bridge.box[0] - left.box[2] > left_gap
+                or right.box[0] - bridge.box[2] > right_gap):
             return False
 
         def peak(component: Component, from_right: bool) -> int | None:
@@ -552,10 +571,12 @@ def _complete_curve_component(
 
 def _joined_curve_fragments(
     components: list[Component], row_top: int, height: float,
+    *, include_short: bool = False,
 ) -> tuple[tuple[Component, tuple[Component, ...]], ...]:
     """Reconnect thin curve segments interrupted by short scan gaps."""
     parts = sorted((component for component in components if (
-        height * 0.8 <= component.width
+        (height * 0.8 <= component.width or include_short and component.width >= 2
+         and component.height <= max(2, height * 0.2))
         and max(1, height * 0.08) <= component.height <= height
         and component.area <= component.width * max(4, height * 0.2)
         and row_top - height * 2 < component.box[1] < row_top - height * 0.4
