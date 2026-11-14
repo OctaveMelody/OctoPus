@@ -42,7 +42,34 @@ def row_slurs(
     notes: tuple[Box, ...], row_top: int, height: float,
     components: list[Component], gray: Image.Image, barlines: tuple[int, ...] = (),
 ) -> tuple[tuple[int | None, int | None], ...]:
-    found = list(_detached_row_slurs(notes, row_top, height, components, gray, barlines))
+    origins: list[tuple[tuple[int | None, int | None], Component]] = []
+    found = list(_detached_row_slurs(
+        notes, row_top, height, components, gray, barlines, origins=origins,
+    ))
+    rejected: set[Component] = set()
+    for span, upper in origins:
+        if None in span or sum(item == (span, upper) for item in origins) != 1:
+            continue
+        if not any(
+            other_span == span and lower != upper
+            and lower.box[1] - upper.box[3] >= height * 0.5
+            and min(upper.box[2], lower.box[2]) - max(upper.box[0], lower.box[0])
+            >= min(upper.width, lower.width) * 0.5
+            for other_span, lower in origins
+        ):
+            continue
+        # A substantial aligned stroke just above the upper fragment supports a text glyph.
+        if any(
+            0 <= upper.box[1] - other.box[3] <= height * 0.12
+            and other.width >= height * 0.3 and other.height >= height * 0.3
+            and min(upper.box[2], other.box[2]) - max(upper.box[0], other.box[0])
+            >= min(upper.width, other.width) * 0.5
+            for other in components if other != upper
+        ):
+            rejected.add(upper)
+    if rejected:
+        components = [component for component in components if component not in rejected]
+        found = list(_detached_row_slurs(notes, row_top, height, components, gray, barlines))
     fragment_spans: list[tuple[tuple[int | None, int | None], Box, Box, bool]] = []
     recovered: list[tuple[int | None, int | None]] = []
     recovered_fragments: list[
@@ -526,6 +553,7 @@ def _joined_curve_fragments(
 def _detached_row_slurs(
     notes: tuple[Box, ...], row_top: int, height: float,
     components: list[Component], gray: Image.Image, barlines: tuple[int, ...],
+    *, origins: list[tuple[tuple[int | None, int | None], Component]] | None = None,
 ) -> tuple[tuple[int | None, int | None], ...]:
     """Attach curved ends to music events; a flat cut end continues on another row."""
     if len(notes) < 2:
@@ -637,7 +665,10 @@ def _detached_row_slurs(
             and (last_reaches_note if last is not None
                  else right >= notes[-1][2] - height)
         ):
-            pairs.extend([(first, last)] * _parallel_curve_count(component, gray))
+            count = _parallel_curve_count(component, gray)
+            pairs.extend([(first, last)] * count)
+            if origins is not None:
+                origins.extend([((first, last), component)] * count)
     return tuple(pairs)
 
 
