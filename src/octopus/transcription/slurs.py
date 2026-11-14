@@ -159,6 +159,25 @@ def row_slurs(
         recovered_fragments,
     ))
     faint_curves = _faint_curve_bridges(notes, components, gray, row_top, height, barlines)
+    faint_curves = tuple((span, box) for span, box in faint_curves if (
+        None in span or not (
+            any(other == span and lower[1] - box[3] >= height * 0.5
+                and min(box[2], lower[2]) - max(box[0], lower[0])
+                >= min(box[2] - box[0], lower[2] - lower[0]) * 0.5
+                for other, lower in faint_curves)
+            and any(
+                mark.box[0] <= box[0] and box[2] <= mark.box[2]
+                and mark.box[1] < box[1] and box[3] <= mark.box[3]
+                and max((sum(cast(int, gray.getpixel((x, y))) < 160
+                             for y in range(mark.box[1], box[1]))
+                         for x in range(mark.box[0], mark.box[2])), default=0) >= height * 0.4
+                and max((sum(cast(int, gray.getpixel((x, y))) < 160
+                             for x in range(mark.box[0], mark.box[2]))
+                         for y in range(mark.box[1], box[1])), default=0) >= height * 0.4
+                for mark in components
+            )
+        )
+    ))
     # A complete, reconnected arch supersedes only the incomplete pieces of its own ink.
     for parent, parent_box in faint_curves:
         for component in components:
