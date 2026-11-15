@@ -69,3 +69,4 @@ class PageObservation:
     native_text_spans: tuple[TextSpan, ...] | None = None
     ocr_text_spans: tuple[TextSpan, ...] | None = None
     text_merge_conflicts: tuple[TextMergeConflict, ...] = ()
+    non_lyric_regions: tuple[Box, ...] = ()

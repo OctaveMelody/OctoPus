@@ -558,7 +558,8 @@ def _text_ownership_issues(page: PageObservation, page_number: int) -> list[Issu
             ))
             continue
         if (
-            span.confidence < 0.75 or span.box in claimed
+            (span.confidence < 0.75 and span.box not in page.non_lyric_regions)
+            or span.box in claimed
             or span.box in header_regions or span.box in decoration_regions
         ):
             continue

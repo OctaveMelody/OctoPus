@@ -688,6 +688,49 @@ def _ink_lyric_positions(gray: Image.Image, spans: tuple[TextSpan, ...]) -> tupl
     return tuple(refined)
 
 
+def _v_mark_ink(gray: Image.Image, box: Box) -> bool:
+    left, top, right, bottom = box
+    if left < 0 or top < 0 or right > gray.width or bottom > gray.height:
+        return False
+    pixels = gray.load()
+    assert pixels is not None
+    rows = [[x for x in range(left, right) if cast(int, pixels[x, y]) < 200]
+            for y in range(top, bottom)]
+    rows = rows[next((i for i, row in enumerate(rows) if row), len(rows)):]
+    while rows and not rows[-1]:
+        rows.pop()
+    if len(rows) < 5 or any(not row for row in rows):
+        return False
+    first, last = rows[0], rows[-1]
+    width = first[-1] - first[0] + 1
+    return (width >= 4 and any(b - a >= 2 for a, b in zip(first, first[1:], strict=False))
+            and last[-1] - last[0] + 1 <= max(2, width * 0.6)
+            and first[0] < (last[0] + last[-1]) / 2 < first[-1])
+
+
+def _non_lyric_music_marks(
+    gray: Image.Image, rows: tuple[MusicRow, ...], spans: tuple[TextSpan, ...],
+) -> tuple[Box, ...]:
+    regions = []
+    for previous, following in zip(rows, rows[1:], strict=False):
+        if not following.notes:
+            continue
+        height = median(note.box[3] - note.box[1] for note in following.notes)
+        for span in spans:
+            if (span.confidence < MIN_TEXT_SPAN_CONFIDENCE or len(span.text.strip()) != 1
+                    or not 0 <= following.box[1] - span.box[3] <= height * 0.65
+                    or not following.box[0] - height <= span.center_x <= following.box[2] + height
+                    or not any(
+                        any("\u3400" <= char <= "\u9fff" for char in other.text)
+                        and other.confidence >= 0.7
+                        and previous.box[3] < other.center_y < span.center_y
+                        and other.box[3] + height <= span.box[1] for other in spans
+                    ) or not _v_mark_ink(gray, span.box)):
+                continue
+            regions.append(span.box)
+    return tuple(regions)
+
+
 def _performance_text(
     path: Path, page: PageObservation, original: tuple[TextSpan, ...],
 ) -> PageObservation:
@@ -758,7 +801,8 @@ def _performance_text(
         and _box_coverage(span.box, owner.box) >= 0.6 for owner in score_text_spans
     ))
     return replace(page, rows=rows, bz_overlays=overlays,
-                   text_spans=_ink_lyric_positions(gray, retained))
+                   text_spans=_ink_lyric_positions(gray, retained),
+                   non_lyric_regions=_non_lyric_music_marks(gray, rows, retained))
 
 
 def _attach_score_text(

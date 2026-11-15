@@ -341,8 +341,8 @@ class LyricSpanRejection:
     The filter used to be a single `or` chain, so nothing could say *why* a printed syllable was
     not taken - and "why" is what the P0-2 attribution needs (plan §7.0c): 27 missing syllables are
     spans OCR returned and reported as unowned, so a clause here refused them. Letters, not numbers,
-    read without re-deriving constants: C confidence, H height, B band position, T text role, D DSB
-    branch, P pagination, R page corner. Empty means the span was taken.
+    read without re-deriving constants: C confidence, H height, B band position, T text role,
+    M music-adjacent ink, D DSB branch, P pagination, R page corner. Empty means the span was taken.
     """
 
     box: Box
@@ -369,6 +369,7 @@ def _span_refusals(
         + ("" if tall_enough else "H")
         + ("" if top <= span.center_y < bottom else "B")
         + ("" if _is_lyric_text(span.text) or _is_lyric_punctuation(span.text) else "T")
+        + ("M" if span.box in page.non_lyric_regions else "")
         + ("D" if any(left <= span.center_x <= right and upper <= span.center_y <= lower
                       for left, upper, right, lower in branch_boxes) else "")
         + ("P" if next_index == len(page.rows) and span.box[3] >= page.height - digit_height
