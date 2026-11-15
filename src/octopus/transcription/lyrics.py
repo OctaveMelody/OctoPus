@@ -407,6 +407,42 @@ def _overfull_lyric_band(band: list[TextSpan], row: MusicRow, height: int) -> bo
     return len(matched) * 4 >= len(units) * 3 and len(set(matched)) * 5 >= len(centers) * 3
 
 
+def _numbered_verse_continuation(bands: list[list[TextSpan]], height: int) -> None:
+    """Separate a merged continuation when later numbered verses establish its owner."""
+    labels = []
+    for band_index, band in enumerate(bands):
+        for span in band:
+            for match in re.finditer(r"(?<!\d)(\d+)[.．](?!\d)", span.text):
+                if not _CJK_CHARACTERS.search(span.text[match.end():]):
+                    continue
+                if len(span.character_centers) != len(span.text):
+                    return
+                labels.append((int(match.group(1)), band_index, span, match.start()))
+    if len(labels) != 3:
+        return
+    (number, index, span, start), second, third = labels
+    target = 2 * second[1] - third[1]
+    if (second[0] != number + 1 or third[0] != number + 2
+            or third[1] - second[1] != 2 or target < 0 or index != target + 1
+            or not start or not span.text[:start].rstrip().endswith(('。', '！', '？', '!', '?'))
+            or not _CJK_CHARACTERS.search(span.text[start:])
+            or not bands[target] or not all(item.character_centers for item in bands[target])):
+        return
+    label_x = span.character_centers[start]
+    if (any(abs(item[2].character_centers[item[3]] - label_x) > height for item in labels[1:])
+            or max(item.character_centers[-1] for item in bands[target]) >= label_x - height
+            or span.character_centers[start - 1] >= label_x - height):
+        return
+    boxes = span.character_boxes if len(span.character_boxes) == len(span.text) else ()
+    before = replace(span, text=span.text[:start], character_centers=span.character_centers[:start],
+                     character_boxes=boxes[:start])
+    after = replace(span, text=span.text[start:], character_centers=span.character_centers[start:],
+                    character_boxes=boxes[start:])
+    bands[index].remove(span)
+    bands[index].append(before)
+    bands[target].append(after)
+
+
 def extract_lyrics(
     page: PageObservation, row_index: int, band_after_index: int | None = None,
     observe: list[LyricSpanRejection] | None = None,
@@ -591,6 +627,7 @@ def extract_lyrics(
             bands[-1].append(span)
         else:
             bands.append([span])
+    _numbered_verse_continuation(bands, digit_height)
     drafts = []
     previous_band: list[TextSpan] = []
     for band in bands:
