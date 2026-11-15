@@ -119,6 +119,62 @@ def _split_stacked_character_spans(
     return tuple(result)
 
 
+def _split_corroborated_stacked_lyrics(
+    gray: Image.Image, spans: tuple[TextSpan, ...], rows: tuple[MusicRow, ...],
+) -> tuple[TextSpan, ...]:
+    """Split tall crop readings only when ink and neighboring verses agree."""
+    if not rows or not any(row.notes for row in rows):
+        return spans
+    height = median(note.box[3] - note.box[1] for row in rows for note in row.notes)
+    pixels = gray.load()
+    assert pixels is not None
+    result = []
+    for span in spans:
+        if (not 0 <= span.box[0] < span.box[2] <= gray.width
+                or not 0 <= span.box[1] < span.box[3] <= gray.height
+                or span.box[2] - span.box[0] >= span.height or len(span.text) < 2
+                or any(not "\u3400" <= char <= "\u9fff" for char in span.text)
+                or len(span.character_boxes) != len(span.text)):
+            result.append(span)
+            continue
+        pieces = _split_stacked_character_spans((span,), rows[0].box[1], height)
+        if len(pieces) < 2 or not any(
+            row.box[3] < pieces[0].center_y <= pieces[-1].center_y < (
+                rows[index + 1].box[1] if index + 1 < len(rows) else gray.height
+            ) for index, row in enumerate(rows)
+        ):
+            result.append(span)
+            continue
+        anchors = []
+        for piece in pieces:
+            left, top, right, bottom = piece.box
+            if (left < 0 or top < 0 or right > gray.width or bottom > gray.height
+                    or sum(cast(int, pixels[x, y]) < 160
+                           for y in range(top, bottom) for x in range(left, right)) < 10):
+                break
+            matches = [other for other in spans if other is not span and other.confidence >= 0.7
+                       and any("\u3400" <= char <= "\u9fff" for char in other.text)
+                       and (other.box[2] <= left or other.box[0] >= right)
+                       and abs(other.center_y - piece.center_y)
+                       <= max(9, min(other.height, piece.height) * 0.42)]
+            if not matches:
+                break
+            anchors.append(min(matches, key=lambda other: abs(other.center_y - piece.center_y)))
+        if len(anchors) != len(pieces) or len(set(anchors)) != len(pieces):
+            result.append(span)
+            continue
+        left, _, right, _ = span.box
+        if any(not any(
+            all(sum(cast(int, pixels[x, y]) < 160 for x in range(left, right)) < 2
+                for y in (gap, gap + 1))
+            for gap in range(round(first.center_y), round(second.center_y) - 1)
+        ) for first, second in zip(pieces, pieces[1:], strict=False)):
+            result.append(span)
+            continue
+        result.extend(pieces)
+    return tuple(result)
+
+
 def _character_positions_supported(
     span: TextSpan, lyrics: tuple[TextSpan, ...], height: float,
 ) -> bool:
@@ -800,8 +856,9 @@ def _performance_text(
         and text._text_key(span.text) in text._text_key(owner.text)
         and _box_coverage(span.box, owner.box) >= 0.6 for owner in score_text_spans
     ))
-    return replace(page, rows=rows, bz_overlays=overlays,
-                   text_spans=_ink_lyric_positions(gray, retained),
+    lyrics = _ink_lyric_positions(gray, retained)
+    lyrics = _split_corroborated_stacked_lyrics(gray, lyrics, rows)
+    return replace(page, rows=rows, bz_overlays=overlays, text_spans=lyrics,
                    non_lyric_regions=_non_lyric_music_marks(gray, rows, retained))
 
 
