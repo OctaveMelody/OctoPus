@@ -33,7 +33,7 @@ from .marks import note_modifiers, row_parentheses, row_sustains, vertical_bend
 from .observations import BzOverlay, MusicRow, Note, PageObservation
 from .ornaments import EndingSegment, row_endings, row_graces, voice_components
 from .pitch_marks import MarkRejection, PitchMarkCandidate
-from .slurs import curve_core_parts, row_slurs
+from .slurs import curve_core_parts, ending_box_curve, row_slurs
 from .text import image_digit, music_characters
 from .voices import (
     VoiceGroup,
@@ -1907,6 +1907,10 @@ def _row_with_source_marks(
         and not (
             component.box[0] < left and component.box[3] > bottom
             and component.box[2] <= notes[0][2] + height * 0.5
+        )
+        and not ending_box_curve(
+            component, (left, top, right, bottom), notes, row.box[1],
+            height, source_gray, row.barlines,
         )
         for left, top, right, bottom in ending_boxes
     ) and not any(

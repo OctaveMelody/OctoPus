@@ -38,6 +38,30 @@ def curve_core_parts(
     return parts, core
 
 
+def ending_box_curve(
+    component: Component, ending: Box, notes: tuple[Box, ...], row_top: int,
+    height: float, gray: Image.Image, barlines: tuple[int, ...],
+) -> bool:
+    """Keep a separate, note-anchored curve extending below an ending box."""
+    left, top, right, bottom = component.box
+    if not (ending[0] <= left < right <= ending[2]
+            and ending[3] - height * 0.2 <= top < ending[3]
+            and ending[3] + height * 0.4 <= bottom < row_top
+            and component.width >= height * 1.5):
+        return False
+    isolated = _component_ink(component, gray, 160)
+    if isolated is None:
+        return False
+    return any(
+        start is not None and end is not None
+        and abs((notes[start][0] + notes[start][2]) / 2 - left) <= height * 0.75
+        and abs((notes[end][0] + notes[end][2]) / 2 - right) <= height * 0.75
+        for start, end in _detached_row_slurs(
+            notes, row_top, height, [component], isolated, barlines,
+        )
+    )
+
+
 def row_slurs(
     notes: tuple[Box, ...], row_top: int, height: float,
     components: list[Component], gray: Image.Image, barlines: tuple[int, ...] = (),
