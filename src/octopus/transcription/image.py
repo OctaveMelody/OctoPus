@@ -399,6 +399,59 @@ def _short_measure_bars(
     return frozenset(supported)
 
 
+def _faint_supported_barlines(
+    gray: Image.Image, components: list[Component],
+    candidates: list[tuple[Component, DigitMatch]], height: int,
+    existing_bars: list[Component],
+) -> frozenset[Component]:
+    """Use repeated faint bars and intervening note ink to support a fallback-only row."""
+    if not height:
+        return frozenset()
+    pixels = gray.load()
+    assert pixels is not None
+    main = [(component, match) for component, match in candidates
+            if abs(component.height - height) <= max(3, height * 0.12)]
+    recovered: set[Component] = set()
+    for group in _groups(main, height):
+        left = min(component.box[0] for component, _ in group)
+        right = max(component.box[2] for component, _ in group)
+        if (len(group) < 5 or not all(match[2] for _, match in group)
+                or right - left < gray.width * 0.3):
+            continue
+        center_y = median(component.center_y for component, _ in group)
+        if any(_barline(bar, center_y, height, gray) for bar in existing_bars):
+            continue
+        top = max(0, round(center_y - height * 0.95))
+        bottom = min(gray.height, round(center_y + height * 0.95))
+        columns = [x for x in range(max(0, left - height * 2), min(gray.width, right + height * 2))
+                   if sum(cast(int, pixels[x, y]) < 220 for y in range(top, bottom))
+                   >= (bottom - top) * 0.8]
+        runs: list[list[int]] = []
+        for x in columns:
+            if runs and x == runs[-1][-1] + 1:
+                runs[-1].append(x)
+            else:
+                runs.append([x])
+        bars: list[Component] = []
+        for run in runs:
+            if (len(run) > height * 0.4
+                    or bars and run[0] - bars[-1].box[0] < height * 3):
+                continue
+            area = sum(cast(int, pixels[x, y]) < 220 for x in run for y in range(top, bottom))
+            bars.append(Component((run[0], top, run[-1] + 1, bottom), area))
+        if len(bars) < 3 or bars[-1].box[0] - bars[0].box[0] < gray.width * 0.3:
+            continue
+        centers = [(component.box[0] + component.box[2]) / 2 for component in components
+                   if abs(component.center_y - center_y) <= height * 0.4
+                   and abs(component.height - height) <= height * 0.2
+                   and height * 0.2 <= component.width <= height]
+        measures = sum(any(a.box[2] < x < b.box[0] for x in centers)
+                       for a, b in zip(bars, bars[1:], strict=False))
+        if measures >= 2:
+            recovered.update(bars)
+    return frozenset(recovered)
+
+
 def _barline(
     component: Component, row_y: float, digit_height: int, gray: Image.Image,
     *, shared: bool = False, short_bars: frozenset[Component] = frozenset(),
@@ -709,6 +762,7 @@ def _music_row(
     barline_candidates: list[Component] | None = None,
     shared_barline_positions: tuple[int, ...] = (),
     short_bars: frozenset[Component] = frozenset(),
+    recover_short_joined: bool = False,
 ) -> MusicRow:
     group.sort(key=lambda pair: pair[0].box[0])
     row_y = sum(component.center_y for component, _ in group) / len(group)
@@ -760,6 +814,7 @@ def _music_row(
             gray if joined_underlines else None, right_limit,
             duration_gray=gray, barlines=tuple(bars), observe=observed, unresolved=pending,
             digit_boxes=tuple(item[0].box for item in group),
+            allow_short_joined=recover_short_joined,
         )
         plausible_marks.extend(pending)
 
@@ -1521,6 +1576,29 @@ def _recognize_working_rows(
         required = max(3, ceil(min(len(shared_positions), len(shared_row.barlines)) * 0.6))
         if len(shared_barlines) >= required:
             accepted[index] = replace(shared_row, barlines=shared_barlines)
+
+    for index, (group, _row, shape_supported) in enumerate(row_records):
+        if index in accepted or not shape_supported:
+            continue
+        faint_bars = _faint_supported_barlines(
+            gray, components, group, digit_height, barline_candidates,
+        )
+        if not faint_bars:
+            continue
+        recovered = _recover_row_digits(
+            group, components, digit_height, gray, known_boxes, templates,
+            antialiased_templates,
+        )
+        group.extend(recovered)
+        candidates.extend(recovered)
+        row = _music_row(
+            group, components, digit_height, gray, joined_underlines=resized,
+            barline_candidates=[*barline_candidates, *faint_bars],
+            short_bars=classification.short_bars | faint_bars,
+            recover_short_joined=True,
+        )
+        accepted[index] = row
+        candidate_rows[index] = row
 
     rows = [accepted[index] for index in sorted(accepted)]
     row_boxes = tuple(row.box for row in rows)

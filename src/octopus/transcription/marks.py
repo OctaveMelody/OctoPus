@@ -140,12 +140,15 @@ def _inside_fermata_dot(dot: Component, components: list[Component], digit_width
 
 
 def _joined_underline_and_dot(
-    note: Box, component: Component, gray: Image.Image, digit_height: int
+    note: Box, component: Component, gray: Image.Image, digit_height: int,
+    *, allow_short: bool = False,
 ) -> tuple[int, bool, tuple[float, ...]]:
     """Read a shallow underline blob whose low octave dots touch the stroke."""
     left, _, right, bottom = note
+    short = component.width < digit_height * 1.3
     if not (
-        component.width >= digit_height * 1.3
+        (allow_short or not short)
+        and component.width >= (right - left) * 0.85
         and component.height <= digit_height * 0.6
         and _overlap(left, right, component.box[0], component.box[2]) >= (right - left) * 0.65
     ):
@@ -208,7 +211,8 @@ def _joined_underline_and_dot(
     # Only ink below the local last tier is a dot; tilted tails and short tiers remain beams.
     dot_rows = {y for x, ys in columns if abs(x - center) <= radius for y in ys
                 if y > max(horizontal_rows[-1], wide_rows[-1])}
-    return line_count, len(dot_rows) >= 2, local_centers
+    has_dot = len(dot_rows) >= 2
+    return (0, False, ()) if short and not has_dot else (line_count, has_dot, local_centers)
 
 
 def _joined_duration_bands(
@@ -421,6 +425,7 @@ def note_modifiers(
     observe: list[PitchMarkCandidate] | None = None,
     unresolved: list[Box] | None = None,
     digit_boxes: tuple[Box, ...] = (),
+    allow_short_joined: bool = False,
 ) -> tuple[int, int, int, set[Box]]:
     """Return octave, duration slashes/dots and used boxes for a main digit.
 
@@ -645,7 +650,7 @@ def note_modifiers(
                 lines.append(component)
         elif gray is not None:
             count, has_dot, local_centers = _joined_underline_and_dot(
-                note, component, gray, digit_height,
+                note, component, gray, digit_height, allow_short=allow_short_joined,
             )
             if count:
                 joined_lines += count
