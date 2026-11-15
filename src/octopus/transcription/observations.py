@@ -44,6 +44,7 @@ class MusicRow:
     # emitted marks. Empty unless a row actually rejected a mark-shaped component near a digit.
     pitch_mark_regions: tuple[Box, ...] = ()
     pitch_mark_candidates: tuple[PitchMarkCandidate, ...] = ()
+    slur_origins: tuple[tuple[tuple[int | None, int | None], Box, int], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

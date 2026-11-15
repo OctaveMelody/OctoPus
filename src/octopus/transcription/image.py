@@ -1914,11 +1914,14 @@ def _row_with_source_marks(
         and top <= component.center_y <= bottom
         for left, top, right, bottom in (pin.box for pin in hairpins)
     )]
-    slurs = row_slurs(notes, row.box[1], height, slur_marks, source_gray, row.barlines)
+    origins: list[tuple[tuple[int | None, int | None], Box, int]] = []
+    slurs = row_slurs(
+        notes, row.box[1], height, slur_marks, source_gray, row.barlines, origins_out=origins,
+    )
     return replace(
         row,
         notes=tuple(recovered_notes), unresolved_marks=unresolved,
-        slurs=slurs,
+        slurs=slurs, slur_origins=tuple(origins),
         parentheses=row_parentheses(music, height, marks, source_gray),
         hairpins=hairpins, decoration_regions=(*symbol_regions, *(pin.box for pin in hairpins)),
     )

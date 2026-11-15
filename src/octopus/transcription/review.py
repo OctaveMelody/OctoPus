@@ -128,7 +128,13 @@ def span_review_findings(
             located = [(start, end) for start, end in row.slurs
                        if start is not None and end is not None
                        and 0 <= start <= end < len(row.notes)]
-            if len(set(located)) != len(located):
+            if any(
+                len(origins := [(box, layers) for pair, box, layers in row.slur_origins
+                                if pair == span]) != located.count(span)
+                or len({box for box, _ in origins}) != 1
+                or any(layers != located.count(span) for _, layers in origins)
+                for span in set(located) if located.count(span) > 1
+            ):
                 findings.append(ReviewFinding(
                     "span_doubled", page_number,
                     "More than one detected curve has the same endpoints. "

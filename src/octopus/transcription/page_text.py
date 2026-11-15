@@ -918,6 +918,53 @@ def _score_text(page: PageObservation) -> PageObservation:
 
 
 
+def _remove_text_owned_curve_duplicates(
+    page: PageObservation, spans: tuple[TextSpan, ...],
+) -> PageObservation:
+    characters = [
+        (box, span.confidence)
+        for span in spans if span.confidence >= 0.9 and len(span.character_boxes) == len(span.text)
+        for char, box in zip(span.text, span.character_boxes, strict=True)
+        if "\u3400" <= char <= "\u9fff"
+    ]
+
+    def adjust(row: MusicRow) -> MusicRow:
+        if not row.slur_origins or not row.notes:
+            return row
+        height = median(note.box[3] - note.box[1] for note in row.notes)
+        slurs = list(row.slurs)
+        removed: set[tuple[int | None, int | None]] = set()
+        for pair in set(slurs):
+            origins = [(box, layers) for span, box, layers in row.slur_origins if span == pair]
+            if None in pair or slurs.count(pair) != 2 or len(origins) != 2:
+                continue
+            (upper, upper_layers), (lower, lower_layers) = sorted(origins, key=lambda x: x[0][1])
+            if (upper_layers != 1 or lower_layers != 1
+                    or lower[1] - upper[3] < height * 0.5
+                    or min(upper[2], lower[2]) - max(upper[0], lower[0])
+                    < min(upper[2] - upper[0], lower[2] - lower[0]) * 0.5):
+                continue
+            owners = [box for box, confidence in characters if confidence >= 0.95
+                      and _box_coverage(upper, box) >= 0.9]
+            if not any(
+                other != owner and max(owner[1], other[1]) < min(owner[3], other[3])
+                and max(owner[0] - other[2], other[0] - owner[2], 0) <= height * 3
+                for owner in owners for other, _ in characters
+            ) or any(_box_coverage(lower, box) >= 0.1 for box, _ in characters):
+                continue
+            slurs.remove(pair)
+            removed.add(pair)
+        return replace(row, slurs=tuple(slurs), slur_origins=tuple(
+            origin for origin in row.slur_origins if origin[0] not in removed
+        )) if removed else row
+
+    return replace(
+        page, rows=tuple(adjust(row) for row in page.rows),
+        bz_overlays=tuple(replace(overlay, row=adjust(overlay.row))
+                          for overlay in page.bz_overlays),
+    )
+
+
 def enrich_page_text(
     path: Path,
     page: PageObservation,
@@ -947,4 +994,6 @@ def enrich_page_text(
     if on_text_ready is not None:
         on_text_ready()
     page = _score_text(page)
-    return _performance_text(path, page, original_spans)
+    return _remove_text_owned_curve_duplicates(
+        _performance_text(path, page, original_spans), original_spans,
+    )

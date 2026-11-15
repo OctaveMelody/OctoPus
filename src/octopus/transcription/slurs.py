@@ -41,6 +41,7 @@ def curve_core_parts(
 def row_slurs(
     notes: tuple[Box, ...], row_top: int, height: float,
     components: list[Component], gray: Image.Image, barlines: tuple[int, ...] = (),
+    *, origins_out: list[tuple[tuple[int | None, int | None], Box, int]] | None = None,
 ) -> tuple[tuple[int | None, int | None], ...]:
     origins: list[tuple[tuple[int | None, int | None], Component]] = []
     found = list(_detached_row_slurs(
@@ -216,11 +217,22 @@ def row_slurs(
                 recovered.remove(span)
     faint: Counter[tuple[int | None, int | None]] = Counter(span for span, _ in faint_curves)
     missing = (Counter(recovered) | faint) - Counter(found)
+    direct_found = Counter(found)
     merged = found
     for pair in (*recovered, *faint.elements()):
         if missing[pair]:
             merged.append(pair)
             missing[pair] -= 1
+    if origins_out is not None:
+        direct = [(span, component) for span, component in origins if component not in rejected]
+        direct_counts = Counter(span for span, _ in direct)
+        component_counts = Counter(direct)
+        final_counts = Counter(merged)
+        origins_out.extend((span, component.box, component_counts[(span, component)])
+                           for span, component in direct if (
+            final_counts[span] > 1
+            and final_counts[span] == direct_found[span] == direct_counts[span]
+        ))
     return tuple(merged)
 
 
