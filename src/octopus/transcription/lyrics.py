@@ -18,6 +18,7 @@ _DYNAMICS = {
 _CJK_CHARACTERS = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 _PERFORMER = re.compile(r"[（(]\s*([女男合])\s*[）)]")
 _ANNOTATION = re.compile(r"[（(]\s*[女男合]\s*[）)]|[①-⑳]|(?<!\d)\d+[.．](?!\d)")
+_CHORD = re.compile(r"[A-G][#♯b♭]?(?:maj|min|dim|aug|sus|add|m)?\d*")
 _PAGINATION = re.compile(
     r"(?:第\s*\d+\s*页\s*)?共\s*\d+\s*页|第\s*\d+\s*页|page\s+\d+(?:\s+of\s+\d+)?",
     re.I,
@@ -374,6 +375,35 @@ def _span_refusals(
     )
 
 
+def _chord_band_for_next_row(band: list[TextSpan], following: MusicRow) -> bool:
+    """Keep a line of chord symbols immediately above its next music row out of lyrics."""
+    values = [span.text.strip() for span in band]
+    if (len(values) < 3 or len(set(values)) < 2 or not any(len(value) > 1 for value in values)
+            or not all(_CHORD.fullmatch(value) for value in values) or not following.notes):
+        return False
+    height = median(note.box[3] - note.box[1] for note in following.notes)
+    gap = following.box[1] - max(span.box[3] for span in band)
+    centers = [(note.box[0] + note.box[2]) / 2 for note in following.notes]
+    aligned = sum(min(abs(span.center_x - x) for x in centers) <= height for span in band)
+    return 0 <= gap <= height and aligned * 4 >= len(band) * 3
+
+
+def _overfull_lyric_band(band: list[TextSpan], row: MusicRow, height: int) -> bool:
+    """Keep aligned word lyrics when a few note glyphs were not recognized."""
+    units = [(word, x) for span in band for word, x in _lyric_units(span)
+             if not word.startswith('"')]
+    if (len(band) < 4 or len(row.notes) < 4 or len(units) > len(row.notes) * 1.25
+            or any(_CJK_CHARACTERS.search(word) for word, _ in units)):
+        return False
+    centers = [(note.box[0] + note.box[2]) / 2 for note in row.notes]
+    matched = []
+    for _, x in units:
+        index = min(range(len(centers)), key=lambda i: abs(centers[i] - x))
+        if abs(centers[index] - x) <= height:
+            matched.append(index)
+    return len(matched) * 4 >= len(units) * 3 and len(set(matched)) * 5 >= len(centers) * 3
+
+
 def extract_lyrics(
     page: PageObservation, row_index: int, band_after_index: int | None = None,
     observe: list[LyricSpanRejection] | None = None,
@@ -561,11 +591,14 @@ def extract_lyrics(
     drafts = []
     previous_band: list[TextSpan] = []
     for band in bands:
+        if next_index < len(page.rows) and _chord_band_for_next_row(band, page.rows[next_index]):
+            continue
         syllables = [word for span in band for word, _ in _lyric_units(span)
                      if not word.startswith('"')]
         # A line with more sung units than available note slots is likely prose,
         # a credit, or an OCR merge; leave it for text-ownership review.
-        if not syllables or len(syllables) > len(alignment_row.notes):
+        if not syllables or (len(syllables) > len(alignment_row.notes)
+                             and not _overfull_lyric_band(band, alignment_row, digit_height)):
             continue
         # Additional verses need a continuous lyric baseline, bounded by the next music row.
         if min(span.center_y for span in band) >= ordinary_bottom:
