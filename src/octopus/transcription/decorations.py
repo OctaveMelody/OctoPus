@@ -46,6 +46,7 @@ _REPEATED_LYRIC_INSTRUCTION = re.compile(
     r"(?:第?[0-9一二三四五六七八九十]+段)?(?:歌词|歌詞)"
 )
 _INSTRUCTION_CUES = re.compile(r"(?:反复|重复).*(?:唱|歌词)|(?:演奏|演唱|歌词)")
+_KEY_CHANGE = re.compile(r"转(?:调(?:至|为)?)?\s*1\s*=\s*[A-G][#♯b♭]?(?:\s*\([^()]*\))?", re.I)
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +83,8 @@ def score_text_kind(value: str) -> str | None:
     """Recognize short structural titles and explicit repeat-lyric instructions."""
     normalized = unicodedata.normalize("NFKC", value).strip()
     content = normalized.strip("()[]{} \t\r\n")
+    if _KEY_CHANGE.fullmatch(normalized):
+        return "key_change"
     if ending_title_text(value) is not None:
         return "ending_title"
     if _REPEATED_LYRIC_INSTRUCTION.fullmatch(content):

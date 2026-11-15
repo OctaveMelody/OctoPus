@@ -7,6 +7,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 from statistics import median
+from typing import cast
+
+from PIL import Image
 
 from . import text
 from .components import Box
@@ -614,6 +617,77 @@ def _pdf_lyric_baseline_text(
     )
 
 
+def _ink_lyric_positions(gray: Image.Image, spans: tuple[TextSpan, ...]) -> tuple[TextSpan, ...]:
+    """Refine OCR character boxes only when separate crop readings corroborate the ink."""
+    pixels = gray.load()
+    assert pixels is not None
+    refined = []
+    punctuation = "，。！？、,.!?；;：:"
+    for span in spans:
+        chars = span.text
+        if (len(chars) < 6 or span.confidence < 0.9
+                or len(span.character_centers) != len(chars)
+                or len(span.character_boxes) != len(chars)
+                or any(not ("\u3400" <= char <= "\u9fff" or char in punctuation)
+                       for char in chars)):
+            refined.append(span)
+            continue
+        related = [other for other in spans if (
+            other is not span and other.confidence >= 0.9 and len(other.text) < len(chars)
+            and len(other.character_boxes) == len(other.text)
+            and other.box[0] < span.box[2] and other.box[2] > span.box[0]
+            and (min(other.box[3], span.box[3]) - max(other.box[1], span.box[1])) * 2
+            >= min(other.height, span.height)
+        )]
+        if not related or any(other.confidence >= span.confidence for other in related):
+            refined.append(span)
+            continue
+        left, top, right, bottom = span.box
+        if left < 0 or top < 0 or right > gray.width or bottom > gray.height:
+            refined.append(span)
+            continue
+        columns = [x for x in range(left, right)
+                   if sum(cast(int, pixels[x, y]) < 160 for y in range(top, bottom)) >= 2]
+        runs: list[list[int]] = []
+        for x in columns:
+            if runs and x == runs[-1][-1] + 1:
+                runs[-1].append(x)
+            else:
+                runs.append([x])
+        boxes = tuple((run[0], top, run[-1] + 1, bottom) for run in runs if len(run) >= 2)
+        if len(boxes) != len(chars) or any(
+            (box[2] - box[0] < span.height * 0.25 if char not in punctuation
+             else box[2] - box[0] > span.height * 0.4)
+            for char, box in zip(chars, boxes, strict=False)
+        ):
+            refined.append(span)
+            continue
+        centers = tuple((box[0] + box[2]) / 2 for box in boxes)
+        shifts = [abs(old - new) for old, new in zip(span.character_centers, centers, strict=True)]
+        if median(shifts) < span.height * 0.2 or max(shifts) > span.height:
+            refined.append(span)
+            continue
+        corroborated: set[int] = set()
+        conflict = False
+        for other in related:
+            for char, box in zip(other.text, other.character_boxes, strict=True):
+                if not "\u3400" <= char <= "\u9fff":
+                    continue
+                overlap, index = max(
+                    ((max(0, min(box[2], candidate[2]) - max(box[0], candidate[0])), index)
+                     for index, candidate in enumerate(boxes)), default=(0, 0),
+                )
+                if overlap * 2 < min(box[2] - box[0], boxes[index][2] - boxes[index][0]):
+                    continue
+                if chars[index] != char:
+                    conflict = True
+                else:
+                    corroborated.add(index)
+        refined.append(replace(span, character_centers=centers, character_boxes=boxes)
+                       if not conflict and len(corroborated) >= 2 else span)
+    return tuple(refined)
+
+
 def _performance_text(
     path: Path, page: PageObservation, original: tuple[TextSpan, ...],
 ) -> PageObservation:
@@ -678,9 +752,13 @@ def _performance_text(
     overlays = tuple(replace(bz, row=decorate(bz.row)) for bz in page.bz_overlays)
     removed = consumed | set(bz_duplicates) | set(score_text_spans)
     retained = remove_attached_direction_text(page.text_spans, direction_sources)
-    return replace(page, rows=rows, bz_overlays=overlays, text_spans=tuple(
-        span for span in retained if span not in removed
+    retained = tuple(span for span in retained if span not in removed and not any(
+        score_text_kind(owner.text) == "key_change" and len(text._text_key(span.text)) >= 2
+        and text._text_key(span.text) in text._text_key(owner.text)
+        and _box_coverage(span.box, owner.box) >= 0.6 for owner in score_text_spans
     ))
+    return replace(page, rows=rows, bz_overlays=overlays,
+                   text_spans=_ink_lyric_positions(gray, retained))
 
 
 def _attach_score_text(
