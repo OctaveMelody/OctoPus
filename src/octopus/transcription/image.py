@@ -14,7 +14,7 @@ from PIL import Image, ImageOps
 
 from .accompaniment import bracketed_row_centers, compact_accompaniment_owner
 from .components import Box, Component, connected_components
-from .decorations import row_hairpins, symbol_decorations
+from .decorations import attached_mordents, row_hairpins, symbol_decorations
 from .glyphs import (
     MAX_DIGIT_HEIGHT,
     MIN_DIGIT_VECTOR_SUPPORT,
@@ -1922,6 +1922,9 @@ def _row_with_source_marks(
     slurs = row_slurs(
         notes, row.box[1], height, slur_marks, source_gray, row.barlines, origins_out=origins,
     )
+    mordents = attached_mordents(source_gray, notes, slurs, slur_marks)
+    recovered_notes = [replace(note, decorations=tuple(dict.fromkeys((*note.decorations, "sby"))))
+                       if index in mordents else note for index, note in enumerate(recovered_notes)]
     return replace(
         row,
         notes=tuple(recovered_notes), unresolved_marks=unresolved,

@@ -11,9 +11,9 @@ from itertools import combinations
 from statistics import linear_regression, median
 from typing import cast
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
-from .components import Box, Component
+from .components import Box, Component, connected_components
 from .glyphs import (
     GLYPHS,
     _glyph_template,
@@ -562,6 +562,68 @@ def row_hairpins(
             ):
                 found[key] = Hairpin(start, end, code, box)
     return tuple(sorted(found.values(), key=lambda pin: (pin.start, pin.end, pin.code)))
+
+
+def _right_tilt(mask: Image.Image, item: Component) -> float:
+    left, top, right, bottom = item.box
+    pixels = mask.load()
+    assert pixels is not None
+    band = max(1, item.height // 4)
+    upper = [x for y in range(top, top + band) for x in range(left, right) if pixels[x, y] == 0]
+    lower = [x for y in range(bottom - band, bottom) for x in range(left, right)
+             if pixels[x, y] == 0]
+    return sum(lower) / len(lower) - sum(upper) / len(upper)
+
+
+def attached_mordents(
+    gray: Image.Image, notes: tuple[Box, ...], slurs: tuple[tuple[int | None, int | None], ...],
+    components: list[Component],
+) -> set[int]:
+    """Find a paired, thick zigzag joined to a detected curve at its ending note."""
+    found: set[int] = set()
+    for start, end in slurs:
+        if start is None or end is None or not 0 <= start < end < len(notes):
+            continue
+        left, top, right, bottom = notes[end]
+        height = bottom - top
+        center = (left + right) / 2
+        curves = [item for item in components if (
+            item.width >= height * 1.8 and item.box[0] <= center <= item.box[2]
+            and item.box[1] < top and item.box[3] < top
+        )]
+        if not curves:
+            continue
+        pad = round(height * 0.45)
+        x0, y0 = max(0, left - pad), max(0, round(top - height * 1.25))
+        x1, y1 = min(gray.width, right + pad), min(gray.height, round(top - height * 0.25))
+        if x1 <= x0 or y1 <= y0:
+            continue
+        size = max(3, round(height * 0.1) | 1)
+        mask = gray.crop((x0, y0, x1, y1)).point(lambda value: 0 if value < 160 else 255)
+        mask = mask.filter(ImageFilter.MaxFilter(size)).filter(ImageFilter.MinFilter(size))
+        pieces = [item for item in connected_components(mask) if (
+            height * 0.18 <= item.width <= height * 0.4
+            and height * 0.18 <= item.height <= height * 0.4
+            and item.area >= item.width * item.height * 0.6
+        )]
+        for first, second in combinations(pieces, 2):
+            first, second = sorted((first, second), key=lambda item: item.box[0])
+            if not (
+                0 <= second.box[0] - first.box[2] <= height * 0.2
+                and abs(first.center_y - second.center_y) <= height * 0.1
+                and 0.7 <= first.width / second.width <= 1.4
+                and 0.7 <= first.height / second.height <= 1.4
+                and abs(x0 + (first.box[0] + second.box[2]) / 2 - center) <= height * 0.25
+                and any(curve.box[0] <= x0 + first.box[0]
+                        and x0 + second.box[2] <= curve.box[2]
+                        and curve.box[1] <= y0 + first.box[1]
+                        and y0 + first.box[3] <= curve.box[3] for curve in curves)
+            ):
+                continue
+            if all(_right_tilt(mask, item) >= item.width * 0.12 for item in (first, second)):
+                found.add(end)
+                break
+    return found
 
 
 def symbol_decorations(
