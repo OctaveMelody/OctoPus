@@ -70,3 +70,6 @@ class PageObservation:
     ocr_text_spans: tuple[TextSpan, ...] | None = None
     text_merge_conflicts: tuple[TextMergeConflict, ...] = ()
     non_lyric_regions: tuple[Box, ...] = ()
+    # Single lyric characters that a focused re-read added to text_spans. They are already in
+    # text_spans; this records them separately so compilation can report each one for review.
+    recovered_lyric_glyphs: tuple[TextSpan, ...] = ()

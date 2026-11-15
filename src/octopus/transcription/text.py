@@ -415,8 +415,13 @@ def image_score_direction_text(
 
 def image_lyric_text(
     path: Path, rows: tuple[Box, ...], *, small_page: bool, recover_sparse: bool = False,
+    row_indices: frozenset[int] | None = None,
 ) -> tuple[TextSpan, ...] | None:
-    """Read separate lyric baselines when whole-page OCR merges them."""
+    """Read separate lyric baselines when whole-page OCR merges them.
+
+    `row_indices` restricts the read to those music rows (and the lyric band under each);
+    callers that only need one system pass it because each selected row costs its own OCR call.
+    """
     engine = _ocr_engine()
     if engine is None:
         return None
@@ -434,6 +439,8 @@ def image_lyric_text(
     margin = max(2, round(width * 0.02))
     spans: list[TextSpan] = []
     for index, row in enumerate(rows):
+        if row_indices is not None and index not in row_indices:
+            continue
         note_height = row[3] - row[1]
         top = row[3] + max(4, round(note_height * 0.4))
         bottom = (rows[index + 1][1] if index + 1 < len(rows) else height) - max(

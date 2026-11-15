@@ -9,7 +9,7 @@ from pathlib import Path
 from statistics import median
 from typing import cast
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from . import text
 from .components import Box
@@ -17,6 +17,7 @@ from .decorations import decoration_token, ending_title_text, score_text_kind, t
 from .directions import attach_score_directions, remove_attached_direction_text
 from .headers import extract_headers, printed_key_span, stacked_meter_span
 from .image import _read_page
+from .lyrics import extract_lyrics
 from .observations import MusicRow, PageObservation
 from .text import (
     MIN_TEXT_SPAN_CONFIDENCE,
@@ -27,6 +28,30 @@ from .text import (
     image_score_direction_text,
     merge_text,
 )
+
+
+# Tuning for the row-local unclaimed-lyric recovery. Every radius below is a multiple of the
+# median note height, which is also the printed lyric glyph size in these scans. Measured crop
+# readings for the gated corpus place a clipped or split detection of one printed character at
+# <=0.44 note heights from its sibling and a genuine neighbouring lyric character at >=1.58, so
+# the merge guard sits between the two. Likewise an owned character sits <=0.35 note heights from
+# a crop reading that re-reads it, while a genuinely missing character sits >=3.08 from every
+# owned character; the duplicate guard sits between those clusters, and the ink window stays
+# inside one glyph box so a printed neighbour cannot fake a hole. The measurement behind these
+# separations is recorded in the development accuracy plan for this workstream.
+UNCLAIMED_LYRIC_INK_LEVEL = 160
+UNCLAIMED_LYRIC_INK_MINIMUM = 10
+UNCLAIMED_LYRIC_INK_RADIUS = 0.5
+UNCLAIMED_LYRIC_SLOT_RADIUS = 0.75
+UNCLAIMED_LYRIC_BAND_RADIUS = 0.9
+UNCLAIMED_LYRIC_BAND_TOLERANCE = 0.75
+UNCLAIMED_LYRIC_STACK_MINIMUM = 2
+UNCLAIMED_LYRIC_MERGE_GUARD = 0.75
+UNCLAIMED_LYRIC_DUPLICATE_RADIUS = 1.0
+UNCLAIMED_LYRIC_TILE_RADIUS = 1.1
+UNCLAIMED_LYRIC_CROP_CONFIDENCE = 0.95
+UNCLAIMED_LYRIC_TILE_CONFIDENCE = 0.9
+UNCLAIMED_LYRIC_TILE_UPSCALE = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -787,6 +812,173 @@ def _non_lyric_music_marks(
     return tuple(regions)
 
 
+def _baseline_glyph_centers(
+    page: PageObservation, center_y: float, height: float,
+) -> tuple[float, ...]:
+    """Centres of the characters one printed lyric baseline already owns."""
+    tolerance = max(9, height * UNCLAIMED_LYRIC_BAND_TOLERANCE)
+    centers: list[float] = []
+    for span in page.text_spans:
+        if abs(span.center_y - center_y) > tolerance:
+            continue
+        if len(span.character_centers) == len(span.text):
+            centers.extend(value for char, value in zip(span.text, span.character_centers,
+                                                        strict=True)
+                           if "\u3400" <= char <= "\u9fff")
+        elif len(span.text) == 1 and "\u3400" <= span.text <= "\u9fff":
+            centers.append(span.center_x)
+    return tuple(centers)
+
+
+def _recover_unclaimed_lyric_glyphs(
+    path: Path, gray: Image.Image, page: PageObservation,
+) -> PageObservation:
+    """Corroborate unclaimed stacked lyric ink away from unresolved braces.
+
+    Only a system that no unresolved brace, voice group, D.S./D.C. repeat or B.Z. overlay can
+    be sharing qualifies, and a hole must repeat in at least two printed verses. A focused crop
+    reading then has to agree with an independent re-read of the isolated glyph, so an uncertain
+    character is left for review instead of invented.
+
+    Each accepted candidate costs one OCR call on a 4x tile and each target row one lyric-band
+    re-read, so the whole recovery stays behind the unresolved-brace gate above: only a page with
+    an unresolved brace and the same hole in two printed verses pays for it, and only for those
+    rows.
+    """
+    if (not page.unresolved_braces or page.voice_groups or page.dsb_overlays
+            or page.bz_overlays or page.native_text_spans is not None):
+        return page
+    heights = [note.box[3] - note.box[1] for row in page.rows for note in row.notes]
+    if not heights:
+        return page
+    height = median(heights)
+    pixels = gray.load()
+    assert pixels is not None
+    targets: dict[tuple[int, int], list[float]] = {}
+    for index, row in enumerate(page.rows):
+        bottom = page.rows[index + 1].box[1] if index + 1 < len(page.rows) else page.height
+        if any(brace[1] < bottom and brace[3] > row.box[1] - height
+               for brace in page.unresolved_braces):
+            continue
+        for draft in extract_lyrics(page, index):
+            if (len(draft.regions) < 2
+                    or sum("\u3400" <= char <= "\u9fff" for char in draft.body) < 2):
+                continue
+            center_y = median((box[1] + box[3]) / 2 for box in draft.regions)
+            for slot, (note, group) in enumerate(zip(
+                row.notes, draft.accepted_slot_groups, strict=True,
+            )):
+                if group is not None:
+                    continue
+                center_x = (note.box[0] + note.box[2]) / 2
+                left = max(0, round(center_x - height * UNCLAIMED_LYRIC_INK_RADIUS))
+                right = min(gray.width, round(center_x + height * UNCLAIMED_LYRIC_INK_RADIUS))
+                top = max(0, round(center_y - height * UNCLAIMED_LYRIC_BAND_RADIUS))
+                lower = min(gray.height, round(center_y + height * UNCLAIMED_LYRIC_BAND_RADIUS))
+                ink = sum(cast(int, pixels[x, y]) < UNCLAIMED_LYRIC_INK_LEVEL
+                          for y in range(top, lower) for x in range(left, right))
+                if ink >= UNCLAIMED_LYRIC_INK_MINIMUM:
+                    targets.setdefault((index, slot), []).append(center_y)
+    targets = {
+        key: bands for key, bands in targets.items()
+        if len(bands) >= UNCLAIMED_LYRIC_STACK_MINIMUM
+    }
+    if not targets:
+        return page
+    engine = text._ocr_engine()
+    if engine is None:
+        return page
+    crops = image_lyric_text(
+        path, tuple(row.box for row in page.rows), small_page=height < 16,
+        row_indices=frozenset(index for index, _ in targets),
+    ) or ()
+    if not crops:
+        return page
+    import numpy as np
+
+    source = gray.convert("RGB")
+    added: list[TextSpan] = []
+    occupied: set[tuple[int, int, int]] = set()
+    for crop in crops:
+        if (crop.confidence < UNCLAIMED_LYRIC_CROP_CONFIDENCE
+                or len(crop.character_centers) != len(crop.text)):
+            continue
+        for index, row in enumerate(page.rows):
+            bottom = page.rows[index + 1].box[1] if index + 1 < len(page.rows) else page.height
+            if row.box[3] < crop.center_y < bottom:
+                break
+        else:
+            continue
+        if not row.notes:
+            continue
+        note_centers = [(note.box[0] + note.box[2]) / 2 for note in row.notes]
+        for char_index, char in enumerate(crop.text):
+            if not "\u3400" <= char <= "\u9fff":
+                continue
+            center_x = crop.character_centers[char_index]
+            slot = min(range(len(note_centers)),
+                       key=lambda value: abs(note_centers[value] - center_x))
+            bands = targets.get((index, slot), ())
+            if (not bands
+                    or abs(note_centers[slot] - center_x) > height * UNCLAIMED_LYRIC_SLOT_RADIUS):
+                continue
+            band = min(range(len(bands)), key=lambda value: abs(bands[value] - crop.center_y))
+            key = index, slot, band
+            if key in occupied or (abs(bands[band] - crop.center_y)
+                                   > max(9, height * UNCLAIMED_LYRIC_BAND_TOLERANCE)):
+                continue
+            radius = round(max(height * UNCLAIMED_LYRIC_TILE_RADIUS, crop.height * 0.65))
+            # Two crop readings closer than one glyph box are one clipped or merged detection.
+            if any(other != char_index
+                   and abs(center_x - position) < radius * UNCLAIMED_LYRIC_MERGE_GUARD
+                   for other, position in enumerate(crop.character_centers)):
+                continue
+            # The printed glyph is only missing when no owned character already sits there, so a
+            # crop reading of a neighbouring character can never be sung twice.
+            if any(abs(center_x - value) < height * UNCLAIMED_LYRIC_DUPLICATE_RADIUS
+                   for value in _baseline_glyph_centers(page, bands[band], height)):
+                continue
+            tile_left = max(0, round(center_x) - radius)
+            tile_right = min(gray.width, round(center_x) + radius)
+            tile_top = max(0, crop.box[1] - 2)
+            tile_lower = min(gray.height, crop.box[3] + 2)
+            if tile_left >= tile_right or tile_top >= tile_lower:
+                continue
+            tile = ImageOps.expand(
+                source.crop((tile_left, tile_top, tile_right, tile_lower)), border=4, fill="white",
+            )
+            tile = tile.resize(
+                (tile.width * UNCLAIMED_LYRIC_TILE_UPSCALE,
+                 tile.height * UNCLAIMED_LYRIC_TILE_UPSCALE),
+                Image.Resampling.LANCZOS,
+            )
+            reading, _ = text._ocr_call(engine, np.asarray(tile), use_det=False, use_cls=False)
+            if (not reading or str(reading[0][0]).strip() != char
+                    or float(reading[0][1]) < UNCLAIMED_LYRIC_TILE_CONFIDENCE):
+                continue
+            # Publish the printed glyph box, not the generous re-read tile, so the new character
+            # cannot overlap the neighbours it was just separated from. An OCR character box is
+            # only trusted when it is one glyph wide and centred on the reading.
+            glyph_size = max(height, float(crop.height))
+            half = round(glyph_size * 0.5)
+            fallback = (max(0, round(center_x) - half), tile_top,
+                        min(gray.width, round(center_x) + half), tile_lower)
+            glyph = (crop.character_boxes[char_index]
+                     if len(crop.character_boxes) == len(crop.text) else None)
+            box = fallback
+            if (glyph is not None and glyph[0] < glyph[2] and glyph[1] < glyph[3]
+                    and glyph[2] - glyph[0] <= glyph_size * 1.2
+                    and abs((glyph[0] + glyph[2]) / 2 - center_x) <= half):
+                box = glyph
+            added.append(TextSpan(char, box, min(crop.confidence, float(reading[0][1])),
+                                  (center_x,), (), (box,)))
+            occupied.add(key)
+    if not added:
+        return page
+    return replace(page, text_spans=(*page.text_spans, *added),
+                   recovered_lyric_glyphs=(*page.recovered_lyric_glyphs, *added))
+
+
 def _performance_text(
     path: Path, page: PageObservation, original: tuple[TextSpan, ...],
 ) -> PageObservation:
@@ -858,8 +1050,9 @@ def _performance_text(
     ))
     lyrics = _ink_lyric_positions(gray, retained)
     lyrics = _split_corroborated_stacked_lyrics(gray, lyrics, rows)
-    return replace(page, rows=rows, bz_overlays=overlays, text_spans=lyrics,
+    page = replace(page, rows=rows, bz_overlays=overlays, text_spans=lyrics,
                    non_lyric_regions=_non_lyric_music_marks(gray, rows, retained))
+    return _recover_unclaimed_lyric_glyphs(path, gray, page)
 
 
 def _attach_score_text(
