@@ -18,6 +18,9 @@ _DYNAMICS = {
 _CJK_CHARACTERS = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 _PERFORMER = re.compile(r"[（(]\s*([女男合])\s*[）)]")
 _ANNOTATION = re.compile(r"[（(]\s*[女男合]\s*[）)]|[①-⑳]|(?<!\d)\d+[.．](?!\d)")
+_ROMAN_VERSE = re.compile(
+    r"(?<!\S)(?:I{2,3}|IV|VI{1,3}|IX|XI{1,3})[.．](?=\s*[\u3400-\u9fff])",
+)
 _CHORD = re.compile(r"[A-G][#♯b♭]?(?:maj|min|dim|aug|sus|add|m)?\d*")
 _PAGINATION = re.compile(
     r"(?:第\s*\d+\s*页\s*)?共\s*\d+\s*页|第\s*\d+\s*页|page\s+\d+(?:\s+of\s+\d+)?",
@@ -56,7 +59,7 @@ def _lyric_units(span: TextSpan) -> list[tuple[str, float]]:
     if any("\u3400" <= character <= "\u9fff" for character in text) or _ANNOTATION.fullmatch(text):
         units: list[tuple[str, float]] = []
         width = span.box[2] - span.box[0]
-        for match in re.finditer(_ANNOTATION.pattern + "|.", text):
+        for match in re.finditer(_ANNOTATION.pattern + "|" + _ROMAN_VERSE.pattern + "|.", text):
             word = match.group()
             if word.isspace():
                 continue
@@ -68,7 +71,7 @@ def _lyric_units(span: TextSpan) -> list[tuple[str, float]]:
             )
             if label:
                 units.append((f'"({label.group(1)})"', x))
-            elif _ANNOTATION.fullmatch(word):
+            elif _ANNOTATION.fullmatch(word) or _ROMAN_VERSE.match(text, match.start()):
                 units.append((f'"{word}"', x))
             elif word in "，。！？、,.!?；;：:" and units:
                 previous, position = units[-1]
