@@ -754,6 +754,22 @@ def _repeated_aligned_voice_groups(
     return ()
 
 
+def _distinct_glyph_candidates(
+    pairs: list[tuple[Component, DigitMatch]],
+) -> list[tuple[Component, DigitMatch]]:
+    """Keep one reading per printed glyph.
+
+    Recovery passes propose components for the same printed digit independently and the row is the
+    first place that sees all of them together. One printed glyph sings one note, so the first
+    reading is kept: that is the reading the row was grouped from, which lets a recovery fill an
+    empty slot without letting it overrule an established note.
+    """
+    distinct: dict[Box, tuple[Component, DigitMatch]] = {}
+    for pair in pairs:
+        distinct.setdefault(pair[0].box, pair)
+    return list(distinct.values())
+
+
 def _music_row(
     group: list[tuple[Component, DigitMatch]],
     components: list[Component], digit_height: int, gray: Image.Image,
@@ -765,6 +781,7 @@ def _music_row(
     recover_short_joined: bool = False,
 ) -> MusicRow:
     group.sort(key=lambda pair: pair[0].box[0])
+    group[:] = _distinct_glyph_candidates(group)
     row_y = sum(component.center_y for component, _ in group) / len(group)
     bar_height = max(digit_height, round(median(component.height for component, _ in group)))
 

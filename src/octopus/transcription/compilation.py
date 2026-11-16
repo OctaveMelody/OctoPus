@@ -7,6 +7,7 @@ import unicodedata
 from dataclasses import replace
 from statistics import median
 
+from .components import Box
 from .decorations import decoration_token, score_text_kind
 from .headers import HeaderResult, extract_headers
 from .lyrics import _is_lyric_text, extract_lyrics
@@ -93,7 +94,7 @@ def _row_marks(
     graces: dict[int, str] = {}
     for group in row.graces:
         graces[group.host] = graces.get(group.host, "") + group.body
-    event_marks = [
+    event_marks: list[tuple[Box, str, int | None]] = [
         (
             note.box,
             note.digit + note.accidental
@@ -102,20 +103,23 @@ def _row_marks(
             + "".join("&" + token for token in note.decorations)
             + graces.get(index, "")
             + "".join(note.annotations),
+            index,
         )
         for index, note in enumerate(row.notes)
     ]
-    event_marks.extend((box, "-") for box in row_sustains(
+    event_marks.extend((box, "-", None) for box in row_sustains(
         tuple(note.box for note in row.notes), row.unresolved_marks,
     ))
     # Keep dash ordering stable at a shared x-coordinate. Slur endpoints index notes
     # only; accompaniment brackets and hairpins still use the complete event stream.
+    # A note is addressed by its position in the row and never by its box: separate
+    # recoveries can propose one printed glyph twice, and a box key would silently
+    # drop the earlier of the two and leave its slur endpoints dangling.
     event_marks.sort(key=lambda item: item[0])
-    marks: list[tuple[float, str]] = [(box[0], body) for box, body in event_marks]
-    note_indices = {note.box: index for index, note in enumerate(row.notes)}
+    marks: list[tuple[float, str]] = [(box[0], body) for box, body, _ in event_marks]
     note_marks = {
-        note_indices[box]: index for index, (box, _) in enumerate(event_marks)
-        if box in note_indices
+        note_index: index for index, (_, _, note_index) in enumerate(event_marks)
+        if note_index is not None
     }
     for pin in row.hairpins:
         if 0 <= pin.start <= pin.end < len(marks):
