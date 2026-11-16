@@ -234,6 +234,20 @@ def _assemble(spans: list[TextSpan], notes: MusicRow) -> str:
     return _assemble_with_slots(spans, notes)[0]
 
 
+def _latin_syllable(word: str) -> bool:
+    """Whether a syllable takes part in slot separators: printed Latin text, not CJK."""
+    return bool(word) and any(character.isalpha() for character in word) \
+        and not _CJK_CHARACTERS.search(word)
+
+
+def _empty_run(slots: list[list[str] | None], index: int) -> int:
+    """How many consecutive empty slots start at this position."""
+    run = 0
+    while index + run < len(slots) and slots[index + run] is None:
+        run += 1
+    return run
+
+
 def _assemble_with_slots(
     spans: list[TextSpan], notes: MusicRow,
 ) -> tuple[str, tuple[tuple[str, ...] | None, ...], bool]:
@@ -272,25 +286,34 @@ def _assemble_with_slots(
         return "", accepted, bool(constrained)
     body = []
     previous_words: list[str] | None = None
-    for index in range(max(assigned) + 1):
-        words = assigned.get(index)
+    # A single empty slot inside running Latin text is a slot of its own, so the separators around
+    # it stay (`now/@/I'm`); a run of two or more attaches to the syllable that follows
+    # (`lieved@@Through`). Measured on the adjudicated corpus: 15 of 19 gold empty slots in a row
+    # that uses separators are single and separator-flanked, and every gold run of two is attached.
+    slots: list[list[str] | None] = [
+        assigned.get(index) for index in range(max(assigned) + 1)
+    ]
+    separated_empty_slot = False
+    for index, words in enumerate(slots):
         if words is None:
-            body.append("@")
+            lone = (_empty_run(slots, index) == 1 and previous_words is not None
+                    and _latin_syllable(previous_words[-1]))
+            body.append("/@" if lone else "@")
             previous_words = None
-        else:
-            lyric_words = [word for word in words if not word.startswith('"')]
-            if (previous_words and lyric_words
-                    and any(character.isalpha() for character in previous_words[-1])
-                    and not _CJK_CHARACTERS.search(previous_words[-1])
-                    and any(character.isalpha() for character in lyric_words[0])
-                    and not _CJK_CHARACTERS.search(lyric_words[0])):
-                body.append("/")
-            body.append("".join(
-                ("~" if index and not word.startswith('"')
-                 and not words[index - 1].startswith('"') else "") + word
-                for index, word in enumerate(words)
-            ))
-            previous_words = lyric_words
+            separated_empty_slot = lone
+            continue
+        lyric_words = [word for word in words if not word.startswith('"')]
+        if (lyric_words and _latin_syllable(lyric_words[0])
+                and (separated_empty_slot
+                     or (previous_words and _latin_syllable(previous_words[-1])))):
+            body.append("/")
+        separated_empty_slot = False
+        body.append("".join(
+            ("~" if position and not word.startswith('"')
+             and not words[position - 1].startswith('"') else "") + word
+            for position, word in enumerate(words)
+        ))
+        previous_words = lyric_words
     return "".join(body), accepted, bool(constrained)
 
 
