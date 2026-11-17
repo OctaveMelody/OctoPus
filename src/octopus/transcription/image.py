@@ -779,6 +779,7 @@ def _music_row(
     shared_barline_positions: tuple[int, ...] = (),
     short_bars: frozenset[Component] = frozenset(),
     recover_short_joined: bool = False,
+    shared_beams: dict[Box, Box] | None = None,
 ) -> MusicRow:
     group.sort(key=lambda pair: pair[0].box[0])
     group[:] = _distinct_glyph_candidates(group)
@@ -832,6 +833,8 @@ def _music_row(
             duration_gray=gray, barlines=tuple(bars), observe=observed, unresolved=pending,
             digit_boxes=tuple(item[0].box for item in group),
             allow_short_joined=recover_short_joined,
+            owned_shared_beam=(shared_beams.get(component.box)
+                               if shared_beams is not None else None),
         )
         plausible_marks.extend(pending)
 
@@ -1161,11 +1164,95 @@ def _split_digit_cluster(
     return pieces
 
 
+def _beamed_digit_group(
+    gray: Image.Image, component: Component, digit_height: int,
+    templates: tuple[tuple[str, int], ...],
+) -> tuple[list[tuple[Component, DigitMatch]], Component] | None:
+    """Find a dense shared stripe and split only heads that can own that duration tier."""
+    width, height = component.width, component.height
+    if not (digit_height >= MIN_NOTE_DIGIT_HEIGHT
+            and digit_height <= height <= digit_height * 1.6
+            and height < width <= digit_height * 3.2):
+        return None
+    crop = gray.crop(component.box)
+    pixels = crop.load()
+    assert pixels is not None
+    line_rows = 0
+    for y in range(height - 1, -1, -1):
+        if sum(cast(int, pixels[x, y]) < 160 for x in range(width)) < width * 0.6:
+            break
+        line_rows += 1
+    if not line_rows:
+        return None
+
+    left, top, _, _ = component.box
+    line_top = height - line_rows
+    stripe_pixels = crop.crop((0, line_top, width, height)).point(
+        lambda value: 255 if value < 160 else 0,
+    )
+    stripe_box = stripe_pixels.getbbox()
+    if stripe_box is None:
+        return None
+    beam = Component((left + stripe_box[0], top + line_top + stripe_box[1],
+                      left + stripe_box[2], top + line_top + stripe_box[3]),
+                     stripe_pixels.histogram()[255])
+    if line_rows > max(4, round(digit_height * 0.17)):
+        return None
+
+    head_pixels = crop.crop((0, 0, width, line_top))
+    columns: list[tuple[int, int]] = []
+    start: int | None = None
+    for x in range(width):
+        column_ink = any(
+            cast(int, head_pixels.getpixel((x, y))) < 160 for y in range(line_top)
+        )
+        if column_ink and start is None:
+            start = x
+        elif not column_ink and start is not None:
+            columns.append((start, x))
+            start = None
+    if start is not None:
+        columns.append((start, width))
+    columns = [column for column in columns
+               if column[1] - column[0] >= max(2, round(digit_height * 0.15))]
+    if not 2 <= len(columns) <= 3:
+        return None
+
+    pieces: list[tuple[Component, DigitMatch]] = []
+    for x1, x2 in columns:
+        piece_mask = head_pixels.crop((x1, 0, x2, line_top)).point(
+            lambda value: 255 if value < 160 else 0,
+        )
+        box = piece_mask.getbbox()
+        if box is None:
+            return None
+        piece = Component((left + x1 + box[0], top + box[1], left + x1 + box[2],
+                           top + box[3]), piece_mask.histogram()[255])
+        if (not digit_height * 0.2 <= piece.width <= digit_height
+                or abs(piece.height - digit_height) > max(3, digit_height * 0.12)
+                or not 0 <= beam.box[1] - piece.box[3] <= digit_height * 0.55
+                or beam.width < max(10, round(piece.width * 0.65))
+                or min(piece.box[2], beam.box[2]) - max(piece.box[0], beam.box[0])
+                < piece.width * 0.65):
+            return None
+        if not templates:
+            return None
+        page_match = classify_digit(gray, piece, page_templates=templates)
+        if page_match is None or page_match[1] < 0.9:
+            return None
+        pieces.append((piece, page_match))
+    if (max(piece.center_y for piece, _ in pieces)
+            - min(piece.center_y for piece, _ in pieces) > digit_height * 0.3):
+        return None
+    return pieces, beam
+
+
 def _recover_row_digits(
     group: list[tuple[Component, DigitMatch]], components: list[Component],
     height: int, gray: Image.Image, claimed: set[Box],
     templates: tuple[tuple[str, int], ...] = (),
     antialiased_templates: tuple[tuple[str, int], ...] = (),
+    *, barlines: tuple[int, ...] = (), shared_beams: dict[Box, Box] | None = None,
 ) -> list[tuple[Component, DigitMatch]]:
     """Recover unresolved row ink without changing already accepted note glyphs."""
     height = round(median(component.height for component, _ in group))
@@ -1173,14 +1260,21 @@ def _recover_row_digits(
     ys = [component.center_y for component, _ in group]
     center_y = sum(ys) / len(ys)
     slope, intercept = linear_regression(xs, ys) if len(set(xs)) > 1 else (0, ys[0])
-    unresolved = [component for component in components
-                  if component.box not in claimed
-                  and min(abs(component.center_y - center_y),
-                          abs(component.center_y - (slope * (component.box[0] + component.box[2])
-                                                    / 2 + intercept))) <= height * 0.3
-                  and abs(component.height - height) <= max(3, height * 0.12)
-                  and height * 0.2 <= component.width <= gray.width]
-    if not unresolved:
+    row_candidates = []
+    for component in components:
+        if component.box in claimed or not height * 0.2 <= component.width <= gray.width:
+            continue
+        predicted_y = slope * (component.box[0] + component.box[2]) / 2 + intercept
+        if min(abs(component.center_y - center_y),
+               abs(component.center_y - predicted_y)) <= height * 0.3:
+            row_candidates.append(component)
+    unresolved = [component for component in row_candidates
+                  if abs(component.height - height) <= max(3, height * 0.12)]
+    beam_candidates = (
+        [component for component in row_candidates if component.width > height]
+        if shared_beams is not None else []
+    )
+    if not unresolved and not beam_candidates:
         return []
     found = []
     for component in unresolved:
@@ -1188,6 +1282,77 @@ def _recover_row_digits(
             gray, component, templates,
         )) is not None:
             found.append((component, page_match))
+            claimed.add(component.box)
+    if shared_beams is not None:
+        for component in beam_candidates:
+            if component.box in claimed:
+                continue
+            beamed = _beamed_digit_group(gray, component, height, templates)
+            if beamed is None:
+                continue
+            pieces, beam = beamed
+            if any(beam.box[0] < bar < beam.box[2] for bar in barlines):
+                continue
+            assignments: list[tuple[tuple[Component, DigitMatch], Component, bool]] = []
+            owner_boxes: set[Box] = set()
+            valid = True
+            for piece, page_match in pieces:
+                piece_left, piece_top, piece_right, piece_bottom = piece.box
+                piece_area = (piece_right - piece_left) * (piece_bottom - piece_top)
+                aliases = {
+                    candidate[0].box: candidate
+                    for candidate in (*group, *found)
+                    if (
+                        max(0, min(piece_right, candidate[0].box[2])
+                            - max(piece_left, candidate[0].box[0]))
+                        * max(0, min(piece_bottom, candidate[0].box[3])
+                              - max(piece_top, candidate[0].box[1]))
+                        >= min(piece_area, (candidate[0].box[2] - candidate[0].box[0])
+                                * (candidate[0].box[3] - candidate[0].box[1])) * 0.8
+                    )
+                }
+                if len(aliases) > 1:
+                    valid = False
+                    break
+                owner = next(iter(aliases.values()), (piece, page_match))
+                is_new = not aliases
+                gap = beam.box[1] - owner[0].box[3]
+                owner_left, _, owner_right, _ = owner[0].box
+                beam_overlap = min(owner_right, beam.box[2]) - max(owner_left, beam.box[0])
+                if (not 0 <= gap <= height * 0.55
+                        or beam.width < max(10, round(owner[0].width * 0.65))
+                        or beam_overlap < owner[0].width * 0.65):
+                    valid = False
+                    break
+                if owner[0].box in owner_boxes:
+                    valid = False
+                    break
+                owner_boxes.add(owner[0].box)
+                assignments.append((owner, piece, is_new))
+            partitioned_area = beam.area + sum(
+                piece.area for _, piece, is_new in assignments if is_new
+            )
+            has_alias = any(not is_new for _, _, is_new in assignments)
+            if (partitioned_area > component.area
+                    or not has_alias and partitioned_area != component.area):
+                valid = False
+            if not valid:
+                continue
+
+            components.remove(component)
+            components.append(beam)
+            component_boxes = {existing.box for existing in components}
+            for owner, piece, is_new in assignments:
+                if is_new:
+                    components.append(piece)
+                    component_boxes.add(piece.box)
+                    found.append((piece, owner[1]))
+                elif owner[0].box not in component_boxes:
+                    components.append(owner[0])
+                    component_boxes.add(owner[0].box)
+                if owner[0].box[3] == beam.box[1]:
+                    shared_beams[owner[0].box] = beam.box
+                claimed.add(owner[0].box)
             claimed.add(component.box)
     if antialiased_templates and len(group) >= 3:
         # The existing sloped row band admits tilted page-font matches before
@@ -1520,6 +1685,16 @@ def _recognize_working_rows(
     known_boxes = {component.box for component, _ in main} | {
         bar.box for bar in classification.short_bars
     }
+    shared_beams: dict[Box, Box] = {}
+
+    def known_barlines(group: list[tuple[Component, DigitMatch]]) -> tuple[int, ...]:
+        row_y = sum(component.center_y for component, _ in group) / len(group)
+        return tuple(sorted({
+            bar.box[0] for bar in possible_bars
+            if _barline(bar, row_y, digit_height, gray,
+                        short_bars=classification.short_bars)
+        }))
+
     templates = page_digit_templates(gray, main)
     antialiased_templates = page_digit_templates(gray, main, antialias=True)
     for group in _groups(main, digit_height):
@@ -1533,7 +1708,8 @@ def _recognize_working_rows(
         ):
             recovered = _recover_row_digits(
                 group, components, digit_height, gray, known_boxes, templates,
-                antialiased_templates,
+                antialiased_templates, barlines=known_barlines(group),
+                shared_beams=shared_beams,
             )
             main.extend(recovered)
             candidates.extend(recovered)
@@ -1547,6 +1723,7 @@ def _recognize_working_rows(
             group, components, digit_height, gray, joined_underlines=resized,
             barline_candidates=barline_candidates,
             short_bars=classification.short_bars,
+            shared_beams=shared_beams,
         )
         candidate_rows.append(row)
         sustained_row = len(row.barlines) >= 2 and len(row_sustains(
@@ -1586,6 +1763,7 @@ def _recognize_working_rows(
             group, components, digit_height, gray, joined_underlines=resized,
             barline_candidates=barline_candidates,
             shared_barline_positions=shared_positions,
+            shared_beams=shared_beams,
         )
         shared_barlines = _matched_barline_positions(
             shared_row.barlines, shared_positions, tolerance,
@@ -1605,6 +1783,8 @@ def _recognize_working_rows(
         recovered = _recover_row_digits(
             group, components, digit_height, gray, known_boxes, templates,
             antialiased_templates,
+            barlines=tuple(sorted(set(_row.barlines) | {bar.box[0] for bar in faint_bars})),
+            shared_beams=shared_beams,
         )
         group.extend(recovered)
         candidates.extend(recovered)
@@ -1613,6 +1793,7 @@ def _recognize_working_rows(
             barline_candidates=[*barline_candidates, *faint_bars],
             short_bars=classification.short_bars | faint_bars,
             recover_short_joined=True,
+            shared_beams=shared_beams,
         )
         accepted[index] = row
         candidate_rows[index] = row
@@ -1639,7 +1820,8 @@ def _recognize_working_rows(
                          if row is candidate)
             recovered = _recover_row_digits(
                 group, components, digit_height, gray, known_boxes, templates,
-                antialiased_templates,
+                antialiased_templates, barlines=candidate.barlines,
+                shared_beams=shared_beams,
             )
             if recovered:
                 group.extend(recovered)
@@ -1647,6 +1829,7 @@ def _recognize_working_rows(
             candidate = _music_row(
                 group, components, digit_height, gray, joined_underlines=resized,
                 accompaniment=True, barline_candidates=barline_candidates,
+                shared_beams=shared_beams,
             )
             compact_overlays.append((rows[owner], candidate))
     rows = [row for row in rows if id(row) not in converted_rows]
@@ -1726,6 +1909,7 @@ def _recognize_working_rows(
             continue
         recovered = _recover_row_digits(
             group, components, round(digit_height * 0.78), gray, known_boxes,
+            barlines=rows[host_index].barlines, shared_beams=shared_beams,
         )
         group.extend(recovered)
         candidates.extend(recovered)
@@ -1735,6 +1919,7 @@ def _recognize_working_rows(
         small = _music_row(
             group, components, round(digit_height * 0.78), gray,
             joined_underlines=resized, barline_candidates=barline_candidates,
+            shared_beams=shared_beams,
         )
         y = (small.box[1] + small.box[3]) / 2
         anchors = [

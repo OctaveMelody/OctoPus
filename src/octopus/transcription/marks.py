@@ -426,6 +426,7 @@ def note_modifiers(
     unresolved: list[Box] | None = None,
     digit_boxes: tuple[Box, ...] = (),
     allow_short_joined: bool = False,
+    owned_shared_beam: Box | None = None,
 ) -> tuple[int, int, int, set[Box]]:
     """Return octave, duration slashes/dots and used boxes for a main digit.
 
@@ -535,6 +536,9 @@ def note_modifiers(
         if component.box in bridged:
             continue
         c_left, c_top, c_right, c_bottom = component.box
+        if (component.box == owned_shared_beam
+                and any(c_left < bar < c_right for bar in barlines)):
+            continue
         if observe is not None and c_top > bottom and c_top - bottom <= line_reach * 3 \
                 and _overlap(left, right, c_left, c_right) > 0:
             band_components += 1
@@ -627,7 +631,10 @@ def note_modifiers(
         ):
             duration_dots.append(component)
         elif (
-            0 < c_top - bottom <= line_reach
+            (
+                0 < c_top - bottom <= line_reach
+                or component.box == owned_shared_beam and c_top == bottom
+            )
             and component.height <= max(4, digit_height * 0.17)
             and component.width >= max(10, round((right - left) * 0.65))
             and _overlap(left, right, c_left, c_right) >= (right - left) * 0.65
