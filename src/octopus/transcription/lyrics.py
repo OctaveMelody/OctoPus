@@ -296,8 +296,9 @@ def _assemble_with_slots(
     separated_empty_slot = False
     for index, words in enumerate(slots):
         if words is None:
-            lone = (_empty_run(slots, index) == 1 and previous_words is not None
-                    and _latin_syllable(previous_words[-1]))
+            lone = (previous_words is not None and len(previous_words) > 0
+                    and _latin_syllable(previous_words[-1])
+                    and _empty_run(slots, index) == 1)
             body.append("/@" if lone else "@")
             previous_words = None
             separated_empty_slot = lone
