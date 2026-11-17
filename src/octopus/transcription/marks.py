@@ -535,10 +535,6 @@ def note_modifiers(
         if component.box in bridged:
             continue
         c_left, c_top, c_right, c_bottom = component.box
-        # Observation only (plan §11A): the stroke's own tier structure, read only when a dump is
-        # asked for, so an observation-free run pays nothing for it.
-        thicknesses = (group_thicknesses(duration_gray, component)
-                       if observe is not None and duration_gray is not None else [])
         if observe is not None and c_top > bottom and c_top - bottom <= line_reach * 3 \
                 and _overlap(left, right, c_left, c_right) > 0:
             band_components += 1
@@ -671,6 +667,8 @@ def note_modifiers(
                 # One bucket with every limit beside the measurement it failed, so the dump says
                 # which clause dropped the stroke instead of leaving 227 missing underlines a bare
                 # counter. Observation only: the branch decision below is unchanged.
+                thicknesses = (group_thicknesses(duration_gray, component)
+                               if duration_gray is not None else [])
                 reject(component, MarkRejection.LINE_NEAR_MISS, "duration_line",
                        below_gap=round(c_top - bottom, 2),
                        reach=round(line_reach, 2),
