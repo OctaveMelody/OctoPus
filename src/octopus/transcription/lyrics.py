@@ -16,8 +16,8 @@ _DYNAMICS = {
     "d.s", "d.c", "d.s. fine", "d.c. fine",
 }
 _CJK_CHARACTERS = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
-_PERFORMER = re.compile(r"[（(]\s*([女男合])\s*[）)]")
-_ANNOTATION = re.compile(r"[（(]\s*[女男合]\s*[）)]|[①-⑳]|(?<!\d)\d+[.．](?!\d)")
+_PERFORMER = re.compile(r"[（(]\s*([女男合](?:\s*声)?)\s*[）)]")
+_ANNOTATION = re.compile(r"[（(]\s*[女男合](?:\s*声)?\s*[）)]|[①-⑳]|(?<!\d)\d+[.．](?!\d)")
 _ROMAN_VERSE = re.compile(
     r"(?<!\S)(?:I{2,3}|IV|VI{1,3}|IX|XI{1,3})[.．](?=\s*[\u3400-\u9fff])",
 )
@@ -70,7 +70,8 @@ def _lyric_units(span: TextSpan) -> list[tuple[str, float]]:
                 else span.box[0] + width * (match.start() + len(word) / 2) / len(text)
             )
             if label:
-                units.append((f'"({label.group(1)})"', x))
+                performer = "".join(label.group(1).split())
+                units.append((f'"({performer})"', x))
             elif _ANNOTATION.fullmatch(word) or _ROMAN_VERSE.match(text, match.start()):
                 units.append((f'"{word}"', x))
             elif word in "，。！？、,.!?；;：:" and units:
