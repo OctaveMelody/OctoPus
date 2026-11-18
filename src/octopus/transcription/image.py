@@ -29,7 +29,13 @@ from .glyphs import (
     ocr_digit_has_page_conflict,
     page_digit_templates,
 )
-from .marks import note_modifiers, row_parentheses, row_sustains, vertical_bend
+from .marks import (
+    has_parallel_duration_tiers,
+    note_modifiers,
+    row_parentheses,
+    row_sustains,
+    vertical_bend,
+)
 from .observations import BzOverlay, MusicRow, Note, PageObservation
 from .ornaments import EndingSegment, row_endings, row_graces, voice_components
 from .pitch_marks import MarkRejection, PitchMarkCandidate
@@ -2166,8 +2172,12 @@ def _row_with_source_marks(
                   else note.octave or note_modifiers(
                       note.box, parts, round(height), duration_gray=core,
                   )[0])
+        slashes = note.duration_slashes
+        if slashes == 1 and has_parallel_duration_tiers(source_gray, note.box, row.barlines):
+            slashes = 2
         recovered_notes.append(replace(
-            note, octave=octave, decorations=tuple(dict.fromkeys((*note.decorations, *owned))),
+            note, octave=octave, duration_slashes=slashes,
+            decorations=tuple(dict.fromkeys((*note.decorations, *owned))),
         ))
     unresolved = tuple(box for box in row.unresolved_marks if not any(
         left <= (box[0] + box[2]) / 2 <= right
