@@ -494,6 +494,51 @@ def recover_faint_duration_tier(
 
 
 
+def has_shared_duration_tiers(
+    gray: Image.Image, note: Box, peer: Box, barlines: tuple[int, ...],
+) -> bool:
+    """Verify two continuous tiers through this note and a corroborating neighbor."""
+    left, top, right, bottom = note
+    peer_left, _, peer_right, peer_bottom = peer
+    height = bottom - top
+    group_left, group_right = min(left, peer_left), max(right, peer_right)
+    gap = max(left, peer_left) - min(right, peer_right)
+    if (not 0 <= gap <= height * 1.3
+            or abs(peer_bottom - bottom) > height * 0.3
+            or any(group_left < bar < group_right for bar in barlines)):
+        return False
+
+    start = max(0, group_left - height)
+    stop = min(gray.width, group_right + height)
+    local_bars = tuple(bar for bar in barlines if start < bar < stop)
+    first_row = max(bottom, peer_bottom) + 1
+    end_row = min(gray.height, min(bottom, peer_bottom) + round(height * 0.85) + 1)
+    pixels = gray.load()
+    assert pixels is not None
+    bands: list[tuple[int, int]] = []
+    for y in range(first_row, end_row):
+        run_start = start
+        for x in range(start, stop + 1):
+            if x < stop and cast(int, pixels[x, y]) < 160:
+                continue
+            if (_overlap(left, right, run_start, x) >= (right - left) * 0.35
+                    and _overlap(peer_left, peer_right, run_start, x)
+                    >= (peer_right - peer_left) * 0.65
+                    and not any(run_start < bar < x for bar in local_bars)):
+                if bands and bands[-1][1] == y - 1:
+                    bands[-1] = (bands[-1][0], y)
+                else:
+                    bands.append((y, y))
+                break
+            run_start = x + 1
+    tiers = [(first, last) for first, last in bands
+             if last - first + 1 <= max(3, round(height * 0.22))]
+    return any(
+        0 < upper - bottom <= height * 0.45 and 1 < lower - last <= height * 0.6
+        for (upper, last), (lower, _) in zip(tiers, tiers[1:], strict=False)
+    )
+
+
 def note_modifiers(
     note: Box, components: list[Component], digit_height: int,
     gray: Image.Image | None = None, right_limit: int | None = None,

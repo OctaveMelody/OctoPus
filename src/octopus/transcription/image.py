@@ -31,6 +31,7 @@ from .glyphs import (
 )
 from .marks import (
     has_parallel_duration_tiers,
+    has_shared_duration_tiers,
     note_modifiers,
     recover_faint_duration_tier,
     row_parentheses,
@@ -2182,6 +2183,15 @@ def _row_with_source_marks(
             note, octave=octave, duration_slashes=slashes,
             decorations=tuple(dict.fromkeys((*note.decorations, *owned))),
         ))
+    # Freeze the independently read tiers so one recovery cannot seed the next.
+    anchors = tuple(recovered_notes)
+    for index, note in enumerate(anchors):
+        if note.duration_slashes == 1 and any(
+            peer.duration_slashes >= 2
+            and has_shared_duration_tiers(source_gray, note.box, peer.box, row.barlines)
+            for peer in anchors[max(0, index - 1):index + 2]
+        ):
+            recovered_notes[index] = replace(note, duration_slashes=2)
     unresolved = tuple(box for box in row.unresolved_marks if not any(
         left <= (box[0] + box[2]) / 2 <= right
         and top <= (box[1] + box[3]) / 2 <= bottom
