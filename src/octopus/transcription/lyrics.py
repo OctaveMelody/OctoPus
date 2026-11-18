@@ -28,6 +28,7 @@ _PAGINATION = re.compile(
 )
 _MIN_BASELINE_TOLERANCE = 9
 _LYRIC_PUNCTUATION = frozenset("，。！？、,.!?；;：:")
+_PERFORMER_LIST = re.compile(r"[\u3400-\u9fff]{2,4}(?:、[\u3400-\u9fff]{2,4}){2,}演唱")
 
 
 @dataclass(frozen=True, slots=True)
@@ -458,18 +459,22 @@ def _overfull_lyric_band(band: list[TextSpan], row: MusicRow, height: int) -> bo
 def _is_credit_footer(
     band: list[TextSpan], previous: list[TextSpan], page: PageObservation, height: int,
 ) -> bool:
-    """Separate compact prose joined by a printed dash below the final sung line."""
+    """Separate printed credits below the final sung line."""
     if len(band) != 1 or not previous:
         return False
     span = band[0]
+    width = span.box[2] - span.box[0]
+    previous_width = max(item.box[2] for item in previous) - min(item.box[0] for item in previous)
+    if (_PERFORMER_LIST.fullmatch(span.text.strip())
+            and span.center_y - max(item.center_y for item in previous) >= height
+            and width <= previous_width * 0.6):
+        return True
     if span.box[1] - max(item.box[3] for item in previous) < height * 0.5:
         return False
     letters = len(_CJK_CHARACTERS.findall(span.text))
     previous_letters = sum(len(_CJK_CHARACTERS.findall(item.text)) for item in previous)
     if letters < 6 or not previous_letters:
         return False
-    width = span.box[2] - span.box[0]
-    previous_width = max(item.box[2] for item in previous) - min(item.box[0] for item in previous)
     if width / letters > 0.75 * previous_width / previous_letters:
         return False
     return any(

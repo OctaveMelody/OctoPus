@@ -1051,7 +1051,7 @@ def _performance_text(
     ))
     candidates = _score_text(replace(page, text_spans=candidates)).text_spans
     rows, direction_sources = attach_score_directions(
-        page.rows, candidates, page_height=page.height,
+        page.rows, candidates, page_height=page.height, gray=gray,
     )
     rows, score_text_spans = _attach_score_text(rows, candidates)
     consumed: set[TextSpan] = set()

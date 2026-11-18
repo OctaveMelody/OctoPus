@@ -6,6 +6,9 @@ import re
 import unicodedata
 from dataclasses import dataclass, replace
 from statistics import median
+from typing import cast
+
+from PIL import Image
 
 from .compilation import _bar_marks
 from .marks import row_sustains
@@ -182,6 +185,7 @@ def attach_score_directions(
     spans: tuple[TextSpan, ...],
     *,
     page_height: int | None = None,
+    gray: Image.Image | None = None,
 ) -> tuple[tuple[MusicRow, ...], tuple[_DirectionSource, ...]]:
     """Attach navigation text to row endings and internal repeat or double bars."""
     if not rows:
@@ -223,6 +227,10 @@ def attach_score_directions(
             )
             if distance is not None:
                 owners.append((distance[0], index, distance[1]))
+        if not owners and gray is not None:
+            endpoint = _printed_ending_owner(rows[-1], reading, gray, height)
+            if endpoint is not None:
+                owners.append((0, len(rows) - 1, endpoint))
         if not owners:
             continue
         _, owner, endpoint = min(owners)
@@ -243,6 +251,41 @@ def attach_score_directions(
     return tuple(updated), tuple(sorted(
         consumed, key=lambda item: (item.span.box, item.start, item.end),
     ))
+
+
+def _printed_ending_owner(
+    row: MusicRow, reading: _DirectionReading, gray: Image.Image, height: float,
+) -> int | None:
+    """Corroborate an embedded direction at a double stroke missed by bar grouping."""
+    span = reading.span
+    if (len(reading.sources) != 1 or not re.fullmatch(r"D\.\s*[SC]\.", span.text)
+            or not 0 <= span.center_y - row.box[3] <= height * 2):
+        return None
+    source, = reading.sources
+    if not all(re.search(r"[\u3400-\u9fff]", value) for value in (
+        source.span.text[:source.start], source.span.text[source.end:],
+    )):
+        return None
+    top, bottom = row.box[1:4:2]
+    pixels = gray.load()
+    assert pixels is not None
+    reach = max(2, round(height * 0.45))
+    for bar in row.barlines[:-1]:
+        if (not span.box[0] <= bar <= span.box[2]
+                or abs(bar - span.center_x) > height * 1.8
+                or not 0 <= top < bottom <= gray.height
+                or not reach <= bar < gray.width - reach):
+            continue
+        ink = [sum(cast(int, pixels[x, y]) < 170 for y in range(top, bottom))
+               for x in range(bar - reach, bar + reach + 1)]
+        if any(
+            count <= (bottom - top) * 0.25
+            and max(ink[:index]) >= (bottom - top) * 0.75
+            and max(ink[index + 1:]) >= (bottom - top) * 0.75
+            for index, count in enumerate(ink[1:-1], start=1)
+        ):
+            return bar
+    return None
 
 
 def remove_attached_direction_text(
