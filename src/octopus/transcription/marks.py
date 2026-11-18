@@ -595,6 +595,7 @@ def note_modifiers(
 
     dots_above: list[Component] = []
     dots_below: list[Component] = []
+    extended_below: list[Component] = []
     duration_dots: list[Component] = []
     lines: list[Component] = []
     joined_lines = 0
@@ -726,6 +727,8 @@ def note_modifiers(
         )
         above = dot and 0 < top - c_bottom <= dot_reach
         below = dot and 0 < c_top - bottom <= dot_reach
+        if (dot and gray is not None and dot_reach < c_top - bottom <= plausible_reach):
+            extended_below.append(component)
         if round_dot and dot and not above and not below and near_note(component) \
                 and mark_band(component):
             if unresolved is not None and round_dot and dot and (
@@ -963,7 +966,6 @@ def note_modifiers(
         and top <= dot.center_y < bottom
         for dot in dots_below
     ) for left, top, right, bottom in joined_dot_boxes)
-    octave = len(dots_above) - len(dots_below) - int(joined_dot)
     remaining_joined_lines = joined_lines - bridged_lines
     if remaining_joined_lines > 0 and duration_gray is not None:
         joined_lines = bridged_lines + _local_duration_tiers(
@@ -972,6 +974,28 @@ def note_modifiers(
         )
     base_slashes = len(lines) + joined_lines + sum(count for _, _, count in faint_bands)
     slash_count = max(base_slashes, clipped_duration_total)
+    # A single confirmed separator makes a detached mark less ambiguous than stacked tiers.
+    if (slash_count == 1 and not dots_above and not dots_below and not joined_dot
+            and len(extended_below) == 1):
+        candidate = extended_below[0]
+        # A dark underline must separate the note from the dot. A nearby text
+        # component below the dot is evidence that the dot could be lyric ink.
+        if candidate.box not in used_joined and any(
+            bottom <= beam.box[1] < beam.box[3] <= candidate.box[1]
+            and beam.width >= right - left
+            and beam.height <= digit_height * 0.32
+            and _overlap(left, right, beam.box[0], beam.box[2]) >= (right - left) * 0.65
+            for beam in (*lines, *(part for part in components if part.box in used_joined))
+        ) and not any(
+            other.height >= digit_height * 0.65
+            and 0 <= other.box[1] - candidate.box[3] <= digit_height * 0.25
+            and _overlap(candidate.box[0], candidate.box[2], other.box[0], other.box[2]) > 0
+            for other in components
+        ):
+            dots_below.append(candidate)
+            if unresolved is not None and candidate.box in unresolved:
+                unresolved.remove(candidate.box)
+    octave = len(dots_above) - len(dots_below) - int(joined_dot)
     if observe is not None:
         # Emission attribution (plan §11A): what the duration paths concluded for this digit, beside
         # the ink that is actually there. The rejection channel cannot answer where `slash_missing`
