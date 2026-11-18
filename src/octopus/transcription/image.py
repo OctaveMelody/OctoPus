@@ -1285,6 +1285,112 @@ def _beam_supported_digit(
     return None
 
 
+def _recover_fragmented_heads(
+    gray: Image.Image, group: list[tuple[Component, DigitMatch]], components: list[Component],
+    claimed: set[Box], barlines: tuple[int, ...], templates: tuple[tuple[str, int], ...],
+) -> list[tuple[Component, DigitMatch]]:
+    """Rejoin two close vertical fragments corroborated by paired duration strokes."""
+    if len(group) < 5 or not barlines:
+        return []
+    height = median(part.height for part, _ in group)
+    xs = [(part.box[0] + part.box[2]) / 2 for part, _ in group]
+    if min(xs) == max(xs):
+        return []
+    slope, intercept = linear_regression(xs, [part.center_y for part, _ in group])
+    anchors = tuple(part.box for part, _ in group)
+    parts = sorted((part for part in components
+                    if part.box not in claimed and height * 0.15 <= part.height <= height * 0.78
+                    and part.width <= height * 0.8
+                    and abs(part.center_y - slope * (part.box[0] + part.box[2]) / 2 - intercept)
+                    <= height * 0.5), key=lambda part: part.box[1])
+    candidates = []
+    for i, top in enumerate(parts):
+        for bottom in parts[i + 1:]:
+            gap = bottom.box[1] - top.box[3]
+            if gap > max(1, height * 0.12):
+                break
+            if gap < 0 or (min(top.box[2], bottom.box[2]) - max(top.box[0], bottom.box[0])
+                           < min(top.width, bottom.width) * 0.5):
+                continue
+            left = min(top.box[0], bottom.box[0])
+            right = max(top.box[2], bottom.box[2])
+            box = left, top.box[1], right, bottom.box[3]
+            head = Component(box, top.area + bottom.area)
+            if (not height * 0.82 <= head.height <= height * 1.12
+                    or not height * 0.2 <= head.width <= height * 0.85
+                    or abs(head.center_y - slope * (left + right) / 2 - intercept) > height * 0.22
+                    or any(left < anchor[2] and anchor[0] < right for anchor in anchors)
+                    or not any(0 <= left - anchor[2] <= height * 3 for anchor in anchors)
+                    or not any(0 <= anchor[0] - right <= height * 3 for anchor in anchors)
+                    or not has_parallel_duration_tiers(gray, box, barlines)):
+                continue
+            candidates.append((head, top, bottom))
+    owners = Counter(part for _, top, bottom in candidates for part in (top, bottom))
+    found: list[tuple[Component, DigitMatch]] = []
+    for head, top, bottom in candidates:
+        if owners[top] != 1 or owners[bottom] != 1 or any(
+            other != head and head.box[0] < other.box[2] and other.box[0] < head.box[2]
+            for other, _, _ in candidates
+        ):
+            continue
+        reading = image_digit(gray, head.box, tight_padding=True)
+        if (reading is None or reading[1] < 0.99
+                or digit_shape_similarity(gray, head, reading[0]) < MIN_DIGIT_VECTOR_SUPPORT
+                or ocr_digit_has_page_conflict(gray, head, reading[0], templates)):
+            continue
+        components.remove(top)
+        components.remove(bottom)
+        components.append(head)
+        claimed.update((top.box, bottom.box, head.box))
+        found.append((head, (*reading, True)))
+    return found
+
+
+def _recover_curve_fused_heads(
+    gray: Image.Image, group: list[tuple[Component, DigitMatch]], components: list[Component],
+    claimed: set[Box], barlines: tuple[int, ...], templates: tuple[tuple[str, int], ...],
+) -> list[tuple[Component, DigitMatch]]:
+    """Use the established digit band to isolate heads below attached curve ink."""
+    if len(group) < 8 or not barlines:
+        return []
+    height = median(part.height for part, _ in group)
+    anchors = [part for part, _ in group]
+    found: list[tuple[Component, DigitMatch]] = []
+    for parent in components:
+        left, top, right, bottom = parent.box
+        if (parent.box in claimed or not height * 2.5 <= parent.width <= height * 6
+                or not height * 1.25 <= parent.height <= height * 2
+                or any(left < x < right for x in barlines)
+                or not any(left <= (part.box[0] + part.box[2]) / 2 <= right
+                           and top <= part.center_y <= bottom for part in anchors)):
+            continue
+        center = (left + right) / 2
+        nearby = sorted(anchors, key=lambda part: abs((part.box[0] + part.box[2]) / 2 - center))[:8]
+        upper = round(median(part.box[1] for part in nearby))
+        lower = round(median(part.box[3] for part in nearby))
+        if (upper - top < height * 0.25 or upper - top > height
+                or abs(bottom - lower) > height * 0.22):
+            continue
+        for piece in connected_components(gray.crop((left, upper, right, lower))):
+            x0, y0, x1, y1 = piece.box
+            box = left + x0, upper + y0, left + x1, upper + y1
+            if (not height * 0.8 <= piece.height <= height
+                    or not height * 0.25 <= piece.width <= height * 0.92
+                    or any(box[0] < part.box[2] and part.box[0] < box[2]
+                           for part in anchors)):
+                continue
+            head = Component(box, piece.area)
+            reading = image_digit(gray, box, tight_padding=True)
+            if (reading is None or reading[1] < 0.995
+                    or digit_shape_similarity(gray, head, reading[0]) < 0.65
+                    or ocr_digit_has_page_conflict(gray, head, reading[0], templates)):
+                continue
+            claimed.add(box)
+            anchors.append(head)
+            found.append((head, (*reading, True)))
+    return found
+
+
 def _recover_row_digits(
     group: list[tuple[Component, DigitMatch]], components: list[Component],
     height: int, gray: Image.Image, claimed: set[Box],
@@ -1751,11 +1857,18 @@ def _recognize_working_rows(
             _barline(bar, group[0][0].center_y, digit_height, gray,
                      short_bars=classification.short_bars) for bar in possible_bars
         ):
+            row_bars = known_barlines(group)
             recovered = _recover_row_digits(
                 group, components, digit_height, gray, known_boxes, templates,
-                antialiased_templates, barlines=known_barlines(group),
+                antialiased_templates, barlines=row_bars,
                 shared_beams=shared_beams,
             )
+            recovered.extend(_recover_fragmented_heads(
+                gray, [*group, *recovered], components, known_boxes, row_bars, templates,
+            ))
+            recovered.extend(_recover_curve_fused_heads(
+                gray, [*group, *recovered], components, known_boxes, row_bars, templates,
+            ))
             main.extend(recovered)
             candidates.extend(recovered)
     main_groups = _groups(main, digit_height)
