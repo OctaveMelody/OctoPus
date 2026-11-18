@@ -551,7 +551,18 @@ def note_modifiers(
         # below the digit can be an octave mark at that size. Ink beside the digit at note height is
         # duration ink and keeps the narrow window, so duration keeps ownership of its own dots.
         octave_side = component.box[3] <= top or component.box[1] >= bottom
-        size_limit = digit_height * (OCTAVE_DOT_MAX if octave_side else 0.32)
+        # A large side dot needs a compact shape and must lie wholly inside
+        # the digit's vertical band, away from the octave and underline zones.
+        large_side_dot = (
+            top <= c_top < c_bottom <= bottom
+            and 0 < c_left - right <= digit_height * 0.8
+            and (right_limit is None or c_right < right_limit)
+            and max(component.width, component.height)
+            <= min(component.width, component.height) * 1.35
+        )
+        size_limit = digit_height * (
+            OCTAVE_DOT_MAX if octave_side else 0.46 if large_side_dot else 0.32
+        )
         # A component that only fits because the window was widened also has to be square-ish: an
         # octave mark is round, while the short underline stubs a duration row is built from are two
         # or three times wider than they are tall. Without this the widened window reaches into the
