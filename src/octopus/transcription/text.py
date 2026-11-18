@@ -6,7 +6,7 @@ import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import isfinite
 from pathlib import Path
 from threading import RLock
@@ -685,15 +685,24 @@ def _shared_lyric_text(
 
 # Store immutable recognizer readings. Digit acceptance can differ between callers.
 # Retain the engine while its address is used as a key.
-_DigitReads = dict[
-    tuple[int, tuple[int, int], bytes], tuple[object, tuple[str, float] | None]
-]
+_DIGIT_CACHE_BYTES = 12 * 1024 * 1024
+_DIGIT_CACHE_ENTRIES = 1024
+
+
+@dataclass(slots=True)
+class _DigitReads:
+    entries: dict[
+        tuple[int, tuple[int, int], bytes], tuple[object, tuple[str, float] | None]
+    ] = field(default_factory=dict)
+    crop_bytes: int = 0
+
+
 _digit_reads: ContextVar[_DigitReads | None] = ContextVar("_digit_reads", default=None)
 
 
 @contextmanager
 def page_digit_ocr_cache() -> Iterator[None]:
-    token = _digit_reads.set({})
+    token = _digit_reads.set(_DigitReads())
     try:
         yield
     finally:
@@ -705,17 +714,22 @@ def _read_padded_digit(engine: object, padded: Image.Image) -> tuple[str, float]
 
     cache = _digit_reads.get()
     key = None
-    if cache is not None and padded.width * padded.height <= 4096:
+    crop_bytes = padded.width * padded.height * 3  # The caller pads an RGB crop.
+    if cache is not None and crop_bytes <= _DIGIT_CACHE_BYTES:
         key = (id(engine), padded.size, padded.tobytes())
-        if key in cache:
-            return cache[key][1]
+        if key in cache.entries:
+            return cache.entries[key][1]
 
     result, _ = _ocr_call(engine, np.asarray(padded), use_det=False, use_cls=False)
     reading = (str(result[0][0]).strip(), float(result[0][1])) if result else None
     if key is not None and cache is not None:
-        if len(cache) == 1024:
-            del cache[next(iter(cache))]
-        cache[key] = (engine, reading)
+        while (cache.crop_bytes + crop_bytes > _DIGIT_CACHE_BYTES
+               or len(cache.entries) >= _DIGIT_CACHE_ENTRIES):
+            oldest = next(iter(cache.entries))
+            del cache.entries[oldest]
+            cache.crop_bytes -= len(oldest[2])
+        cache.entries[key] = (engine, reading)
+        cache.crop_bytes += crop_bytes
     return reading
 
 
