@@ -496,8 +496,9 @@ def recover_faint_duration_tier(
 
 def has_shared_duration_tiers(
     gray: Image.Image, note: Box, peer: Box, barlines: tuple[int, ...],
+    *, interrupted: bool = False,
 ) -> bool:
-    """Verify two continuous tiers through this note and a corroborating neighbor."""
+    """Verify two source tiers through this note and a corroborating neighbor."""
     left, top, right, bottom = note
     peer_left, _, peer_right, peer_bottom = peer
     height = bottom - top
@@ -515,11 +516,20 @@ def has_shared_duration_tiers(
     end_row = min(gray.height, min(bottom, peer_bottom) + round(height * 0.85) + 1)
     pixels = gray.load()
     assert pixels is not None
+    threshold = 210 if interrupted else 160
+    gap_budget = min(2, max(1, round(height * 0.15))) if interrupted else 0
     bands: list[tuple[int, int]] = []
     for y in range(first_row, end_row):
         run_start = start
+        gaps = 0
         for x in range(start, stop + 1):
-            if x < stop and cast(int, pixels[x, y]) < 160:
+            if x < stop and cast(int, pixels[x, y]) < threshold:
+                continue
+            if x > run_start and gaps < gap_budget and any(
+                cast(int, pixels[following, y]) < threshold
+                for following in range(x + 1, min(stop, x + gap_budget - gaps + 1))
+            ):
+                gaps += 1
                 continue
             if (_overlap(left, right, run_start, x) >= (right - left) * 0.35
                     and _overlap(peer_left, peer_right, run_start, x)
@@ -531,10 +541,12 @@ def has_shared_duration_tiers(
                     bands.append((y, y))
                 break
             run_start = x + 1
+            gaps = 0
     tiers = [(first, last) for first, last in bands
              if last - first + 1 <= max(3, round(height * 0.22))]
     return any(
-        0 < upper - bottom <= height * 0.45 and 1 < lower - last <= height * 0.6
+        0 < upper - bottom <= height * 0.45
+        and 1 < lower - last <= height * (0.25 if interrupted else 0.6)
         for (upper, last), (lower, _) in zip(tiers, tiers[1:], strict=False)
     )
 

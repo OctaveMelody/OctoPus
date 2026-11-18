@@ -2282,7 +2282,10 @@ def _row_with_source_marks(
     for index, note in enumerate(anchors):
         if note.duration_slashes == 1 and any(
             peer.duration_slashes >= 2
-            and has_shared_duration_tiers(source_gray, note.box, peer.box, row.barlines)
+            and (has_shared_duration_tiers(source_gray, note.box, peer.box, row.barlines)
+                 or has_shared_duration_tiers(
+                     source_gray, note.box, peer.box, row.barlines, interrupted=True,
+                 ))
             for peer in anchors[max(0, index - 1):index + 2]
         ):
             recovered_notes[index] = replace(note, duration_slashes=2)
