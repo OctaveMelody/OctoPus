@@ -483,6 +483,36 @@ def _barline(
     return bend is not None and abs(bend) <= max(1, component.width * 0.2)
 
 
+def _short_row_barlines(
+    gray: Image.Image, notes: tuple[Box, ...], components: list[Component], bars: list[int],
+) -> set[Component]:
+    """Keep short, solid strokes when an established row supplies their scale."""
+    if len(notes) < 8 or len(bars) < 2:
+        return set()
+    height = median(box[3] - box[1] for box in notes)
+    result = set()
+    for stroke in components:
+        left, top, right, bottom = stroke.box
+        if (not height * 0.8 <= stroke.height < height * 1.25
+                or stroke.width > height * 0.2
+                or stroke.area < stroke.height * stroke.width * 0.43
+                or not notes[0][0] < left < notes[-1][2] + height
+                or any(abs(x - left) < height * 0.45 for x in bars)
+                or any(left < box[2] + height * 0.15 and box[0] - height * 0.15 < right
+                       for box in notes)):
+            continue
+        local = sorted(notes, key=lambda box: abs(box[0] + box[2] - left - right))[:4]
+        upper = median(box[1] for box in local)
+        lower = median(box[3] for box in local)
+        if not (upper - height * 0.3 <= top <= upper + height * 0.18
+                and lower - height * 0.25 <= bottom <= lower + height * 0.25):
+            continue
+        bend = vertical_bend(stroke, gray)
+        if bend is not None and abs(bend) <= max(1, stroke.width * 0.2):
+            result.add(stroke)
+    return result
+
+
 def _fragmented_vertical_barlines(
     components: list[Component], digit_height: int, gray: Image.Image,
 ) -> list[Component]:
@@ -819,6 +849,11 @@ def _music_row(
         for component in (*nearby, *(barline_candidates or ()))
         if is_bar(component)
     })
+    short_row_bars = _short_row_barlines(
+        gray, tuple(component.box for component, _ in group), nearby, bars,
+    )
+    if short_row_bars:
+        bars = sorted({*bars, *(component.box[0] for component in short_row_bars)})
     notes = []
     note_boxes = {component.box for component, _ in group}
     used_marks: set[Box] = set()
@@ -848,6 +883,8 @@ def _music_row(
 
         signs: list[tuple[Component, str]] = []
         for sign in modifier_components:
+            if sign in short_row_bars:
+                continue
             gap = component.box[0] - sign.box[2]
             if (sign.box in note_boxes
                     or not digit_height * 0.55 <= sign.height <= digit_height * 1.3
@@ -899,6 +936,7 @@ def _music_row(
         component.box for component in nearby
         if component.box not in note_boxes
         and component.box not in used_marks
+        and component not in short_row_bars
         and not is_bar(component)
         and component.area >= 3
     )
@@ -1349,28 +1387,39 @@ def _recover_fragmented_heads(
 def _recover_curve_fused_heads(
     gray: Image.Image, group: list[tuple[Component, DigitMatch]], components: list[Component],
     claimed: set[Box], barlines: tuple[int, ...], templates: tuple[tuple[str, int], ...],
+    *, enlarged: bool = False,
 ) -> list[tuple[Component, DigitMatch]]:
-    """Use the established digit band to isolate heads below attached curve ink."""
+    """Use the established digit band to separate heads attached to curves or underlines."""
     if len(group) < 8 or not barlines:
         return []
     height = median(part.height for part, _ in group)
     anchors = [part for part, _ in group]
     found: list[tuple[Component, DigitMatch]] = []
+    # Enlarging small print can bridge strokes that were distinct in the source.
+    minimum_width = 0.5 if enlarged else 2.5
+    minimum_height = 1.1 if enlarged else 1.25
     for parent in components:
         left, top, right, bottom = parent.box
-        if (parent.box in claimed or not height * 2.5 <= parent.width <= height * 6
-                or not height * 1.25 <= parent.height <= height * 2
-                or any(left < x < right for x in barlines)
-                or not any(left <= (part.box[0] + part.box[2]) / 2 <= right
-                           and top <= part.center_y <= bottom for part in anchors)):
+        if (parent.box in claimed or not height * minimum_width <= parent.width <= height * 6
+                or not height * minimum_height <= parent.height <= height * 2
+                or any(left < x < right for x in barlines)):
             continue
         center = (left + right) / 2
         nearby = sorted(anchors, key=lambda part: abs((part.box[0] + part.box[2]) / 2 - center))[:8]
         upper = round(median(part.box[1] for part in nearby))
         lower = round(median(part.box[3] for part in nearby))
-        if (upper - top < height * 0.25 or upper - top > height
-                or abs(bottom - lower) > height * 0.22):
+        curve = (parent.width >= height * 1.1
+                 and height * 0.25 <= upper - top <= height
+                 and abs(bottom - lower) <= height * 0.22)
+        underline = (enlarged and abs(top - upper) <= height * 0.12
+                     and height * 0.12 <= bottom - lower <= height * 0.30)
+        if not (curve or underline):
             continue
+        anchored = any(left <= (part.box[0] + part.box[2]) / 2 <= right
+                       and top <= part.center_y <= bottom for part in anchors)
+        if not enlarged and not anchored:
+            continue
+        pieces: list[tuple[Component, DigitMatch]] = []
         for piece in connected_components(gray.crop((left, upper, right, lower))):
             x0, y0, x1, y1 = piece.box
             box = left + x0, upper + y0, left + x1, upper + y1
@@ -1380,14 +1429,20 @@ def _recover_curve_fused_heads(
                            for part in anchors)):
                 continue
             head = Component(box, piece.area)
+            if underline and not recover_faint_duration_tier(gray, box, barlines, 0):
+                continue
             reading = image_digit(gray, box, tight_padding=True)
             if (reading is None or reading[1] < 0.995
                     or digit_shape_similarity(gray, head, reading[0]) < 0.65
                     or ocr_digit_has_page_conflict(gray, head, reading[0], templates)):
                 continue
-            claimed.add(box)
+            pieces.append((head, (*reading, True)))
+        if curve and not anchored and len(pieces) < 2:
+            continue
+        for head, match in pieces:
+            claimed.add(head.box)
             anchors.append(head)
-            found.append((head, (*reading, True)))
+            found.append((head, match))
     return found
 
 
@@ -1868,6 +1923,7 @@ def _recognize_working_rows(
             ))
             recovered.extend(_recover_curve_fused_heads(
                 gray, [*group, *recovered], components, known_boxes, row_bars, templates,
+                enlarged=transform.scale_y > 1,
             ))
             main.extend(recovered)
             candidates.extend(recovered)
