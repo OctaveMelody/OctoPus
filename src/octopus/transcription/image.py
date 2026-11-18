@@ -34,7 +34,7 @@ from .observations import BzOverlay, MusicRow, Note, PageObservation
 from .ornaments import EndingSegment, row_endings, row_graces, voice_components
 from .pitch_marks import MarkRejection, PitchMarkCandidate
 from .slurs import curve_core_parts, ending_box_curve, row_slurs
-from .text import image_digit, music_characters
+from .text import image_digit, music_characters, page_digit_ocr_cache
 from .voices import (
     VoiceGroup,
     dsb_brace_candidate,
@@ -2225,6 +2225,7 @@ def _add_source_marks(page: PageObservation, prepared: _PreparedImage) -> PageOb
     )
 
 
+@page_digit_ocr_cache()
 def recognize_image(path: Path) -> PageObservation:
     """Recognize rows and marks in stages, returning original-image coordinates."""
     prepared = _prepare_image(path)

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from math import isfinite
 from pathlib import Path
@@ -680,6 +683,42 @@ def _shared_lyric_text(
     return ()
 
 
+# Store immutable recognizer readings. Digit acceptance can differ between callers.
+# Retain the engine while its address is used as a key.
+_DigitReads = dict[
+    tuple[int, tuple[int, int], bytes], tuple[object, tuple[str, float] | None]
+]
+_digit_reads: ContextVar[_DigitReads | None] = ContextVar("_digit_reads", default=None)
+
+
+@contextmanager
+def page_digit_ocr_cache() -> Iterator[None]:
+    token = _digit_reads.set({})
+    try:
+        yield
+    finally:
+        _digit_reads.reset(token)
+
+
+def _read_padded_digit(engine: object, padded: Image.Image) -> tuple[str, float] | None:
+    import numpy as np
+
+    cache = _digit_reads.get()
+    key = None
+    if cache is not None and padded.width * padded.height <= 4096:
+        key = (id(engine), padded.size, padded.tobytes())
+        if key in cache:
+            return cache[key][1]
+
+    result, _ = _ocr_call(engine, np.asarray(padded), use_det=False, use_cls=False)
+    reading = (str(result[0][0]).strip(), float(result[0][1])) if result else None
+    if key is not None and cache is not None:
+        if len(cache) == 1024:
+            del cache[next(iter(cache))]
+        cache[key] = (engine, reading)
+    return reading
+
+
 def image_digit(
     gray: Image.Image, box: Box, allowed_digits: str = "01234567",
     *, tight_padding: bool = False,
@@ -688,8 +727,6 @@ def image_digit(
     engine = _ocr_engine()
     if engine is None:
         return None
-    import numpy as np
-
     crop = gray.crop(box).convert("RGB")
     if tight_padding:
         padded = ImageOps.expand(crop, border=round(crop.height * 0.2), fill="white")
@@ -697,10 +734,10 @@ def image_digit(
         side = round(max(crop.size) * 1.4)
         padded = Image.new("RGB", (side, side), "white")
         padded.paste(crop, ((side - crop.width) // 2, (side - crop.height) // 2))
-    result, _ = _ocr_call(engine, np.asarray(padded), use_det=False, use_cls=False)
-    if not result:
+    reading = _read_padded_digit(engine, padded)
+    if reading is None:
         return None
-    digit, confidence = str(result[0][0]).strip(), float(result[0][1])
+    digit, confidence = reading
     if len(digit) == 1 and digit in allowed_digits and confidence >= (
         0.50 if digit == "0" else 0.90
     ):
