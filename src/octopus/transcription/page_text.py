@@ -1023,6 +1023,115 @@ def _recover_unclaimed_lyric_glyphs(
                    recovered_lyric_glyphs=(*page.recovered_lyric_glyphs, *added))
 
 
+def _recover_repeated_verse_glyphs(
+    gray: Image.Image, page: PageObservation,
+) -> PageObservation:
+    """Fill an interior lyric gap only when its ink matches a neighboring verse."""
+    if (page.voice_groups or page.dsb_overlays or page.bz_overlays
+            or page.native_text_spans is not None):
+        return page
+    import numpy as np
+    from numpy.typing import NDArray
+
+    def glyph(
+        x: float, y: float, half_width: float, half_height: float,
+    ) -> tuple[Box, NDArray[np.float32]] | None:
+        left, top = max(0, round(x - half_width)), max(0, round(y - half_height))
+        right = min(gray.width, round(x + half_width))
+        bottom = min(gray.height, round(y + half_height))
+        ink = gray.crop((left, top, right, bottom)).point(
+            lambda value: 255 if value < UNCLAIMED_LYRIC_INK_LEVEL else 0,
+        )
+        bounds = ink.getbbox()
+        if bounds is None:
+            return None
+        x0, y0, x1, y1 = bounds
+        if x1 - x0 < half_width or y1 - y0 < half_height * 1.3:
+            return None
+        tile = ImageOps.pad(ink.crop(bounds), (24, 24), Image.Resampling.BILINEAR)
+        pixels = np.asarray(tile, dtype=np.float32)
+        norm = np.linalg.norm(pixels)
+        if norm <= 0:
+            return None
+        return (left + x0, top + y0, left + x1, top + y1), pixels / norm
+
+    for index, row in enumerate(page.rows):
+        if len(row.notes) < 3:
+            continue
+        height = median(note.box[3] - note.box[1] for note in row.notes)
+        bottom = page.rows[index + 1].box[1] if index + 1 < len(page.rows) else page.height
+        if any(brace[1] < bottom and brace[3] > row.box[1] - height
+               for brace in page.unresolved_braces):
+            continue
+        drafts = extract_lyrics(page, index)
+        if len(drafts) < 3 or any(len(draft.regions) < 3 for draft in drafts):
+            continue
+        centers = [median((box[1] + box[3]) / 2 for box in draft.regions) for draft in drafts]
+        pitch = min(b - a for a, b in zip(centers, centers[1:], strict=False))
+        if not height <= pitch <= 2 * height:
+            continue
+        half_height = min(pitch * 0.48, height * 0.75)
+        half_width = height * 0.85
+        peers = []
+        for verse, (draft, y) in enumerate(zip(drafts, centers, strict=True)):
+            for span in page.text_spans:
+                if (span.box not in draft.regions or span.confidence < 0.9
+                        or len(span.text) != 1 or not "\u3400" <= span.text <= "\u9fff"
+                        or abs(span.center_y - y) >= half_height):
+                    continue
+                template = glyph(span.center_x, y, half_width, half_height)
+                if template is not None:
+                    peers.append((verse, span, template[1]))
+        if len({span.text for _, span, _ in peers}) < 2:
+            continue
+        templates = np.stack([tile.ravel() for _, _, tile in peers])
+        xs = [(note.box[0] + note.box[2]) / 2 for note in row.notes]
+        expected = [list(draft.accepted_slot_groups) for draft in drafts]
+        added = []
+        for verse, (slots, y) in enumerate(zip(expected, centers, strict=True)):
+            filled = [slot for slot, group in enumerate(slots) if group is not None]
+            if len(filled) < 3:
+                continue
+            for slot in range(filled[0] + 1, filled[-1]):
+                x = xs[slot]
+                radius = min(half_width, (x - xs[slot - 1]) / 2, (xs[slot + 1] - x) / 2)
+                if (slots[slot] is not None
+                        or radius < height * 0.7
+                        or any(abs(span.center_x - x) < radius
+                               and abs(span.center_y - y) < half_height
+                               for span in page.text_spans)
+                        or not any(abs(other - verse) == 1 and abs(span.center_x - x) < height / 2
+                                   for other, span, _ in peers)):
+                    continue
+                candidate = glyph(x, y, radius, half_height)
+                if candidate is None:
+                    continue
+                box, pixels = candidate
+                padded = np.pad(pixels, 2)
+                shifts = np.stack([padded[a:a + 24, b:b + 24].ravel()
+                                   for a in range(5) for b in range(5)])
+                scores = (shifts @ templates.T).max(axis=0)
+                best = int(scores.argmax())
+                other, span, _ = peers[best]
+                runner_up = max((score for (_, peer, _), score in zip(peers, scores, strict=True)
+                                 if peer.text != span.text), default=1.0)
+                # Compare all local letters, including different letters in the same column.
+                if (abs(other - verse) != 1 or abs(span.center_x - x) >= height / 2
+                        or scores[best] < 0.82 or scores[best] - runner_up < 0.07):
+                    continue
+                added.append(TextSpan(span.text, box, span.confidence, (x,), (), (box,)))
+                slots[slot] = (span.text,)
+        if added:
+            recovered = replace(page, text_spans=(*page.text_spans, *added))
+            if [draft.accepted_slot_groups for draft in extract_lyrics(recovered, index)] == [
+                tuple(slots) for slots in expected
+            ]:
+                page = replace(recovered, recovered_lyric_glyphs=(
+                    *page.recovered_lyric_glyphs, *added,
+                ))
+    return page
+
+
 def _performance_text(
     path: Path, page: PageObservation, original: tuple[TextSpan, ...],
 ) -> PageObservation:
@@ -1098,7 +1207,8 @@ def _performance_text(
     lyrics = _remove_barline_commas(gray, lyrics, rows)
     page = replace(page, rows=rows, bz_overlays=overlays, text_spans=lyrics,
                    non_lyric_regions=_non_lyric_music_marks(gray, rows, retained))
-    return _recover_unclaimed_lyric_glyphs(path, gray, page)
+    page = _recover_unclaimed_lyric_glyphs(path, gray, page)
+    return _recover_repeated_verse_glyphs(gray, page)
 
 
 def _attach_score_text(

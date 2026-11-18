@@ -541,8 +541,8 @@ def _text_ownership_issues(page: PageObservation, page_number: int) -> list[Issu
     issues: list[Issue] = []
     issues.extend(Issue(
         "lyric_glyph_recovery_review", page_number,
-        f"Recovered stacked lyric character {span.text} from a focused re-read of the printed "
-        "baseline; check the character and its note against the scan.", (span.box,),
+        f"Recovered stacked lyric character {span.text} using local print evidence; "
+        "check the character and its note against the scan.", (span.box,),
     ) for span in page.recovered_lyric_glyphs)
     for row_index, _row in enumerate(page.rows):
         overlay = next((item for item in page.dsb_overlays if item.anchor == row_index), None)
