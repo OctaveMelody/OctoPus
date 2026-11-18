@@ -1255,6 +1255,36 @@ def _beamed_digit_group(
     return pieces, beam
 
 
+def _beam_supported_digit(
+    gray: Image.Image, component: Component, height: int, anchors: tuple[Box, ...],
+    barlines: tuple[int, ...],
+) -> DigitMatch | None:
+    """Check a narrow glyph against two printed duration tiers shared with a note."""
+    left, _, right, _ = component.box
+    if (not height * 0.8 <= component.height <= height
+            or not height * 0.2 <= component.width <= height * 0.5
+            or any(left < box[2] and box[0] < right for box in anchors)):
+        return None
+    previous = max((box for box in anchors if box[2] <= left), default=None,
+                   key=lambda box: box[2])
+    following = min((box for box in anchors if box[0] >= right), default=None)
+    if not previous or not following or not any(
+        has_shared_duration_tiers(gray, component.box, peer, barlines)
+        for peer in (previous, following)
+    ):
+        return None
+    ranked = sorted(((digit_shape_similarity(gray, component, digit), digit)
+                     for digit in "01234567"), reverse=True)
+    score, digit = ranked[0]
+    # The two source tiers corroborate short digit shapes that ordinary row OCR rejects.
+    if score < 0.55 or score - ranked[1][0] < 0.04:
+        return None
+    reading = image_digit(gray, component.box, tight_padding=True)
+    if reading is not None and reading[0] == digit and reading[1] >= 0.99:
+        return digit, reading[1], True
+    return None
+
+
 def _recover_row_digits(
     group: list[tuple[Component, DigitMatch]], components: list[Component],
     height: int, gray: Image.Image, claimed: set[Box],
@@ -1282,8 +1312,6 @@ def _recover_row_digits(
         [component for component in row_candidates if component.width > height]
         if shared_beams is not None else []
     )
-    if not unresolved and not beam_candidates:
-        return []
     found = []
     for component in unresolved:
         if component.width <= height and (page_match := match_page_digit(
@@ -1381,6 +1409,15 @@ def _recover_row_digits(
                 MIN_DIGIT_VECTOR_SUPPORT
             ):
                 found.append((component, antialias_match))
+                claimed.add(component.box)
+    if shared_beams is not None and templates and barlines and len(group) >= 5:
+        anchors = tuple(component.box for component, _ in (*group, *found))
+        for component in row_candidates:
+            if component.box in claimed:
+                continue
+            beam_match = _beam_supported_digit(gray, component, height, anchors, barlines)
+            if beam_match is not None:
+                found.append((component, beam_match))
                 claimed.add(component.box)
     # Page-font matches can follow tilt; uncorroborated OCR keeps its existing row band.
     unresolved = [component for component in unresolved if component.box not in claimed
