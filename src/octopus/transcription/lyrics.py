@@ -81,15 +81,37 @@ def _lyric_units(span: TextSpan) -> list[tuple[str, float]]:
                 units.append((word, x))
         return units
     width = span.box[2] - span.box[0]
-    return [
-        (
-            f'"{match.group()}"' if _ANNOTATION.fullmatch(match.group()) else match.group(),
-            sum(span.character_centers[match.start():match.end()]) / len(match.group())
-            if len(span.character_centers) == len(text)
-            else span.box[0] + width * (match.start() + len(match.group()) / 2) / len(text),
-        )
-        for match in re.finditer(_ANNOTATION.pattern + r"|\S+", text)
-    ]
+    units = []
+    aligned_boxes = (len(span.character_boxes) == len(text)
+                     and len(span.character_centers) == len(text) and span.height > 0)
+    for match in re.finditer(_ANNOTATION.pattern + r"|\S+", text):
+        annotation = _ANNOTATION.fullmatch(match.group()) is not None
+        boundaries = [match.start()]
+        if aligned_boxes and not annotation:
+            for index in range(match.start() + 1, match.end()):
+                previous, following = text[index - 1], text[index]
+                if not (following.isascii() and following.isalpha()
+                        and (previous.isalpha() or previous in ",.;:!?-")):
+                    continue
+                if (previous in ",.;:!?-"
+                        and (index < match.start() + 2 or not text[index - 2].isalpha())):
+                    continue
+                gap = span.character_boxes[index][0] - span.character_boxes[index - 1][2]
+                # A printed blank separates words; a trailing syllable hyphen corroborates less.
+                if gap >= span.height * (0.5 if previous == "-" else 1.0):
+                    boundaries.append(index)
+        boundaries.append(match.end())
+        for start, end in zip(boundaries, boundaries[1:], strict=False):
+            word = text[start:end]
+            # A recovered word starts at its leading glyph; its mean can cross a melisma.
+            if len(boundaries) > 2:
+                x = span.character_centers[start]
+            elif len(span.character_centers) == len(text):
+                x = sum(span.character_centers[start:end]) / len(word)
+            else:
+                x = span.box[0] + width * (start + len(word) / 2) / len(text)
+            units.append((f'"{word}"' if annotation else word, x))
+    return units
 
 
 def _deduplicate_overlapping_glyphs(spans: list[TextSpan]) -> tuple[TextSpan, ...]:
