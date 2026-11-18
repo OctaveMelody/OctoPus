@@ -89,6 +89,10 @@ def score_text_kind(value: str) -> str | None:
         return "ending_title"
     if _REPEATED_LYRIC_INSTRUCTION.fullmatch(content):
         return "performance_instruction"
+    if re.fullmatch(r"\[\s*(?:排[练練]|演唱|演奏)提示\s*\]", normalized) or re.fullmatch(
+        r"【\s*(?:排[练練]|演唱|演奏)提示\s*】", normalized,
+    ):
+        return "instruction_candidate"
     if _INSTRUCTION_CUES.search(content) and (
         normalized.startswith("(") and normalized.endswith(")")
         or "反复" in content or "重复" in content

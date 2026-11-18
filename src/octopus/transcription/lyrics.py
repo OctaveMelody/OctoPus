@@ -455,6 +455,31 @@ def _overfull_lyric_band(band: list[TextSpan], row: MusicRow, height: int) -> bo
     return len(matched) * 4 >= len(units) * 3 and len(set(matched)) * 5 >= len(centers) * 3
 
 
+def _is_credit_footer(
+    band: list[TextSpan], previous: list[TextSpan], page: PageObservation, height: int,
+) -> bool:
+    """Separate compact prose joined by a printed dash below the final sung line."""
+    if len(band) != 1 or not previous:
+        return False
+    span = band[0]
+    if span.box[1] - max(item.box[3] for item in previous) < height * 0.5:
+        return False
+    letters = len(_CJK_CHARACTERS.findall(span.text))
+    previous_letters = sum(len(_CJK_CHARACTERS.findall(item.text)) for item in previous)
+    if letters < 6 or not previous_letters:
+        return False
+    width = span.box[2] - span.box[0]
+    previous_width = max(item.box[2] for item in previous) - min(item.box[0] for item in previous)
+    if width / letters > 0.75 * previous_width / previous_letters:
+        return False
+    return any(
+        dash.text.strip() in {"——", "━━", "──"}
+        and span.box[0] + height <= dash.box[0] < dash.box[2] <= span.box[2] - height
+        and abs(dash.center_y - span.center_y) <= height * 0.25
+        for dash in page.text_spans
+    )
+
+
 def _numbered_verse_continuation(bands: list[list[TextSpan]], height: int) -> None:
     """Separate a merged continuation when later numbered verses establish its owner."""
     labels = []
@@ -695,6 +720,9 @@ def extract_lyrics(
                     > min(median(span.height for span in band),
                           median(span.height for span in previous_band)) * 1.5):
                 continue
+        if (row_index == len(page.rows) - 1
+                and _is_credit_footer(band, previous_band, page, digit_height)):
+            continue
         previous_band = list(band)
         band.extend(span for span in spans if any(
             abs(baseline - band[0].center_y) <= digit_height * 0.5
