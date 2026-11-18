@@ -2139,6 +2139,63 @@ def _add_working_ornaments(
     )
 
 
+def _faint_barlines(row: MusicRow, gray: Image.Image, *, final: bool = False) -> tuple[int, ...]:
+    """Recover pale, straight measure strokes between independently read notes."""
+    if not row.barlines or len(row.notes) < 2:
+        return ()
+    height = median(note.box[3] - note.box[1] for note in row.notes)
+    pixels = gray.load()
+    assert pixels is not None
+    def pale(values: list[int]) -> bool:
+        return (sum(value < 220 for value in values) >= len(values) * 0.9
+                and sum(value < 160 for value in values) <= len(values) * 0.25)
+
+    recovered = []
+    for left_note, right_note in zip(row.notes, row.notes[1:], strict=False):
+        left, right = left_note.box[2], right_note.box[0]
+        if any(left <= x <= right for x in row.barlines):
+            continue
+        center = (left_note.box[1] + left_note.box[3]
+                  + right_note.box[1] + right_note.box[3]) / 4
+        top = max(0, round(center - height * 0.7))
+        bottom = min(gray.height, round(center + height * 0.7))
+        columns: list[list[int]] = []
+        for x in range(left + 1, right - 1):
+            values = [cast(int, pixels[x, y]) for y in range(top, bottom)]
+            if not values or not pale(values):
+                continue
+            if not columns or columns[-1][-1] != x - 1:
+                columns.append([])
+            columns[-1].append(x)
+        if len(columns) == 1 and len(columns[0]) <= max(2, round(height * 0.22)):
+            recovered.append(columns[0][0])
+
+    # A pale first stroke can disappear beside a strong terminal bar. Require a
+    # separate intensity minimum and a brighter valley, so a dark bar's halo is ignored.
+    if final:
+        terminal = max(row.barlines)
+        note = row.notes[-1].box
+        known_group = any(0 < terminal - x <= height * 0.65 for x in row.barlines)
+        if terminal - note[2] >= height * 1.5 and not known_group:
+            center = (note[1] + note[3]) / 2
+            top = max(0, round(center - height * 0.7))
+            bottom = min(gray.height, round(center + height * 0.7))
+            start = max(0, terminal - round(height * 0.55))
+            samples = {x: [cast(int, pixels[x, y]) for y in range(top, bottom)]
+                       for x in range(start, min(gray.width, terminal + 1))}
+            if bottom > top and terminal in samples and median(samples[terminal]) < 130:
+                profile = {x: median(values) for x, values in samples.items()}
+                candidates = [
+                    x for x in range(start + 1, terminal - 1)
+                    if pale(samples[x]) and profile[x] <= 185
+                    and profile[x - 1] >= profile[x] + 18
+                    and max(profile[y] for y in range(x + 1, terminal)) >= profile[x] + 18
+                ]
+                if len(candidates) == 1:
+                    recovered.append(candidates[0])
+    return tuple(recovered)
+
+
 def _row_with_source_marks(
     row: MusicRow, page: PageObservation, prepared: _PreparedImage,
 ) -> MusicRow:
@@ -2228,8 +2285,9 @@ def _row_with_source_marks(
     mordents = attached_mordents(source_gray, notes, slurs, slur_marks)
     recovered_notes = [replace(note, decorations=tuple(dict.fromkeys((*note.decorations, "sby"))))
                        if index in mordents else note for index, note in enumerate(recovered_notes)]
+    faint_bars = _faint_barlines(row, source_gray, final=bool(page.rows and row is page.rows[-1]))
     return replace(
-        row,
+        row, barlines=tuple(sorted((*row.barlines, *faint_bars))),
         notes=tuple(recovered_notes), unresolved_marks=unresolved,
         slurs=slurs, slur_origins=tuple(origins),
         parentheses=row_parentheses(music, height, marks, source_gray),
