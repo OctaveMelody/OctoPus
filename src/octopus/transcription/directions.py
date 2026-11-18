@@ -7,6 +7,8 @@ import unicodedata
 from dataclasses import dataclass, replace
 from statistics import median
 
+from .compilation import _bar_marks
+from .marks import row_sustains
 from .observations import MusicRow
 from .text import MIN_TEXT_SPAN_CONFIDENCE, TextSpan
 
@@ -152,16 +154,27 @@ def _row_direction_distance(
     *,
     height: float,
     lower_bound: float,
+    internal_bars: tuple[int, ...],
 ) -> tuple[float, int] | None:
-    if not row.barlines:
+    if (not row.barlines or span.box[1] < row.box[3] - height * 0.25
+            or span.box[3] > lower_bound):
         return None
-    endpoint = max(row.barlines)
-    if span.box[1] < row.box[3] - height * 0.25 or span.box[3] > lower_bound:
+    dy = max(0, span.center_y - row.box[3])
+    terminal = max(row.barlines)
+    owners: list[tuple[float, int]] = []
+    terminal_gap = max(span.box[0] - terminal, terminal - span.box[2], 0)
+    if terminal_gap <= height * 1.8:
+        owners.append((terminal_gap, terminal))
+    # Inside a system, require a printed abbreviation directly below a repeat or double bar.
+    if re.search(r"[.．]", span.text) and dy <= height * 2:
+        owners.extend(
+            (abs(span.center_x - x), x) for x in internal_bars
+            if abs(span.center_x - x) <= height * 0.8
+        )
+    if not owners:
         return None
-    horizontal_gap = max(span.box[0] - endpoint, endpoint - span.box[2], 0)
-    if horizontal_gap > height * 1.8:
-        return None
-    return max(0, span.center_y - row.box[3]) / height + horizontal_gap / height, endpoint
+    dx, endpoint = min(owners)
+    return (dy + dx) / height, endpoint
 
 
 def attach_score_directions(
@@ -170,7 +183,7 @@ def attach_score_directions(
     *,
     page_height: int | None = None,
 ) -> tuple[tuple[MusicRow, ...], tuple[_DirectionSource, ...]]:
-    """Attach exact D.S., D.C. and Fine readings to their nearest terminal barline."""
+    """Attach navigation text to row endings and internal repeat or double bars."""
     if not rows:
         return rows, ()
     heights = tuple(
@@ -181,6 +194,14 @@ def attach_score_directions(
     )
     height = median(heights) if heights else 1.0
     candidates = _direction_spans(spans, height)
+    internal_bars: list[tuple[int, ...]] = []
+    for row in rows if candidates else ():
+        notes = tuple(note.box for note in row.notes)
+        sustains = row_sustains(notes, row.unresolved_marks) if notes else ()
+        bars = _bar_marks(row, tuple(box[0] for box in (*notes, *sustains)), ()) if notes else []
+        internal_bars.append(tuple(
+            round(x) for x, token in bars[:-1] if token.split("&", 1)[0] in {"||", ":|", ":|:"}
+        ))
     attached: list[list[tuple[float, int, str]]] = [[] for _ in rows]
     consumed: set[_DirectionSource] = set()
     for reading in candidates:
@@ -198,6 +219,7 @@ def attach_score_directions(
             lower_bound = max(row.box[3], lower_bound)
             distance = _row_direction_distance(
                 row, span, height=height, lower_bound=lower_bound,
+                internal_bars=internal_bars[index] if reading.tokens != ("fine",) else (),
             )
             if distance is not None:
                 owners.append((distance[0], index, distance[1]))

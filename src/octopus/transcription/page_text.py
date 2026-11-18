@@ -29,7 +29,6 @@ from .text import (
     merge_text,
 )
 
-
 # Tuning for the row-local unclaimed-lyric recovery. Every radius below is a multiple of the
 # median note height, which is also the printed lyric glyph size in these scans. Measured crop
 # readings for the gated corpus place a clipped or split detection of one printed character at
@@ -769,6 +768,51 @@ def _ink_lyric_positions(gray: Image.Image, spans: tuple[TextSpan, ...]) -> tupl
     return tuple(refined)
 
 
+def _remove_barline_commas(
+    gray: Image.Image, spans: tuple[TextSpan, ...], rows: tuple[MusicRow, ...],
+) -> tuple[TextSpan, ...]:
+    """Keep a following system's tall bar from reading as a comma between syllables."""
+    pixels = gray.load()
+    assert pixels is not None
+    cleaned = []
+    for span in spans:
+        if len(span.character_boxes) != len(span.text):
+            cleaned.append(span)
+            continue
+        kept = []
+        for index, char in enumerate(span.text):
+            if char == "，" and 0 < index < len(span.text) - 1 and all(
+                "\u3400" <= span.text[index + offset] <= "\u9fff" for offset in (-1, 1)
+            ):
+                left, top, right, bottom = span.character_boxes[index]
+                following = next((row for row in rows if row.box[1] >= bottom), None)
+                if (following is not None and 0 <= left < right <= gray.width
+                        and 0 <= top < bottom <= following.box[1] < gray.height
+                        and following.box[1] - bottom <= (bottom - top) * 0.5
+                        and any(
+                            left <= x < right and bottom - top >= 8
+                            and all(cast(int, pixels[x, y]) < 180
+                                    for y in range(bottom - 4, following.box[1] + 1))
+                            and sum(cast(int, pixels[column, y]) < 180
+                                    for column in range(left, right) if abs(column - x) > 1
+                                    for y in range(top, bottom)) <= 2
+                            for x in following.barlines
+                        )):
+                    continue
+            kept.append(index)
+        if len(kept) == len(span.text):
+            cleaned.append(span)
+            continue
+        centers = span.character_centers
+        cleaned.append(replace(
+            span, text="".join(span.text[index] for index in kept),
+            character_centers=tuple(centers[index] for index in kept)
+            if len(centers) == len(span.text) else (),
+            character_boxes=tuple(span.character_boxes[index] for index in kept),
+        ))
+    return tuple(cleaned)
+
+
 def _v_mark_ink(gray: Image.Image, box: Box) -> bool:
     left, top, right, bottom = box
     if left < 0 or top < 0 or right > gray.width or bottom > gray.height:
@@ -1050,6 +1094,7 @@ def _performance_text(
     ))
     lyrics = _ink_lyric_positions(gray, retained)
     lyrics = _split_corroborated_stacked_lyrics(gray, lyrics, rows)
+    lyrics = _remove_barline_commas(gray, lyrics, rows)
     page = replace(page, rows=rows, bz_overlays=overlays, text_spans=lyrics,
                    non_lyric_regions=_non_lyric_music_marks(gray, rows, retained))
     return _recover_unclaimed_lyric_glyphs(path, gray, page)
