@@ -32,6 +32,7 @@ from .glyphs import (
 from .marks import (
     has_parallel_duration_tiers,
     note_modifiers,
+    recover_faint_duration_tier,
     row_parentheses,
     row_sustains,
     vertical_bend,
@@ -2175,6 +2176,8 @@ def _row_with_source_marks(
         slashes = note.duration_slashes
         if slashes == 1 and has_parallel_duration_tiers(source_gray, note.box, row.barlines):
             slashes = 2
+        elif slashes < 2:
+            slashes = recover_faint_duration_tier(source_gray, note.box, row.barlines, slashes)
         recovered_notes.append(replace(
             note, octave=octave, duration_slashes=slashes,
             decorations=tuple(dict.fromkeys((*note.decorations, *owned))),

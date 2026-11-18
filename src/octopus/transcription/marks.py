@@ -418,10 +418,9 @@ def _local_duration_tiers(
     return min(4, required, max(confirmed, len(dark_bands)))
 
 
-def has_parallel_duration_tiers(
-    gray: Image.Image, note: Box, barlines: tuple[int, ...],
-) -> bool:
-    """Find a second parallel underline where the first is already recognized."""
+def _source_duration_tiers(
+    gray: Image.Image, note: Box, barlines: tuple[int, ...], *, threshold: int, gap: int,
+) -> list[tuple[int, int, int]]:
     left, top, right, bottom = note
     height = bottom - top
     width = right - left
@@ -431,34 +430,68 @@ def has_parallel_duration_tiers(
     pixels = gray.load()
     assert pixels is not None
     bands: list[list[tuple[int, int, int]]] = []
-    for y in range(bottom + 1, min(gray.height, bottom + round(height * 0.75) + 1)):
-        ink = [cast(int, pixels[x, y]) < 160 for x in range(start, stop)]
-        run_start = start
+    depth = round(height * (0.75 if threshold == 160 else 0.85))
+    for y in range(bottom + 1, min(gray.height, bottom + depth + 1)):
+        ink = [cast(int, pixels[x, y]) < threshold for x in range(start, stop)]
+        columns = [start + offset for offset, dark in enumerate(ink) if dark]
+        if not columns:
+            continue
+        run_start = columns[0]
         longest: tuple[int, int, int] | None = None
-        for offset, dark in enumerate((*ink, False)):
-            # Bridge a single light pixel in an otherwise continuous printed stroke.
-            if dark or 0 < offset < len(ink) - 1 and ink[offset - 1] and ink[offset + 1]:
+        # Bridge scan dropouts inside a stroke without extending its endpoints.
+        for previous, following in zip(columns, (*columns[1:], stop + gap + 1), strict=True):
+            if following - previous <= gap + 1:
                 continue
-            end = start + offset
+            end = previous + 1
             length = end - run_start
             if (length >= max(width, round(height * 0.65))
                     and _overlap(left, right, run_start, end) >= width * 0.75
                     and not any(run_start < bar < end for bar in local_bars)
                     and (longest is None or length > longest[2] - longest[1])):
                 longest = (y, run_start, end)
-            run_start = end + 1
+            run_start = following
         if longest is not None:
             if not bands or y > bands[-1][-1][0] + 1:
                 bands.append([])
             bands[-1].append(longest)
-    tiers = [max(band, key=lambda run: run[2] - run[1]) for band in bands
-             if len(band) <= max(3, round(height * 0.18))]
+    return [
+        max(band, key=lambda run: run[2] - run[1]) for band in bands
+        if len(band) <= max(3, round(height * (0.18 if threshold == 160 else 0.22)))
+    ]
+
+
+def has_parallel_duration_tiers(
+    gray: Image.Image, note: Box, barlines: tuple[int, ...],
+) -> bool:
+    """Find a second parallel underline where the first is already recognized."""
+    height = note[3] - note[1]
+    bottom = note[3]
+    tiers = _source_duration_tiers(gray, note, barlines, threshold=160, gap=1)
     return any(
         0 < upper - bottom <= height * 0.4
         and 1 < lower - upper <= height * 0.45
         and _overlap(a, b, c, d) >= max(b - a, d - c) * 0.75
         for (upper, a, b), (lower, c, d) in zip(tiers, tiers[1:], strict=False)
     )
+
+def recover_faint_duration_tier(
+    gray: Image.Image, note: Box, barlines: tuple[int, ...], existing: int,
+) -> int:
+    """Read a nearby faint stroke or a pair of faint parallel tiers."""
+    height = note[3] - note[1]
+    bottom = note[3]
+    tiers = _source_duration_tiers(gray, note, barlines, threshold=210, gap=2 - existing)
+    if existing == 0:
+        return int(any(0 < y - bottom <= height * 0.35 for y, _, _ in tiers))
+    if any(
+        0 < upper - bottom <= height * 0.35
+        and 1 < lower - upper <= height * 0.6
+        and _overlap(a, b, c, d) >= max(b - a, d - c) * 0.75
+        for (upper, a, b), (lower, c, d) in zip(tiers, tiers[1:], strict=False)
+    ):
+        return 2
+    return existing
+
 
 
 def note_modifiers(
