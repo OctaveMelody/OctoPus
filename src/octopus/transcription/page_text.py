@@ -1056,7 +1056,8 @@ def _performance_text(
     rows, score_text_spans = _attach_score_text(rows, candidates)
     consumed: set[TextSpan] = set()
     decoration_candidates = tuple(
-        span for span in candidates if span not in score_text_spans
+        span for span in candidates
+        if span not in score_text_spans or score_text_kind(span.text) is None
     )
 
     owned_rows = (*rows, *overlay_rows)
@@ -1163,6 +1164,36 @@ def _attach_score_text(
         )
         attached_notes.append(span)
         consumed.add(span)
+    # A crop can read the bracket title separately while page OCR joins it to a tempo cue.
+    for span in spans:
+        if span in consumed or span.confidence < MIN_TEXT_SPAN_CONFIDENCE:
+            continue
+        ending_owner = _ending_text_owner(span, tuple(updated), height)
+        titles = attached_titles.get(ending_owner, ()) if ending_owner is not None else ()
+        if not titles or ending_owner is None:
+            continue
+        for split in range(1, len(span.text)):
+            title = ending_title_text(span.text[split:])
+            token = decoration_token(span.text[:split])
+            if (not token or not token.startswith('"') or title is None
+                    or not any(ending_title_text(item.text) == title
+                               and _box_coverage(item.box, span.box) >= 0.65 for item in titles)):
+                continue
+            row_index, ending_index = ending_owner
+            row = updated[row_index]
+            left, _, right, _ = row.endings[ending_index].box
+            ending_note = next((i for i, note in enumerate(row.notes)
+                                if left <= (note.box[0] + note.box[2]) / 2 <= right), None)
+            if ending_note is None:
+                break
+            notes = list(row.notes)
+            note = notes[ending_note]
+            notes[ending_note] = replace(note, annotations=tuple(dict.fromkeys(
+                (*note.annotations, token),
+            )))
+            updated[row_index] = replace(row, notes=tuple(notes))
+            consumed.add(span)
+            break
     return tuple(updated), tuple(consumed)
 
 
