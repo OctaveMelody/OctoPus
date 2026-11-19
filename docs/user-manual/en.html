@@ -509,7 +509,7 @@ Q4: 1 - 5,. 5,/ | 6, - - 5, | 1 8 2 8 3 4 | 5 - - 0 | 1 - 6,. 6,/ | 7, - - 1 |</
 <pre><code>Q: 1 2 3 4 | 5 - 6 7 |
 C: 春 风 @ 来 花~儿 开 了
 C: 第 二 段 词 也 能 写</code></pre>
-<p>Begin a lyric line with a quoted label such as "1.". Jianpu-Spec documents _ as a space inside a quoted lyric label, but current OctoPus preserves _ literally and removes ordinary half-width spaces from quoted labels. Use a full-width space if a visible space is needed, and inspect the rendered label. English words/syllables are separated by /; do not map individual letters to notes. / can also make mixed Chinese/English boundaries explicit. Use @ for unsung notes and inspect melismas rather than treating ordinary spaces as dependable English syllable delimiters.</p>
+<p>Begin a lyric line with a quoted label such as "1.". Use _ for a space inside a quoted lyric label. Literal half-width spaces are removed; full-width spaces are preserved. English words/syllables are separated by /; do not map individual letters to notes. / can also make mixed Chinese/English boundaries explicit. Use @ for unsung notes and inspect melismas rather than treating ordinary spaces as dependable English syllable delimiters.</p>
 <pre><code>Q: 1 2 3 4 |
 C: &quot;Verse_1&quot; Sing/a/new/song
 C: &quot;2.&quot; 春/风/@/song</code></pre>
@@ -633,7 +633,7 @@ Q4: 5 - (5/ 6/) | 7$ - - | 6 - 6 | 6$ - - | 5 - 8 5 | 5 8 5 8 5 | 5 - - | 6 - - 
 <table><thead><tr><th>Specification topic</th><th>Manual coverage</th><th>Current OctoPus status</th></tr></thead><tbody>
 <tr><td>Introduction, file structure, header/body order, comments and page breaks (chapters 01–02)</td><td>13–14</td><td>Q/C structure and page breaks are supported. Blank lines separate systems. V/B/Z/D/P/J headers are covered; X is retained but not rendered.</td></tr>
 <tr><td>Music notation: scale degrees, rests, octave, duration, accidentals, dynamics, ornaments, ties/slurs, tuplets, barlines, repeats/endings, grouping and voices (chapter 03)</td><td>15–23</td><td>Documented notation is supported as described in those sections. Repeat and tempo marks print but do not execute playback. Music ~ and ^ customize beat grouping; they do not alter duration.</td></tr>
-<tr><td>Lyrics: C rows, Chinese/English alignment, skips, joins, punctuation and quoted annotations (chapter 04)</td><td>24</td><td>Supported with the behavior described in section 24. The spec's underscore-as-space convention is not implemented: OctoPus prints `_` literally in quoted labels.</td></tr>
+<tr><td>Lyrics: C rows, Chinese/English alignment, skips, joins, punctuation and quoted annotations (chapter 04)</td><td>24</td><td>Supported with the behavior described in section 24. The spec's underscore-as-space convention is supported in quoted labels.</td></tr>
 <tr><td>Suggestions and feedback (chapter 05)</td><td>27</td><td>Feedback guidance is covered. Historical personal contacts and MIDI/audio suggestions are not current product features.</td></tr>
 </tbody></table>
 <p><a href="https://github.com/OctaveMelody/OctoPus">Project home</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/README.md">Production README</a> · <a href="https://github.com/OctaveMelody/OctoPus/blob/main/ENVIRONMENT.md">Build environment</a></p>

@@ -2,8 +2,8 @@
 
 Reference behavior, verified across the corpus:
 
-- Text: the quoted JPS payload with the quotes removed, half-width (``0x20``)
-  spaces removed, and full-width spaces (``U+3000``) preserved.
+- Text: remove quotes and literal half-width spaces, then convert underscores
+  to spaces as specified by Jianpu-Spec; full-width spaces are preserved.
 - X: the annotation is right-aligned to the centre of the syllable that shares
   its anchor event. Full-width characters count as the lyric size, every other
   character as half of it. When the anchor event carries no syllable of the
@@ -18,8 +18,8 @@ from ..core.layout_types import LayoutEvent, LayoutLyric, LayoutPage
 
 
 def annotation_text(raw: str) -> str:
-    """Unquote an annotation payload and drop half-width spaces only."""
-    return raw.strip('"').replace(" ", "")
+    """Unquote a lyric label and expand its underscore spaces."""
+    return raw.strip('"').replace(" ", "").replace("_", " ")
 
 
 def syllable_width(text: str, lyric_size: int) -> float:
