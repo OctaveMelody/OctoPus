@@ -119,6 +119,11 @@ cancellation stops the dedicated process tree and invalidates the pending draft.
 worker is independent. Legacy HTTP/file/recovery protocol and audit entry points live only in
 OctoPus-dev and are excluded from production Python/native distributions.
 
+If a desktop replacement export is interrupted, the next launch tries to
+restore backed-up originals to vacant paths. An occupied destination is left
+alone and OctoPus reports where its original is stored. Draft recovery
+snapshots have a 64 MiB cap and use compact source fields for large drafts.
+
 Desktop worker requests are capped at 52 MiB, including JSON framing. This allows
 JSON escaping of an 8 MiB JPS source. Responses are capped at 64 MiB.
 

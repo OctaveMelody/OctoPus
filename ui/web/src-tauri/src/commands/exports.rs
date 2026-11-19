@@ -160,6 +160,15 @@ pub(super) fn confirm_export_path(
     if !confirm_replacements(window, &paths) {
         return Ok(None);
     }
+    let recovery = window
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("export-recovery");
+    let existing = existing
+        .into_iter()
+        .map(|file| file.with_recovery_root(&recovery))
+        .collect();
     Ok(Some((target, existing)))
 }
 

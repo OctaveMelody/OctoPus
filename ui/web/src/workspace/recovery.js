@@ -1,6 +1,9 @@
 import { createReferenceSet, validateReferenceSet } from "./reference-set.js";
 
-const MAX_RECOVERY_BYTES = 40 * 1024 * 1024;
+const MAX_RECOVERY_BYTES = 64 * 1024 * 1024;
+const COMPACT_SOURCE_THRESHOLD = 4 * 1024 * 1024;
+// Chunk lengths are divisible by three so only the final chunk can be padded.
+const BASE64_CHUNK_BYTES = 24 * 1024;
 const MAX_JPS_BYTES = 8 * 1024 * 1024;
 const NEW_SCORE_FIELDS = [
   "title",
@@ -78,6 +81,38 @@ function validateNewScoreDraft(value) {
   };
 }
 
+/** @param {string} text */
+function compactRecoveryText(text) {
+  // Keep unpaired UTF-16 surrogates literal rather than silently changing them.
+  if (/[\uD800-\uDFFF]/u.test(text)) return text;
+  const bytes = new TextEncoder().encode(text);
+  let encoded = "";
+  for (let offset = 0; offset < bytes.length; offset += BASE64_CHUNK_BYTES) {
+    encoded += btoa(String.fromCharCode(...bytes.subarray(offset, offset + BASE64_CHUNK_BYTES)));
+  }
+  return [encoded];
+}
+
+/** @param {unknown} value @param {string} label @param {number} version */
+function readRecoveryText(value, label, version) {
+  if (version === 6 && Array.isArray(value)) {
+    if (value.length !== 1 || typeof value[0] !== "string") {
+      throw new TypeError(`${label} has invalid compact encoding`);
+    }
+    try {
+      const binary = atob(value[0]);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      return new TextDecoder("utf-8", {fatal: true, ignoreBOM: true}).decode(bytes);
+    } catch {
+      throw new TypeError(`${label} has invalid compact encoding`);
+    }
+  }
+  return requireText(value, label, MAX_RECOVERY_BYTES);
+}
+
 /** @param {RecoveryDocument & {path?: string | null}} document @param {RecoveryDraft | null} [draft] @param {import("./reference-set.js").ReferenceSet} [references] @returns {string | null} */
 export function createRecoverySnapshot(document, draft = null, references = createReferenceSet()) {
   const referenceSet = validateReferenceSet(references);
@@ -88,13 +123,17 @@ export function createRecoverySnapshot(document, draft = null, references = crea
     && referenceSet.images.length === 0
     && referenceSet.pdfs.length === 0
   ) return null;
+  const compact = document.source.length + document.savedSource.length
+    + (document.savedFileText?.length ?? 0) >= COMPACT_SOURCE_THRESHOLD;
+  /** @param {string} text */
+  const storeText = text => compact ? compactRecoveryText(text) : text;
   const snapshot = {
-    version: 5,
+    version: compact ? 6 : 5,
     document: {
       name: document.name,
-      source: document.source,
-      savedSource: document.savedSource,
-      savedFileText: document.savedFileText,
+      source: storeText(document.source),
+      savedSource: storeText(document.savedSource),
+      savedFileText: document.savedFileText === null ? null : storeText(document.savedFileText),
       suggestedPath: document.suggestedPath ?? document.path,
       wrapperFields: document.wrapperFields,
       customCode: document.customCode,
@@ -125,7 +164,7 @@ export function parseRecoverySnapshot(text) {
   }
   if (!isRecord(snapshot)) throw new TypeError("recovery snapshot is invalid");
   const snapshotVersion = snapshot.version;
-  if (snapshotVersion !== 1 && snapshotVersion !== 2 && snapshotVersion !== 3 && snapshotVersion !== 4 && snapshotVersion !== 5) {
+  if (snapshotVersion !== 1 && snapshotVersion !== 2 && snapshotVersion !== 3 && snapshotVersion !== 4 && snapshotVersion !== 5 && snapshotVersion !== 6) {
     throw new TypeError("recovery snapshot version is unsupported");
   }
   requireKeys(
@@ -159,11 +198,11 @@ export function parseRecoverySnapshot(text) {
   if (!name.trim() || name.includes("/") || name.includes("\\") || name.includes("\0")) {
     throw new TypeError("recovery filename is invalid");
   }
-  const source = requireText(document.source, "recovery source", MAX_RECOVERY_BYTES);
-  const savedSource = requireText(document.savedSource, "saved recovery source", MAX_RECOVERY_BYTES);
+  const source = readRecoveryText(document.source, "recovery source", snapshotVersion);
+  const savedSource = readRecoveryText(document.savedSource, "saved recovery source", snapshotVersion);
   const savedFileText = document.savedFileText === null
     ? null
-    : requireText(document.savedFileText, "saved file snapshot", MAX_RECOVERY_BYTES);
+    : readRecoveryText(document.savedFileText, "saved file snapshot", snapshotVersion);
   const suggestedPath = document.suggestedPath === null
     ? null
     : requireText(document.suggestedPath, "suggested path", 32 * 1024);

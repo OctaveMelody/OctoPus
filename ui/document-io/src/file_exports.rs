@@ -1,5 +1,5 @@
 use std::fs::{self, File};
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 use same_file::Handle;
@@ -34,11 +34,17 @@ impl ExportFormat {
 pub struct ConfirmedExportTarget {
     path: PathBuf,
     version: ExportTargetVersion,
+    recovery_root: Option<PathBuf>,
 }
 
 impl ConfirmedExportTarget {
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    pub fn with_recovery_root(mut self, directory: &Path) -> Self {
+        self.recovery_root = Some(directory.to_path_buf());
+        self
     }
 }
 
@@ -155,14 +161,19 @@ fn publish_pages<T: AsRef<[u8]>>(
         staged.push((target.clone(), temporary, identity));
     }
 
-    let backup_directory = if confirmed_existing.is_empty() {
-        None
+    let (backup_directory, recovery_record) = if confirmed_existing.is_empty() {
+        (None, None)
     } else {
-        Some(
-            tempfile::Builder::new()
-                .prefix("octopus-export-")
-                .tempdir_in(directory)?,
-        )
+        let backup = tempfile::Builder::new()
+            .prefix(BACKUP_PREFIX)
+            .tempdir_in(directory)?;
+        let record = confirmed_existing[0]
+            .recovery_root
+            .as_deref()
+            .map(|root| record_export_backup(root, backup.path()))
+            .transpose()?;
+        // Keep the originals and their record on disk until publication or rollback completes.
+        (Some(backup.keep()), record)
     };
     let mut published = Vec::with_capacity(targets.len());
     for (target, temporary, identity) in staged {
@@ -175,7 +186,6 @@ fn publish_pages<T: AsRef<[u8]>>(
                 let original = backup_directory
                     .as_ref()
                     .expect("confirmed targets have a backup directory")
-                    .path()
                     .join(filename);
                 // Move the original aside before checking it. Publishing into the vacant path
                 // with no-clobber then cannot overwrite a file created after this check.
@@ -208,24 +218,132 @@ fn publish_pages<T: AsRef<[u8]>>(
             let prior_restored = rollback_published(&published);
             if !current_restored || !prior_restored {
                 return Err(DocumentIoError::PartialExport {
-                    recovery_location: preserve_recovery_files(backup_directory, directory),
+                    recovery_location: backup_directory.unwrap_or_else(|| directory.to_path_buf()),
                 });
             }
+            finish_export_backup(backup_directory.as_deref(), recovery_record.as_deref());
             return Err(error);
         }
         published.push((target, identity, backup));
     }
+    finish_export_backup(backup_directory.as_deref(), recovery_record.as_deref());
     Ok(targets)
 }
 
-fn preserve_recovery_files(
-    backup_directory: Option<tempfile::TempDir>,
-    destination_directory: &Path,
-) -> PathBuf {
-    backup_directory.map_or_else(
-        || destination_directory.to_path_buf(),
-        tempfile::TempDir::keep,
-    )
+const BACKUP_PREFIX: &str = "octopus-export-";
+
+fn record_export_backup(root: &Path, backup: &Path) -> io::Result<PathBuf> {
+    fs::create_dir_all(root)?;
+    let mut entry = NamedTempFile::new_in(root)?;
+    serde_json::to_writer(entry.as_file_mut(), backup)?;
+    entry.as_file().sync_all()?;
+    let record = entry.path().with_extension("json");
+    entry
+        .persist_noclobber(&record)
+        .map_err(|error| error.error)?;
+    #[cfg(unix)]
+    if let Err(error) = (|| {
+        File::open(root)?.sync_all()?;
+        if let Some(parent) = root.parent() {
+            File::open(parent)?.sync_all()?;
+        }
+        Ok::<(), io::Error>(())
+    })() {
+        let _ = fs::remove_file(&record);
+        return Err(error);
+    }
+    Ok(record)
+}
+
+fn finish_export_backup(backup: Option<&Path>, record: Option<&Path>) {
+    // The target files are settled. Retire the index first so a crash during
+    // backup cleanup cannot look like an interrupted replacement.
+    if let Some(record) = record {
+        if fs::remove_file(record).is_err() {
+            return;
+        }
+    }
+    if let Some(backup) = backup {
+        let _ = fs::remove_dir_all(backup);
+    }
+}
+
+/// Recover only recorded backups, and only into a vacant destination.
+pub fn recover_interrupted_exports(root: &Path) -> Vec<String> {
+    let records = match fs::read_dir(root) {
+        Ok(records) => records,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Vec::new(),
+        Err(error) => return vec![format!("Could not read export recovery records: {error}")],
+    };
+    let mut messages = Vec::new();
+    for record in records {
+        let record = match record {
+            Ok(record) => record,
+            Err(error) => {
+                messages.push(format!("Could not read an export recovery record: {error}"));
+                continue;
+            }
+        };
+        let path = record.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+            continue;
+        }
+        if let Err(error) = recover_export_record(&path, &mut messages) {
+            messages.push(format!(
+                "Could not finish export recovery for {}: {error}",
+                path.display()
+            ));
+        }
+    }
+    messages
+}
+
+fn recover_export_record(record: &Path, messages: &mut Vec<String>) -> io::Result<()> {
+    if !fs::symlink_metadata(record)?.is_file() {
+        return Err(io::Error::other("invalid recovery record"));
+    }
+    let backup: PathBuf = serde_json::from_reader(File::open(record)?.take(128 * 1024))?;
+    let name = backup
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    let parent = backup
+        .parent()
+        .filter(|_| backup.is_absolute() && name.starts_with(BACKUP_PREFIX))
+        .ok_or_else(|| io::Error::other("invalid export backup path"))?;
+    let entries = match fs::symlink_metadata(&backup) {
+        Ok(metadata) if metadata.is_dir() => fs::read_dir(&backup)?,
+        Ok(_) => return Err(io::Error::other("invalid export backup directory")),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            messages.push(format!(
+                "Export backup unavailable at {}. Reconnect its drive to retry on next launch.",
+                backup.display()
+            ));
+            return Ok(());
+        }
+        Err(error) => return Err(error),
+    };
+    let mut retained = false;
+    for entry in entries {
+        let entry = entry?;
+        let from = entry.path();
+        let destination = parent.join(entry.file_name());
+        if entry.file_type()?.is_file() && restore_backup(&from, &destination) {
+            messages.push(format!("Restored {}", destination.display()));
+        } else {
+            retained = true;
+            messages.push(format!(
+                "Original kept at {}. Check {} before restoring it manually.",
+                from.display(),
+                destination.display()
+            ));
+        }
+    }
+    if !retained {
+        fs::remove_file(record)?;
+        fs::remove_dir(backup)?;
+    }
+    Ok(())
 }
 
 pub fn existing_export_targets(
@@ -245,6 +363,7 @@ pub fn existing_export_targets(
             Ok(version) => existing.push(ConfirmedExportTarget {
                 path: target,
                 version,
+                recovery_root: None,
             }),
             Err(DocumentIoError::Io(error)) if error.kind() == io::ErrorKind::NotFound => {}
             Err(error) => return Err(error),
@@ -340,8 +459,8 @@ mod tests {
     use tempfile::{tempdir, NamedTempFile};
 
     use super::{
-        existing_export_targets, preserve_recovery_files, publish_export_pages, publish_pages,
-        rollback_published, ExportFormat, MAX_EXPORT_BYTES,
+        existing_export_targets, publish_export_pages, publish_pages, rollback_published,
+        ExportFormat, MAX_EXPORT_BYTES,
     };
     use crate::DocumentIoError;
 
@@ -452,6 +571,71 @@ mod tests {
         assert!(!super::restore_backup(&backup, &target));
         assert_eq!(fs::read(&target).unwrap(), b"new occupant");
         assert_eq!(fs::read(&backup).unwrap(), b"original bytes");
+    }
+
+    #[test]
+    fn restart_restores_vacant_outputs_and_leaves_occupied_ones_alone() {
+        let directory = tempdir().unwrap();
+        let journal = directory.path().join("export-recovery");
+        let backup = tempfile::Builder::new()
+            .prefix(super::BACKUP_PREFIX)
+            .tempdir_in(directory.path())
+            .unwrap()
+            .keep();
+        let record = super::record_export_backup(&journal, &backup).unwrap();
+        let vacant = directory.path().join("score_page_001.png");
+        let occupied = directory.path().join("score_page_002.png");
+        fs::write(&vacant, b"original one").unwrap();
+        fs::write(&occupied, b"original two").unwrap();
+        fs::rename(&vacant, backup.join(vacant.file_name().unwrap())).unwrap();
+        let retained = backup.join(occupied.file_name().unwrap());
+        fs::rename(&occupied, &retained).unwrap();
+        fs::write(&occupied, b"new occupant").unwrap();
+
+        let messages = super::recover_interrupted_exports(&journal).join("\n");
+        assert!(messages.contains(&format!("Restored {}", vacant.display())));
+        assert!(messages.contains(&format!("Original kept at {}", retained.display())));
+        assert_eq!(fs::read(&vacant).unwrap(), b"original one");
+        assert_eq!(fs::read(&occupied).unwrap(), b"new occupant");
+        assert_eq!(fs::read(&retained).unwrap(), b"original two");
+        assert!(record.exists());
+
+        fs::remove_file(&occupied).unwrap();
+        assert_eq!(super::recover_interrupted_exports(&journal).len(), 1);
+        assert_eq!(fs::read(&occupied).unwrap(), b"original two");
+        assert!(!record.exists());
+        assert!(!backup.exists());
+    }
+
+    #[test]
+    fn unavailable_backup_keeps_the_recovery_record() {
+        let directory = tempdir().unwrap();
+        let journal = directory.path().join("export-recovery");
+        let backup = directory
+            .path()
+            .join("offline")
+            .join("octopus-export-recorded");
+        let record = super::record_export_backup(&journal, &backup).unwrap();
+        let messages = super::recover_interrupted_exports(&journal);
+        assert!(messages[0].contains("Export backup unavailable"));
+        assert!(record.exists());
+    }
+
+    #[test]
+    fn completed_replacement_clears_its_recovery_record() {
+        let directory = tempdir().unwrap();
+        let journal = directory.path().join("export-recovery");
+        let target = directory.path().join("score.svg");
+        fs::write(&target, b"original").unwrap();
+        let confirmed = existing_export_targets(&target, ExportFormat::Svg, 1)
+            .unwrap()
+            .into_iter()
+            .map(|file| file.with_recovery_root(&journal))
+            .collect::<Vec<_>>();
+        publish_export_pages(&target, ExportFormat::Svg, &[b"new export"], &confirmed).unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"new export");
+        assert_eq!(fs::read_dir(&journal).unwrap().count(), 0);
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
     }
 
     #[test]
@@ -663,7 +847,7 @@ mod tests {
         let backup = backup_directory.path().join("target-0");
         fs::write(&backup, "original contents").expect("write backup");
 
-        let location = preserve_recovery_files(Some(backup_directory), directory.path());
+        let location = backup_directory.keep();
 
         assert_eq!(
             fs::read(location.join("target-0")).unwrap(),

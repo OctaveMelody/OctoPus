@@ -14,7 +14,7 @@ pub fn validate_recovery_references(snapshot: Option<&str>) -> Result<(), String
     let value: Value = serde_json::from_str(snapshot)
         .map_err(|error| format!("recovery snapshot is invalid JSON: {error}"))?;
     let version = value.get("version").and_then(Value::as_u64);
-    if version != Some(3) && version != Some(4) && version != Some(5) {
+    if !matches!(version, Some(3..=6)) {
         return Ok(());
     }
     let references = value
@@ -310,6 +310,11 @@ mod tests {
             vec![pdf_manifest(pdf_id)],
         );
         assert!(validate_recovery_references(Some(&v4)).is_ok());
+        let mut compact: Value = serde_json::from_str(&v4).unwrap();
+        compact["version"] = json!(6);
+        assert!(validate_recovery_references(Some(&compact.to_string())).is_ok());
+        compact["references"]["pdfs"][0]["sha256"] = json!("invalid");
+        assert!(validate_recovery_references(Some(&compact.to_string())).is_err());
     }
 
     #[test]

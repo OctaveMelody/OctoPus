@@ -143,6 +143,9 @@ fn main() {
             };
             app.manage(recovery_lock);
             app.manage(session::SessionCoordinator::for_data_directory(&data)?);
+            let interrupted_exports = jps_document_io::file_exports::recover_interrupted_exports(
+                &data.join("export-recovery"),
+            );
             let engine = engine_supervisor(app.handle()).map_err(std::io::Error::other)?;
             let transcription = engine_supervisor(app.handle()).map_err(std::io::Error::other)?;
             let engine_shutdown = engine.shutdown_signal();
@@ -156,16 +159,25 @@ fn main() {
             });
             let navigation_app = app.handle().clone();
             let new_window_app = app.handle().clone();
-            tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
-                .enable_clipboard_access()
-                .on_navigation(move |url| {
-                    commands::help::handle_app_navigation(&navigation_app, url.as_str())
-                })
-                .on_new_window(move |url, _features| {
-                    commands::help::open_app_new_window(&new_window_app, url.as_str());
-                    tauri::webview::NewWindowResponse::Deny
-                })
-                .build()?;
+            let window =
+                tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
+                    .enable_clipboard_access()
+                    .on_navigation(move |url| {
+                        commands::help::handle_app_navigation(&navigation_app, url.as_str())
+                    })
+                    .on_new_window(move |url, _features| {
+                        commands::help::open_app_new_window(&new_window_app, url.as_str());
+                        tauri::webview::NewWindowResponse::Deny
+                    })
+                    .build()?;
+            if !interrupted_exports.is_empty() {
+                window
+                    .dialog()
+                    .message(interrupted_exports.join("\n"))
+                    .title("Interrupted exports")
+                    .parent(&window)
+                    .show(|_| {});
+            }
             Ok(())
         })
         .manage(SelectedJpsFiles::default())

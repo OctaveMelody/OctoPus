@@ -15,7 +15,7 @@ pub mod score_exports;
 pub mod svg_exports;
 
 pub const MAX_JPS_FILE_BYTES: usize = 8 * 1024 * 1024;
-pub const MAX_RECOVERY_SNAPSHOT_BYTES: usize = 40 * 1024 * 1024;
+pub const MAX_RECOVERY_SNAPSHOT_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_SELECTED_JPS_FILES: usize = 16;
 
 pub fn preserve_recovery_snapshot(

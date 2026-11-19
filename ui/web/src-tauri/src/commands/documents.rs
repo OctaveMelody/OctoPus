@@ -91,7 +91,7 @@ pub(crate) async fn write_recovery_snapshot(
         let value: Value = serde_json::from_str(snapshot)
             .map_err(|error| format!("recovery snapshot is invalid JSON: {error}"))?;
         if !value.is_object()
-            || !matches!(value.get("version").and_then(Value::as_u64), Some(1..=5))
+            || !matches!(value.get("version").and_then(Value::as_u64), Some(1..=6))
             || !value.get("document").is_some_and(Value::is_object)
             || !value
                 .get("draft")

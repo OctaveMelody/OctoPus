@@ -97,6 +97,8 @@ uv run --locked octopus batch-export scores --out-dir images --format png --dpi 
 大小受限的进度帧，最后返回一份结果。原生取消会停止独立转录进程树，并使待插入草稿失效；
 预览进程独立。旧 HTTP/文件/恢复协议及审计入口仅保留在 OctoPus-dev，不进入生产分发包。
 
+桌面版覆盖导出中断后，下次启动会尝试将原文件恢复到空出的目标路径。如果目标路径已有文件，章鱼简谱会保留该文件并显示原文件的备份位置。草稿恢复快照上限为 64 MiB，较大的乐谱源码会以紧凑格式保存。
+
 桌面工作进程的 JSON 请求上限为 52 MiB，可容纳 8 MiB JPS 源文件转义后的请求。响应上限为 64 MiB。
 
 构建前设置 `VITE_UPDATE_CHECK_ENABLED=false` 可隐藏“帮助 → 检查更新”。默认仍显示此项；
