@@ -178,28 +178,38 @@ def build_pdf(
     propagates so the op handler can map it to a descriptive error.
     """
     pages = render_all_pages(code, custom_code, page_config, name, source_key, display_name)
-    return build_pdf_pages(pages)
+    paper = str(page_config.get("page", "A4")).upper()
+    return build_pdf_pages(pages, paper_sizes=(paper,) * len(pages))
 
 
-def build_pdf_pages(pages: tuple[str, ...]) -> tuple[bytes, int]:
+def build_pdf_pages(
+    pages: tuple[str, ...], *, paper_sizes: tuple[str, ...] | None = None,
+) -> tuple[bytes, int]:
     """Assemble rendered pages into one vector PDF (also used by batch export)."""
     from reportlab.pdfgen import canvas as pdf_canvas  # type: ignore[import-untyped]
     from svglib.svglib import svg2rlg  # type: ignore[import-untyped]
 
     if not pages or len(pages) > 200:
         raise ValueError("PDF export requires between 1 and 200 pages")
+    if paper_sizes is not None and len(paper_sizes) != len(pages):
+        raise ValueError("PDF paper sizes must match the page count")
     pages = tuple(apply_pdf_font_fallbacks(page) for page in pages)
     register_pdf_fonts()
     _register_cjk_fallbacks(_families_used(pages))
 
     out = io.BytesIO()
     canvas = pdf_canvas.Canvas(out)
-    for svg in pages:
+    for index, svg in enumerate(pages):
         drawing = svg2rlg(io.BytesIO(sanitize_export_svg_xml(svg).encode("utf-8")))
         if drawing is None:  # pragma: no cover - defensive; svglib signals via exceptions
             raise ValueError("SVG conversion failed for a page")
-        canvas.setPageSize((float(drawing.width), float(drawing.height)))
+        width, height = float(drawing.width), float(drawing.height)
+        a5 = paper_sizes is not None and paper_sizes[index].upper() == "A5"
+        page_size = (709 * 0.75, 1000 * 0.75) if a5 else (width, height)
+        canvas.setPageSize(page_size)
         canvas.saveState()
+        if a5:
+            canvas.scale(page_size[0] / width, page_size[1] / height)
         drawing.drawOn(canvas, 0, 0)
         canvas.restoreState()
         canvas.showPage()

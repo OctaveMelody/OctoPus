@@ -126,6 +126,7 @@ def run_batch_export(args: argparse.Namespace) -> int:
             return 2
     failures = success = 0
     combined: list[str] = []
+    combined_paper_sizes: list[str] = []
     published_names: set[str] = set()
     for source_path in files:
         try:
@@ -144,6 +145,7 @@ def run_batch_export(args: argparse.Namespace) -> int:
             model = normalize_source(snapshot)
             rendered_pages, custom_markup_omitted = render_score_pages(model, source.page_config)
             pages = sanitize_export_pages(tuple(rendered_pages))
+            paper_sizes = (str(source.page_config.get("page", "A4")),) * len(pages)
             if custom_markup_omitted:
                 print(
                     f"Warning: {source_path.relative_to(root)}: unsafe custom SVG omitted",
@@ -153,13 +155,14 @@ def run_batch_export(args: argparse.Namespace) -> int:
                 if len(combined) + len(pages) > 200:
                     raise ValueError("combined PDF exceeds the 200-page limit")
                 combined.extend(pages)
+                combined_paper_sizes.extend(paper_sizes)
             else:
                 relative = source_path.relative_to(root).with_suffix("." + args.format)
                 selected = destination / relative
                 _check_output_parents(selected, destination)
                 data: tuple[bytes, ...]
                 if args.format == "pdf":
-                    data = (build_pdf_pages(pages)[0],)
+                    data = (build_pdf_pages(pages, paper_sizes=paper_sizes)[0],)
                 elif args.format == "png":
                     data = rasterize_pages(pages, dpi=args.dpi)
                 elif args.format == "jpg":
@@ -194,7 +197,9 @@ def run_batch_export(args: argparse.Namespace) -> int:
             print(f"Error: {source_path.relative_to(root)}: {exc}", file=sys.stderr)
     if args.out is not None and combined:
         try:
-            _publish((destination,), (build_pdf_pages(tuple(combined))[0],))
+            _publish((destination,), (build_pdf_pages(
+                tuple(combined), paper_sizes=tuple(combined_paper_sizes),
+            )[0],))
             print(f"Written: {destination} ({len(combined)} pages)")
         except Exception as exc:
             print(f"Error: combined PDF: {exc}", file=sys.stderr)

@@ -1,6 +1,6 @@
 use crate::DesktopState;
 use jps_document_io::file_exports::{existing_export_targets, publish_export_pages, ExportFormat};
-use jps_document_io::score_exports::{export_jpg_pages, export_pdf, export_png_pages};
+use jps_document_io::score_exports::{export_jpg_pages, export_pdf_for_paper, export_png_pages};
 use jps_document_io::svg_exports::publish_svg_pages;
 use jps_engine_bridge::RenderArgs;
 use serde_json::Value;
@@ -216,6 +216,12 @@ pub(crate) async fn export_score(
     format: String,
     dpi: Option<u16>,
 ) -> Result<Option<Value>, String> {
+    let paper = args
+        .page_config
+        .get("page")
+        .and_then(Value::as_str)
+        .unwrap_or("A4")
+        .to_owned();
     let (format, dpi) = match format.as_str() {
         "pdf" if dpi.is_none() => (ExportFormat::Pdf, None),
         "jpg" | "png" => {
@@ -267,7 +273,9 @@ pub(crate) async fn export_score(
 
     tauri::async_runtime::spawn_blocking(move || {
         let output_pages = match format {
-            ExportFormat::Pdf => vec![export_pdf(&svg_pages).map_err(|error| error.to_string())?],
+            ExportFormat::Pdf => {
+                vec![export_pdf_for_paper(&svg_pages, &paper).map_err(|error| error.to_string())?]
+            }
             ExportFormat::Jpg => export_jpg_pages(&svg_pages, dpi.unwrap_or(96))
                 .map_err(|error| error.to_string())?,
             ExportFormat::Png => export_png_pages(&svg_pages, dpi.unwrap_or(96))

@@ -24,12 +24,17 @@ const MAX_PDF_PAGE_POINTS: f32 = 14_400.0;
 const JPEG_QUALITY: u8 = 95;
 
 pub fn export_pdf(svg_pages: &[String]) -> Result<Vec<u8>, DocumentIoError> {
-    export_pdf_with_options(svg_pages, svg_options()?)
+    export_pdf_with_options(svg_pages, svg_options()?, false)
+}
+
+pub fn export_pdf_for_paper(svg_pages: &[String], paper: &str) -> Result<Vec<u8>, DocumentIoError> {
+    export_pdf_with_options(svg_pages, svg_options()?, paper.eq_ignore_ascii_case("A5"))
 }
 
 fn export_pdf_with_options(
     svg_pages: &[String],
     options: usvg::Options<'_>,
+    a5: bool,
 ) -> Result<Vec<u8>, DocumentIoError> {
     validate_svg_pages(svg_pages)?;
     let mut document = Document::new();
@@ -38,15 +43,18 @@ fn export_pdf_with_options(
         let tree = parse_svg(svg, &options)?;
         let svg_size = tree.size();
         let scale = (PDF_POINTS_PER_INCH / SVG_PIXELS_PER_INCH) as f32;
-        let width = svg_size.width() * scale;
-        let height = svg_size.height() * scale;
-        if !width.is_finite()
-            || !height.is_finite()
-            || width > MAX_PDF_PAGE_POINTS
-            || height > MAX_PDF_PAGE_POINTS
+        let svg_width = svg_size.width() * scale;
+        let svg_height = svg_size.height() * scale;
+        if !svg_width.is_finite()
+            || !svg_height.is_finite()
+            || svg_width > MAX_PDF_PAGE_POINTS
+            || svg_height > MAX_PDF_PAGE_POINTS
         {
             return Err(DocumentIoError::ExportPageTooLarge);
         }
+        // A5 uses the reference canvas while preserving the existing PDF page size.
+        let width = if a5 { 709.0 * scale } else { svg_width };
+        let height = if a5 { 1000.0 * scale } else { svg_height };
         let page_size =
             PdfSize::from_wh(width, height).ok_or(DocumentIoError::InvalidExportPage)?;
         let mut page = document.start_page_with(PageSettings::new(page_size));
@@ -319,6 +327,26 @@ mod tests {
         vec![SVG_PAGE.to_owned()]
     }
 
+    #[test]
+    fn score_a5_pdf_preserves_previous_page_size() {
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="840" height="1193"><path d="M 10 10 L 100 100"/></svg>"#;
+        let pages = vec![svg.to_owned()];
+        let a5 = export_pdf_with_options(&pages, super::usvg::Options::default(), true).unwrap();
+        let generic =
+            export_pdf_with_options(&pages, super::usvg::Options::default(), false).unwrap();
+        let a5_box = b"/MediaBox[0 0 531.75 750]";
+        let generic_box = b"/MediaBox[0 0 630 894.75]";
+        assert!(a5.windows(a5_box.len()).any(|item| item == a5_box));
+        assert!(generic
+            .windows(generic_box.len())
+            .any(|item| item == generic_box));
+        let huge = vec![svg.replace("width=\"840\"", "width=\"20000\"")];
+        assert!(matches!(
+            export_pdf_with_options(&huge, super::usvg::Options::default(), true),
+            Err(DocumentIoError::ExportPageTooLarge)
+        ));
+    }
+
     fn bundled_font_directory() -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../src/octopus/assets/fonts")
     }
@@ -398,7 +426,7 @@ mod tests {
         let svg = format!(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="60"><text x="10" y="40" font-family="{family}" font-size="16">{text}</text></svg>"#
         );
-        let pdf = super::export_pdf_with_options(&[svg], options).unwrap();
+        let pdf = super::export_pdf_with_options(&[svg], options, false).unwrap();
         assert!(pdf
             .windows(b"/FontFile".len())
             .any(|item| item == b"/FontFile"));
@@ -428,7 +456,7 @@ mod tests {
         assert!(families.contains(&"MiSans"));
         assert!(families.contains(&"Zhuque Fangsong (technical preview)"));
         let svg = SVG_PAGE.replace("Microsoft YaHei", "Noto Sans SC");
-        let pdf = super::export_pdf_with_options(&[svg], options).unwrap();
+        let pdf = super::export_pdf_with_options(&[svg], options, false).unwrap();
         assert!(pdf
             .windows(b"/ToUnicode".len())
             .any(|item| item == b"/ToUnicode"));
@@ -448,7 +476,7 @@ mod tests {
             &bundled_font_directory(),
         )
         .unwrap();
-        let pdf = super::export_pdf_with_options(&[svg], options).unwrap();
+        let pdf = super::export_pdf_with_options(&[svg], options, false).unwrap();
         let name = b"ZhuqueFangsong-Regular";
         assert!(pdf.windows(name.len()).any(|item| item == name));
     }
@@ -465,7 +493,7 @@ mod tests {
             ..Default::default()
         };
         let pages = vec![SVG_PAGE.replace("Microsoft YaHei", "MiSans"); 5];
-        let pdf = export_pdf_with_options(&pages, options).unwrap();
+        let pdf = export_pdf_with_options(&pages, options, false).unwrap();
         let page_marker = b"/Type/Page/";
 
         assert!(pdf.starts_with(b"%PDF-"));

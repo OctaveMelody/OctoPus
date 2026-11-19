@@ -10,7 +10,7 @@ use args::{
 };
 use files::{ensure_parent, publish_new_files, reject_existing_outputs};
 use jps_document_io::file_exports::{publish_export_pages, ExportFormat};
-use jps_document_io::score_exports::{export_jpg_pages, export_pdf, export_png_pages};
+use jps_document_io::score_exports::{export_jpg_pages, export_pdf_for_paper, export_png_pages};
 use jps_document_io::svg_exports::publish_svg_pages;
 use jps_engine_bridge::{EngineSupervisor, LoadDocumentArgs, RenderArgs, TranscribeArgs};
 use serde_json::{json, Value};
@@ -553,7 +553,12 @@ fn export_command(options: CliOptions) -> Result<Value, CliFailure> {
     let outputs = match format {
         ExportFormat::Svg => publish_svg_pages(&output_base, &svg_pages, &[]),
         ExportFormat::Pdf => {
-            let pdf = export_pdf(&svg_pages)
+            let paper = score
+                .page_config
+                .get("page")
+                .and_then(Value::as_str)
+                .unwrap_or("A4");
+            let pdf = export_pdf_for_paper(&svg_pages, paper)
                 .map_err(|error| CliFailure::execution("export_failed", error.to_string()))?;
             let pages: [&[u8]; 1] = [&pdf];
             publish_export_pages(&output_base, format, &pages, &[])

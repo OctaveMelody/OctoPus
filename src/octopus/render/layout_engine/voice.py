@@ -179,6 +179,7 @@ def _layout_system_voices(
                                     )
                                 ),
                                 single_voice=True,
+                                include_multi_verse_gap=False,
                             )
                 if chunk_index == 0:
                     row_y += row_input.hidden_reserve_width

@@ -6,7 +6,8 @@ from ....parser.ast import MusicTokenKind
 from ...core.layout_types import LayoutEvent, LayoutMark
 from ...core.layout_widths import event_duration_weight
 from ..beat_grid_engine.analysis import analyze_line_with_lyric_text
-from ..beat_grid_engine.natural import natural_layout
+from ..beat_grid_engine.lyrics import lyric_overflow
+from ..beat_grid_engine.natural import compression_scale, natural_layout
 
 # REF-derived cumulative x offsets for the catalog-grace template rows: the engraver
 # stamps these fixed-note-count grace brackets (the "qy" catalog pages) at fixed column
@@ -83,7 +84,7 @@ def project_short_plain_rows(
     marks: list[LayoutMark] | None = None, multi_voice: bool = False,
     lyric_text_by_voice: dict[int, dict[tuple[int, int], tuple[str, ...]]] | None = None,
 ) -> None:
-    """Use the reference's natural grid for short, undecorated-rhythm rows."""
+    """Use the reference's natural grid for simple rows and compressed lyrics."""
     by_line: dict[int, list[LayoutEvent]] = {}
     for item in events:
         by_line.setdefault(item.line, []).append(item)
@@ -91,17 +92,22 @@ def project_short_plain_rows(
     if multi_voice and len({item.voice for item in events}) != len(rows):
         return
     groups = [rows] if multi_voice else [[row] for row in rows]
+    prior_scale = 1.0
     for group in groups:
         if not group:
             continue
         if any(not _plain_row(row) for row in group):
             continue
-        grid = natural_layout([
-            analyze_line_with_lyric_text(
-                [item.event for item in row], (lyric_text_by_voice or {}).get(row[0].voice, {}),
-            )
-            for row in group
-        ])
+        analyzed = []
+        for row in group:
+            texts = (lyric_text_by_voice or {}).get(row[0].voice, {})
+            # A later wide lyric replaces the earlier verse's width at the same note.
+            last_wide = {
+                key: tuple(text for text in reversed(verses) if lyric_overflow(text) > 0)[:1]
+                for key, verses in texts.items()
+            }
+            analyzed.append(analyze_line_with_lyric_text([item.event for item in row], last_wide))
+        grid = natural_layout(analyzed)
         bar_counts = [
             sum(item.event.kind == MusicTokenKind.BARLINE for item in row) for row in group
         ]
@@ -133,10 +139,22 @@ def project_short_plain_rows(
                 for item in marker_row if item.slot <= marker.host.slot
             )
         start = left - 20 if multi_voice and marker is not None else left
-        if grid.end_offset + sum(adjacent_gaps.values()) + (
+        overflow = grid.end_offset + sum(adjacent_gaps.values()) + (
             20 if marker is not None else 0
-        ) > right - start:
-            continue
+        ) > right - start
+        row_lyrics = (lyric_text_by_voice or {}).get(group[0][0].voice, {})
+        has_lyrics = any(
+            text for item in group[0]
+            for text in row_lyrics.get((item.event.span.start.line, item.event.index), ())
+        )
+        if overflow:
+            # shortcut: retain complex-row layout until reference controls cover it.
+            if multi_voice or adjacent_gaps or not has_lyrics or any(
+                {"zkh", "ykh"}.intersection(item.event.decorations) for item in group[0]
+            ):
+                continue
+            prior_scale = compression_scale(right - start, grid.end_offset)
+        scale = prior_scale if not multi_voice and not adjacent_gaps else 1.0
         for row_index, row in enumerate(group):
             notes = iter(grid.note_x_offsets[row_index])
             bars = iter(grid.bar_x_offsets)
@@ -152,9 +170,9 @@ def project_short_plain_rows(
                     offset = next(bars if is_bar else notes) + extra
                 if marker_bar is not None and bar_index >= marker_bar:
                     offset += 20
-                item.x = start + offset
+                item.x = right if overflow and index == len(row) - 1 else start + offset * scale
                 item.style_x = item.x
-                item.projection_scale = 1.0
+                item.projection_scale = scale
                 item.projection_kind = "ordinary"
                 bar_index += is_bar
 
