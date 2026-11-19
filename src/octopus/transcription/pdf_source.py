@@ -70,33 +70,32 @@ def _pdf_pages(
                 r"^Page\s+(\d+)\s+size:\s+(\S+) x (\S+) pts", metadata, re.MULTILINE,
             )
         }
-        media_sizes = {
-            int(number): (float(right) - float(left), float(bottom) - float(top))
-            for number, left, top, right, bottom in re.findall(
-                r"^Page\s+(\d+)\s+MediaBox:\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)",
-                metadata, re.MULTILINE,
-            )
-        }
     except ValueError as exc:
         raise ValueError("PDF has invalid page dimensions") from exc
     expected_pages = set(range(1, count + 1))
-    if set(page_sizes) != expected_pages or set(media_sizes) != expected_pages or any(
+    if set(page_sizes) != expected_pages or any(
         not math.isfinite(value) or value <= 0
-        for size in (*page_sizes.values(), *media_sizes.values()) for value in size
+        for size in page_sizes.values() for value in size
     ):
         raise ValueError("PDF has missing or invalid page dimensions")
+    rotated_pages = frozenset(
+        int(number)
+        for number, rotation in re.findall(
+            r"^Page\s+(\d+)\s+rot:\s+(-?\d+)", metadata, re.MULTILINE,
+        )
+        if int(rotation) % 180 == 90
+    )
     if progress:
         progress(0, count, "recognizing")
     observations = []
-    native_text = pdf_text(path)
+    native_text = pdf_text(path, rotated_pages=rotated_pages)
     with tempfile.TemporaryDirectory(prefix="jianpu-transcribe-") as temporary:
         raster = Path(temporary) / "page"
         for page_number in range(1, count + 1):
             subprocess.run(
                 [
                     "pdftoppm", "-f", str(page_number), "-l", str(page_number),
-                    # Page size describes CropBox; both raster and native text use MediaBox.
-                    "-singlefile", *_pdf_raster_options(*media_sizes[page_number]),
+                    "-cropbox", "-singlefile", *_pdf_raster_options(*page_sizes[page_number]),
                     "-png", str(path), str(raster),
                 ],
                 capture_output=True,

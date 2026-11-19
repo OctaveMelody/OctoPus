@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import argparse
 import errno
-import io
 import os
 import shutil
 import sys
 import tempfile
 import unicodedata
+from collections.abc import Iterable
 from pathlib import Path
 
 MAX_FILES = 200
@@ -18,16 +18,20 @@ MAX_JPS_BYTES = 8 * 1024 * 1024
 _LINK_UNSUPPORTED = {errno.EPERM, errno.EOPNOTSUPP, errno.ENOTSUP, errno.ENOSYS, errno.EXDEV}
 
 
-def _publish(targets: tuple[Path, ...], pages: tuple[bytes, ...]) -> None:
+def _publish(targets: tuple[Path, ...], pages: Iterable[bytes]) -> None:
     """Publish one score only when every target is available; roll back owned files."""
-    if not pages or len(pages) != len(targets) or sum(map(len, pages)) > MAX_BYTES:
+    if not targets:
         raise ValueError("empty or oversized export")
     if any(target.exists() or target.is_symlink() for target in targets):
         raise FileExistsError("an export destination already exists")
     staged: list[tuple[Path, Path]] = []
     published: list[tuple[Path, os.stat_result]] = []
     try:
+        total_bytes = 0
         for target, data in zip(targets, pages, strict=True):
+            total_bytes += len(data)
+            if not data or total_bytes > MAX_BYTES:
+                raise ValueError("empty or oversized export")
             target.parent.mkdir(parents=True, exist_ok=True)
             with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as stream:
                 temporary = Path(stream.name)
@@ -84,23 +88,9 @@ def _check_output_parents(selected: Path, destination: Path) -> None:
         raise ValueError("export folder must not be a symlink")
 
 
-def _raster_jpg(pages: tuple[str, ...], dpi: int) -> tuple[bytes, ...]:
-    from PIL import Image
-
-    from .export.png_export import rasterize_pages
-
-    outputs: list[bytes] = []
-    for png in rasterize_pages(pages, dpi=dpi):
-        with Image.open(io.BytesIO(png)) as image:
-            out = io.BytesIO()
-            image.convert("RGB").save(out, format="JPEG", quality=95, dpi=(dpi, dpi))
-        outputs.append(out.getvalue())
-    return tuple(outputs)
-
-
 def run_batch_export(args: argparse.Namespace) -> int:
     from .export.pdf_export import build_pdf_pages
-    from .export.png_export import rasterize_pages
+    from .export.png_export import iter_raster_pages
     from .export.svg import normalize_source, render_score_pages, sanitize_export_pages
     from .jps import JpsDocument, jps_key, load_jps_text
 
@@ -189,21 +179,13 @@ def run_batch_export(args: argparse.Namespace) -> int:
                 relative = source_path.relative_to(root).with_suffix("." + args.format)
                 selected = destination / relative
                 _check_output_parents(selected, destination)
-                data: tuple[bytes, ...]
-                if args.format == "pdf":
-                    data = (build_pdf_pages(pages, paper_sizes=paper_sizes)[0],)
-                elif args.format == "png":
-                    data = rasterize_pages(pages, dpi=args.dpi)
-                elif args.format == "jpg":
-                    data = _raster_jpg(pages, args.dpi)
-                else:
-                    data = tuple(page.encode("utf-8") for page in pages)
+                output_count = 1 if args.format == "pdf" else len(pages)
                 targets = (
                     (selected,)
-                    if len(data) == 1
+                    if output_count == 1
                     else tuple(
                         selected.with_name(f"{selected.stem}_page_{index:03}.{args.format}")
-                        for index in range(1, len(data) + 1)
+                        for index in range(1, output_count + 1)
                     )
                 )
                 target_names = {
@@ -216,6 +198,13 @@ def run_batch_export(args: argparse.Namespace) -> int:
                     raise ValueError(
                         "generated export names would collide on a case-insensitive filesystem"
                     )
+                data: Iterable[bytes]
+                if args.format == "pdf":
+                    data = (build_pdf_pages(pages, paper_sizes=paper_sizes)[0],)
+                elif args.format in ("png", "jpg"):
+                    data = iter_raster_pages(pages, dpi=args.dpi, jpeg=args.format == "jpg")
+                else:
+                    data = (page.encode("utf-8") for page in pages)
                 _publish(targets, data)
                 published_names.update(target_names)
             success += 1

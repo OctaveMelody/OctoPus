@@ -1,7 +1,7 @@
 use crate::DesktopState;
 use jps_document_io::file_exports::{existing_export_targets, publish_export_pages, ExportFormat};
 use jps_document_io::score_exports::{
-    export_jpg_pages, export_pdf_for_paper, export_png_pages, RASTER_EXPORT_DPI,
+    export_pdf_for_paper, publish_raster_pages, RASTER_EXPORT_DPI,
 };
 use jps_document_io::svg_exports::publish_svg_pages;
 use jps_engine_bridge::RenderArgs;
@@ -274,20 +274,22 @@ pub(crate) async fn export_score(
     };
 
     tauri::async_runtime::spawn_blocking(move || {
-        let output_pages = match format {
+        let outputs = match format {
             ExportFormat::Pdf => {
-                vec![export_pdf_for_paper(&svg_pages, &paper).map_err(|error| error.to_string())?]
+                let pdf =
+                    export_pdf_for_paper(&svg_pages, &paper).map_err(|error| error.to_string())?;
+                publish_export_pages(&selected_path, format, &[&pdf], &confirmed_existing)
             }
-            ExportFormat::Jpg => export_jpg_pages(&svg_pages, dpi.unwrap_or(RASTER_EXPORT_DPI))
-                .map_err(|error| error.to_string())?,
-            ExportFormat::Png => export_png_pages(&svg_pages, dpi.unwrap_or(RASTER_EXPORT_DPI))
-                .map_err(|error| error.to_string())?,
+            ExportFormat::Jpg | ExportFormat::Png => publish_raster_pages(
+                &selected_path,
+                &svg_pages,
+                &confirmed_existing,
+                format,
+                dpi.unwrap_or(RASTER_EXPORT_DPI),
+            ),
             ExportFormat::Svg => return Err("SVG uses the SVG export command".into()),
-        };
-        let output_bytes = output_pages.iter().map(Vec::as_slice).collect::<Vec<_>>();
-        let outputs =
-            publish_export_pages(&selected_path, format, &output_bytes, &confirmed_existing)
-                .map_err(|error| error.to_string())?;
+        }
+        .map_err(|error| error.to_string())?;
         let filenames = outputs
             .iter()
             .map(|path| {

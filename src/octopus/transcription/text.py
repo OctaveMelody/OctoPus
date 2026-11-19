@@ -805,10 +805,12 @@ def music_characters(gray: Image.Image, box: Box) -> tuple[tuple[str, float, flo
     return tuple(sorted(found, key=lambda item: item[2]))
 
 
-def pdf_text(path: Path) -> tuple[tuple[TextSpan, ...], ...]:
-    """Read selectable PDF words; scanned pages simply return empty lists."""
+def pdf_text(
+    path: Path, *, rotated_pages: frozenset[int] = frozenset(),
+) -> tuple[tuple[TextSpan, ...], ...]:
+    """Read selectable words in the visible crop, in raster coordinates."""
     result = subprocess.run(
-        ["pdftotext", "-enc", "UTF-8", "-bbox-layout", str(path), "-"],
+        ["pdftotext", "-enc", "UTF-8", "-cropbox", "-bbox-layout", str(path), "-"],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -817,9 +819,12 @@ def pdf_text(path: Path) -> tuple[tuple[TextSpan, ...], ...]:
     )
     root = ElementTree.fromstring(result.stdout)
     pages = []
-    for page in root.iter(f"{_XHTML}page"):
+    for number, page in enumerate(root.iter(f"{_XHTML}page"), 1):
         width = float(page.attrib["width"])
         height = float(page.attrib["height"])
+        # Poppler emits rotated word coordinates with unrotated page dimensions.
+        if number in rotated_pages:
+            width, height = height, width
         spans = []
         for word in page.iter(f"{_XHTML}word"):
             value = "".join(word.itertext()).strip()

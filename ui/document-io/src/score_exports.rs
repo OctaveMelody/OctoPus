@@ -11,13 +11,14 @@ use krilla_svg::{SurfaceExt, SvgSettings};
 use resvg::tiny_skia::{Color, Pixmap, Transform};
 use resvg::usvg;
 
-use crate::file_exports::{MAX_EXPORT_BYTES, MAX_EXPORT_FILES};
+use crate::file_exports::{
+    publish_generated_pages, ExportFormat, MAX_EXPORT_BYTES, MAX_EXPORT_FILES,
+};
 use crate::DocumentIoError;
 
 const SVG_PIXELS_PER_INCH: f64 = 96.0;
 const PDF_POINTS_PER_INCH: f64 = 72.0;
 const MAX_EXPORT_PAGE_PIXELS: u64 = 40_000_000;
-const MAX_EXPORT_BATCH_PIXELS: u64 = 200_000_000;
 const MAX_PDF_PAGE_POINTS: f32 = 14_400.0;
 pub const RASTER_EXPORT_DPI: u16 = 300;
 const JPEG_QUALITY: u8 = 95;
@@ -74,63 +75,62 @@ fn export_pdf_with_options(
     Ok(pdf)
 }
 
-pub fn export_jpg_pages(svg_pages: &[String], dpi: u16) -> Result<Vec<Vec<u8>>, DocumentIoError> {
-    export_raster_pages(svg_pages, dpi, false)
-}
-
-pub fn export_png_pages(svg_pages: &[String], dpi: u16) -> Result<Vec<Vec<u8>>, DocumentIoError> {
-    export_raster_pages(svg_pages, dpi, true)
-}
-
-fn export_raster_pages(
+pub fn publish_raster_pages(
+    selected_path: &Path,
     svg_pages: &[String],
+    confirmed_existing: &[PathBuf],
+    format: ExportFormat,
     dpi: u16,
-    png: bool,
-) -> Result<Vec<Vec<u8>>, DocumentIoError> {
+) -> Result<Vec<PathBuf>, DocumentIoError> {
     validate_svg_pages(svg_pages)?;
     if dpi != RASTER_EXPORT_DPI {
         return Err(DocumentIoError::InvalidExportDpi);
     }
-
+    let png = match format {
+        ExportFormat::Png => true,
+        ExportFormat::Jpg => false,
+        _ => return Err(DocumentIoError::InvalidExportPath),
+    };
     let options = svg_options()?;
-    let mut total_pixels = 0_u64;
-    let mut total_bytes = 0_usize;
-    let mut outputs = Vec::with_capacity(svg_pages.len());
-    for svg in svg_pages {
-        let tree = parse_svg(svg, &options)?;
-        let (width, height) = raster_dimensions(tree.size(), dpi)?;
-        let page_pixels = u64::from(width) * u64::from(height);
-        total_pixels = total_pixels
-            .checked_add(page_pixels)
-            .filter(|pixels| *pixels <= MAX_EXPORT_BATCH_PIXELS)
-            .ok_or(DocumentIoError::ExportPageTooLarge)?;
-        let pixmap = render_jpg_page(&tree, width, height, dpi)?;
-        let bytes = if png {
-            let mut encoded = Vec::new();
-            let mut encoder = png::Encoder::new(&mut encoded, width, height);
-            encoder.set_color(png::ColorType::Rgba);
-            encoder.set_depth(png::BitDepth::Eight);
-            let pixels_per_meter = (u32::from(dpi) * 10_000 + 127) / 254;
-            encoder.set_pixel_dims(Some(png::PixelDimensions {
-                xppu: pixels_per_meter,
-                yppu: pixels_per_meter,
-                unit: png::Unit::Meter,
-            }));
-            encoder
-                .write_header()
-                .and_then(|mut writer| writer.write_image_data(pixmap.data()))
-                .map_err(|_| DocumentIoError::ExportConversionFailed)?;
-            encoded
-        } else {
-            encode_jpeg(pixmap, width, height, dpi)?
-        };
-        total_bytes = total_bytes
-            .checked_add(bytes.len())
-            .filter(|size| *size <= MAX_EXPORT_BYTES)
-            .ok_or(DocumentIoError::ExportTooLarge)?;
-        outputs.push(bytes);
+    publish_generated_pages(
+        selected_path,
+        format,
+        svg_pages.len(),
+        confirmed_existing,
+        |index| encode_raster_page(&svg_pages[index], &options, dpi, png),
+    )
+}
+
+fn encode_raster_page(
+    svg: &str,
+    options: &usvg::Options<'_>,
+    dpi: u16,
+    png: bool,
+) -> Result<Vec<u8>, DocumentIoError> {
+    let tree = parse_svg(svg, options)?;
+    let (width, height) = raster_dimensions(tree.size(), dpi)?;
+    let pixmap = render_jpg_page(&tree, width, height, dpi)?;
+    if !png {
+        return encode_jpeg(pixmap, width, height, dpi);
     }
-    Ok(outputs)
+    let mut encoded = Vec::new();
+    let mut encoder = png::Encoder::new(&mut encoded, width, height);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    let pixels_per_meter = (u32::from(dpi) * 10_000 + 127) / 254;
+    encoder.set_pixel_dims(Some(png::PixelDimensions {
+        xppu: pixels_per_meter,
+        yppu: pixels_per_meter,
+        unit: png::Unit::Meter,
+    }));
+    let mut writer = encoder
+        .write_header()
+        .map_err(|_| DocumentIoError::ExportConversionFailed)?;
+    writer
+        .write_image_data(pixmap.data())
+        .and_then(|()| writer.finish())
+        .map_err(|_| DocumentIoError::ExportConversionFailed)?;
+    Ok(encoded)
 }
 
 fn validate_svg_pages(svg_pages: &[String]) -> Result<(), DocumentIoError> {
@@ -329,8 +329,23 @@ mod tests {
     use image::codecs::jpeg::JpegDecoder;
     use image::ImageDecoder;
 
-    use super::{export_jpg_pages, export_pdf, export_pdf_with_options, export_png_pages};
+    use super::{export_pdf, export_pdf_with_options, publish_raster_pages, ExportFormat};
     use crate::DocumentIoError;
+
+    fn export_images(
+        pages: &[String],
+        dpi: u16,
+        format: ExportFormat,
+    ) -> Result<Vec<Vec<u8>>, DocumentIoError> {
+        let directory = tempfile::tempdir().unwrap();
+        let name = if format == ExportFormat::Png {
+            "score.png"
+        } else {
+            "score.jpg"
+        };
+        let paths = publish_raster_pages(&directory.path().join(name), pages, &[], format, dpi)?;
+        paths.iter().map(|path| Ok(std::fs::read(path)?)).collect()
+    }
 
     const SVG_PAGE: &str = r##"
         <svg xmlns="http://www.w3.org/2000/svg" width="100" height="60" viewBox="0 0 100 60">
@@ -535,7 +550,7 @@ mod tests {
 
     #[test]
     fn exports_jpg_at_300_dpi_with_white_background() {
-        let images = export_jpg_pages(&page(), 300).unwrap();
+        let images = export_images(&page(), 300, ExportFormat::Jpg).unwrap();
         let decoder = JpegDecoder::new(Cursor::new(&images[0])).unwrap();
         let (width, height) = decoder.dimensions();
         let mut rgb = vec![0; decoder.total_bytes() as usize];
@@ -566,7 +581,7 @@ mod tests {
 
     #[test]
     fn exports_lossless_png_at_print_size() {
-        let pages = export_png_pages(&page(), 300).unwrap();
+        let pages = export_images(&page(), 300, ExportFormat::Png).unwrap();
         let reader = png::Decoder::new(Cursor::new(&pages[0]))
             .read_info()
             .unwrap();
@@ -583,19 +598,53 @@ mod tests {
         assert!(image.pixels().any(|pixel| pixel.0 == [0, 0, 0, 255]));
         assert!(image.pixels().all(|pixel| pixel.0[3] == 255));
         assert!(matches!(
-            export_png_pages(&page(), 96),
+            export_images(&page(), 96, ExportFormat::Png),
             Err(DocumentIoError::InvalidExportDpi)
         ));
     }
 
     #[test]
+    fn exports_fifteen_a4_pages_at_300_dpi_in_both_raster_formats() {
+        let page = r#"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1415"><rect x="20" y="20" width="20" height="20"/></svg>"#;
+        let pages = vec![page.to_string(); 15];
+        let directory = tempfile::tempdir().unwrap();
+        for (extension, format) in [("png", ExportFormat::Png), ("jpg", ExportFormat::Jpg)] {
+            let path = directory.path().join(format!("score.{extension}"));
+            let outputs = publish_raster_pages(&path, &pages, &[], format, 300).unwrap();
+            assert_eq!(outputs.len(), 15);
+            let last = directory.path().join(format!("score_page_015.{extension}"));
+            assert_eq!(outputs[14], last);
+            assert_eq!(image::image_dimensions(last).unwrap(), (3125, 4422));
+        }
+    }
+
+    #[test]
+    fn failed_later_raster_page_preserves_the_existing_target() {
+        let directory = tempfile::tempdir().unwrap();
+        let selected = directory.path().join("score.png");
+        let existing = directory.path().join("score_page_001.png");
+        std::fs::write(&existing, b"original").unwrap();
+        let pages = vec![SVG_PAGE.to_owned(), "not svg".to_owned()];
+        assert!(publish_raster_pages(
+            &selected,
+            &pages,
+            std::slice::from_ref(&existing),
+            ExportFormat::Png,
+            300
+        )
+        .is_err());
+        assert_eq!(std::fs::read(existing).unwrap(), b"original");
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
+
+    #[test]
     fn rejects_invalid_resolution_pages_and_resource_usage() {
         assert!(matches!(
-            export_jpg_pages(&page(), 150),
+            export_images(&page(), 150, ExportFormat::Jpg),
             Err(DocumentIoError::InvalidExportDpi)
         ));
         assert!(matches!(
-            export_jpg_pages(&["not svg".into()], 300),
+            export_images(&["not svg".into()], 300, ExportFormat::Jpg),
             Err(DocumentIoError::InvalidExportPage)
         ));
         let filtered = r#"
@@ -604,12 +653,12 @@ mod tests {
             </svg>
         "#;
         assert!(matches!(
-            export_jpg_pages(&[filtered.into()], 300),
+            export_images(&[filtered.into()], 300, ExportFormat::Jpg),
             Err(DocumentIoError::UnsupportedExportFeature)
         ));
         let oversized = r#"<svg xmlns="http://www.w3.org/2000/svg" width="8000" height="6000"/>"#;
         assert!(matches!(
-            export_jpg_pages(&[oversized.into()], 300),
+            export_images(&[oversized.into()], 300, ExportFormat::Jpg),
             Err(DocumentIoError::ExportPageTooLarge)
         ));
         assert!(matches!(export_pdf(&[]), Err(DocumentIoError::EmptyExport)));

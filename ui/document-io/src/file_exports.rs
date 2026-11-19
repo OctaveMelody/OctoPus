@@ -35,36 +35,47 @@ pub fn publish_export_pages(
     pages: &[&[u8]],
     confirmed_existing: &[PathBuf],
 ) -> Result<Vec<PathBuf>, DocumentIoError> {
+    publish_generated_pages(
+        selected_path,
+        format,
+        pages.len(),
+        confirmed_existing,
+        |index| Ok(pages[index]),
+    )
+}
+
+pub(crate) fn publish_generated_pages<T: AsRef<[u8]>>(
+    selected_path: &Path,
+    format: ExportFormat,
+    page_count: usize,
+    confirmed_existing: &[PathBuf],
+    generate: impl FnMut(usize) -> Result<T, DocumentIoError>,
+) -> Result<Vec<PathBuf>, DocumentIoError> {
     publish_pages(
         selected_path,
         format,
-        pages,
+        page_count,
         confirmed_existing,
+        generate,
         |temporary| Handle::from_file(temporary.as_file().try_clone()?),
     )
 }
 
-fn publish_pages(
+fn publish_pages<T: AsRef<[u8]>>(
     selected_path: &Path,
     format: ExportFormat,
-    pages: &[&[u8]],
+    page_count: usize,
     confirmed_existing: &[PathBuf],
+    mut generate: impl FnMut(usize) -> Result<T, DocumentIoError>,
     mut identify: impl FnMut(&NamedTempFile) -> io::Result<Handle>,
 ) -> Result<Vec<PathBuf>, DocumentIoError> {
-    if pages.is_empty() || pages.iter().any(|page| page.is_empty()) {
+    if page_count == 0 {
         return Err(DocumentIoError::EmptyExport);
     }
-    if pages.len() > MAX_EXPORT_FILES {
+    if page_count > MAX_EXPORT_FILES {
         return Err(DocumentIoError::TooManyExportFiles);
     }
-    let total_bytes = pages
-        .iter()
-        .try_fold(0_usize, |total, page| total.checked_add(page.len()));
-    if !total_bytes.is_some_and(|bytes| bytes <= MAX_EXPORT_BYTES) {
-        return Err(DocumentIoError::ExportTooLarge);
-    }
-
-    let targets = page_targets(selected_path, pages.len(), format)?;
+    let targets = page_targets(selected_path, page_count, format)?;
     let directory = selected_path
         .parent()
         .filter(|path| !path.as_os_str().is_empty())
@@ -88,10 +99,20 @@ fn publish_pages(
             Err(error) => return Err(DocumentIoError::Io(error)),
         }
     }
-    let mut staged = Vec::with_capacity(pages.len());
-    for (target, page) in targets.iter().zip(pages) {
+    let mut staged = Vec::with_capacity(page_count);
+    let mut total_bytes = 0_usize;
+    for (index, target) in targets.iter().enumerate() {
+        let page = generate(index)?;
+        let bytes = page.as_ref();
+        if bytes.is_empty() {
+            return Err(DocumentIoError::EmptyExport);
+        }
+        total_bytes = total_bytes
+            .checked_add(bytes.len())
+            .filter(|total| *total <= MAX_EXPORT_BYTES)
+            .ok_or(DocumentIoError::ExportTooLarge)?;
         let mut temporary = NamedTempFile::new_in(directory)?;
-        temporary.write_all(page)?;
+        temporary.write_all(bytes)?;
         temporary.as_file().sync_all()?;
         // Finish every fallible identity lookup before replacing any original.
         let identity = identify(&temporary)?;
@@ -299,8 +320,14 @@ mod tests {
         let result = publish_pages(
             &selected,
             ExportFormat::Svg,
-            &[b"first replacement", b"second replacement"],
+            2,
             &[first.clone(), second.clone()],
+            |index| {
+                Ok([
+                    b"first replacement".as_slice(),
+                    b"second replacement".as_slice(),
+                ][index])
+            },
             |temporary| {
                 calls += 1;
                 if calls == 2 {
