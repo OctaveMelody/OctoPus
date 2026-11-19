@@ -374,14 +374,17 @@ def fermata_lift(event: MusicEvent) -> float:
 
 
 def sby_lift(event: MusicEvent) -> float:
-    """Return the nine-pixel lane lift for a note with an upper trill mark."""
-    return 9.0 if "sby" in event.decorations else 0.0
+    """Return the lane lift needed above a note ornament."""
+    return 9.0 if any(
+        mark in event.decorations
+        for mark in ("sby", "sby+", "xby", "xby+", "cy", "cy+", "zy", "dy", "hx")
+    ) else 0.0
 
 
 def endpoint_slur_lift(event: MusicEvent) -> float:
     """Return decoration clearance for an endpoint-style slur lane."""
 
-    return fermata_lift(event) + (9.0 if "sby" in event.decorations else 0.0)
+    return fermata_lift(event) + sby_lift(event)
 
 
 def octave_stack_lift(octave: int) -> float:

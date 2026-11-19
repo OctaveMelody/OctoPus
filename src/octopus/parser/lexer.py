@@ -11,7 +11,7 @@ from .diagnostics import DiagnosticSeverity, DiagnosticSink
 from .source import SourceSpan
 
 _NOTE_RE = re.compile(r"^(?P<prefix>[#$=]?)(?P<pitch>[0-9])(?P<suffix>.*)$", re.DOTALL)
-_DECORATION_RE = re.compile(r"&(?P<name>[A-Za-z]+(?:\s+tempo)?)")
+_DECORATION_RE = re.compile(r"&(?P<name>(?:sby|xby|cy)\+|[A-Za-z]+(?:\s+tempo)?)")
 _STANDALONE_DECORATIONS_RE = re.compile(
     r"&[A-Za-z]+(?:\s+[A-Za-z]+)*"
     r"(?:&[A-Za-z]+(?:\s+[A-Za-z]+)*)*"

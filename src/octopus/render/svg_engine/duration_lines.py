@@ -130,6 +130,8 @@ def _hairpin_vertex_offset(item: LayoutEvent) -> float:
     # paren for the standalone-modifier forms that close on the host
     # (oracle probes P1–P8).  One lane total, even when both appear.
     code = event.code or ""
+    for ornament in ("sby", "xby", "cy"):
+        code = code.replace(f"&{ornament}+", f"&{ornament}")
     if "(" in code or ")" in code:
         offset += 8
     if "yc" in tuple(getattr(event, "decorations", ()) or ()) or "++" in code:

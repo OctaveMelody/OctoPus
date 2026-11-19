@@ -62,19 +62,25 @@ def decoration_placement(
     """
 
     if is_dynamic_decoration(decoration):
+        ornament_clearance = 12 if any(
+            mark in decorations
+            for mark in ("sby", "sby+", "xby", "xby+", "cy", "cy+", "zy", "dy", "hx")
+        ) else 0
         if event.raw.endswith(">"):
-            return DecorationPlacement(x_offset=-25.0, y_offset=-18)
+            return DecorationPlacement(x_offset=-25.0, y_offset=-18 - ornament_clearance)
         return DecorationPlacement(
-            y_offset=-3 - 8 * upper_clearance_levels(
+            y_offset=-3 - ornament_clearance - 8 * upper_clearance_levels(
                 event,
                 starts_upper_span=starts_upper_span,
             )
         )
     positive_octaves = max(event.octave, 0)
-    if decoration == "sby":
+    if decoration in {"sby", "sby+", "xby", "xby+", "cy", "cy+", "zy", "dy", "hx"}:
         return DecorationPlacement(y_offset=-8 * positive_octaves)
     if decoration == "yc":
-        stacked_offset = 12 if "sby" in decorations else 0
+        stacked_offset = 12 if any(
+            mark in decorations for mark in ("sby", "sby+", "xby", "xby+", "cy", "cy+")
+        ) else 0
         return DecorationPlacement(y_offset=-max(8 * positive_octaves, stacked_offset))
     return DecorationPlacement()
 
