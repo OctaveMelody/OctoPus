@@ -170,7 +170,7 @@ fn publish_pages<T: AsRef<[u8]>>(
         let record = confirmed_existing[0]
             .recovery_root
             .as_deref()
-            .map(|root| record_export_backup(root, backup.path()))
+            .map(|root| record_export_backup(root, backup.path(), &targets))
             .transpose()?;
         // Keep the originals and their record on disk until publication or rollback completes.
         (Some(backup.keep()), record)
@@ -231,11 +231,21 @@ fn publish_pages<T: AsRef<[u8]>>(
 }
 
 const BACKUP_PREFIX: &str = "octopus-export-";
+const MAX_RECOVERY_RECORD_BYTES: usize = 512 * 1024;
 
-fn record_export_backup(root: &Path, backup: &Path) -> io::Result<PathBuf> {
+fn record_export_backup(root: &Path, backup: &Path, targets: &[PathBuf]) -> io::Result<PathBuf> {
+    let pages = targets
+        .iter()
+        .map(|path| path.file_name().map(PathBuf::from))
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| io::Error::other("invalid export filename"))?;
+    let payload = serde_json::to_vec(&(backup, pages))?;
+    if payload.len() > MAX_RECOVERY_RECORD_BYTES {
+        return Err(io::Error::other("export recovery record is too large"));
+    }
     fs::create_dir_all(root)?;
     let mut entry = NamedTempFile::new_in(root)?;
-    serde_json::to_writer(entry.as_file_mut(), backup)?;
+    entry.write_all(&payload)?;
     entry.as_file().sync_all()?;
     let record = entry.path().with_extension("json");
     entry
@@ -302,7 +312,22 @@ fn recover_export_record(record: &Path, messages: &mut Vec<String>) -> io::Resul
     if !fs::symlink_metadata(record)?.is_file() {
         return Err(io::Error::other("invalid recovery record"));
     }
-    let backup: PathBuf = serde_json::from_reader(File::open(record)?.take(128 * 1024))?;
+    let entry: serde_json::Value =
+        serde_json::from_reader(File::open(record)?.take(MAX_RECOVERY_RECORD_BYTES as u64))?;
+    let (backup, pages) = if entry.is_array() {
+        let (backup, pages): (PathBuf, Vec<PathBuf>) = serde_json::from_value(entry)?;
+        if pages.is_empty()
+            || pages.len() > MAX_EXPORT_FILES
+            || pages
+                .iter()
+                .any(|page| page.file_name() != Some(page.as_os_str()))
+        {
+            return Err(io::Error::other("invalid export recovery filenames"));
+        }
+        (backup, Some(pages))
+    } else {
+        (serde_json::from_value(entry)?, None)
+    };
     let name = backup
         .file_name()
         .and_then(|name| name.to_str())
@@ -311,6 +336,24 @@ fn recover_export_record(record: &Path, messages: &mut Vec<String>) -> io::Resul
         .parent()
         .filter(|_| backup.is_absolute() && name.starts_with(BACKUP_PREFIX))
         .ok_or_else(|| io::Error::other("invalid export backup path"))?;
+    match pages {
+        Some(pages) if pages.len() > 1 => {
+            let filenames = pages
+                .iter()
+                .map(|page| page.to_string_lossy())
+                .collect::<Vec<_>>();
+            messages.push(format!(
+                "Interrupted export in {} may contain missing pages or pages from different versions. Check these files before sharing or printing:\n{}",
+                parent.display(),
+                filenames.join("\n")
+            ));
+        }
+        None => messages.push(format!(
+            "Interrupted export in {} may contain missing pages or pages from different versions. Check the export before sharing or printing.",
+            parent.display()
+        )),
+        Some(_) => {}
+    }
     let entries = match fs::symlink_metadata(&backup) {
         Ok(metadata) if metadata.is_dir() => fs::read_dir(&backup)?,
         Ok(_) => return Err(io::Error::other("invalid export backup directory")),
@@ -582,9 +625,15 @@ mod tests {
             .tempdir_in(directory.path())
             .unwrap()
             .keep();
-        let record = super::record_export_backup(&journal, &backup).unwrap();
         let vacant = directory.path().join("score_page_001.png");
         let occupied = directory.path().join("score_page_002.png");
+        let added = directory.path().join("score_page_003.png");
+        let record = super::record_export_backup(
+            &journal,
+            &backup,
+            &[vacant.clone(), occupied.clone(), added.clone()],
+        )
+        .unwrap();
         fs::write(&vacant, b"original one").unwrap();
         fs::write(&occupied, b"original two").unwrap();
         fs::rename(&vacant, backup.join(vacant.file_name().unwrap())).unwrap();
@@ -593,6 +642,8 @@ mod tests {
         fs::write(&occupied, b"new occupant").unwrap();
 
         let messages = super::recover_interrupted_exports(&journal).join("\n");
+        assert!(messages.contains("pages from different versions"));
+        assert!(messages.contains("score_page_001.png\nscore_page_002.png\nscore_page_003.png"));
         assert!(messages.contains(&format!("Restored {}", vacant.display())));
         assert!(messages.contains(&format!("Original kept at {}", retained.display())));
         assert_eq!(fs::read(&vacant).unwrap(), b"original one");
@@ -601,24 +652,38 @@ mod tests {
         assert!(record.exists());
 
         fs::remove_file(&occupied).unwrap();
-        assert_eq!(super::recover_interrupted_exports(&journal).len(), 1);
+        let messages = super::recover_interrupted_exports(&journal).join("\n");
+        assert!(messages.contains(&format!("Restored {}", occupied.display())));
         assert_eq!(fs::read(&occupied).unwrap(), b"original two");
         assert!(!record.exists());
         assert!(!backup.exists());
     }
 
     #[test]
-    fn unavailable_backup_keeps_the_recovery_record() {
+    fn unavailable_legacy_backup_keeps_the_recovery_record() {
         let directory = tempdir().unwrap();
         let journal = directory.path().join("export-recovery");
         let backup = directory
             .path()
             .join("offline")
             .join("octopus-export-recorded");
-        let record = super::record_export_backup(&journal, &backup).unwrap();
+        let record = journal.join("legacy.json");
+        fs::create_dir(&journal).unwrap();
+        fs::write(&record, serde_json::to_vec(&backup).unwrap()).unwrap();
         let messages = super::recover_interrupted_exports(&journal);
-        assert!(messages[0].contains("Export backup unavailable"));
+        assert!(messages
+            .iter()
+            .any(|message| message.contains("Export backup unavailable")));
         assert!(record.exists());
+
+        fs::create_dir_all(&backup).unwrap();
+        fs::write(backup.join("score.png"), b"original").unwrap();
+        super::recover_interrupted_exports(&journal);
+        assert_eq!(
+            fs::read(backup.with_file_name("score.png")).unwrap(),
+            b"original"
+        );
+        assert!(!record.exists());
     }
 
     #[test]

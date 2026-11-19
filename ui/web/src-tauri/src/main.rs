@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager, WebviewWindow};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 struct DesktopState {
     engine: Arc<Mutex<EngineSupervisor>>,
@@ -175,6 +175,7 @@ fn main() {
                     .dialog()
                     .message(interrupted_exports.join("\n"))
                     .title("Interrupted exports")
+                    .kind(MessageDialogKind::Warning)
                     .parent(&window)
                     .show(|_| {});
             }

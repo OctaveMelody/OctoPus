@@ -9,6 +9,15 @@
 const HEADER_FIELDS = /** @type {const} */ (["D", "P", "J"]);
 const INLINE_HEADER = /(?:^|[^A-Za-z])[DPJ]\s*:/i;
 
+/** @param {string} source */
+export function transcriptionAppendPrefix(source) {
+  const tail = source.trimEnd();
+  if (!tail) return "";
+  const lastLine = Math.max(tail.lastIndexOf("\n"), tail.lastIndexOf("\r")) + 1;
+  if (tail.slice(lastLine).trim() === "[fenye]") return "\n";
+  return /[\r\n]$/.test(source) ? "\n[fenye]\n" : "\n\n[fenye]\n";
+}
+
 /** Return a localized-error key when headers would be lost or cannot be compared. */
 /** @param {string} destinationSource @param {unknown} destination @param {unknown} draft */
 export function transcriptionAppendIssue(destinationSource, destination, draft) {

@@ -114,6 +114,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
   const [examplesLoaded, setExamplesLoaded] = useState(false);
   const [exampleFilter, setExampleFilter] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [saveRecoveryWarning, setSaveRecoveryWarning] = useState<string | undefined>();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const transitionSequence = useRef(0);
   const saving = useRef(false);
@@ -455,9 +456,8 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
     }
   }
 
-  async function saveDocument(saveAs = false): Promise<boolean> {
-    if (!documentOpen) return false;
-    if (saving.current) return false;
+  async function saveDocument(saveAs = false) {
+    if (!documentOpen || saving.current) return null;
     saving.current = true;
     setIsSaving(true);
     const original = currentDocument.current;
@@ -499,7 +499,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
         text: fileText,
         saveAs: isSaveAs,
       });
-      if (!savedPath || currentDocument.current.id !== original.id) return false;
+      if (!savedPath || currentDocument.current.id !== original.id) return null;
       rememberPath(LAST_SAVED_JPS_PATH_KEY, savedPath);
       setPreferences(current => ({...current, recentFiles: rememberRecentFile(current.recentFiles, savedPath)}));
       const name = savedPath.split(/[\\/]/).pop() || begun.snapshot.name;
@@ -514,16 +514,24 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
       setScore(finished);
       getServices().refreshSession();
       const recoverySequenceNumber = ++recoverySequence.current;
-      await writeRecoverySnapshot(
-        recoverySequenceNumber,
-        createRecoverySnapshot(finished, currentRecoveryDraft(), getServices().referenceAssets.currentReferences.current),
-      );
+      let warning: string | undefined;
+      let recoveryPersisted = false;
+      try {
+        recoveryPersisted = await writeRecoverySnapshot(
+          recoverySequenceNumber,
+          createRecoverySnapshot(finished, currentRecoveryDraft(), getServices().referenceAssets.currentReferences.current),
+        );
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        warning = `${copyRef.current.savedRecoveryFailed} ${detail}`;
+      }
       const clean = currentDocument.current.id === original.id && !isDocumentDirty(currentDocument.current);
-      setStatus(clean ? { kind: "saved" } : { kind: "changed" });
-      return clean;
+      setSaveRecoveryWarning(warning);
+      setStatus({ kind: clean ? "saved" : "changed" });
+      return { clean, warning, recoveryPersisted };
     } catch (error) {
       setStatus({ kind: "error", message: error instanceof Error ? error.message : String(error) });
-      return false;
+      return null;
     } finally {
       saving.current = false;
       setIsSaving(false);
@@ -540,6 +548,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
   async function finishNativeClose(
     recovery: string | null | (() => string | null),
     recoveryPersisted = false,
+    saveWarning?: string,
   ) {
     let restoreInteraction: (() => void) | null = null;
     try {
@@ -553,6 +562,10 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
         const sequence = ++recoverySequence.current;
         if (!(await writeRecoverySnapshot(sequence, recoveryText))) {
           throw new Error(copyRef.current.recoverySaveSuperseded);
+        }
+        if (saveWarning) {
+          setSaveRecoveryWarning(undefined);
+          saveWarning = undefined;
         }
       }
       if (!isCurrentDocumentRevision(currentDocument.current, {
@@ -575,8 +588,11 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
       restoreInteraction?.();
       closeRequestPending.current = false;
       const detail = error instanceof Error ? error.message : String(error);
-      setStatus({ kind: "error", message: `${copyRef.current.closeFailed} ${detail}` });
-      setDialogError(`${copyRef.current.closeFailed} ${detail}`);
+      const message = saveWarning
+        ? `${saveWarning} ${copyRef.current.closeFailed} ${detail}`
+        : `${copyRef.current.closeFailed} ${detail}`;
+      setStatus({ kind: "error", message });
+      setDialogError(message);
     }
   }
 
@@ -664,34 +680,22 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
     const action = pendingAction;
     if (!action) return;
     if (choice === "save") {
-      if (action === "exit") {
-        const documentWasDirty = isDocumentDirty(currentDocument.current);
-        if (documentWasDirty && !(await saveDocument())) {
-          setDialogError(copy.saveBeforeContinue);
-          return;
-        }
-        if (pendingActionRef.current !== "exit") return;
-        try {
-          if (documentWasDirty) await finishNativeClose(null, true);
-          else {
-            await finishNativeClose(
-              () => createRecoverySnapshot(
-                currentDocument.current,
-                currentRecoveryDraft(),
-                getServices().referenceAssets.currentReferences.current,
-              ),
-            );
-          }
-        } catch (error) {
-          setDialogError(error instanceof Error ? error.message : String(error));
-        }
-        return;
-      }
-      if (!(await saveDocument())) {
+      const needsSave = action !== "exit" || isDocumentDirty(currentDocument.current);
+      const saved = needsSave ? await saveDocument() : null;
+      if (pendingActionRef.current !== action) return;
+      if (needsSave && !saved?.clean) {
         setDialogError(copy.saveBeforeContinue);
         return;
       }
-      if (pendingActionRef.current !== action) return;
+      if (action === "exit") {
+        const persisted = saved?.recoveryPersisted ?? false;
+        await finishNativeClose(persisted ? null : () => createRecoverySnapshot(
+          currentDocument.current,
+          currentRecoveryDraft(),
+          getServices().referenceAssets.currentReferences.current,
+        ), persisted, saved?.warning);
+        return;
+      }
     } else if (action === "exit") {
       await finishNativeClose(null);
       return;
@@ -842,6 +846,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
     setExampleFilter, isSaving, saving, recoveryReady, recoveryReadyRef, recoveryInitialized,
     recoverySequence, recoveryCandidate, recoveryError, isRecoveryActionRunning,
     currentRecoveryDraft, requestAction, requestNativeClose, saveDocument, prepareTranscription,
+    saveRecoveryWarning, setSaveRecoveryWarning,
     resolveSettingsDraft, resolveDirtyAction, cancelDirtyAction, cancelSettingsDraftAction,
     createScore, chooseCatalogDocument, restoreRecovery, discardRecovery, continueWithoutRecovery};
 }

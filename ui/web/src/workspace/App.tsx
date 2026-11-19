@@ -23,6 +23,7 @@ import { ScorePreview } from "./ScorePreview";
 import { exportStatusText, useScoreExports } from "./useScoreExports";
 import {useSourceDiagnostics} from "./useSourceDiagnostics";
 import {useTranscriptionSession, type TranscriptionContext} from "./useTranscriptionSession";
+import {transcriptionAppendPrefix} from "./transcription-append.js";
 import {normalizedIssueRegions, issueSourceRange, mapFormattedIssueSpans} from "./transcription-review.js";
 import {createSourceOffsetMap} from "./source-mapping.js";
 import { useReferenceAssets } from "./useReferenceAssets";
@@ -257,8 +258,7 @@ export function App() {
     const existing = currentDocument.current.source;
     const musicStart = draft.jps.search(/^Q\d*(?:\[[^\]\r\n]*\]|"[^"\r\n]*")?:/im);
     if (musicStart < 0) throw new Error(copyRef.current.transcriptionNoMusic);
-    const prefix = !existing.trim() ? "" : /\[fenye\]\s*$/.test(existing)
-      ? "\n" : existing.endsWith("\n") ? "\n[fenye]\n" : "\n\n[fenye]\n";
+    const prefix = transcriptionAppendPrefix(existing);
     const addition = prefix + (existing.trim() ? "\n" + draft.jps.slice(musicStart).trimEnd() : draft.jps.trimEnd()) + "\n";
     const removed = existing.trim() ? Array.from(draft.jps.slice(0, musicStart)).length : 0;
     const shift = Array.from(existing + prefix + (existing.trim() ? "\n" : "")).length - removed;
@@ -862,8 +862,16 @@ export function App() {
           </button>
         </div>
       </header>
+      {lifecycle.saveRecoveryWarning && (
+        <aside className="workspace-notice workspace-notice-error">
+          <p role="alert">{lifecycle.saveRecoveryWarning}</p>
+          <button onClick={() => lifecycle.setSaveRecoveryWarning(undefined)} type="button">
+            {copy.dismissHint}
+          </button>
+        </aside>
+      )}
       {fontStatusError && (
-        <aside aria-live="polite" className="font-notice font-notice-error" role="status">
+        <aside aria-live="polite" className="workspace-notice workspace-notice-error" role="status">
           <p>{copy.fontStatusUnknown} {fontStatusError}</p>
           <div className="font-notice-actions">
             <button disabled={fontRefreshing || isExporting}
@@ -875,7 +883,7 @@ export function App() {
         </aside>
       )}
       {showFontNotice && (
-        <aside aria-labelledby="font-notice-title" className="font-notice" role="status">
+        <aside aria-labelledby="font-notice-title" className="workspace-notice" role="status">
           <div>
             <h2 id="font-notice-title">{copy.fontNoticeTitle}</h2>
             <p>{copy.fontNoticeMessage}</p>
