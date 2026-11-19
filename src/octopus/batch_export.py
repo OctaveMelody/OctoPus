@@ -26,6 +26,8 @@ def _publish(targets: tuple[Path, ...], pages: Iterable[bytes]) -> None:
         raise FileExistsError("an export destination already exists")
     staged: list[tuple[Path, Path]] = []
     published: list[tuple[Path, os.stat_result]] = []
+    publish_error: BaseException | None = None
+    rollback_failures: list[str] = []
     try:
         total_bytes = 0
         for target, data in zip(targets, pages, strict=True):
@@ -62,18 +64,41 @@ def _publish(targets: tuple[Path, ...], pages: Iterable[bytes]) -> None:
                     os.fsync(output.fileno())
             else:
                 published.append((target, identity))
-    except BaseException:
+    except BaseException as exc:
+        publish_error = exc
         for target, identity in reversed(published):
             try:
                 current = target.lstat()
-                if (current.st_dev, current.st_ino) == (identity.st_dev, identity.st_ino):
-                    target.unlink()
-            except OSError:
-                pass
+                if (current.st_dev, current.st_ino) != (identity.st_dev, identity.st_ino):
+                    rollback_failures.append(f"{str(target)!r} changed since publication")
+                    continue
+                target.unlink()
+            except FileNotFoundError:
+                continue
+            except OSError as error:
+                rollback_failures.append(f"{str(target)!r} ({error})")
         raise
     finally:
+        temporary_failures = []
         for _, temporary in staged:
-            temporary.unlink(missing_ok=True)
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError as error:
+                temporary_failures.append(f"{str(temporary)!r} ({error})")
+        details = []
+        if rollback_failures:
+            details.append("Incomplete export rollback. Inspect these paths before retrying: "
+                           + "; ".join(rollback_failures))
+        if temporary_failures:
+            details.append("Could not remove temporary export files: "
+                           + "; ".join(temporary_failures))
+        if details:
+            message = ". ".join(details)
+            if publish_error is None:
+                raise RuntimeError(f"Export files were written. {message}")
+            if isinstance(publish_error, Exception):
+                raise RuntimeError(f"{publish_error}. {message}") from publish_error
+            publish_error.add_note(message)
 
 
 def _check_output_parents(selected: Path, destination: Path) -> None:
