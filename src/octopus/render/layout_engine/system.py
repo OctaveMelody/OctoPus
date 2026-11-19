@@ -215,13 +215,32 @@ def _layout_system(
         left=system_note_start_x,
         right=state.right,
     )
-    if all(not voice.lyrics for voice in system.voices) and (
-        len(system.voices) == 1 or all(voice.voice != 0 for voice in system.voices)
+    if len(system.voices) == 1 or (
+        all(not voice.lyrics and voice.voice != 0 for voice in system.voices)
     ):
         project_short_plain_rows(
             system_layout_events, left=system_note_start_x, right=state.right,
             marks=layout.marks, multi_voice=len(system.voices) > 1,
+            lyric_text_by_voice=grid_lyric_text_by_voice,
         )
+    else:
+        for voice_index, voice in enumerate(system.voices):
+            if voice.voice == 0:
+                project_short_plain_rows(
+                    [item for item in system_layout_events if item.voice == voice_index],
+                    left=metrics.note_start_x, right=state.right,
+                    lyric_text_by_voice=grid_lyric_text_by_voice,
+                )
+        for group in system.voice_groups:
+            if len(group.rows) < 2 or any(row.voice == 0 for row in group.rows):
+                continue
+            source_lines = {row.source_line for row in group.rows}
+            project_short_plain_rows(
+                [item for item in system_layout_events
+                 if item.event.span.start.line in source_lines],
+                left=system_note_start_x, right=state.right, marks=layout.marks,
+                multi_voice=True, lyric_text_by_voice=grid_lyric_text_by_voice,
+            )
     reproject_leading_dsb_events(system, system_layout_events, system_hidden_events)
     reproject_bz_events(
         system, system_layout_events, layout.hidden_events[hidden_event_start:],

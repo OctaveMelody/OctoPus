@@ -281,14 +281,18 @@ def event_dynamic_decoration_item_elements(
 
     elements: list[SvgElement] = []
     for decoration in event.decorations:
-        if not is_dynamic_decoration(decoration):
+        # The reference reads note-attached &fine as its leading &f dynamic.
+        dynamic = (
+            "f" if decoration == "fine" and event.kind != MusicTokenKind.BARLINE else decoration
+        )
+        if not is_dynamic_decoration(dynamic):
             continue
-        glyph_id = get_decoration_glyph(decoration)
+        glyph_id = get_decoration_glyph(dynamic)
         if glyph_id is None:
             continue
         placement = decoration_placement(
             event,
-            decoration,
+            dynamic,
             decorations=event.decorations,
         )
         elements.append(

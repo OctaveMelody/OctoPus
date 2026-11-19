@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from fractions import Fraction
 
 from octopus.normalization.constructs import (
@@ -31,6 +32,7 @@ from octopus.parser.ast import (
     MusicToken,
     MusicTokenKind,
 )
+from octopus.parser.source import SourceSpan
 
 
 def _normalize_music_token_stream(
@@ -48,6 +50,24 @@ def _normalize_music_token_stream(
     for token_index, token in enumerate(tokens):
         if token.kind == MusicTokenKind.IGNORED_TEXT:
             continue
+        if (
+            token_index > 0
+            and token.kind == MusicTokenKind.BARLINE
+            and tokens[token_index - 1].kind == MusicTokenKind.BARLINE
+            and tokens[token_index - 1].span.start.line == token.span.start.line
+            and events
+            and events[-1].code == "|"
+        ):
+            second_code = _rendered_code(tokens, token_index)
+            if second_code in {"|", "|s", "|z"}:
+                previous = events[-1]
+                combined_code = "|j" + second_code[1:]
+                events[-1] = replace(
+                    previous, span=SourceSpan(previous.span.start, token.span.end),
+                    code=combined_code, render_code=combined_code,
+                )
+                token_to_event_index[token_index] = previous.index
+                continue
         event_index += 1
         token_to_event_index[token_index] = event_index
         events.append(

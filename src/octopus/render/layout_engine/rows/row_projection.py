@@ -5,7 +5,7 @@ from __future__ import annotations
 from ....parser.ast import MusicTokenKind
 from ...core.layout_types import LayoutEvent, LayoutMark
 from ...core.layout_widths import event_duration_weight
-from ..beat_grid_engine.analysis import analyze_line
+from ..beat_grid_engine.analysis import analyze_line_with_lyric_text
 from ..beat_grid_engine.natural import natural_layout
 
 # REF-derived cumulative x offsets for the catalog-grace template rows: the engraver
@@ -81,6 +81,7 @@ def project_ordinary_row(
 def project_short_plain_rows(
     events: list[LayoutEvent], *, left: float, right: float,
     marks: list[LayoutMark] | None = None, multi_voice: bool = False,
+    lyric_text_by_voice: dict[int, dict[tuple[int, int], tuple[str, ...]]] | None = None,
 ) -> None:
     """Use the reference's natural grid for short, undecorated-rhythm rows."""
     by_line: dict[int, list[LayoutEvent]] = {}
@@ -95,11 +96,27 @@ def project_short_plain_rows(
             continue
         if any(not _plain_row(row) for row in group):
             continue
-        grid = natural_layout([analyze_line([item.event for item in row], []) for row in group])
+        grid = natural_layout([
+            analyze_line_with_lyric_text(
+                [item.event for item in row], (lyric_text_by_voice or {}).get(row[0].voice, {}),
+            )
+            for row in group
+        ])
         bar_counts = [
             sum(item.event.kind == MusicTokenKind.BARLINE for item in row) for row in group
         ]
-        if any(count != len(grid.bar_x_offsets) for count in bar_counts):
+        adjacent_gaps: dict[int, float] = {}
+        if len(group) == 1:
+            row = group[0]
+            for index in range(1, len(row)):
+                previous, current = row[index - 1:index + 1]
+                if (previous.event.kind != MusicTokenKind.BARLINE
+                        or current.event.kind != MusicTokenKind.BARLINE):
+                    continue
+                if previous.event.raw == "|" and previous.event.code == "|":
+                    break
+                adjacent_gaps[index] = 10.0 if previous.event.raw == "|/" else 45.0
+        if any(count != len(grid.bar_x_offsets) + len(adjacent_gaps) for count in bar_counts):
             continue
         group_lines = {row[0].line for row in group}
         marker = next(
@@ -116,15 +133,23 @@ def project_short_plain_rows(
                 for item in marker_row if item.slot <= marker.host.slot
             )
         start = left - 20 if multi_voice and marker is not None else left
-        if grid.end_offset + (20 if marker is not None else 0) > right - start:
+        if grid.end_offset + sum(adjacent_gaps.values()) + (
+            20 if marker is not None else 0
+        ) > right - start:
             continue
         for row_index, row in enumerate(group):
             notes = iter(grid.note_x_offsets[row_index])
             bars = iter(grid.bar_x_offsets)
             bar_index = 0
-            for item in row:
+            extra = 0.0
+            for index, item in enumerate(row):
                 is_bar = item.event.kind == MusicTokenKind.BARLINE
-                offset = next(bars if is_bar else notes)
+                if index in adjacent_gaps:
+                    gap = adjacent_gaps[index]
+                    offset = row[index - 1].x - start + gap
+                    extra += gap
+                else:
+                    offset = next(bars if is_bar else notes) + extra
                 if marker_bar is not None and bar_index >= marker_bar:
                     offset += 20
                 item.x = start + offset

@@ -54,11 +54,18 @@ def collect_voice_braces(
         return
 
     accidental_indent_scale = _accidental_indent_scale(system_events, scale_by_line)
+    source_groups = {
+        row.source_line: group.index for group in system.voice_groups for row in group.rows
+    }
 
     run: list[int] = []
     previous_line: int | None = None
     for line in sorted(rows):
-        if previous_line is not None and line != previous_line + 1:
+        if previous_line is not None and (
+            line != previous_line + 1
+            or source_groups.get(source_line_by_line[line])
+            != source_groups.get(source_line_by_line[previous_line])
+        ):
             _append_voice_brace(
                 layout,
                 system,
