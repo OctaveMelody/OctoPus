@@ -10,7 +10,9 @@ use args::{
 };
 use files::{ensure_parent, publish_new_files, reject_existing_outputs};
 use jps_document_io::file_exports::{publish_export_pages, ExportFormat};
-use jps_document_io::score_exports::{export_jpg_pages, export_pdf_for_paper, export_png_pages};
+use jps_document_io::score_exports::{
+    export_jpg_pages, export_pdf_for_paper, export_png_pages, RASTER_EXPORT_DPI,
+};
 use jps_document_io::svg_exports::publish_svg_pages;
 use jps_engine_bridge::{EngineSupervisor, LoadDocumentArgs, RenderArgs, TranscribeArgs};
 use serde_json::{json, Value};
@@ -464,13 +466,12 @@ fn export_command(options: CliOptions) -> Result<Value, CliFailure> {
         }
     };
     let dpi = match options.value("dpi") {
-        None if matches!(format, ExportFormat::Png | ExportFormat::Jpg) => 96,
-        None => 96,
+        None => RASTER_EXPORT_DPI,
         Some(value) if matches!(format, ExportFormat::Png | ExportFormat::Jpg) => value
             .parse::<u16>()
             .ok()
-            .filter(|dpi| matches!(dpi, 96 | 300))
-            .ok_or_else(|| CliFailure::usage("--dpi must be 96 or 300"))?,
+            .filter(|dpi| *dpi == RASTER_EXPORT_DPI)
+            .ok_or_else(|| CliFailure::usage("--dpi must be 300"))?,
         Some(_) => {
             return Err(CliFailure::usage(
                 "--dpi is only valid for PNG and JPG export",
@@ -720,7 +721,7 @@ fn product_version() -> &'static str {
 }
 
 fn usage_text() -> &'static str {
-    "Usage: octopus --headless capabilities --json | inspect <score.jps> --json | transcribe <input.png|jpg|jpeg|pdf> --out <draft.jps> --issues <issues.json> --json | export <score.jps> --format svg|pdf|png|jpg --out <target.ext> [--dpi 96|300] --json | export <score.jps> --format svg|png|jpg --out-dir <directory> [--dpi 96|300] --json"
+    "Usage: octopus --headless capabilities --json | inspect <score.jps> --json | transcribe <input.png|jpg|jpeg|pdf> --out <draft.jps> --issues <issues.json> --json | export <score.jps> --format svg|pdf|png|jpg --out <target.ext> [--dpi 300] --json | export <score.jps> --format svg|png|jpg --out-dir <directory> [--dpi 300] --json"
 }
 
 fn write_json(value: &Value) -> io::Result<()> {

@@ -57,9 +57,9 @@
 <p class="keep-together">图片和扫描版 PDF 使用内置的默认 OCR 配置，通过本地 RapidOCR + ONNX 转录。在原稿图片/PDF 面板中点击<b>转录</b>生成 JPS 草稿，再检查源码和问题标记。</p>
 </section>
 <section id="zh-CN-export"><h2>11. 导出与 Windows 便携版使用</h2>
-<p>选择导出格式（SVG、PDF、PNG 或 JPG，96 或 300 DPI）及保存位置。PDF 生成一份多页文档，SVG、PNG 和 JPG 则按页生成文件。300 DPI 适合印刷。分享导出文件前，先保存可继续编辑的 JPS 原稿。PDF 会嵌入字体，PNG 无损保存像素，JPEG 会压缩像素，SVG 保留矢量内容。外部 SVG 查看器仍需相应字体，请在计划使用的查看器中检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，会改用角色对应的替代字体；这项限制不适用于桌面版原生导出。</p>
+<p>选择导出格式（SVG、PDF、PNG 或 JPG）及保存位置。PDF 生成一份多页文档，SVG、PNG 和 JPG 则按页生成文件。PNG 和 JPG 固定以 300 DPI 导出。分享导出文件前，先保存可继续编辑的 JPS 原稿。PDF 会嵌入字体，PNG 无损保存像素，JPEG 会压缩像素，SVG 保留矢量内容。外部 SVG 查看器仍需相应字体，请在计划使用的查看器中检查结果。独立的 Python ReportLab PDF 路径无法嵌入 CFF 轮廓系统字体，会改用角色对应的替代字体；这项限制不适用于桌面版原生导出。</p>
 <p>A5 乐谱 PDF 沿用 531.75 × 750 磅的页面尺寸。使用 A5 纸打印时，请在打印对话框中选择 A5 并适合页面大小。</p>
-<figure class="ui-screenshot"><img src="../assets/screenshots/export-zh.jpg" alt="导出菜单中列出 SVG、PDF、JPG、PNG 以及不同分辨率选项。" loading="eager"><figcaption>导出菜单：选择格式和分辨率，再指定保存位置。</figcaption></figure>
+<figure class="ui-screenshot"><img src="../assets/screenshots/export-zh.jpg" alt="导出菜单中列出 SVG、PDF、JPG 和 PNG。" loading="eager"><figcaption>导出菜单：选择文件格式。</figcaption></figure>
 <p>使用 Windows 便携 ZIP 时，请保持解压后的文件夹完整，包括 engine、examples 和 docs，并从该文件夹运行 <code>octopus.exe</code>。其中已内置引擎，无需另装 Python。Windows 仍需 WebView2。</p>
 <h3>通过 Python 命令行批量导出</h3><p>Python 命令行可将一组 JPS 合并为一份 PDF，或按乐谱分别导出。文件按路径排序处理；递归导出保留子目录。已有输出不会被覆盖。某个源文件失败时会报告错误，并继续处理其他有效源文件；请检查退出状态和输出摘要。</p><pre><code>uv run --locked octopus batch-export /path/to/scores --out combined.pdf
 uv run --locked octopus batch-export /path/to/scores --out-dir exported --format pdf --recursive

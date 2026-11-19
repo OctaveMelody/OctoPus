@@ -14,7 +14,7 @@
 
 - 编辑 JPS，并实时预览乐谱。
 - 将 JPG、PNG 简谱图片或 PDF 转成可编辑的 JPS 草稿。
-- 将乐谱导出为 SVG、PDF、PNG 或 JPEG；PNG 和 JPEG 支持 96 和 300 DPI。
+- 将乐谱导出为 SVG、PDF、PNG 或 JPEG；PNG 和 JPEG 固定为 300 DPI。
 - 可在普通布局和转录布局之间切换。
 
 ## 无界面命令

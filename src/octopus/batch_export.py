@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import io
 import os
+import shutil
 import sys
 import tempfile
 import unicodedata
@@ -12,6 +14,8 @@ from pathlib import Path
 
 MAX_FILES = 200
 MAX_BYTES = 64 * 1024 * 1024
+MAX_JPS_BYTES = 8 * 1024 * 1024
+_LINK_UNSUPPORTED = {errno.EPERM, errno.EOPNOTSUPP, errno.ENOTSUP, errno.ENOSYS, errno.EXDEV}
 
 
 def _publish(targets: tuple[Path, ...], pages: tuple[bytes, ...]) -> None:
@@ -32,8 +36,28 @@ def _publish(targets: tuple[Path, ...], pages: tuple[bytes, ...]) -> None:
                 stream.flush()
                 os.fsync(stream.fileno())
         for target, temporary in staged:
-            os.link(temporary, target)
-            published.append((target, temporary.stat()))
+            identity = temporary.stat()
+            try:
+                os.link(temporary, target)
+            except OSError as exc:
+                if (
+                    exc.errno not in _LINK_UNSUPPORTED
+                    and getattr(exc, "winerror", None) not in (1, 50)
+                ):
+                    raise
+                # shortcut: this file is visible during the copy; use native no-replace rename
+                # if atomic publication on linkless filesystems becomes a requirement.
+                with (
+                    temporary.open("rb") as source,
+                    open(target, "xb", opener=lambda path, flags: os.open(path, flags, 0o600))
+                    as output,
+                ):
+                    published.append((target, os.fstat(output.fileno())))
+                    shutil.copyfileobj(source, output)
+                    output.flush()
+                    os.fsync(output.fileno())
+            else:
+                published.append((target, identity))
     except BaseException:
         for target, identity in reversed(published):
             try:
@@ -78,7 +102,7 @@ def run_batch_export(args: argparse.Namespace) -> int:
     from .export.pdf_export import build_pdf_pages
     from .export.png_export import rasterize_pages
     from .export.svg import normalize_source, render_score_pages, sanitize_export_pages
-    from .jps import JpsDocument, jps_key, load_jps
+    from .jps import JpsDocument, jps_key, load_jps_text
 
     if (args.out is None) == (args.out_dir is None):
         print("Error: choose exactly one of --out or --out-dir", file=sys.stderr)
@@ -130,7 +154,12 @@ def run_batch_export(args: argparse.Namespace) -> int:
     published_names: set[str] = set()
     for source_path in files:
         try:
-            source = load_jps(source_path)
+            with source_path.open("rb") as stream:
+                raw = stream.read(MAX_JPS_BYTES + 1)
+            if len(raw) > MAX_JPS_BYTES:
+                raise ValueError("JPS source exceeds the 8 MiB input limit")
+            text = raw.decode("utf-8-sig").replace("\r\n", "\n").replace("\r", "\n")
+            source = load_jps_text(text, source_path)
             snapshot = JpsDocument(
                 path=Path(source_path.name),
                 key=jps_key(source_path.name),

@@ -98,7 +98,7 @@ language. Use **App Settings** to choose a workspace layout and UI font.
 | **Save** | Write the current document. |
 | **Save As** | Choose a new location for the current document. |
 | **Import** | Import a JPG / PNG / PDF original for transcription. |
-| **Export** | Choose SVG, PDF, or PNG/JPG at 96 or 300 DPI. |
+| **Export** | Choose SVG, PDF, or PNG/JPG at 300 DPI. |
 | **Close** | Close the current score and keep OctoPus open. |
 | **Samples Library** | Open bundled examples. Shown when enabled in App Settings. |
 | **Page Settings** | Paper, margins, fonts, sizes, spacing, slur shape; available while a score is open. |
@@ -272,21 +272,17 @@ Buttons:
 
 ## 6. Exporting the final page
 
-When the preview looks right, click **Export**. Choose SVG or PDF, or choose an image format and
-resolution from the menu:
+When the preview looks right, click **Export**. Choose a format from the menu.
 
-![The Export menu with Farewell open.](screenshots/export-en.jpg)
+![The Export menu.](screenshots/export-en.jpg)
 
 
 | Menu choice | Use |
 | --- | --- |
 | **SVG…** | Vector output that scales without pixelation. The viewer needs matching fonts for text. |
 | **PDF…** | One multi-page document for sharing or printing. |
-| **JPG (96 DPI)… / JPG (300 DPI)…** | Compressed image files; choose 300 DPI for print. |
-| **PNG (96 DPI)… / PNG (300 DPI)…** | Lossless image files; choose 300 DPI for print. |
-
-Use **96 DPI** for screen display and **300 DPI** for print. The DPI choice appears directly in the
-JPG and PNG menu items.
+| **JPG (300 DPI)…** | Compressed image files. |
+| **PNG (300 DPI)…** | Lossless image files. |
 
 - PDF creates **one** combined document; SVG/PNG/JPG create **one file per page**.
 - **Save the `.jps` first** — it is your editable master. Exports are output, not something you edit

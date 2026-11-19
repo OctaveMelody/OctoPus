@@ -57,7 +57,7 @@ def add_runtime_parsers(subparsers: argparse._SubParsersAction) -> None:
     batch_parser.add_argument("--out", type=Path, help="one combined multi-page PDF")
     batch_parser.add_argument("--out-dir", type=Path, help="per-score exports directory")
     batch_parser.add_argument("--format", choices=("pdf", "svg", "png", "jpg"), default="pdf")
-    batch_parser.add_argument("--dpi", type=int, choices=(96, 300), default=96)
+    batch_parser.add_argument("--dpi", type=int, choices=(300,), default=300)
     batch_parser.add_argument("--recursive", action="store_true", help="include nested folders")
 
 

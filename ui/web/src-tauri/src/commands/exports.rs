@@ -1,6 +1,8 @@
 use crate::DesktopState;
 use jps_document_io::file_exports::{existing_export_targets, publish_export_pages, ExportFormat};
-use jps_document_io::score_exports::{export_jpg_pages, export_pdf_for_paper, export_png_pages};
+use jps_document_io::score_exports::{
+    export_jpg_pages, export_pdf_for_paper, export_png_pages, RASTER_EXPORT_DPI,
+};
 use jps_document_io::svg_exports::publish_svg_pages;
 use jps_engine_bridge::RenderArgs;
 use serde_json::Value;
@@ -225,9 +227,9 @@ pub(crate) async fn export_score(
     let (format, dpi) = match format.as_str() {
         "pdf" if dpi.is_none() => (ExportFormat::Pdf, None),
         "jpg" | "png" => {
-            let dpi = dpi.unwrap_or(96);
-            if !matches!(dpi, 96 | 300) {
-                return Err("Image resolution must be 96 or 300 DPI".into());
+            let dpi = dpi.unwrap_or(RASTER_EXPORT_DPI);
+            if dpi != RASTER_EXPORT_DPI {
+                return Err("Image resolution must be 300 DPI".into());
             }
             (
                 if format == "png" {
@@ -276,9 +278,9 @@ pub(crate) async fn export_score(
             ExportFormat::Pdf => {
                 vec![export_pdf_for_paper(&svg_pages, &paper).map_err(|error| error.to_string())?]
             }
-            ExportFormat::Jpg => export_jpg_pages(&svg_pages, dpi.unwrap_or(96))
+            ExportFormat::Jpg => export_jpg_pages(&svg_pages, dpi.unwrap_or(RASTER_EXPORT_DPI))
                 .map_err(|error| error.to_string())?,
-            ExportFormat::Png => export_png_pages(&svg_pages, dpi.unwrap_or(96))
+            ExportFormat::Png => export_png_pages(&svg_pages, dpi.unwrap_or(RASTER_EXPORT_DPI))
                 .map_err(|error| error.to_string())?,
             ExportFormat::Svg => return Err("SVG uses the SVG export command".into()),
         };

@@ -771,24 +771,19 @@ export function App() {
               </button>
               <button
                 disabled={!documentOpen || isSaving || isExporting || fontRefreshing || referenceOperationBusy}
-                onClick={(event) => startExport(event, "jpg", 96)}
+                onClick={event => startExport(event, "jpg", 300)}
                 type="button"
               >
                 {copy.exportJpg}
               </button>
               <button
-                disabled={!documentOpen || isSaving || isExporting || fontRefreshing || referenceOperationBusy}
-                onClick={(event) => startExport(event, "jpg", 300)}
-                type="button"
-              >
-                {copy.exportJpg300}
-              </button>
-              {[96, 300].map(dpi => <button key={`png-${dpi}`}
                 disabled={!documentOpen || isSaving || isExporting || fontRefreshing
                   || referenceOperationBusy || !engineCapabilities.png_export}
-                onClick={event => startExport(event, "png", dpi as 96 | 300)} type="button">
-                {dpi === 96 ? copy.exportPng : copy.exportPng300}
-              </button>)}
+                onClick={event => startExport(event, "png", 300)}
+                type="button"
+              >
+                {copy.exportPng}
+              </button>
             </div>
           </details>
           <button disabled={!documentOpen || isSaving || referenceOperationBusy} onClick={() => requestAction("close-document")} type="button">

@@ -17,7 +17,7 @@ function exportFormatName(
 ): string {
   if (format === "svg") return copy.formatSvg;
   if (format === "pdf") return copy.formatPdf;
-  return format === "png" ? copy.formatPng(dpi ?? 96) : copy.formatJpg(dpi ?? 96);
+  return format === "png" ? copy.formatPng(dpi ?? 300) : copy.formatJpg(dpi ?? 300);
 }
 
 export function exportStatusText(status: ExportStatus, copy: WorkspaceCopy): string {
@@ -51,7 +51,7 @@ export function useScoreExports({ score, currentDocument, documentOpen, copyRef 
   async function exportDocument(format: ExportFormat, dpi: ExportDpi = null) {
     if (!documentOpen) return;
     if (exportInProgress.current) return;
-    if (((format === "jpg" || format === "png") && dpi !== 96 && dpi !== 300) || (format !== "jpg" && format !== "png" && dpi !== null)) return;
+    if (((format === "jpg" || format === "png") && dpi !== 300) || (format !== "jpg" && format !== "png" && dpi !== null)) return;
     const current = currentDocument.current;
     const identity = { documentId: current.id, revision: current.revision };
     const operation = { ...identity, format, dpi };

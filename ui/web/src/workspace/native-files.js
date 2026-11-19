@@ -222,7 +222,7 @@ export function exportSvgDocument(args, suggestedPath, suggestedName) {
   return invokeNative("export_svg", { args, suggestedPath, suggestedName });
 }
 
-/** @param {Record<string, unknown>} args @param {string | null} suggestedPath @param {string} suggestedName @param {ScoreExportFormat} format @param {96 | 300 | null} dpi @returns {Promise<ScoreExportReceipt | null>} */
+/** @param {Record<string, unknown>} args @param {string | null} suggestedPath @param {string} suggestedName @param {ScoreExportFormat} format @param {300 | null} dpi @returns {Promise<ScoreExportReceipt | null>} */
 export function exportScoreDocument(args, suggestedPath, suggestedName, format, dpi) {
   return invokeNative("export_score", { args, suggestedPath, suggestedName, format, dpi });
 }

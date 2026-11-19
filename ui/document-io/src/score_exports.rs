@@ -2,10 +2,8 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use image::codecs::jpeg::JpegEncoder;
-use image::codecs::png::PngEncoder;
+use image::codecs::jpeg::{JpegEncoder, PixelDensity};
 use image::ExtendedColorType;
-use image::ImageEncoder;
 use krilla::geom::Size as PdfSize;
 use krilla::page::PageSettings;
 use krilla::Document;
@@ -21,6 +19,7 @@ const PDF_POINTS_PER_INCH: f64 = 72.0;
 const MAX_EXPORT_PAGE_PIXELS: u64 = 40_000_000;
 const MAX_EXPORT_BATCH_PIXELS: u64 = 200_000_000;
 const MAX_PDF_PAGE_POINTS: f32 = 14_400.0;
+pub const RASTER_EXPORT_DPI: u16 = 300;
 const JPEG_QUALITY: u8 = 95;
 
 pub fn export_pdf(svg_pages: &[String]) -> Result<Vec<u8>, DocumentIoError> {
@@ -89,7 +88,7 @@ fn export_raster_pages(
     png: bool,
 ) -> Result<Vec<Vec<u8>>, DocumentIoError> {
     validate_svg_pages(svg_pages)?;
-    if !matches!(dpi, 96 | 300) {
+    if dpi != RASTER_EXPORT_DPI {
         return Err(DocumentIoError::InvalidExportDpi);
     }
 
@@ -108,12 +107,22 @@ fn export_raster_pages(
         let pixmap = render_jpg_page(&tree, width, height, dpi)?;
         let bytes = if png {
             let mut encoded = Vec::new();
-            PngEncoder::new(&mut encoded)
-                .write_image(pixmap.data(), width, height, ExtendedColorType::Rgba8)
+            let mut encoder = png::Encoder::new(&mut encoded, width, height);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            let pixels_per_meter = (u32::from(dpi) * 10_000 + 127) / 254;
+            encoder.set_pixel_dims(Some(png::PixelDimensions {
+                xppu: pixels_per_meter,
+                yppu: pixels_per_meter,
+                unit: png::Unit::Meter,
+            }));
+            encoder
+                .write_header()
+                .and_then(|mut writer| writer.write_image_data(pixmap.data()))
                 .map_err(|_| DocumentIoError::ExportConversionFailed)?;
             encoded
         } else {
-            encode_jpeg(pixmap, width, height)?
+            encode_jpeg(pixmap, width, height, dpi)?
         };
         total_bytes = total_bytes
             .checked_add(bytes.len())
@@ -286,7 +295,12 @@ fn render_jpg_page(
     Ok(pixmap)
 }
 
-fn encode_jpeg(pixmap: Pixmap, width: u32, height: u32) -> Result<Vec<u8>, DocumentIoError> {
+fn encode_jpeg(
+    pixmap: Pixmap,
+    width: u32,
+    height: u32,
+    dpi: u16,
+) -> Result<Vec<u8>, DocumentIoError> {
     let mut pixels = pixmap.take();
     let pixel_count = (u64::from(width) * u64::from(height)) as usize;
     for index in 0..pixel_count {
@@ -300,7 +314,9 @@ fn encode_jpeg(pixmap: Pixmap, width: u32, height: u32) -> Result<Vec<u8>, Docum
     pixels.truncate(pixel_count * 3);
 
     let mut encoded = Vec::new();
-    JpegEncoder::new_with_quality(&mut encoded, JPEG_QUALITY)
+    let mut encoder = JpegEncoder::new_with_quality(&mut encoded, JPEG_QUALITY);
+    encoder.set_pixel_density(PixelDensity::dpi(dpi));
+    encoder
         .encode(&pixels, width, height, ExtendedColorType::Rgb8)
         .map_err(|_| DocumentIoError::ExportConversionFailed)?;
     Ok(encoded)
@@ -518,53 +534,56 @@ mod tests {
     }
 
     #[test]
-    fn exports_jpg_at_intrinsic_and_300_dpi_sizes_with_white_background() {
-        for (dpi, expected) in [(96, (100, 60)), (300, (313, 188))] {
-            let images = export_jpg_pages(&page(), dpi).unwrap();
-            let decoder = JpegDecoder::new(Cursor::new(&images[0])).unwrap();
-            let (width, height) = decoder.dimensions();
-            let mut rgb = vec![0; decoder.total_bytes() as usize];
-            decoder.read_image(&mut rgb).unwrap();
-            let corner = &rgb[0..3];
-            let (pixels, remainder) = rgb.as_chunks::<3>();
-            assert!(remainder.is_empty());
-            let (mut rightmost_ink, mut bottommost_ink) = (0, 0);
-            for (index, pixel) in pixels.iter().enumerate() {
-                if pixel.iter().all(|channel| *channel < 128) {
-                    rightmost_ink = rightmost_ink.max(index as u32 % width);
-                    bottommost_ink = bottommost_ink.max(index as u32 / width);
-                }
+    fn exports_jpg_at_300_dpi_with_white_background() {
+        let images = export_jpg_pages(&page(), 300).unwrap();
+        let decoder = JpegDecoder::new(Cursor::new(&images[0])).unwrap();
+        let (width, height) = decoder.dimensions();
+        let mut rgb = vec![0; decoder.total_bytes() as usize];
+        decoder.read_image(&mut rgb).unwrap();
+        let corner = &rgb[0..3];
+        let (pixels, remainder) = rgb.as_chunks::<3>();
+        assert!(remainder.is_empty());
+        let (mut rightmost_ink, mut bottommost_ink) = (0, 0);
+        for (index, pixel) in pixels.iter().enumerate() {
+            if pixel.iter().all(|channel| *channel < 128) {
+                rightmost_ink = rightmost_ink.max(index as u32 % width);
+                bottommost_ink = bottommost_ink.max(index as u32 / width);
             }
-
-            assert_eq!((width, height), expected);
-            assert!(corner.iter().all(|channel| *channel >= 250));
-            assert!(
-                rightmost_ink > width * 3 / 4,
-                "ink ends at x={rightmost_ink}"
-            );
-            assert!(
-                bottommost_ink > height * 3 / 4,
-                "ink ends at y={bottommost_ink}"
-            );
-            assert!(images[0].starts_with(&[0xff, 0xd8]));
         }
+
+        assert_eq!((width, height), (313, 188));
+        assert!(corner.iter().all(|channel| *channel >= 250));
+        assert!(
+            rightmost_ink > width * 3 / 4,
+            "ink ends at x={rightmost_ink}"
+        );
+        assert!(
+            bottommost_ink > height * 3 / 4,
+            "ink ends at y={bottommost_ink}"
+        );
+        assert_eq!(&images[0][6..18], b"JFIF\0\x01\x02\x01\x01\x2c\x01\x2c");
     }
 
     #[test]
-    fn exports_lossless_png_at_screen_and_print_sizes() {
-        for (dpi, expected) in [(96, (100, 60)), (300, (313, 188))] {
-            let pages = export_png_pages(&page(), dpi).unwrap();
-            assert!(pages[0].starts_with(b"\x89PNG\r\n\x1a\n"));
-            let image = image::load_from_memory_with_format(&pages[0], image::ImageFormat::Png)
-                .unwrap()
-                .to_rgba8();
-            assert_eq!(image.dimensions(), expected);
-            assert_eq!(image.get_pixel(0, 0).0, [255, 255, 255, 255]);
-            assert!(image.pixels().any(|pixel| pixel.0 == [0, 0, 0, 255]));
-            assert!(image.pixels().all(|pixel| pixel.0[3] == 255));
-        }
+    fn exports_lossless_png_at_print_size() {
+        let pages = export_png_pages(&page(), 300).unwrap();
+        let reader = png::Decoder::new(Cursor::new(&pages[0]))
+            .read_info()
+            .unwrap();
+        let dims = reader.info().pixel_dims.unwrap();
+        assert_eq!(
+            (dims.xppu, dims.yppu, dims.unit),
+            (11_811, 11_811, png::Unit::Meter)
+        );
+        let image = image::load_from_memory_with_format(&pages[0], image::ImageFormat::Png)
+            .unwrap()
+            .to_rgba8();
+        assert_eq!(image.dimensions(), (313, 188));
+        assert_eq!(image.get_pixel(0, 0).0, [255, 255, 255, 255]);
+        assert!(image.pixels().any(|pixel| pixel.0 == [0, 0, 0, 255]));
+        assert!(image.pixels().all(|pixel| pixel.0[3] == 255));
         assert!(matches!(
-            export_png_pages(&page(), 150),
+            export_png_pages(&page(), 96),
             Err(DocumentIoError::InvalidExportDpi)
         ));
     }
@@ -576,7 +595,7 @@ mod tests {
             Err(DocumentIoError::InvalidExportDpi)
         ));
         assert!(matches!(
-            export_jpg_pages(&["not svg".into()], 96),
+            export_jpg_pages(&["not svg".into()], 300),
             Err(DocumentIoError::InvalidExportPage)
         ));
         let filtered = r#"
@@ -585,12 +604,12 @@ mod tests {
             </svg>
         "#;
         assert!(matches!(
-            export_jpg_pages(&[filtered.into()], 96),
+            export_jpg_pages(&[filtered.into()], 300),
             Err(DocumentIoError::UnsupportedExportFeature)
         ));
         let oversized = r#"<svg xmlns="http://www.w3.org/2000/svg" width="8000" height="6000"/>"#;
         assert!(matches!(
-            export_jpg_pages(&[oversized.into()], 96),
+            export_jpg_pages(&[oversized.into()], 300),
             Err(DocumentIoError::ExportPageTooLarge)
         ));
         assert!(matches!(export_pdf(&[]), Err(DocumentIoError::EmptyExport)));

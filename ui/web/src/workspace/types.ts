@@ -112,7 +112,7 @@ export type SerializedJps = { text: string };
 
 export type ExportFormat = "svg" | "pdf" | "jpg" | "png";
 
-export type ExportDpi = 96 | 300 | null;
+export type ExportDpi = 300 | null;
 
 export type FontAvailability = Record<string, { family: string; fallback: string; available: boolean }>;
 export type EngineCapabilities = {

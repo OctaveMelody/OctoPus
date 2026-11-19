@@ -18,7 +18,7 @@ grouping in 6/8, 9/8 and 12/8 meters, along with image and PDF transcription.
 
 - Edit JPS source with a live score preview.
 - Transcribe score images (JPG or PNG) and PDF files into editable JPS drafts.
-- Export scores as SVG, PDF, PNG or JPEG. Raster exports support 96 and 300 DPI.
+- Export scores as SVG, PDF, PNG or JPEG. Raster exports use 300 DPI.
 - The app offers Normal and Transcription layouts.
 
 ## Headless commands

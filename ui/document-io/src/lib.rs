@@ -156,7 +156,7 @@ impl std::fmt::Display for DocumentIoError {
                 formatter.write_str("SVG export does not support embedded images or filters")
             }
             Self::ExportPageTooLarge => formatter.write_str("export page exceeds resource limits"),
-            Self::InvalidExportDpi => formatter.write_str("JPG resolution must be 96 or 300 DPI"),
+            Self::InvalidExportDpi => formatter.write_str("Image resolution must be 300 DPI"),
             Self::ExportConversionFailed => {
                 formatter.write_str("could not convert an SVG export page")
             }
