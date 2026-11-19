@@ -16,7 +16,7 @@ from .image import recognize_image
 from .observations import PageObservation
 from .text import image_text, merge_text, pdf_text, scale_pdf_text
 
-MAX_PDF_BYTES = 100_000_000
+MAX_PDF_BYTES = 100 * 1024 * 1024
 MAX_PDF_PAGES = 200
 MAX_PDF_RASTER_PIXELS = 7_000_000
 
@@ -46,7 +46,7 @@ def _pdf_pages(
     path: Path, progress: Callable[[int, int, str], None] | None = None,
 ) -> tuple[PageObservation, ...]:
     if path.stat().st_size > MAX_PDF_BYTES:
-        raise ValueError("PDF exceeds the 100 MB input limit")
+        raise ValueError("PDF exceeds the 100 MiB input limit")
     missing = [name for name in ("pdfinfo", "pdftotext", "pdftoppm") if not shutil.which(name)]
     if missing:
         raise RuntimeError(
