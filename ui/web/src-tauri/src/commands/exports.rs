@@ -1,5 +1,7 @@
 use crate::DesktopState;
-use jps_document_io::file_exports::{existing_export_targets, publish_export_pages, ExportFormat};
+use jps_document_io::file_exports::{
+    existing_export_targets, publish_export_pages, ConfirmedExportTarget, ExportFormat,
+};
 use jps_document_io::score_exports::{
     export_pdf_for_paper, publish_raster_pages, RASTER_EXPORT_DPI,
 };
@@ -77,7 +79,7 @@ async fn choose_export_path(
     suggested_name: Option<String>,
     format: ExportFormat,
     page_count: usize,
-) -> Result<Option<(PathBuf, Vec<PathBuf>)>, String> {
+) -> Result<Option<(PathBuf, Vec<ConfirmedExportTarget>)>, String> {
     let source_path = suggested_path
         .map(PathBuf::from)
         .filter(|path| path.is_absolute());
@@ -135,17 +137,30 @@ async fn choose_export_path(
             return Ok(None);
         };
         let target = normalized_save_path(&selected, export_extension(format))?;
-        let existing = existing_export_targets(&target, format, page_count)
-            .map_err(|error| error.to_string())?;
-        // The file dialog confirms its literal path, not numbered or extension-normalized outputs.
-        if (page_count > 1 || target != selected) && !confirm_replacements(&window, &existing) {
-            return Ok(None);
-        }
-        Ok::<_, String>(Some((target, existing)))
+        confirm_export_path(&window, target, format, page_count)
     })
     .await
     .map_err(|error| format!("{} save dialog failed: {error}", export_filter(format)))??;
     Ok(selected)
+}
+
+pub(super) fn confirm_export_path(
+    window: &WebviewWindow,
+    target: PathBuf,
+    format: ExportFormat,
+    page_count: usize,
+) -> Result<Option<(PathBuf, Vec<ConfirmedExportTarget>)>, String> {
+    let existing =
+        existing_export_targets(&target, format, page_count).map_err(|error| error.to_string())?;
+    let paths = existing
+        .iter()
+        .map(|file| file.path().to_owned())
+        .collect::<Vec<_>>();
+    // The system save dialog does not return the identity of the file it confirmed.
+    if !confirm_replacements(window, &paths) {
+        return Ok(None);
+    }
+    Ok(Some((target, existing)))
 }
 
 #[tauri::command]

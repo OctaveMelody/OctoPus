@@ -119,6 +119,9 @@ cancellation stops the dedicated process tree and invalidates the pending draft.
 worker is independent. Legacy HTTP/file/recovery protocol and audit entry points live only in
 OctoPus-dev and are excluded from production Python/native distributions.
 
+Desktop worker requests are capped at 52 MiB, including JSON framing. This allows
+JSON escaping of an 8 MiB JPS source. Responses are capped at 64 MiB.
+
 Desktop protocol 2.0.0 accepts only the managed reference path on transcription requests and
 does not include an OCR mode field in requests or results. Older protocol versions and stale
 mode fields are rejected. New and Append use the sole Default profile for every PDF page and

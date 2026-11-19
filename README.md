@@ -21,6 +21,9 @@ grouping in 6/8, 9/8 and 12/8 meters, along with image and PDF transcription.
 - Export scores as SVG, PDF, PNG or JPEG. Raster exports use 300 DPI.
 - The app offers Normal and Transcription layouts.
 
+Only one desktop window can run per app data directory so unsaved recovery data has one owner.
+Headless commands can run alongside the desktop.
+
 ## Headless commands
 
 OctoPus-Skill can run the packaged engine without opening a window. In a Windows

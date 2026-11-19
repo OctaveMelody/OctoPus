@@ -4,7 +4,9 @@ use tauri::WebviewWindow;
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
-use super::save_dialogs::{approved_save_path, confirm_replacements};
+use super::exports::confirm_export_path;
+use super::save_dialogs::normalized_save_path;
+use jps_document_io::file_exports::ExportFormat;
 
 const PROJECT: &str = "https://github.com/OctaveMelody/OctoPus";
 #[path = "help/manual.rs"]
@@ -82,17 +84,11 @@ pub(crate) async fn save_user_manual_pdf(
         let selected = selected
             .into_path()
             .map_err(|_| "save dialog did not return a local path".to_owned())?;
-        let Some((destination, replace_existing)) =
-            approved_save_path(&selected, "pdf", |paths| {
-                confirm_replacements(&window, paths)
-            })?
+        let destination = normalized_save_path(&selected, "pdf")?;
+        let Some((destination, existing)) =
+            confirm_export_path(&window, destination, ExportFormat::Pdf, 1)?
         else {
             return Ok(());
-        };
-        let existing = if replace_existing {
-            vec![destination.clone()]
-        } else {
-            Vec::new()
         };
         manual::copy_manual_pdf(&source, &destination, &existing)
     })

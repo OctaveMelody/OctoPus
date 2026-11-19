@@ -97,6 +97,8 @@ uv run --locked octopus batch-export scores --out-dir images --format png --dpi 
 大小受限的进度帧，最后返回一份结果。原生取消会停止独立转录进程树，并使待插入草稿失效；
 预览进程独立。旧 HTTP/文件/恢复协议及审计入口仅保留在 OctoPus-dev，不进入生产分发包。
 
+桌面工作进程的 JSON 请求上限为 52 MiB，可容纳 8 MiB JPS 源文件转义后的请求。响应上限为 64 MiB。
+
 构建前设置 `VITE_UPDATE_CHECK_ENABLED=false` 可隐藏“帮助 → 检查更新”。默认仍显示此项；
 该开关只改变菜单，不移除更新代码，也不改变版本号。
 

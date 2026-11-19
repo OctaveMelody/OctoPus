@@ -12,7 +12,8 @@ use resvg::tiny_skia::{Color, Pixmap, Transform};
 use resvg::usvg;
 
 use crate::file_exports::{
-    publish_generated_pages, ExportFormat, MAX_EXPORT_BYTES, MAX_EXPORT_FILES,
+    publish_generated_pages, ConfirmedExportTarget, ExportFormat, MAX_EXPORT_BYTES,
+    MAX_EXPORT_FILES,
 };
 use crate::DocumentIoError;
 
@@ -78,7 +79,7 @@ fn export_pdf_with_options(
 pub fn publish_raster_pages(
     selected_path: &Path,
     svg_pages: &[String],
-    confirmed_existing: &[PathBuf],
+    confirmed_existing: &[ConfirmedExportTarget],
     format: ExportFormat,
     dpi: u16,
 ) -> Result<Vec<PathBuf>, DocumentIoError> {
@@ -628,7 +629,7 @@ mod tests {
         assert!(publish_raster_pages(
             &selected,
             &pages,
-            std::slice::from_ref(&existing),
+            &crate::file_exports::existing_export_targets(&selected, ExportFormat::Png, 2).unwrap(),
             ExportFormat::Png,
             300
         )

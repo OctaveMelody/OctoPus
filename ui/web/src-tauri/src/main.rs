@@ -5,13 +5,14 @@ mod headless;
 mod session;
 
 use commands::{documents, engine, exports, help, references, transcription};
-use jps_document_io::{RecoverySnapshotSequence, SelectedJpsFiles};
+use jps_document_io::{DesktopRecoveryLock, RecoverySnapshotSequence, SelectedJpsFiles};
 use jps_engine_bridge::EngineSupervisor;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(not(debug_assertions))]
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri_plugin_dialog::DialogExt;
 
 struct DesktopState {
     engine: Arc<Mutex<EngineSupervisor>>,
@@ -131,9 +132,17 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            app.manage(session::SessionCoordinator::for_data_directory(
-                &app.path().app_data_dir()?,
-            )?);
+            let data = app.path().app_data_dir()?;
+            let Some(recovery_lock) = DesktopRecoveryLock::try_acquire(&data)? else {
+                let handle = app.handle().clone();
+                app.dialog()
+                    .message("OctoPus is already open. Use the existing window.")
+                    .title("OctoPus")
+                    .show(move |_| handle.exit(0));
+                return Ok(());
+            };
+            app.manage(recovery_lock);
+            app.manage(session::SessionCoordinator::for_data_directory(&data)?);
             let engine = engine_supervisor(app.handle()).map_err(std::io::Error::other)?;
             let transcription = engine_supervisor(app.handle()).map_err(std::io::Error::other)?;
             let engine_shutdown = engine.shutdown_signal();

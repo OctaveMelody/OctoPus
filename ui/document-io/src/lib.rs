@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions, TryLockError};
 use std::io::{self, Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -47,6 +47,28 @@ pub fn preserve_recovery_snapshot(
         Err(error) => return Err(error),
     }
     Ok(backup.keep())
+}
+
+/// Only the desktop process holding this lock may read or write recovery state.
+pub struct DesktopRecoveryLock {
+    _file: File,
+}
+
+impl DesktopRecoveryLock {
+    pub fn try_acquire(directory: &Path) -> io::Result<Option<Self>> {
+        fs::create_dir_all(directory)?;
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(directory.join("desktop-recovery.lock"))?;
+        match file.try_lock() {
+            Ok(()) => Ok(Some(Self { _file: file })),
+            Err(TryLockError::WouldBlock) => Ok(None),
+            Err(TryLockError::Error(error)) => Err(error),
+        }
+    }
 }
 
 #[derive(Clone, Default)]
@@ -124,6 +146,7 @@ pub enum DocumentIoError {
     InvalidExportDpi,
     ExportConversionFailed,
     ExportDestinationExists,
+    ExportTargetChanged(PathBuf),
     PartialExport { recovery_location: PathBuf },
     TooLarge,
     UnsupportedExtension,
@@ -163,6 +186,9 @@ impl std::fmt::Display for DocumentIoError {
             Self::ExportDestinationExists => {
                 formatter.write_str("one or more export destination files already exist")
             }
+            Self::ExportTargetChanged(path) => write!(
+                formatter, "export target changed after confirmation; choose the destination again: {}", path.display()
+            ),
             Self::PartialExport { recovery_location } => write!(
                 formatter,
                 "export rollback was incomplete; inspect the destination and recover original files from {}",
@@ -198,6 +224,7 @@ impl std::error::Error for DocumentIoError {
             | Self::InvalidExportDpi
             | Self::ExportConversionFailed
             | Self::ExportDestinationExists
+            | Self::ExportTargetChanged(_)
             | Self::PartialExport { .. }
             | Self::TooLarge
             | Self::UnsupportedExtension => None,
@@ -565,6 +592,29 @@ mod tests {
             Err(DocumentIoError::InvalidTarget)
         ));
         assert_eq!(fs::read_to_string(target).unwrap(), "target data");
+    }
+
+    #[test]
+    fn only_one_desktop_owns_recovery_in_each_data_directory() {
+        let data = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        let recovery = data.path().join("recovery.json");
+        write_recovery_snapshot_atomically(&recovery, "unsaved score").unwrap();
+        let owner = super::DesktopRecoveryLock::try_acquire(data.path())
+            .unwrap()
+            .unwrap();
+        assert!(super::DesktopRecoveryLock::try_acquire(data.path())
+            .unwrap()
+            .is_none());
+        assert!(super::DesktopRecoveryLock::try_acquire(other.path())
+            .unwrap()
+            .is_some());
+        assert_eq!(std::fs::read_to_string(&recovery).unwrap(), "unsaved score");
+        drop(owner);
+        assert!(super::DesktopRecoveryLock::try_acquire(data.path())
+            .unwrap()
+            .is_some());
+        assert_eq!(std::fs::read_to_string(recovery).unwrap(), "unsaved score");
     }
 
     #[test]

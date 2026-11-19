@@ -1,4 +1,4 @@
-use jps_document_io::file_exports::{publish_export_pages, ExportFormat};
+use jps_document_io::file_exports::{publish_export_pages, ConfirmedExportTarget, ExportFormat};
 #[cfg(target_os = "linux")]
 use std::ffi::OsStr;
 use std::fs::{self, DirEntry};
@@ -70,7 +70,7 @@ pub(super) fn manual_pdf_path(_app: &AppHandle, language: &str) -> Result<PathBu
 pub(crate) fn copy_manual_pdf(
     source: &Path,
     destination: &Path,
-    confirmed_existing: &[PathBuf],
+    confirmed_existing: &[ConfirmedExportTarget],
 ) -> Result<(), String> {
     let bytes =
         fs::read(source).map_err(|error| format!("could not read user manual PDF: {error}"))?;

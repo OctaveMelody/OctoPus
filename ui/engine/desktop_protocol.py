@@ -41,7 +41,8 @@ from .validation import (
 )
 
 PROTOCOL_VERSION = "2.0.0"
-MAX_REQUEST_BYTES = 10 * 1024 * 1024
+# An 8 MiB raw JPS can expand to 48 MiB as a JSON string.
+MAX_REQUEST_BYTES = 52 * 1024 * 1024
 MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 MAX_REVISION = MAX_SAFE_INTEGER
 STATUS_OK = "ok"

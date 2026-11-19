@@ -4,7 +4,8 @@ use serde_json::Value;
 use std::io::{self, BufRead, Write};
 
 pub(super) const PROTOCOL_VERSION: &str = "2.0.0";
-pub(super) const MAX_REQUEST_BYTES: usize = 10 * 1024 * 1024;
+// An 8 MiB raw JPS can expand to 48 MiB as a JSON string.
+pub(super) const MAX_REQUEST_BYTES: usize = 52 * 1024 * 1024;
 pub(super) const MAX_RESPONSE_BYTES: usize = 64 * 1024 * 1024;
 
 pub(super) fn write_frame(writer: &mut impl Write, request: &Value) -> Result<(), String> {

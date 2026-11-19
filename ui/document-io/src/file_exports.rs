@@ -1,8 +1,9 @@
-use std::fs;
+use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use same_file::Handle;
+use sha2::{Digest, Sha256};
 use tempfile::NamedTempFile;
 
 use crate::DocumentIoError;
@@ -29,11 +30,48 @@ impl ExportFormat {
     }
 }
 
+#[derive(Debug)]
+pub struct ConfirmedExportTarget {
+    path: PathBuf,
+    version: ExportTargetVersion,
+}
+
+impl ConfirmedExportTarget {
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ExportTargetVersion {
+    identity: Handle,
+    digest: [u8; 32],
+}
+
+impl ExportTargetVersion {
+    fn read(path: &Path) -> Result<Self, DocumentIoError> {
+        if !fs::symlink_metadata(path)?.is_file() {
+            return Err(DocumentIoError::InvalidTarget);
+        }
+        let mut file = File::open(path)?;
+        if !file.metadata()?.is_file() {
+            return Err(DocumentIoError::InvalidTarget);
+        }
+        let identity = Handle::from_file(file.try_clone()?)?;
+        let mut digest = Sha256::new();
+        io::copy(&mut file, &mut digest)?;
+        Ok(Self {
+            identity,
+            digest: digest.finalize().into(),
+        })
+    }
+}
+
 pub fn publish_export_pages(
     selected_path: &Path,
     format: ExportFormat,
     pages: &[&[u8]],
-    confirmed_existing: &[PathBuf],
+    confirmed_existing: &[ConfirmedExportTarget],
 ) -> Result<Vec<PathBuf>, DocumentIoError> {
     publish_generated_pages(
         selected_path,
@@ -48,7 +86,7 @@ pub(crate) fn publish_generated_pages<T: AsRef<[u8]>>(
     selected_path: &Path,
     format: ExportFormat,
     page_count: usize,
-    confirmed_existing: &[PathBuf],
+    confirmed_existing: &[ConfirmedExportTarget],
     generate: impl FnMut(usize) -> Result<T, DocumentIoError>,
 ) -> Result<Vec<PathBuf>, DocumentIoError> {
     publish_pages(
@@ -65,7 +103,7 @@ fn publish_pages<T: AsRef<[u8]>>(
     selected_path: &Path,
     format: ExportFormat,
     page_count: usize,
-    confirmed_existing: &[PathBuf],
+    confirmed_existing: &[ConfirmedExportTarget],
     mut generate: impl FnMut(usize) -> Result<T, DocumentIoError>,
     mut identify: impl FnMut(&NamedTempFile) -> io::Result<Handle>,
 ) -> Result<Vec<PathBuf>, DocumentIoError> {
@@ -83,19 +121,17 @@ fn publish_pages<T: AsRef<[u8]>>(
     if !directory.is_dir() {
         return Err(DocumentIoError::InvalidTarget);
     }
-    let mut existing_targets = Vec::new();
     for target in &targets {
+        let confirmed = confirmed_existing.iter().any(|file| file.path == *target);
         match fs::symlink_metadata(target) {
-            Ok(metadata)
-                if confirmed_existing.contains(target) && metadata.file_type().is_file() =>
-            {
-                existing_targets.push(target.clone());
-            }
-            Ok(_) if confirmed_existing.contains(target) => {
-                return Err(DocumentIoError::InvalidTarget)
-            }
+            Ok(metadata) if confirmed && metadata.file_type().is_file() => {}
+            Ok(_) if confirmed => return Err(DocumentIoError::ExportTargetChanged(target.clone())),
             Ok(_) => return Err(DocumentIoError::ExportDestinationExists),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                if confirmed {
+                    return Err(DocumentIoError::ExportTargetChanged(target.clone()));
+                }
+            }
             Err(error) => return Err(DocumentIoError::Io(error)),
         }
     }
@@ -119,53 +155,65 @@ fn publish_pages<T: AsRef<[u8]>>(
         staged.push((target.clone(), temporary, identity));
     }
 
-    let backup_directory = if existing_targets.is_empty() {
+    let backup_directory = if confirmed_existing.is_empty() {
         None
     } else {
-        Some(tempfile::TempDir::new_in(directory)?)
+        Some(
+            tempfile::Builder::new()
+                .prefix("octopus-export-")
+                .tempdir_in(directory)?,
+        )
     };
-    let mut backups = Vec::with_capacity(existing_targets.len());
-    if let Some(backup_directory) = &backup_directory {
-        for (index, target) in existing_targets.iter().enumerate() {
-            let backup = backup_directory.path().join(format!("target-{index}"));
-            match fs::copy(target, &backup) {
-                Ok(_) => {
-                    backups.push((target.clone(), backup));
-                }
-                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-                Err(error) => return Err(DocumentIoError::Io(error)),
-            }
-        }
-    }
-
     let mut published = Vec::with_capacity(targets.len());
     for (target, temporary, identity) in staged {
-        let backup = backups
-            .iter()
-            .find(|(original, _)| original == &target)
-            .map(|(_, backup)| backup.clone());
-        let result = if backup.is_some() {
-            temporary.persist(&target)
-        } else {
-            temporary.persist_noclobber(&target)
-        };
-        match result {
-            Ok(_) => published.push((target, identity, backup)),
-            Err(error) => {
-                let already_exists = error.error.kind() == io::ErrorKind::AlreadyExists;
-                drop(error.file);
-                if !rollback_published(&published) {
-                    return Err(DocumentIoError::PartialExport {
-                        recovery_location: preserve_recovery_files(backup_directory, directory),
-                    });
+        let mut backup = None;
+        let result = (|| {
+            if let Some(confirmation) = confirmed_existing.iter().find(|file| file.path == target) {
+                let filename = target
+                    .file_name()
+                    .ok_or(DocumentIoError::InvalidExportPath)?;
+                let original = backup_directory
+                    .as_ref()
+                    .expect("confirmed targets have a backup directory")
+                    .path()
+                    .join(filename);
+                // Move the original aside before checking it. Publishing into the vacant path
+                // with no-clobber then cannot overwrite a file created after this check.
+                fs::rename(&target, &original).map_err(|error| {
+                    if error.kind() == io::ErrorKind::NotFound {
+                        DocumentIoError::ExportTargetChanged(target.clone())
+                    } else {
+                        DocumentIoError::Io(error)
+                    }
+                })?;
+                let version = ExportTargetVersion::read(&original);
+                backup = Some(original);
+                if !version.is_ok_and(|version| version == confirmation.version) {
+                    return Err(DocumentIoError::ExportTargetChanged(target.clone()));
                 }
-                return Err(if already_exists {
+            }
+            temporary.persist_noclobber(&target).map_err(|error| {
+                if error.error.kind() == io::ErrorKind::AlreadyExists {
                     DocumentIoError::ExportDestinationExists
                 } else {
                     DocumentIoError::Io(error.error)
+                }
+            })?;
+            Ok(())
+        })();
+        if let Err(error) = result {
+            let current_restored = backup
+                .as_ref()
+                .is_none_or(|path| restore_backup(path, &target));
+            let prior_restored = rollback_published(&published);
+            if !current_restored || !prior_restored {
+                return Err(DocumentIoError::PartialExport {
+                    recovery_location: preserve_recovery_files(backup_directory, directory),
                 });
             }
+            return Err(error);
         }
+        published.push((target, identity, backup));
     }
     Ok(targets)
 }
@@ -184,7 +232,7 @@ pub fn existing_export_targets(
     selected_path: &Path,
     format: ExportFormat,
     page_count: usize,
-) -> Result<Vec<PathBuf>, DocumentIoError> {
+) -> Result<Vec<ConfirmedExportTarget>, DocumentIoError> {
     if page_count == 0 {
         return Err(DocumentIoError::EmptyExport);
     }
@@ -193,11 +241,13 @@ pub fn existing_export_targets(
     }
     let mut existing = Vec::new();
     for target in page_targets(selected_path, page_count, format)? {
-        match fs::symlink_metadata(&target) {
-            Ok(metadata) if metadata.file_type().is_file() => existing.push(target),
-            Ok(_) => return Err(DocumentIoError::InvalidTarget),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-            Err(error) => return Err(DocumentIoError::Io(error)),
+        match ExportTargetVersion::read(&target) {
+            Ok(version) => existing.push(ConfirmedExportTarget {
+                path: target,
+                version,
+            }),
+            Err(DocumentIoError::Io(error)) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
         }
     }
     Ok(existing)
@@ -241,6 +291,14 @@ fn page_targets(
         .collect())
 }
 
+fn restore_backup(backup: &Path, target: &Path) -> bool {
+    let Ok(mut backup) = tempfile::TempPath::try_from_path(backup) else {
+        return false;
+    };
+    backup.disable_cleanup(true);
+    backup.persist_noclobber(target).is_ok()
+}
+
 fn rollback_published(paths: &[(PathBuf, Handle, Option<PathBuf>)]) -> bool {
     let mut complete = true;
     for (path, identity, backup) in paths.iter().rev() {
@@ -253,7 +311,7 @@ fn rollback_published(paths: &[(PathBuf, Handle, Option<PathBuf>)]) -> bool {
                     }
                 }
                 if let Some(backup) = backup {
-                    if fs::rename(backup, path).is_err() {
+                    if !restore_backup(backup, path) {
                         complete = false;
                     }
                 }
@@ -261,7 +319,7 @@ fn rollback_published(paths: &[(PathBuf, Handle, Option<PathBuf>)]) -> bool {
             Ok(_) => complete = false,
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
                 if let Some(backup) = backup {
-                    if fs::rename(backup, path).is_err() {
+                    if !restore_backup(backup, path) {
                         complete = false;
                     }
                 }
@@ -321,7 +379,7 @@ mod tests {
             &selected,
             ExportFormat::Svg,
             2,
-            &[first.clone(), second.clone()],
+            &existing_export_targets(&selected, ExportFormat::Svg, 2).unwrap(),
             |index| {
                 Ok([
                     b"first replacement".as_slice(),
@@ -341,6 +399,59 @@ mod tests {
         assert_eq!(fs::read_to_string(first).unwrap(), "first original");
         assert_eq!(fs::read_to_string(second).unwrap(), "second original");
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn changed_confirmed_file_aborts_and_restores_earlier_pages() {
+        let directory = tempdir().unwrap();
+        let selected = directory.path().join("Song.svg");
+        let first = directory.path().join("Song_page_001.svg");
+        let second = directory.path().join("Song_page_002.svg");
+        fs::write(&first, b"first original").unwrap();
+        fs::write(&second, b"second original").unwrap();
+        let confirmed = existing_export_targets(&selected, ExportFormat::Svg, 2).unwrap();
+        let result =
+            super::publish_generated_pages(&selected, ExportFormat::Svg, 2, &confirmed, |index| {
+                if index == 1 {
+                    // Modify in place without changing identity or length.
+                    fs::write(&second, b"second modified")?;
+                }
+                Ok(b"export")
+            });
+        assert!(
+            matches!(result, Err(DocumentIoError::ExportTargetChanged(path)) if path == second)
+        );
+        assert_eq!(fs::read(&first).unwrap(), b"first original");
+        assert_eq!(fs::read(&second).unwrap(), b"second modified");
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn replacement_with_identical_bytes_requires_new_confirmation() {
+        let directory = tempdir().unwrap();
+        let target = directory.path().join("Song.svg");
+        fs::write(&target, b"original bytes").unwrap();
+        let confirmed = existing_export_targets(&target, ExportFormat::Svg, 1).unwrap();
+        let replacement = NamedTempFile::new_in(directory.path()).unwrap();
+        fs::write(replacement.path(), b"original bytes").unwrap();
+        replacement.persist(&target).unwrap();
+        assert!(
+            matches!(publish_export_pages(&target, ExportFormat::Svg, &[b"export"], &confirmed),
+                         Err(DocumentIoError::ExportTargetChanged(path)) if path == target)
+        );
+        assert_eq!(fs::read(&target).unwrap(), b"original bytes");
+    }
+
+    #[test]
+    fn restore_leaves_a_new_occupant_and_retains_the_original() {
+        let directory = tempdir().unwrap();
+        let target = directory.path().join("Song.svg");
+        let backup = directory.path().join("original.svg");
+        fs::write(&target, b"new occupant").unwrap();
+        fs::write(&backup, b"original bytes").unwrap();
+        assert!(!super::restore_backup(&backup, &target));
+        assert_eq!(fs::read(&target).unwrap(), b"new occupant");
+        assert_eq!(fs::read(&backup).unwrap(), b"original bytes");
     }
 
     #[test]
@@ -369,7 +480,10 @@ mod tests {
                 publish_export_pages(&selected, format, &[b"first", b"second"], &[]).unwrap();
             assert!(!selected.exists());
             let confirmed = existing_export_targets(&selected, format, 2).unwrap();
-            assert_eq!(confirmed, outputs);
+            assert_eq!(
+                confirmed.iter().map(|file| file.path()).collect::<Vec<_>>(),
+                outputs
+            );
             publish_export_pages(
                 &selected,
                 format,
@@ -390,7 +504,8 @@ mod tests {
         let second = directory.path().join("Song_page_002.svg");
         fs::write(&first, "confirmed original").unwrap();
         let confirmed = existing_export_targets(&selected, ExportFormat::Svg, 2).unwrap();
-        assert_eq!(confirmed, vec![first.clone()]);
+        assert_eq!(confirmed.len(), 1);
+        assert_eq!(confirmed[0].path(), first);
         fs::write(&second, "unconfirmed original").unwrap();
         assert!(matches!(
             publish_export_pages(
