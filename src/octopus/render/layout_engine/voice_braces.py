@@ -69,6 +69,7 @@ def collect_voice_braces(
                 run,
                 system_left,
                 accidental_indent_scale,
+                system_events,
             )
             run = []
         run.append(line)
@@ -83,6 +84,7 @@ def collect_voice_braces(
         run,
         system_left,
         accidental_indent_scale,
+        system_events,
     )
 
 
@@ -125,10 +127,25 @@ def _append_voice_brace(
     run: list[int],
     system_left: float,
     accidental_indent_scale: float | None,
+    system_events: list[LayoutEvent],
 ) -> None:
     if len(run) < 2:
         return
     anchor_x = min(min(first_x[line] for line in run), system_left)
+    for mark in layout.marks:
+        if (
+            mark.host.line in run
+            and mark.host.event.kind == MusicTokenKind.BARLINE
+            and "sbf" in mark.event.decorations
+        ):
+            following = next(
+                (item for item in system_events if item.voice == mark.host.voice
+                 and item.line == mark.host.line and item.slot > mark.host.slot),
+                None,
+            )
+            anchor_x = following.x if following is not None else 1.0
+            accidental_indent_scale = None
+            break
     brace_x = (
         anchor_x - VOICE_BRACE_ACCIDENTAL_INDENT * accidental_indent_scale
         if accidental_indent_scale is not None

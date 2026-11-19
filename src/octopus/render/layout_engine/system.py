@@ -31,6 +31,7 @@ from octopus.render.layout_engine.lyrics.lyrics import (
     _single_voice_owner_by_line,
 )
 from octopus.render.layout_engine.parallel_sustain import align_parallel_sustain_sentinel_rows
+from octopus.render.layout_engine.rows.row_projection import project_short_plain_rows
 from octopus.render.layout_engine.shared_system.hidden_projection import (
     reproject_hidden_dsb_events,
 )
@@ -214,6 +215,13 @@ def _layout_system(
         left=system_note_start_x,
         right=state.right,
     )
+    if all(not voice.lyrics for voice in system.voices) and (
+        len(system.voices) == 1 or all(voice.voice != 0 for voice in system.voices)
+    ):
+        project_short_plain_rows(
+            system_layout_events, left=system_note_start_x, right=state.right,
+            marks=layout.marks, multi_voice=len(system.voices) > 1,
+        )
     reproject_leading_dsb_events(system, system_layout_events, system_hidden_events)
     reproject_bz_events(
         system, system_layout_events, layout.hidden_events[hidden_event_start:],

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from ....parser.ast import MusicTokenKind
-from ...core.layout_types import LayoutEvent
+from ...core.layout_types import LayoutEvent, LayoutMark
 from ...core.layout_widths import event_duration_weight
+from ..beat_grid_engine.analysis import analyze_line
+from ..beat_grid_engine.natural import natural_layout
 
 # REF-derived cumulative x offsets for the catalog-grace template rows: the engraver
 # stamps these fixed-note-count grace brackets (the "qy" catalog pages) at fixed column
@@ -73,6 +75,86 @@ def project_ordinary_row(
         target_left=target_left,
         right=right,
         grace_raw_by_host=grace_raw_by_host,
+    )
+
+
+def project_short_plain_rows(
+    events: list[LayoutEvent], *, left: float, right: float,
+    marks: list[LayoutMark] | None = None, multi_voice: bool = False,
+) -> None:
+    """Use the reference's natural grid for short, undecorated-rhythm rows."""
+    by_line: dict[int, list[LayoutEvent]] = {}
+    for item in events:
+        by_line.setdefault(item.line, []).append(item)
+    rows = list(by_line.values())
+    if multi_voice and len({item.voice for item in events}) != len(rows):
+        return
+    groups = [rows] if multi_voice else [[row] for row in rows]
+    for group in groups:
+        if not group:
+            continue
+        if any(not _plain_row(row) for row in group):
+            continue
+        grid = natural_layout([analyze_line([item.event for item in row], []) for row in group])
+        bar_counts = [
+            sum(item.event.kind == MusicTokenKind.BARLINE for item in row) for row in group
+        ]
+        if any(count != len(grid.bar_x_offsets) for count in bar_counts):
+            continue
+        group_lines = {row[0].line for row in group}
+        marker = next(
+            (mark for mark in marks or [] if multi_voice and mark.host.line in group_lines
+             and mark.host.event.kind == MusicTokenKind.BARLINE
+             and "sbf" in mark.event.decorations),
+            None,
+        )
+        marker_bar = None
+        if marker is not None:
+            marker_row = by_line[marker.host.line]
+            marker_bar = sum(
+                item.event.kind == MusicTokenKind.BARLINE
+                for item in marker_row if item.slot <= marker.host.slot
+            )
+        start = left - 20 if multi_voice and marker is not None else left
+        if grid.end_offset + (20 if marker is not None else 0) > right - start:
+            continue
+        for row_index, row in enumerate(group):
+            notes = iter(grid.note_x_offsets[row_index])
+            bars = iter(grid.bar_x_offsets)
+            bar_index = 0
+            for item in row:
+                is_bar = item.event.kind == MusicTokenKind.BARLINE
+                offset = next(bars if is_bar else notes)
+                if marker_bar is not None and bar_index >= marker_bar:
+                    offset += 20
+                item.x = start + offset
+                item.style_x = item.x
+                item.projection_scale = 1.0
+                item.projection_kind = "ordinary"
+                bar_index += is_bar
+
+
+def _plain_row(row: list[LayoutEvent]) -> bool:
+    return not (
+        row[0].event.kind not in {
+            MusicTokenKind.NOTE, MusicTokenKind.REST, MusicTokenKind.RHYTHM_NOTE,
+            MusicTokenKind.HIDDEN_REST,
+        }
+        or row[-1].event.kind != MusicTokenKind.BARLINE
+        or any(
+            item.event.kind not in {
+                MusicTokenKind.NOTE, MusicTokenKind.REST, MusicTokenKind.RHYTHM_NOTE,
+                MusicTokenKind.HIDDEN_REST, MusicTokenKind.BARLINE,
+            }
+            or item.block is not None
+            or item.event.duration_slashes or item.event.accidental
+            or any(
+                "decoration" not in role and ":slur:" not in role
+                for role in item.event.construct_roles
+            )
+            or '"' in item.event.raw
+            for item in row
+        )
     )
 
 

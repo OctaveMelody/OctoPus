@@ -6,6 +6,7 @@ from octopus.render.core.elements import SvgElement
 from octopus.render.core.layout_types import LayoutEvent, LayoutHairpinMark, LayoutPage
 
 from ...parser.ast import MusicTokenKind
+from .accessories import _ORNAMENT_CLEARANCE
 from .constructs import _line_element
 
 
@@ -122,7 +123,11 @@ def _hairpin_vertex_offset(item: LayoutEvent) -> float:
     """
 
     event = item.event
-    offset = 30.0
+    offset = 30.0 + max(
+        (_ORNAMENT_CLEARANCE.get(mark, 0) for mark in event.decorations), default=0
+    )
+    if any(mark in event.decorations for mark in ("sby+", "xby+", "cy+")):
+        offset += 5
     if getattr(event, "octave", 0) and event.octave > 0:
         offset += 8
     # The anchor note sits under an overhead tie/slur arc whenever its code
@@ -131,7 +136,8 @@ def _hairpin_vertex_offset(item: LayoutEvent) -> float:
     # (oracle probes P1–P8).  One lane total, even when both appear.
     code = event.code or ""
     for ornament in ("sby", "xby", "cy"):
-        code = code.replace(f"&{ornament}+", f"&{ornament}")
+        if f"{ornament}+" in event.decorations:
+            code = code.replace(f"&{ornament}+", f"&{ornament}")
     if "(" in code or ")" in code:
         offset += 8
     if "yc" in tuple(getattr(event, "decorations", ()) or ()) or "++" in code:

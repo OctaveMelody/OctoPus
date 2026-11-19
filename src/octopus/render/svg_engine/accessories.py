@@ -29,6 +29,12 @@ class DecorationPlacement:
     y_offset: int = 0
 
 
+_ORNAMENT_CLEARANCE = {
+    "sby": 12, "sby+": 12, "xby": 12, "xby+": 12,
+    "zy": 10, "dy": 12, "hx": 8, "cy": 8, "cy+": 8,
+}
+
+
 def upper_clearance_levels(event: MusicEvent, *, starts_upper_span: bool = False) -> int:
     """Return semantic clearance levels above a note for attached marks.
 
@@ -62,10 +68,9 @@ def decoration_placement(
     """
 
     if is_dynamic_decoration(decoration):
-        ornament_clearance = 12 if any(
-            mark in decorations
-            for mark in ("sby", "sby+", "xby", "xby+", "cy", "cy+", "zy", "dy", "hx")
-        ) else 0
+        ornament_clearance = max(
+            (_ORNAMENT_CLEARANCE.get(mark, 0) for mark in decorations), default=0
+        )
         if event.raw.endswith(">"):
             return DecorationPlacement(x_offset=-25.0, y_offset=-18 - ornament_clearance)
         return DecorationPlacement(
@@ -75,13 +80,13 @@ def decoration_placement(
             )
         )
     positive_octaves = max(event.octave, 0)
+    if decoration == "hx":
+        return DecorationPlacement(x_offset=20.0, y_offset=-8 * positive_octaves)
     if decoration in {"sby", "sby+", "xby", "xby+", "cy", "cy+", "zy", "dy", "hx"}:
         return DecorationPlacement(y_offset=-8 * positive_octaves)
     if decoration == "yc":
-        stacked_offset = 12 if any(
-            mark in decorations for mark in ("sby", "sby+", "xby", "xby+", "cy", "cy+")
-        ) else 0
-        return DecorationPlacement(y_offset=-max(8 * positive_octaves, stacked_offset))
+        stacked_offset = max((_ORNAMENT_CLEARANCE.get(mark, 0) for mark in decorations), default=0)
+        return DecorationPlacement(y_offset=-8 * positive_octaves - stacked_offset)
     return DecorationPlacement()
 
 
@@ -213,6 +218,8 @@ def event_decoration_item_elements(
     x = item.x
     y = int(item.y)
     for decoration in ordered_decorations(event.decorations):
+        if decoration in {"fine", "dc"} and event.kind != MusicTokenKind.BARLINE:
+            continue
         if phase == "opening" and decoration != "zkh":
             continue
         if phase == "deferred" and decoration == "zkh":
@@ -311,6 +318,8 @@ def decoration_order_key(decoration: str, index: int) -> tuple[int, int]:
         return (0, index)
     if decoration == "ykh":
         return (1, index)
+    if decoration == "yc":
+        return (3, index)
     return (2, index)
 
 

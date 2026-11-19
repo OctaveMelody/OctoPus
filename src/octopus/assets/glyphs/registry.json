@@ -23,11 +23,11 @@
   "boyinfu_xia2": {
     "source": "boyinfu_xia2.svg"
   },
-  "chanyinfu": {
-    "source": "chanyinfu.svg"
+  "changyinfu1": {
+    "source": "changyinfu1.svg"
   },
-  "chanyinfu_chang": {
-    "source": "chanyinfu_chang.svg"
+  "changyinfu2": {
+    "source": "changyinfu2.svg"
   },
   "dakuohu_you_2": {
     "source": "dakuohu_you_2.svg"
@@ -59,8 +59,8 @@
   "diaohao_zimu_g": {
     "source": "diaohao_zimu_g.svg"
   },
-  "duanyinfu": {
-    "source": "duanyinfu.svg"
+  "dunyinfu": {
+    "source": "dunyinfu.svg"
   },
   "fudian": {
     "source": "fudian.svg"
@@ -245,6 +245,9 @@
   "lianyinxian_zuo": {
     "source": "lianyinxian_zuo.svg"
   },
+  "lidu_atempo": {
+    "source": "lidu_atempo.svg"
+  },
   "lidu_cresc": {
     "source": "lidu_cresc.svg"
   },
@@ -286,9 +289,6 @@
   },
   "lidu_sfp": {
     "source": "lidu_sfp.svg"
-  },
-  "lidu_tempo": {
-    "source": "lidu_tempo.svg"
   },
   "linshi_paihao_fenxian": {
     "source": "linshi_paihao_fenxian.svg"
@@ -668,8 +668,14 @@
   "xiaojiexian": {
     "source": "xiaojiexian.svg"
   },
+  "xiaojiexian_dc": {
+    "source": "xiaojiexian_dc.svg"
+  },
   "xiaojiexian_ds": {
     "source": "xiaojiexian_ds.svg"
+  },
+  "xiaojiexian_fine": {
+    "source": "xiaojiexian_fine.svg"
   },
   "xiaojiexian_hs": {
     "source": "xiaojiexian_hs.svg"

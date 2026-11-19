@@ -287,6 +287,17 @@ class MusicLexer:
             )
             return
         if raw.startswith("&"):
+            if (
+                raw == "&dc."
+                and attached
+                and self.tokens
+                and self.tokens[-1].kind == MusicTokenKind.BARLINE
+            ):
+                self._append(
+                    MusicTokenKind.DECORATION, start, end,
+                    value="dc", decorations=("dc",), attached=True,
+                )
+                return
             decoration_matches = tuple(_DECORATION_RE.finditer(raw))
             if decoration_matches:
                 decoration_end = decoration_matches[-1].end()

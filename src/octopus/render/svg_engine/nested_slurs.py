@@ -375,10 +375,9 @@ def fermata_lift(event: MusicEvent) -> float:
 
 def sby_lift(event: MusicEvent) -> float:
     """Return the lane lift needed above a note ornament."""
-    return 9.0 if any(
-        mark in event.decorations
-        for mark in ("sby", "sby+", "xby", "xby+", "cy", "cy+", "zy", "dy", "hx")
-    ) else 0.0
+    lifts = {"sby": 9.0, "sby+": 9.0, "xby": 9.0, "xby+": 9.0,
+             "cy": 5.0, "cy+": 5.0, "zy": 7.0, "dy": 9.0, "hx": 5.0}
+    return max((lifts.get(mark, 0.0) for mark in event.decorations), default=0.0)
 
 
 def endpoint_slur_lift(event: MusicEvent) -> float:

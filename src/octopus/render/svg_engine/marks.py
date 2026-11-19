@@ -217,6 +217,12 @@ def score_text_clearance_levels(event: MusicEvent) -> int:
 
 def _mark_element(mark: LayoutMark) -> list[SvgElement]:
     event = mark.event
+    if event.kind == MusicTokenKind.DECORATION and event.decorations == ("sbf",):
+        return []
+    if (event.kind == MusicTokenKind.DECORATION and event.decorations
+            and event.decorations[0] in {"fine", "dc"}
+            and mark.host.event.kind != MusicTokenKind.BARLINE):
+        return []
     x = mark.host.x
     # Above-note labels use the reference's 24px optical clearance from the
     # host baseline on every page profile; the host row already carries the

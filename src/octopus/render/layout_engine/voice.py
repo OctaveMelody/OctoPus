@@ -182,6 +182,12 @@ def _layout_system_voices(
                             )
                 if chunk_index == 0:
                     row_y += row_input.hidden_reserve_width
+                # shortcut: lyric and multi-voice terminal clearance use their existing policies.
+                if len(system.voices) == 1 and not voice.lyrics and any(
+                    event.kind != MusicTokenKind.BARLINE and "!" in (event.code or "")
+                    for event in chunk
+                ):
+                    row_y += 12.0
                 for event in chunk:
                     event_width = compute_event_width(event)
                     leading_gap = 0.0
