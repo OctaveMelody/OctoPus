@@ -21,6 +21,8 @@ from octopus.parser.source import SourceSpan
 # Guard internal geometry arithmetic without tightening corpus acceptance.
 GEOMETRY_EPSILON = 1e-9
 DEFAULT_NOTE_START_OFFSET = 3.0
+DEFAULT_NOTE_SIZE = 18
+DEFAULT_FOOTER_CREDIT = "Composed using OctoPus"
 
 
 @dataclass(frozen=True)
@@ -44,9 +46,30 @@ class PageMetrics:
     height_shengbu: int = 10
     lianyinxian_type: str = "0"
     time_sig: str = ""
+    subtitle_font: str | None = None
+    note_size: int = DEFAULT_NOTE_SIZE
+    footer_credit: bool = False
+    footer_credit_text: str = DEFAULT_FOOTER_CREDIT
+    footer_credit_position: str = "left"
+    footer_page_number: str = "off"
+    footer_page_number_position: str = "right"
+
+    @property
+    def has_footer(self) -> bool:
+        return (
+            (self.footer_credit and bool(self.footer_credit_text))
+            or self.footer_page_number in ("number", "total")
+        )
 
     def __post_init__(self) -> None:
-        positive_fields = ("width", "height", "title_size", "subtitle_size", "lyric_size")
+        positive_fields = (
+            "width",
+            "height",
+            "title_size",
+            "subtitle_size",
+            "lyric_size",
+            "note_size",
+        )
         non_negative_fields = (
             "margin_top",
             "margin_bottom",

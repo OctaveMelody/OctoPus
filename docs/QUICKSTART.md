@@ -253,9 +253,9 @@ Main groups:
 | Group | Controls |
 | --- | --- |
 | **Paper & margins** | A4 / A5 page; top/bottom/left/right margins and body offset. |
-| **Fonts** | Title and lyric fonts; note style (Regular, Italic, Bold). |
-| **Sizes** | Title, subtitle and lyric font sizes. |
+| **Fonts and sizes** | Title, subtitle and lyric fonts and sizes; note style (Regular, Italic, Bold) and note size. Clear Note size to use **Default**, which keeps the original Tomato Jianpu compatible rendering. |
 | **Spacing** | Music-to-lyric, lyric-to-lyric, lyric-to-music and voice spacing. |
+| **Footer** | “Composed using OctoPus” at bottom left. Page numbers can be hidden, shown alone, or shown with the total, at bottom right or bottom center. New scores start with the credit and plain numbers on. |
 | **Other** | Slur style: Automatic, Arc, or Flat top. |
 
 Buttons:

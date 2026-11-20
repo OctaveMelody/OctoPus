@@ -8,6 +8,7 @@ from octopus.normalization.types import ScoreModel
 from octopus.render.core.elements import SvgElement
 from octopus.render.core.layout_types import LayoutPage
 
+from .primitives import text_element
 from .types import GraceRenderPlan
 
 
@@ -41,6 +42,45 @@ def render_page_body_elements(
         elements.extend(header_elements(layout))
     elements.extend(score_stream_elements(layout, grace_plan))
     elements.extend(custom_elements(model, page_index))
+    metrics = layout.metrics
+    if metrics.has_footer:
+        footer_style = (("font-family", "Arial"), ("font-size", "12"), ("fill", "#1b1b1b"))
+        y = metrics.height - 12
+        positions = {
+            "left": (max(12, metrics.margin_left), "start"),
+            "center": (metrics.width / 2, "middle"),
+            "right": (metrics.width - max(12, metrics.margin_right), "end"),
+        }
+        number_position = metrics.footer_page_number_position
+        show_number = metrics.footer_page_number in ("number", "total")
+        if metrics.footer_credit and metrics.footer_credit_text:
+            position = metrics.footer_credit_position
+            x, anchor = positions[position]
+            elements.append(
+                text_element(
+                    x=x,
+                    y=y - 16 if show_number and position == number_position else y,
+                    text=metrics.footer_credit_text,
+                    layer="footer",
+                    synthetic=True,
+                    extra_attrs=(*footer_style, ("text-anchor", anchor)),
+                )
+            )
+        if show_number:
+            number = str(page_index + 1)
+            if metrics.footer_page_number == "total":
+                number += f"/{len(model.pages)}"
+            x, anchor = positions[number_position]
+            elements.append(
+                text_element(
+                    x=x,
+                    y=y,
+                    text=number,
+                    layer="footer",
+                    synthetic=True,
+                    extra_attrs=(*footer_style, ("text-anchor", anchor)),
+                )
+            )
     return elements
 
 

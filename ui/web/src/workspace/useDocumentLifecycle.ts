@@ -304,6 +304,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
         source: pending.draft.jps,
         savedSource: "",
         pageConfig: createNewScorePageConfig(),
+        savedPageConfig: {},
         originAssetIds: [pending.sourceAssetId],
       }));
       getServices().bindReview(pending);
@@ -825,6 +826,7 @@ export function useDocumentLifecycle({ copyRef, setStatus, setPreferences, setFo
         source,
         savedSource: "",
         pageConfig: createNewScorePageConfig(),
+        savedPageConfig: {},
       }));
       setNewScoreDraftActive(false);
       setActiveDialog(null);

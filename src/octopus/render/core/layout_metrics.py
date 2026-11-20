@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from octopus.normalization.types import ScoreModel
 
-from .layout_types import PageMetrics
+from .layout_types import DEFAULT_FOOTER_CREDIT, DEFAULT_NOTE_SIZE, PageMetrics
 
 DEFAULT_PAGE_WIDTH = 1000
 DEFAULT_PAGE_HEIGHT = 1415
@@ -61,6 +61,9 @@ def page_metrics(model: ScoreModel) -> PageMetrics:
         minimum=0,
         maximum=available_height,
     )
+    footer_text = page_config.get("footer_credit_text", DEFAULT_FOOTER_CREDIT)
+    footer_position = page_config.get("footer_credit_position")
+    number_position = page_config.get("footer_page_number_position")
     return PageMetrics(
         width=width,
         height=height,
@@ -84,6 +87,23 @@ def page_metrics(model: ScoreModel) -> PageMetrics:
         lyric_size=_config_int(
             page_config, "geci_size", 16, minimum=1, maximum=_MAX_FONT_SIZE
         ),
+        subtitle_font=str(
+            page_config.get(
+                "fubiaoti_font",
+                page_config.get("biaoti_font", "Microsoft YaHei"),
+            )
+        ),
+        note_size=_config_int(
+            page_config, "shuzi_size", DEFAULT_NOTE_SIZE, minimum=1, maximum=_MAX_FONT_SIZE
+        ),
+        footer_credit=page_config.get("footer_credit") is True,
+        footer_credit_text=" ".join(footer_text.split())
+        if isinstance(footer_text, str) else DEFAULT_FOOTER_CREDIT,
+        footer_credit_position=footer_position
+        if footer_position in ("center", "right") else "left",
+        footer_page_number=str(page_config.get("footer_page_number", "off")),
+        footer_page_number_position=number_position
+        if number_position in ("left", "center") else "right",
         height_quci=_config_int(
             page_config, "height_quci", 12, minimum=0, maximum=_MAX_VERTICAL_SPACING
         ),

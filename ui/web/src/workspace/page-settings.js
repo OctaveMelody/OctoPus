@@ -1,6 +1,17 @@
 /** @typedef {{value: string, label: string}} SettingOption */
-/** @typedef {{key: string, label: string, kind: "number" | "select", defaultValue: string | number, min?: number, max?: number, options?: SettingOption[]}} PageSetting */
+/** @typedef {{key: string, label: string, kind: "number" | "select" | "checkbox" | "text", defaultValue: string | number | boolean, min?: number, max?: number, options?: SettingOption[]}} PageSetting */
 /** @typedef {{key: string, fields: PageSetting[]}} PageSettingGroup */
+
+/** @param {number[]} sizes @returns {SettingOption[]} */
+function sizeOptions(sizes) {
+  return sizes.map((size) => ({ value: String(size), label: String(size) }));
+}
+
+const footerPositions = [
+  { value: "left", label: "footerPositionLeft" },
+  { value: "center", label: "pageNumberCenter" },
+  { value: "right", label: "pageNumberRight" },
+];
 
 /** @type {PageSettingGroup[]} */
 export const pageSettingGroups = [
@@ -25,7 +36,7 @@ export const pageSettingGroups = [
     ],
   },
   {
-    key: "pageSettingsFontsGroup",
+    key: "pageSettingsTypographyGroup",
     fields: [
       {
         key: "biaoti_font",
@@ -40,6 +51,21 @@ export const pageSettingGroups = [
           { value: "FangSong", label: "fontFangSong" },
         ],
       },
+      { key: "biaoti_size", label: "pageSettingsTitleSize", kind: "number", defaultValue: 36, min: 8, max: 120, options: sizeOptions([24, 28, 32, 36, 42, 48]) },
+      {
+        key: "fubiaoti_font",
+        label: "pageSettingsSubtitleFont",
+        kind: "select",
+        defaultValue: "HeiTi-1",
+        options: [
+          { value: "HeiTi-1", label: "fontHeiTi1" },
+          { value: "HeiTi-2", label: "fontHeiTi2" },
+          { value: "SongTi", label: "fontSongTi" },
+          { value: "KaiTi", label: "fontKaiTi" },
+          { value: "FangSong", label: "fontFangSong" },
+        ],
+      },
+      { key: "fubiaoti_size", label: "pageSettingsSubtitleSize", kind: "number", defaultValue: 20, min: 8, max: 120, options: sizeOptions([16, 18, 20, 22, 24, 28]) },
       {
         key: "shuzi_font",
         label: "pageSettingsNoteFont",
@@ -51,6 +77,8 @@ export const pageSettingGroups = [
           { value: "Bold", label: "noteStyleBold" },
         ],
       },
+      { key: "shuzi_size", label: "pageSettingsNoteSize", kind: "number", defaultValue: "", min: 8, max: 120,
+        options: [{ value: "", label: "pageSettingsDefault" }, ...sizeOptions([12, 14, 16, 18, 20, 22, 24, 26])] },
       {
         key: "geci_font",
         label: "pageSettingsLyricFont",
@@ -64,14 +92,7 @@ export const pageSettingGroups = [
           { value: "FangSong", label: "fontFangSong" },
         ],
       },
-    ],
-  },
-  {
-    key: "pageSettingsSizesGroup",
-    fields: [
-      { key: "biaoti_size", label: "pageSettingsTitleSize", kind: "number", defaultValue: 36, min: 8, max: 120 },
-      { key: "fubiaoti_size", label: "pageSettingsSubtitleSize", kind: "number", defaultValue: 20, min: 8, max: 120 },
-      { key: "geci_size", label: "pageSettingsLyricSize", kind: "number", defaultValue: 16, min: 8, max: 120 },
+      { key: "geci_size", label: "pageSettingsLyricSize", kind: "number", defaultValue: 16, min: 8, max: 120, options: sizeOptions([12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32]) },
     ],
   },
   {
@@ -81,6 +102,43 @@ export const pageSettingGroups = [
       { key: "height_cici", label: "pageSettingsLyricLineSpacing", kind: "number", defaultValue: 10, min: 0, max: 100 },
       { key: "height_ciqu", label: "pageSettingsLyricsMusicSpacing", kind: "number", defaultValue: 20, min: 0, max: 100 },
       { key: "height_shengbu", label: "pageSettingsVoiceSpacing", kind: "number", defaultValue: 10, min: 0, max: 100 },
+    ],
+  },
+  {
+    key: "pageSettingsFooterGroup",
+    fields: [
+      { key: "footer_credit", label: "pageSettingsFooterCredit", kind: "checkbox", defaultValue: false },
+      {
+        key: "footer_credit_text",
+        label: "pageSettingsFooterText",
+        kind: "text",
+        defaultValue: "Composed using OctoPus",
+      },
+      {
+        key: "footer_credit_position",
+        label: "pageSettingsFooterPosition",
+        kind: "select",
+        defaultValue: "left",
+        options: footerPositions,
+      },
+      {
+        key: "footer_page_number",
+        label: "pageSettingsPageNumber",
+        kind: "select",
+        defaultValue: "off",
+        options: [
+          { value: "off", label: "pageNumberOff" },
+          { value: "number", label: "pageNumberOnly" },
+          { value: "total", label: "pageNumberWithTotal" },
+        ],
+      },
+      {
+        key: "footer_page_number_position",
+        label: "pageSettingsPageNumberPosition",
+        kind: "select",
+        defaultValue: "right",
+        options: footerPositions,
+      },
     ],
   },
   {
@@ -116,13 +174,13 @@ export function decodePageConfig(value) {
   return isRecord(value) ? value : { _raw: value };
 }
 
-/** @param {Record<string, unknown>} config @returns {Record<string, string | number>} */
+/** @param {Record<string, unknown>} config @returns {Record<string, string | number | boolean>} */
 export function createPageSettingsDraft(config) {
   const decoded = decodePageConfig(config);
   return Object.fromEntries(pageSettingFields.map((field) => [field.key, readValue(decoded, field)]));
 }
 
-/** @param {Record<string, unknown>} config @param {Record<string, string | number>} draft */
+/** @param {Record<string, unknown>} config @param {Record<string, string | number | boolean>} draft */
 export function applyPageSettings(config, draft) {
   const decoded = decodePageConfig(config);
   const next = { ...decoded };
@@ -139,7 +197,7 @@ export function applyPageSettings(config, draft) {
   return { config: next, changed };
 }
 
-/** @param {Record<string, unknown>} config @param {Record<string, string | number>} draft */
+/** @param {Record<string, unknown>} config @param {Record<string, string | number | boolean>} draft */
 export function pageSettingsDraftChanged(config, draft) {
   const values = createPageSettingsDraft(config);
   return pageSettingFields.some((field) => String(values[field.key]) !== String(draft[field.key] ?? values[field.key]));
@@ -147,7 +205,8 @@ export function pageSettingsDraftChanged(config, draft) {
 
 /** @param {Record<string, unknown>} config @param {import("./page-settings.js").PageSetting} field */
 function readValue(config, field) {
-  const stored = config[field.key];
+  const stored = config[field.key] ?? (field.key === "fubiaoti_font" ? config.biaoti_font : undefined);
+  if (field.kind === "checkbox") return stored === true;
   if (field.kind === "number") {
     if (typeof stored === "number" && Number.isInteger(stored)) return stored;
     if (typeof stored === "string" && /^[-+]?\d+$/.test(stored.trim())) return Number(stored);
@@ -155,7 +214,7 @@ function readValue(config, field) {
   }
   if (typeof stored !== "string") return field.defaultValue;
   if (field.key === "shuzi_font") return ({ a: "Regular", c: "Italic", b: "Bold" })[stored] ?? stored;
-  if (field.key === "biaoti_font" || field.key === "geci_font") {
+  if (field.key === "biaoti_font" || field.key === "fubiaoti_font" || field.key === "geci_font") {
     return ({ "Microsoft YaHei": "HeiTi-1", "微软雅黑": "HeiTi-1",
       HeiTi: "HeiTi-2", SimHei: "HeiTi-2", "黑体": "HeiTi-2", "仿宋": "FangSong",
       SimSun: "SongTi", NSimSun: "SongTi", "宋体": "SongTi", "楷体": "KaiTi" })[stored] ?? stored;
@@ -163,8 +222,11 @@ function readValue(config, field) {
   return stored;
 }
 
-/** @param {import("./page-settings.js").PageSetting} field @param {string | number} value @param {string | number} original */
+/** @param {import("./page-settings.js").PageSetting} field @param {string | number | boolean} value @param {string | number | boolean} original */
 function normalizeValue(field, value, original) {
+  if (field.kind === "checkbox") return value === true;
+  if (field.kind === "text") return String(value).trim();
+  if (field.key === "shuzi_size" && value === "") return "";
   if (field.kind === "select") {
     const text = String(value);
     if (field.options?.some((option) => option.value === text)) return text;

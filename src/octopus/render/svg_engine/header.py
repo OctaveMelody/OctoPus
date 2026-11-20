@@ -89,7 +89,7 @@ def header_elements(layout: LayoutPage) -> list[SvgElement]:
                     ("text-anchor", "middle"),
                     ("fill", "#1b1b1b"),
                     ("font-size", metrics.subtitle_size),
-                    ("font-family", font),
+                    ("font-family", metrics.subtitle_font or font),
                 ),
             )
         )

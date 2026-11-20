@@ -14,6 +14,7 @@ from octopus.normalization.types import ScoreModel
 from octopus.render.core.elements import RenderElement, SvgElement
 from octopus.render.core.glyphs import load_all_glyphs
 from octopus.render.core.layout_types import (  # noqa: F401 - compatibility re-export
+    DEFAULT_NOTE_SIZE,
     LayoutLyric,
     LayoutPage,
 )
@@ -199,6 +200,7 @@ def _render_page(
     definitions = _render_defs(
         _defs_body_elements_with_glyph_precedence(defs_body_elements),
         grace_plan.defs,
+        note_size=metrics.note_size,
         include_catalog_graces=_uses_catalog_grace_glyphs(layout),
         compact_profile=serialization_profile == "compact",
     )
@@ -257,10 +259,22 @@ def _render_defs(
     body_elements: list[SvgElement],
     extra_defs: tuple[str, ...] = (),
     *,
+    note_size: int,
     include_catalog_graces: bool = True,
     compact_profile: bool = False,
 ) -> str:
     available_defs = {glyph_id: xml.rstrip() for glyph_id, xml in load_all_glyphs().items()}
+    # Default uses the original glyph definitions and their existing transforms.
+    if note_size != DEFAULT_NOTE_SIZE:
+        scale = note_size / DEFAULT_NOTE_SIZE
+        scale_text = f"{scale:.6g}"
+        for glyph_id, xml in available_defs.items():
+            if re.fullmatch(r"shuzi_[abc]_(?:bian_)?(?:[0-9]|x)", glyph_id):
+                without_id = xml.replace(f'id="{glyph_id}"', "", 1)
+                available_defs[glyph_id] = (
+                    f'<g id="{glyph_id}" transform="scale({scale_text})">'
+                    f"{without_id}</g>"
+                )
     # Semantic placeholders intentionally draw no ink but still need valid use targets.
     available_defs.update(
         {

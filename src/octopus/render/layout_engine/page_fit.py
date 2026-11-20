@@ -9,7 +9,9 @@ from .profiles import PageFitProfile
 def fit_page_height(layout: LayoutPage) -> None:
     """Project vertical positions when the completed page exceeds its bottom bound."""
 
-    bottom = float(layout.metrics.height - layout.metrics.margin_bottom)
+    metrics = layout.metrics
+    bottom_inset = max(metrics.margin_bottom, 44) if metrics.has_footer else metrics.margin_bottom
+    bottom = float(metrics.height - bottom_inset)
     non_lyric_positions = tuple(
         [event.y for event in layout.events]
         + [event.y for event in layout.hidden_events]
@@ -25,7 +27,7 @@ def fit_page_height(layout: LayoutPage) -> None:
     profile = PageFitProfile(
         bottom=bottom,
         start=origin,
-        lyric_tolerance=float(layout.metrics.lyric_size),
+        lyric_tolerance=0.0 if metrics.has_footer else float(metrics.lyric_size),
         non_lyric_positions=non_lyric_positions,
         lyric_positions=tuple(lyric.y for lyric in layout.lyrics),
     )

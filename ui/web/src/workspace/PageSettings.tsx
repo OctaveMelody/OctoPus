@@ -41,7 +41,7 @@ export function PageSettings({
     onDraftChangeRef.current(false, config);
   }, [config]);
 
-  function updateField(key: string, value: string | number) {
+  function updateField(key: string, value: string | number | boolean) {
     const nextDraft = { ...draft, [key]: value };
     const nextChange = applyPageSettings(config, nextDraft);
     setDraft(nextDraft);
@@ -93,15 +93,22 @@ export function PageSettings({
             {pageSettingGroups.map((group) => (
               <fieldset className="page-settings-group" key={group.key}>
                 <legend>{settingText(copy, group.key)}</legend>
-                {group.key === "pageSettingsFontsGroup" && (
-                  <p className="settings-note">{copy.systemFontsNotice}</p>
-                )}
                 {group.fields.map((field) => (
                   <label className="page-settings-field" key={field.key}>
                     <span>
-                      {settingText(copy, field.label)} <em>({String(field.defaultValue)})</em>
+                      {settingText(copy, field.label)}
+                      {group.key !== "pageSettingsFooterGroup" && field.defaultValue !== "" && (
+                        <> <em>({field.defaultValue})</em></>
+                      )}
                     </span>
-                    {field.kind === "select" ? (
+                    {field.kind === "checkbox" ? (
+                      <input
+                        checked={draft[field.key] === true}
+                        disabled={disabled}
+                        onChange={(event) => updateField(field.key, event.target.checked)}
+                        type="checkbox"
+                      />
+                    ) : field.options ? (
                       <select
                         disabled={disabled}
                         onChange={(event) => updateField(field.key, event.target.value)}
@@ -125,7 +132,7 @@ export function PageSettings({
                         min={field.min}
                         onChange={(event) => updateField(field.key, event.target.value)}
                         step={1}
-                        type="number"
+                        type={field.kind === "text" ? "text" : "number"}
                         value={String(draft[field.key] ?? field.defaultValue)}
                       />
                     )}
