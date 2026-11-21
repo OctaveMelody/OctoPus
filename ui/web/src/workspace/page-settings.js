@@ -1,5 +1,5 @@
 /** @typedef {{value: string, label: string}} SettingOption */
-/** @typedef {{key: string, label: string, kind: "number" | "select" | "checkbox" | "text", defaultValue: string | number | boolean, min?: number, max?: number, options?: SettingOption[]}} PageSetting */
+/** @typedef {{key: string, label: string, kind: "number" | "select" | "text", defaultValue: string | number | boolean, min?: number, max?: number, options?: SettingOption[]}} PageSetting */
 /** @typedef {{key: string, fields: PageSetting[]}} PageSettingGroup */
 
 /** @param {number[]} sizes @returns {SettingOption[]} */
@@ -7,11 +7,46 @@ function sizeOptions(sizes) {
   return sizes.map((size) => ({ value: String(size), label: String(size) }));
 }
 
+export const MAX_FOOTNOTE_LENGTH = 24;
+
+/** @param {string} value */
+export function limitFootnoteText(value) {
+  return Array.from(value).slice(0, MAX_FOOTNOTE_LENGTH).join("");
+}
+
+const pageNumberStyles = [
+  { value: "number", label: "pageNumberOnly" },
+  { value: "total", label: "pageNumberWithTotal" },
+  { value: "roman", label: "pageNumberRoman" },
+  { value: "roman_total", label: "pageNumberRomanWithTotal" },
+];
+
 const footerPositions = [
+  { value: "null", label: "footerPositionNull" },
   { value: "left", label: "footerPositionLeft" },
   { value: "center", label: "pageNumberCenter" },
   { value: "right", label: "pageNumberRight" },
 ];
+
+/** @param {string} position */
+function freeFootnoteEdge(position) {
+  return position === "left" ? "right" : "left";
+}
+
+/** @param {Record<string, unknown>} config */
+function readPageNumberPosition(config) {
+  if (!pageNumberStyles.some(({ value }) => value === config.footer_page_number)) return "null";
+  const position = config.footer_page_number_position;
+  return position === "left" || position === "center" || position === "null" ? position : "right";
+}
+
+/** @param {Record<string, unknown>} config */
+function readFootnotePosition(config) {
+  if (config.footer_credit !== true) return "null";
+  const stored = config.footer_credit_position;
+  const position = stored === "center" || stored === "right" ? stored : "left";
+  return position === readPageNumberPosition(config) ? freeFootnoteEdge(position) : position;
+}
 
 /** @type {PageSettingGroup[]} */
 export const pageSettingGroups = [
@@ -77,8 +112,8 @@ export const pageSettingGroups = [
           { value: "Bold", label: "noteStyleBold" },
         ],
       },
-      { key: "shuzi_size", label: "pageSettingsNoteSize", kind: "number", defaultValue: "", min: 8, max: 120,
-        options: [{ value: "", label: "pageSettingsDefault" }, ...sizeOptions([12, 14, 16, 18, 20, 22, 24, 26])] },
+      { key: "shuzi_size", label: "pageSettingsNoteSize", kind: "number", defaultValue: "", min: 8, max: 24,
+        options: [{ value: "", label: "pageSettingsDefault" }, ...sizeOptions([12, 14, 16, 18, 20, 22, 24])] },
       {
         key: "geci_font",
         label: "pageSettingsLyricFont",
@@ -92,7 +127,7 @@ export const pageSettingGroups = [
           { value: "FangSong", label: "fontFangSong" },
         ],
       },
-      { key: "geci_size", label: "pageSettingsLyricSize", kind: "number", defaultValue: 16, min: 8, max: 120, options: sizeOptions([12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32]) },
+      { key: "geci_size", label: "pageSettingsLyricSize", kind: "number", defaultValue: 16, min: 14, max: 32, options: sizeOptions([14, 16, 18, 20, 22, 24, 26, 28, 30, 32]) },
     ],
   },
   {
@@ -102,48 +137,6 @@ export const pageSettingGroups = [
       { key: "height_cici", label: "pageSettingsLyricLineSpacing", kind: "number", defaultValue: 10, min: 0, max: 100 },
       { key: "height_ciqu", label: "pageSettingsLyricsMusicSpacing", kind: "number", defaultValue: 20, min: 0, max: 100 },
       { key: "height_shengbu", label: "pageSettingsVoiceSpacing", kind: "number", defaultValue: 10, min: 0, max: 100 },
-    ],
-  },
-  {
-    key: "pageSettingsFooterGroup",
-    fields: [
-      { key: "footer_credit", label: "pageSettingsFooterCredit", kind: "checkbox", defaultValue: false },
-      {
-        key: "footer_credit_text",
-        label: "pageSettingsFooterText",
-        kind: "text",
-        defaultValue: "Composed using OctoPus",
-      },
-      {
-        key: "footer_credit_position",
-        label: "pageSettingsFooterPosition",
-        kind: "select",
-        defaultValue: "left",
-        options: footerPositions,
-      },
-      {
-        key: "footer_page_number",
-        label: "pageSettingsPageNumber",
-        kind: "select",
-        defaultValue: "off",
-        options: [
-          { value: "off", label: "pageNumberOff" },
-          { value: "number", label: "pageNumberOnly" },
-          { value: "total", label: "pageNumberWithTotal" },
-        ],
-      },
-      {
-        key: "footer_page_number_position",
-        label: "pageSettingsPageNumberPosition",
-        kind: "select",
-        defaultValue: "right",
-        options: footerPositions,
-      },
-    ],
-  },
-  {
-    key: "pageSettingsOtherGroup",
-    fields: [
       {
         key: "lianyinxian_type",
         label: "pageSettingsSlurStyle",
@@ -154,6 +147,38 @@ export const pageSettingGroups = [
           { value: "1", label: "slurArc" },
           { value: "2", label: "slurFlatTop" },
         ],
+      },
+    ],
+  },
+  {
+    key: "pageSettingsFooterGroup",
+    fields: [
+      {
+        key: "footer_page_number_position",
+        label: "pageSettingsPageNumberPosition",
+        kind: "select",
+        defaultValue: "right",
+        options: footerPositions,
+      },
+      {
+        key: "footer_page_number",
+        label: "pageSettingsPageNumber",
+        kind: "select",
+        defaultValue: "number",
+        options: pageNumberStyles,
+      },
+      {
+        key: "footer_credit_position",
+        label: "pageSettingsFooterPosition",
+        kind: "select",
+        defaultValue: "null",
+        options: footerPositions,
+      },
+      {
+        key: "footer_credit_text",
+        label: "pageSettingsFooterText",
+        kind: "text",
+        defaultValue: "编辑排版: 章鱼简谱",
       },
     ],
   },
@@ -191,8 +216,29 @@ export function applyPageSettings(config, draft) {
     if (String(proposed) === String(original)) continue;
     const normalized = normalizeValue(field, proposed, original);
     if (normalized === original) continue;
-    next[field.key] = normalized;
+    if (field.key === "footer_credit_position") {
+      next.footer_credit = normalized !== "null";
+      if (next.footer_credit) next.footer_credit_position = normalized;
+    } else {
+      const editingPageNumber = field.key === "footer_page_number_position"
+        || field.key === "footer_page_number";
+      if (field.key === "footer_page_number_position" && next.footer_credit === true) {
+        next.footer_credit_position = readFootnotePosition(decoded);
+      }
+      if (editingPageNumber && !pageNumberStyles.some(({ value }) => value === next.footer_page_number)) {
+        if (field.key === "footer_page_number") next.footer_page_number_position = "null";
+        else if (normalized !== "null") next.footer_page_number = "number";
+      }
+      next[field.key] = normalized;
+    }
     changed = true;
+  }
+  const numberPosition = readPageNumberPosition(next);
+  if ((next.footer_credit_position !== decoded.footer_credit_position
+      || next.footer_credit !== decoded.footer_credit
+      || numberPosition !== readPageNumberPosition(decoded))
+      && next.footer_credit === true && next.footer_credit_position === numberPosition) {
+    next.footer_credit_position = freeFootnoteEdge(numberPosition);
   }
   return { config: next, changed };
 }
@@ -206,7 +252,10 @@ export function pageSettingsDraftChanged(config, draft) {
 /** @param {Record<string, unknown>} config @param {import("./page-settings.js").PageSetting} field */
 function readValue(config, field) {
   const stored = config[field.key] ?? (field.key === "fubiaoti_font" ? config.biaoti_font : undefined);
-  if (field.kind === "checkbox") return stored === true;
+  if (field.key === "footer_page_number_position") return readPageNumberPosition(config);
+  if (field.key === "footer_page_number"
+      && !pageNumberStyles.some(({ value }) => value === stored)) return field.defaultValue;
+  if (field.key === "footer_credit_position") return readFootnotePosition(config);
   if (field.kind === "number") {
     if (typeof stored === "number" && Number.isInteger(stored)) return stored;
     if (typeof stored === "string" && /^[-+]?\d+$/.test(stored.trim())) return Number(stored);
@@ -224,8 +273,7 @@ function readValue(config, field) {
 
 /** @param {import("./page-settings.js").PageSetting} field @param {string | number | boolean} value @param {string | number | boolean} original */
 function normalizeValue(field, value, original) {
-  if (field.kind === "checkbox") return value === true;
-  if (field.kind === "text") return String(value).trim();
+  if (field.kind === "text") return limitFootnoteText(String(value).trim());
   if (field.key === "shuzi_size" && value === "") return "";
   if (field.kind === "select") {
     const text = String(value);

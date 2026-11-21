@@ -12,6 +12,18 @@ from .primitives import text_element
 from .types import GraceRenderPlan
 
 
+def _roman_number(number: int) -> str:
+    parts = []
+    for value, symbol in (
+        (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"),
+        (90, "XC"), (50, "L"), (40, "XL"), (10, "X"), (9, "IX"),
+        (5, "V"), (4, "IV"), (1, "I"),
+    ):
+        count, number = divmod(number, value)
+        parts.append(symbol * count)
+    return "".join(parts)
+
+
 def render_page_body_elements(
     model: ScoreModel,
     layout: LayoutPage,
@@ -44,7 +56,8 @@ def render_page_body_elements(
     elements.extend(custom_elements(model, page_index))
     metrics = layout.metrics
     if metrics.has_footer:
-        footer_style = (("font-family", "Arial"), ("font-size", "12"), ("fill", "#1b1b1b"))
+        font_size = 12
+        footer_style = (("font-family", "Arial"), ("font-size", str(font_size)), ("fill", "#1b1b1b"))
         y = metrics.height - 12
         positions = {
             "left": (max(12, metrics.margin_left), "start"),
@@ -52,14 +65,22 @@ def render_page_body_elements(
             "right": (metrics.width - max(12, metrics.margin_right), "end"),
         }
         number_position = metrics.footer_page_number_position
-        show_number = metrics.footer_page_number in ("number", "total")
+        show_number = metrics.has_page_number
         if metrics.footer_credit and metrics.footer_credit_text:
             position = metrics.footer_credit_position
+            if show_number and position == number_position:
+                position = "right" if number_position == "left" else "left"
             x, anchor = positions[position]
+            # Leave room for wide fallback glyphs even with extreme saved margins.
+            clearance = 12 + 2 * font_size * len(metrics.footer_credit_text)
+            if position == "left":
+                x = min(x, metrics.width - clearance)
+            elif position == "right":
+                x = max(x, clearance)
             elements.append(
                 text_element(
                     x=x,
-                    y=y - 16 if show_number and position == number_position else y,
+                    y=y - 16 if show_number else y,
                     text=metrics.footer_credit_text,
                     layer="footer",
                     synthetic=True,
@@ -67,9 +88,11 @@ def render_page_body_elements(
                 )
             )
         if show_number:
-            number = str(page_index + 1)
-            if metrics.footer_page_number == "total":
-                number += f"/{len(model.pages)}"
+            style = metrics.footer_page_number
+            format_number = _roman_number if style in ("roman", "roman_total") else str
+            number = format_number(page_index + 1)
+            if style in ("total", "roman_total"):
+                number += f"/{format_number(len(model.pages))}"
             x, anchor = positions[number_position]
             elements.append(
                 text_element(

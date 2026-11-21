@@ -1,9 +1,10 @@
 # Quick start and user manual screenshots
 
-The `*-en` and `*-zh` screenshots are captures of the installed Windows desktop app, version
-1.0.0-RC3. The screenshots used in the quickstart guides show the same Farewell example in the
-editing and transcription walkthroughs. Their English and Simplified Chinese pairs show the same
-score, panels, and view settings. The import, settings, new-score, page-settings and export pairs
+The Page Settings pair shows the current desktop frontend captured in Chromium
+on Linux, with an existing score that has no footer settings. The other pairs
+were captured from the installed Windows desktop app, version 1.0.0-RC3. The editing and transcription walkthroughs in the quick starts use
+the same Farewell example. Their English and Simplified Chinese pairs show the same
+score, panels, and view settings. The import, settings, new-score and export pairs
 also show Farewell in the background.
 
 The transcription screenshots were captured after restarting OctoPus and discarding any recovery

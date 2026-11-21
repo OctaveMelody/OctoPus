@@ -75,5 +75,11 @@ export function normalizeJpsFileName(value) {
 
 export function createNewScorePageConfig() {
   const { biaoti_font, geci_font, shuzi_font } = createPageSettingsDraft({});
-  return { biaoti_font, geci_font, shuzi_font, footer_credit: true, footer_page_number: "number" };
+  return {
+    biaoti_font, geci_font, shuzi_font,
+    footer_page_number_position: "null",
+    footer_page_number: "number",
+    footer_credit: true,
+    footer_credit_position: "left",
+  };
 }

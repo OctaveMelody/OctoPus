@@ -22,7 +22,7 @@ from octopus.parser.source import SourceSpan
 GEOMETRY_EPSILON = 1e-9
 DEFAULT_NOTE_START_OFFSET = 3.0
 DEFAULT_NOTE_SIZE = 18
-DEFAULT_FOOTER_CREDIT = "Composed using OctoPus"
+DEFAULT_FOOTER_CREDIT = "编辑排版: 章鱼简谱"
 
 
 @dataclass(frozen=True)
@@ -55,11 +55,14 @@ class PageMetrics:
     footer_page_number_position: str = "right"
 
     @property
-    def has_footer(self) -> bool:
-        return (
-            (self.footer_credit and bool(self.footer_credit_text))
-            or self.footer_page_number in ("number", "total")
+    def has_page_number(self) -> bool:
+        return self.footer_page_number_position != "null" and self.footer_page_number in (
+            "number", "total", "roman", "roman_total",
         )
+
+    @property
+    def has_footer(self) -> bool:
+        return bool(self.footer_credit and self.footer_credit_text) or self.has_page_number
 
     def __post_init__(self) -> None:
         positive_fields = (

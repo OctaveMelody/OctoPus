@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   applyPageSettings,
   createPageSettingsDraft,
+  limitFootnoteText,
+  MAX_FOOTNOTE_LENGTH,
   pageSettingGroups,
   pageSettingsDraftChanged,
 } from "./page-settings.js";
@@ -90,56 +92,64 @@ export function PageSettings({
             <p className="settings-note">{copy.pageSettingsWrapNotice}</p>
           )}
           <div className="page-settings-groups">
-            {pageSettingGroups.map((group) => (
-              <fieldset className="page-settings-group" key={group.key}>
-                <legend>{settingText(copy, group.key)}</legend>
-                {group.fields.map((field) => (
-                  <label className="page-settings-field" key={field.key}>
-                    <span>
-                      {settingText(copy, field.label)}
-                      {group.key !== "pageSettingsFooterGroup" && field.defaultValue !== "" && (
-                        <> <em>({field.defaultValue})</em></>
-                      )}
-                    </span>
-                    {field.kind === "checkbox" ? (
-                      <input
-                        checked={draft[field.key] === true}
-                        disabled={disabled}
-                        onChange={(event) => updateField(field.key, event.target.checked)}
-                        type="checkbox"
-                      />
-                    ) : field.options ? (
-                      <select
-                        disabled={disabled}
-                        onChange={(event) => updateField(field.key, event.target.value)}
-                        value={String(draft[field.key] ?? field.defaultValue)}
-                      >
-                        {!field.options?.some((option) => option.value === String(draft[field.key])) && (
-                          <option value={String(draft[field.key])}>
-                            {copy.currentValue}: {String(draft[field.key])}
-                          </option>
+            {pageSettingGroups.map((group) => {
+              const footer = group.key === "pageSettingsFooterGroup";
+              return (
+                <fieldset className={footer ? "page-settings-group page-settings-footer" : "page-settings-group"} key={group.key}>
+                  <legend>{settingText(copy, group.key)}</legend>
+                  <div className={footer ? "page-settings-footer-row" : undefined}>
+                    {group.fields.map((field) => (
+                      <label className="page-settings-field" data-setting={footer ? field.key : undefined} key={field.key}>
+                        {footer && field.key === "footer_page_number_position" && <span aria-hidden="true">{copy.pageSettingsPageNumberHeading}</span>}
+                        {footer && field.key === "footer_credit_position" && <span aria-hidden="true">{copy.pageSettingsFooterText}</span>}
+                        <span className={footer ? "visually-hidden" : undefined}>
+                          {settingText(copy, field.label)}
+                          {!footer && field.defaultValue !== "" && <> <em>({field.defaultValue})</em></>}
+                        </span>
+                        {field.options ? (
+                          <select
+                            disabled={disabled}
+                            onChange={(event) => updateField(field.key, event.target.value)}
+                            value={String(draft[field.key] ?? field.defaultValue)}
+                          >
+                            {!field.options?.some((option) => option.value === String(draft[field.key])) && (
+                              <option value={String(draft[field.key])}>
+                                {copy.currentValue}: {String(draft[field.key])}
+                              </option>
+                            )}
+                            {field.options?.map((option) => (
+                              <option
+                                disabled={option.value !== "null" && (
+                                  (field.key === "footer_page_number_position" && option.value === draft.footer_credit_position)
+                                  || (field.key === "footer_credit_position" && option.value === draft.footer_page_number_position)
+                                )}
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {settingText(copy, option.label)}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            disabled={disabled}
+                            max={field.max}
+                            min={field.min}
+                            onChange={(event) => updateField(field.key, field.kind === "text"
+                              ? limitFootnoteText(event.target.value)
+                              : event.target.value)}
+                            step={1}
+                            title={field.kind === "text" ? copy.pageSettingsFootnoteLength(MAX_FOOTNOTE_LENGTH) : undefined}
+                            type={field.kind === "text" ? "text" : "number"}
+                            value={String(draft[field.key] ?? field.defaultValue)}
+                          />
                         )}
-                        {field.options?.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {settingText(copy, option.label)}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        disabled={disabled}
-                        max={field.max}
-                        min={field.min}
-                        onChange={(event) => updateField(field.key, event.target.value)}
-                        step={1}
-                        type={field.kind === "text" ? "text" : "number"}
-                        value={String(draft[field.key] ?? field.defaultValue)}
-                      />
-                    )}
-                  </label>
-                ))}
-              </fieldset>
-            ))}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              );
+            })}
           </div>
           <div className="page-settings-actions">
             <button disabled={disabled || !draftChanged} onClick={applyDraft} type="button">

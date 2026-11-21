@@ -246,17 +246,16 @@ The draft is a starting point, so check the notes and lyrics against the origina
 **Page Settings** controls how the score is laid out and which fonts draw it. Open it from the
 toolbar (**Page Settings**).
 
-![Page Settings for Farewell.](screenshots/page-settings-en.jpg)
+![Page Settings for an existing score.](screenshots/page-settings-en.jpg)
 
 Main groups:
 
 | Group | Controls |
 | --- | --- |
 | **Paper & margins** | A4 / A5 page; top/bottom/left/right margins and body offset. |
-| **Fonts and sizes** | Title, subtitle and lyric fonts and sizes; note style (Regular, Italic, Bold) and note size. Clear Note size to use **Default**, which keeps the original Tomato Jianpu compatible rendering. |
-| **Spacing** | Music-to-lyric, lyric-to-lyric, lyric-to-music and voice spacing. |
-| **Footer** | “Composed using OctoPus” at bottom left. Page numbers can be hidden, shown alone, or shown with the total, at bottom right or bottom center. New scores start with the credit and plain numbers on. |
-| **Other** | Slur style: Automatic, Arc, or Flat top. |
+| **Fonts and sizes** | Title, subtitle and lyric fonts and sizes; note style (Regular, Italic, Bold) and note size. Note sizes go up to 24. Lyric sizes match Tomato Jianpu: 14 through 32 in steps of 2. Larger sizes already saved in a score are preserved. Select **Default** for Note size, which keeps the original Tomato Jianpu compatible rendering. |
+| **Spacing and Style** | Music-to-lyric, lyric-to-lyric, lyric-to-music and voice spacing. Slur style: Automatic, Arc, or Flat top. |
+| **Header & Footer** | Set the page number and footnote positions to Null, bottom left, bottom center, or bottom right. When both are visible, choose different positions. Page numbers can be numeric or Roman, with or without the total. New scores start with page numbers hidden (Numeric style) and show the editable “编辑排版: 章鱼简谱” footnote at bottom left. Footnotes are limited to 24 characters and appear above the page number when numbering is on. Existing JPS files without footnote settings leave it hidden. |
 
 Buttons:
 
@@ -284,7 +283,7 @@ When the preview looks right, click **Export**. Choose a format from the menu.
 | **JPG (300 DPI)…** | Compressed image files. |
 | **PNG (300 DPI)…** | Lossless image files. |
 
-- PDF creates **one** combined document; SVG/PNG/JPG create **one file per page**.
+- PDF creates **one** combined document; SVG/PNG/JPG create **one file per page**. Desktop export accepts up to 200 score pages and 64 MiB of output in total.
 - **Save the `.jps` first** — it is your editable master. Exports are output, not something you edit
   back.
 

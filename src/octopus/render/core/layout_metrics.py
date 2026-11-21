@@ -14,6 +14,7 @@ _PAGE_SIZES = {
     "A5": (840, 1193),
 }
 _MAX_FONT_SIZE = 256
+_MAX_FOOTNOTE_LENGTH = 24
 _MAX_VERTICAL_SPACING = 512
 
 
@@ -62,6 +63,11 @@ def page_metrics(model: ScoreModel) -> PageMetrics:
         maximum=available_height,
     )
     footer_text = page_config.get("footer_credit_text", DEFAULT_FOOTER_CREDIT)
+    if isinstance(footer_text, str):
+        words = footer_text.split(maxsplit=_MAX_FOOTNOTE_LENGTH)[:_MAX_FOOTNOTE_LENGTH]
+        footer_text = " ".join(words)[:_MAX_FOOTNOTE_LENGTH].rstrip()
+    else:
+        footer_text = DEFAULT_FOOTER_CREDIT
     footer_position = page_config.get("footer_credit_position")
     number_position = page_config.get("footer_page_number_position")
     return PageMetrics(
@@ -97,13 +103,12 @@ def page_metrics(model: ScoreModel) -> PageMetrics:
             page_config, "shuzi_size", DEFAULT_NOTE_SIZE, minimum=1, maximum=_MAX_FONT_SIZE
         ),
         footer_credit=page_config.get("footer_credit") is True,
-        footer_credit_text=" ".join(footer_text.split())
-        if isinstance(footer_text, str) else DEFAULT_FOOTER_CREDIT,
+        footer_credit_text=footer_text,
         footer_credit_position=footer_position
         if footer_position in ("center", "right") else "left",
         footer_page_number=str(page_config.get("footer_page_number", "off")),
         footer_page_number_position=number_position
-        if number_position in ("left", "center") else "right",
+        if number_position in ("left", "center", "null") else "right",
         height_quci=_config_int(
             page_config, "height_quci", 12, minimum=0, maximum=_MAX_VERTICAL_SPACING
         ),
