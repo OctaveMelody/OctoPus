@@ -131,11 +131,19 @@ def _row_marks(
         x, body = marks[index]
         marks[index] = (x, body + token)
     left_cut = right_cut = 0
-    for start_index, end_index in row.slurs:
+    spans = [
+        *((start, end, "(") for start, end in row.slurs),
+        *((start, end, "(y" if end - start == 2 else f"(y{end - start + 1}: ")
+          for start, end in row.tuplets),
+    ]
+    # Prepending the outer opener last keeps shared starts properly nested.
+    for start_index, end_index, opener in sorted(
+        spans, key=lambda span: len(row.notes) if span[1] is None else span[1],
+    ):
         if start_index is not None:
             mark_index = note_marks[start_index]
             x, body = marks[mark_index]
-            marks[mark_index] = (x, "(" + body)
+            marks[mark_index] = (x, opener + body)
         else:
             left_cut += 1
         if end_index is not None:
@@ -795,7 +803,7 @@ def assemble(
                     "row_semantics_unresolved",
                     page_number,
                     "Digits, octave/duration dots, underlines and barlines are provisional; "
-                    "remaining rhythm, accidentals, ornaments, slurs, lyric alignment and voice "
+                    "remaining rhythm, accidentals, ornaments, slurs/tuplets, lyric alignment and voice "
                     "identity need review.",
                     row.unresolved_marks or (row.box,),
                 )

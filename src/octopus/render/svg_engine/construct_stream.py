@@ -390,11 +390,11 @@ def _construct_elements_are_slur_paths(elements: list[SvgElement]) -> bool:
 
 
 def _construct_elements_are_tuplet(elements: list[SvgElement]) -> bool:
-    """Return whether elements are the verified visible three-event tuplet pair."""
+    """Return whether the elements form a visible tuplet arc and label."""
     if len(elements) != 2 or elements[0].tag != "path" or elements[1].tag != "use":
         return False
     href = dict(elements[1].attrs).get("href") or dict(elements[1].attrs).get("xlink:href")
-    return href == "#lianyin_shuzi_3"
+    return href is not None and href.startswith("#lianyin_shuzi_")
 
 
 def _construct_elements_are_replayable_slurs(elements: list[SvgElement]) -> bool:

@@ -114,6 +114,17 @@ def digit_shape_similarity(gray: Image.Image, component: Component, digit: str) 
     return scores.get(digit, 0.0)
 
 
+def is_tuplet_number(gray: Image.Image, component: Component, count: int) -> bool:
+    """Corroborate a small numeral between the arc wings of a group of this size."""
+    scores = _digit_scores(gray, component, grace=True)
+    if count >= 8:
+        candidate = _normalized_black_pixels(gray.crop(component.box))
+        for digit in (8, 9):
+            scores[str(digit)] = _similarity(candidate, _glyph_template(f"lianyin_shuzi_{digit}"))
+    agreement = scores.pop(str(count))
+    return agreement >= 0.45 and agreement - max(scores.values()) >= 0.07
+
+
 def page_digit_templates(
     gray: Image.Image, accepted: list[tuple[Component, DigitMatch]], *, antialias: bool = False,
 ) -> tuple[tuple[str, int], ...]:

@@ -633,11 +633,29 @@ def attached_mordents(
     return found
 
 
+def _accent_wedge(gray: Image.Image, component: Component) -> bool:
+    left, top, right, bottom = component.box
+    pixels = gray.load()
+    assert pixels is not None
+    quarter = max(1, component.width // 4)
+    ordinates = [
+        [y for x in range(start, stop) for y in range(top, bottom)
+         if pixels[x, y] < 160]
+        for start, stop in ((left, left + quarter), (right - quarter, right))
+    ]
+    if not all(ordinates):
+        return False
+    spread, tip = (max(group) - min(group) for group in ordinates)
+    return (spread >= component.height * 0.65 and tip <= spread * 0.55
+            and _similarity(_normalized_black_pixels(gray.crop(component.box)),
+                            _glyph_template("zhongyinfu")) >= 0.54)
+
+
 def symbol_decorations(
     gray: Image.Image, note_boxes: tuple[Box, ...], components: list[Component],
     *, other_rows: tuple[Box, ...] = (),
 ) -> tuple[TextDecoration, ...]:
-    """Recognize a fermata only from a short arch and its separate centered dot."""
+    """Recognize compact upper mordents, accents and fermatas above their hosts."""
     if not note_boxes:
         return ()
     height = median(box[3] - box[1] for box in note_boxes)
@@ -645,6 +663,37 @@ def symbol_decorations(
     assert pixels is not None
     found: list[TextDecoration] = []
     for arch in components:
+        if (
+            height * 0.5 <= arch.width <= height * 0.9
+            and height * 0.35 <= arch.height <= height * 0.65
+            and _above_row(arch.box, note_boxes, height, other_rows, reach_factor=1.5)
+        ):
+            owner = _text_owner(arch.box, "zy", note_boxes, height)
+            if owner is not None and (
+                abs((arch.box[0] + arch.box[2] - note_boxes[owner][0]
+                     - note_boxes[owner][2]) / 2) <= height * 0.25
+                and height * 0.25 <= note_boxes[owner][1] - arch.box[3] <= height * 0.65
+                and _accent_wedge(gray, arch)
+            ):
+                found.append(TextDecoration(owner, "zy", arch.box))
+                continue
+        if (
+            height * 0.48 <= arch.width <= height
+            and height * 0.14 <= arch.height <= height * 0.48
+            and arch.width >= arch.height * 1.8
+            and _above_row(arch.box, note_boxes, height, other_rows, reach_factor=1)
+        ):
+            owner = _text_owner(arch.box, "sby", note_boxes, height)
+            center = (arch.box[0] + arch.box[2]) / 2
+            if owner is not None and (
+                note_boxes[owner][0] <= center <= note_boxes[owner][2]
+                and 0 <= note_boxes[owner][1] - arch.box[3] <= height * 0.55
+                and (classify_mordent(gray, arch)
+                     or _similarity(_normalized_black_pixels(gray.crop(arch.box)),
+                                    _glyph_template("boyinfu_shang1")) >= 0.60)
+            ):
+                found.append(TextDecoration(owner, "sby", arch.box))
+                continue
         if not (
             height * 0.5 <= arch.width <= height * 1.65
             and height * 0.15 <= arch.height <= height * 0.65

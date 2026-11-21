@@ -163,6 +163,7 @@ def _collect_line_construct(
         ending_reserves_clearance=construct.ending_reserves_clearance,
         inside_dangling_span=construct.inside_dangling_span,
         ending_open_start=construct.ending_open_start,
+        tuplet_count=int(construct.value) if kind == "tuplet" and construct.value else 3,
     )
     layout.constructs.append(layout_construct)
 

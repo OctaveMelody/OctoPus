@@ -43,6 +43,7 @@ from .ornaments import EndingSegment, row_endings, row_graces, voice_components
 from .pitch_marks import MarkRejection, PitchMarkCandidate
 from .slurs import curve_core_parts, ending_box_curve, row_slurs
 from .text import image_digit, music_characters, page_digit_ocr_cache
+from .tuplets import row_tuplets
 from .voices import (
     VoiceGroup,
     dsb_brace_candidate,
@@ -2433,7 +2434,7 @@ def _row_with_source_marks(
         octave = (note_modifiers(
             working_box, working_marks, transform.to_working_height(height),
         )[0]
-                  if owned
+                  if "yc" in owned
                   else note.octave or note_modifiers(
                       note.box, parts, round(height), duration_gray=core,
                   )[0])
@@ -2495,10 +2496,21 @@ def _row_with_source_marks(
     recovered_notes = [replace(note, decorations=tuple(dict.fromkeys((*note.decorations, "sby"))))
                        if index in mordents else note for index, note in enumerate(recovered_notes)]
     faint_bars = _faint_barlines(row, source_gray, final=bool(page.rows and row is page.rows[-1]))
+    barlines = tuple(sorted((*row.barlines, *faint_bars)))
+    # The slur pass excludes ink overlapping ending brackets. A numbered arc
+    # has its own local shape checks and can be printed under such a bracket.
+    tuplets = row_tuplets(source_gray, tuple(recovered_notes), marks, barlines)
+    # Each flank can look like a short slur in isolation. The complete numbered
+    # arc owns those fragments, while longer surrounding spans retain their ends.
+    slurs = tuple(
+        (start, end) for start, end in slurs
+        if start is None or end is None
+        or not any(left <= start <= end <= right for left, right in tuplets)
+    )
     return replace(
-        row, barlines=tuple(sorted((*row.barlines, *faint_bars))),
+        row, barlines=barlines, tuplets=tuplets,
         notes=tuple(recovered_notes), unresolved_marks=unresolved,
-        slurs=slurs, slur_origins=tuple(origins),
+        slurs=slurs, slur_origins=tuple(origin for origin in origins if origin[0] in slurs),
         parentheses=row_parentheses(music, height, marks, source_gray),
         hairpins=hairpins, decoration_regions=(*symbol_regions, *(pin.box for pin in hairpins)),
     )

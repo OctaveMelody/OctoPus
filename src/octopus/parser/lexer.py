@@ -19,6 +19,7 @@ _STANDALONE_DECORATIONS_RE = re.compile(
 )
 _EXTENSION_RE = re.compile(r"-+[!*<>+]*(?:&[A-Za-z]+)*$")
 _BLOCK_NAME_RE = re.compile(r"[A-Za-z]+")
+_TUPLET_START_RE = re.compile(r"\(y(?:([2-9]):)?")
 _VALID_BARLINES = frozenset({"|", "||", "|:", ":|", ":|:", "|/", "|*", "||/"})
 _STRUCTURAL = frozenset('[]{}()"|:')
 _MODIFIER_CHARS = frozenset("<>+!~./^,")
@@ -73,13 +74,14 @@ class MusicLexer:
                 self.index += 1
                 self._append(MusicTokenKind.BLOCK_END, start, self.index, attached=attached)
             elif char == "(":
-                self.index += 2 if self.body.startswith("(y", start) else 1
-                kind = (
-                    MusicTokenKind.TUPLET_START
-                    if self.body.startswith("(y", start)
-                    else MusicTokenKind.SPAN_START
-                )
-                self._append(kind, start, self.index, attached=attached)
+                tuplet = _TUPLET_START_RE.match(self.body, start)
+                if tuplet:
+                    self.index = tuplet.end()
+                    self._append(MusicTokenKind.TUPLET_START, start, self.index,
+                                 value=tuplet[1], attached=attached)
+                else:
+                    self.index += 1
+                    self._append(MusicTokenKind.SPAN_START, start, self.index, attached=attached)
             elif char == ")":
                 self.index += 1
                 self._append(MusicTokenKind.SPAN_END, start, self.index, attached=attached)

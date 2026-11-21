@@ -45,6 +45,8 @@ class MusicRow:
     pitch_mark_regions: tuple[Box, ...] = ()
     pitch_mark_candidates: tuple[PitchMarkCandidate, ...] = ()
     slur_origins: tuple[tuple[tuple[int | None, int | None], Box, int], ...] = ()
+    # Inclusive note indices of visually corroborated numbered groups.
+    tuplets: tuple[tuple[int, int], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

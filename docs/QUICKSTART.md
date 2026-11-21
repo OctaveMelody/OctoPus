@@ -360,6 +360,7 @@ C: 第二句也能写
 | Dynamics | `&mp` `&ff` `&cresc` … | `1&mp` |
 | Hairpin | `<` or `>` … `!` | `1< 2 3 4!` |
 | Slur / tuplet | `(1 2 3)` / `(y1 2 3)` | `(1 2 3)` |
+| Numbered tuplet (2–9) | `(y6: 1// 2// 3// 4// 5// 6//)` | `(y6: 1// 2// 3// 4// 5// 6//)` |
 | Ornaments | `&yc` fermata, `&dy` staccato, `&cy` trill | `3&yc` |
 | Ending bracket | `\|["1" … :|]` | `\|["1" 1 2 3 :|]` |
 | Page break | `[fenye]` on its own line | `[fenye]` |

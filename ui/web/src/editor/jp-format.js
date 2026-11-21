@@ -3,6 +3,7 @@
 const AUTO_FORMAT_TRIGGERS = "0123456789|:.-";
 // Mirror parser/grammar.py: split at the first colon, then match the trimmed prefix.
 const MUSIC_PREFIX = /^Q\d*(?:\[[^\]]*\]|"[^"]*")?$/i;
+const TEMPO_CODE = /^&[a-z]+ +tempo\b/i;
 
 /** @param {string} line @param {{position: number, index: number}[]} positions */
 function formatMusicLine(line, positions) {
@@ -19,6 +20,7 @@ function formatMusicLine(line, positions) {
   let lastNote = "";
   let compact = "";
   const compactPositions = [];
+  let tempoSpaceEnd = 0;
   /** @param {number} end */
   const appendThrough = (end) => {
     while (sourceCursor < end) {
@@ -30,6 +32,10 @@ function formatMusicLine(line, positions) {
       }
       const wasQuoted = quoted;
       const wasBracketed = bracketDepth > 0;
+      if (character === "&" && !wasQuoted && !wasBracketed) {
+        const tempo = TEMPO_CODE.exec(line.slice(sourceCursor));
+        if (tempo) tempoSpaceEnd = sourceCursor + tempo[0].length;
+      }
       if (character === '"' && !escaped) quoted = !quoted;
       if (!wasQuoted && !quoted) {
         // A bracket after a bar opens a repeat ending; only grace groups protect spaces.
@@ -38,7 +44,12 @@ function formatMusicLine(line, positions) {
         if (!wasBracketed && "0123456789-|".includes(character)) lastNote = character;
       }
       const protectedText = wasQuoted || quoted || wasBracketed || character === "[" || character === "]";
-      if (character !== " " || protectedText) compact += character;
+      // A standalone decoration and an attached suffix have different parser ownership.
+      const beforeDecoration = line.charAt(sourceCursor + 1) === "&"
+        && sourceCursor > prefixEnd && compact.length > prefixEnd;
+      if (character !== " " || protectedText || sourceCursor < tempoSpaceEnd || beforeDecoration) {
+        compact += character;
+      }
       escaped = character === "\\" && !escaped;
       sourceCursor++;
     }
@@ -76,6 +87,9 @@ function formatMusicLine(line, positions) {
     }
     const previous = compact.charAt(index - 1);
     const next = compact.charAt(index + 1);
+    const afterTupletCount = /\(y[2-9]:$/.test(compact.slice(index - 4, index));
+    const tupletPrefixAccidental = "#$=".includes(previous) && previous !== ""
+      && /\(y[2-9]:$/.test(compact.slice(index - 5, index - 1));
     if (character === '"' && !escaped) quoted = !quoted;
     if (quoted) {
       output += character;
@@ -94,8 +108,11 @@ function formatMusicLine(line, positions) {
 
     const spaceBefore = (
       "0123456789-".includes(character)
-      && !["Q", "C", " ", "(", "y"].includes(previous)
-    ) || (character === "(" && previous !== "(")
+      && ![" ", "("].includes(previous)
+      && !(previous === "y" && compact.charAt(index - 2) === "(")
+      && !tupletPrefixAccidental
+    ) || (afterTupletCount && "#$=".includes(character))
+      || (character === "(" && previous !== "(")
       || (character === "|" && previous !== "|" && previous !== ":")
       || (character === ":" && next === "|")
       || character === "{"

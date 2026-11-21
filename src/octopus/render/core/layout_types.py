@@ -281,6 +281,7 @@ class LayoutConstruct:
     # instead of before it (model.SemanticConstruct.inside_dangling_span).
     inside_dangling_span: bool = False
     ending_open_start: bool = False
+    tuplet_count: int = 3
 
 
 @dataclass

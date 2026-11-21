@@ -60,7 +60,7 @@ def tuplet_elements(
     return [
         _tuplet_path(construct, geometry),
         _use_element(
-            "lianyin_shuzi_3",
+            f"lianyin_shuzi_{construct.tuplet_count}",
             x=_format_reference_number(geometry.number_x),
             y=_format_reference_number(geometry.number_y),
             layer="construct",

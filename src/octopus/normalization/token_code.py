@@ -112,7 +112,7 @@ def _code_fragment(
             return "|n"
         return _BARLINE_CODE_MAP.get(token.raw, token.raw)
     if token.kind == MusicTokenKind.TUPLET_START:
-        return "(ys"
+        return token.raw if token.value is not None else "(ys"
     if token.kind == MusicTokenKind.EXTENSION:
         return token.raw.replace("<", "").replace(">", "")
     if token.kind in {

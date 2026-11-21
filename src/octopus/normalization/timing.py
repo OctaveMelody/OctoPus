@@ -11,13 +11,16 @@ from octopus.parser.ast import (
     MusicTokenKind,
 )
 
-_TUPLET_FACTOR = Fraction(2, 3)
+_TUPLET_NORMAL_UNITS = {"2": 3, "3": 2, "4": 3, "5": 4, "6": 4, "7": 4, "8": 6, "9": 8}
 
 
 def _music_duration(
     token: MusicToken,
     tuplet_multiplier: Fraction = Fraction(1, 1),
 ) -> DurationValue | None:
+    if token.kind == MusicTokenKind.EXTENSION and tuplet_multiplier != 1:
+        duration = max(token.raw.count("-"), 1) * tuplet_multiplier
+        return DurationValue(duration.numerator, duration.denominator, _fraction_to_text(duration))
     if token.kind not in {
         MusicTokenKind.NOTE,
         MusicTokenKind.REST,
@@ -40,7 +43,7 @@ def _time_text(token: MusicToken, duration: DurationValue | None) -> str | None:
     if token.kind == MusicTokenKind.BARLINE:
         return "0"
     if token.kind == MusicTokenKind.EXTENSION:
-        return str(max(token.raw.count("-"), 1))
+        return duration.text if duration is not None else str(max(token.raw.count("-"), 1))
     return None
 
 
@@ -53,6 +56,7 @@ def _flat_tuplet_duration_overrides(
     for token_index, token in enumerate(tokens):
         if (
             token.kind == MusicTokenKind.TUPLET_START
+            and token.value is None
             and nesting_depth == 0
             and block_depth == 0
         ):
@@ -139,25 +143,28 @@ def _flat_tuplet_dash(token: MusicToken) -> bool:
 
 def _tuplet_multipliers(tokens: tuple[MusicToken, ...]) -> list[Fraction]:
     multipliers: list[Fraction] = []
-    opener_stack: list[tuple[MusicTokenKind, bool]] = []
-    active_tuplets = 0
+    opener_stack: list[tuple[Fraction, Fraction]] = []
+    note_multiplier = extension_multiplier = Fraction(1)
     for token_index, token in enumerate(tokens):
         if token.kind == MusicTokenKind.TUPLET_START:
-            scales_duration = not _tuplet_preserves_written_duration(tokens, token_index)
-            opener_stack.append((token.kind, scales_duration))
-            if scales_duration:
-                active_tuplets += 1
+            opener_stack.append((note_multiplier, extension_multiplier))
+            if token.value is not None:
+                factor = Fraction(_TUPLET_NORMAL_UNITS[token.value], int(token.value))
+                note_multiplier *= factor
+                extension_multiplier *= factor
+            elif not _tuplet_preserves_written_duration(tokens, token_index):
+                note_multiplier *= Fraction(2, 3)
             multipliers.append(Fraction(1, 1))
             continue
         if token.kind == MusicTokenKind.SPAN_START:
-            opener_stack.append((token.kind, False))
+            opener_stack.append((note_multiplier, extension_multiplier))
             multipliers.append(Fraction(1, 1))
             continue
-        multipliers.append(_TUPLET_FACTOR**active_tuplets)
+        multipliers.append(
+            extension_multiplier if token.kind == MusicTokenKind.EXTENSION else note_multiplier
+        )
         if token.kind == MusicTokenKind.SPAN_END and opener_stack:
-            popped, counted = opener_stack.pop()
-            if popped == MusicTokenKind.TUPLET_START and counted:
-                active_tuplets -= 1
+            note_multiplier, extension_multiplier = opener_stack.pop()
     return multipliers
 
 
