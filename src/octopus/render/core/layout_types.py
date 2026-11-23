@@ -23,6 +23,7 @@ GEOMETRY_EPSILON = 1e-9
 DEFAULT_NOTE_START_OFFSET = 3.0
 DEFAULT_NOTE_SIZE = 18
 DEFAULT_FOOTER_CREDIT = "编辑排版: 章鱼简谱"
+DEFAULT_SCORE_TEXT_FONT = "Microsoft YaHei"
 
 
 @dataclass(frozen=True)
@@ -36,7 +37,7 @@ class PageMetrics:
     body_margin_top: int = 40
     title_font: str = "Microsoft YaHei"
     note_font: str = "b"
-    lyric_font: str = "Microsoft YaHei"
+    lyric_font: str = DEFAULT_SCORE_TEXT_FONT
     title_size: int = 36
     subtitle_size: int = 20
     lyric_size: int = 16

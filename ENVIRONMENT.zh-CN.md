@@ -81,7 +81,12 @@ uv run --locked --extra transcription python -m ui.engine
 引擎从标准输入逐行读取 JSON，并将响应写入标准输出。只需 Python 运行环境时，使用
 `python3 scripts/setup.py --runtime-only`。可选 `pixel` 依赖组支持通过浏览器 DOM 导出 SVG，
 需要执行 `uv run --extra pixel playwright install chromium`；该功能不打包进离线引擎。
-本仓库的 Python 可选依赖组不包含 Pytest、Ruff、mypy 或开发验证资料。
+可选 `quality` 依赖组提供与生产仓库 CI 相同的 Python 检查：
+
+```sh
+uv run --locked --group quality --extra transcription --extra pixel ruff check src ui/engine
+uv run --locked --group quality --extra transcription --extra pixel mypy src ui/engine
+```
 
 ## 批量导出与桌面引擎能力
 

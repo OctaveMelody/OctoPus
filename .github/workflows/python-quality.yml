@@ -1,0 +1,21 @@
+name: Check Python quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.12.21"
+          python-version: "3.12"
+      - run: uv sync --locked --group quality --extra transcription --extra pixel
+      - run: uv run --locked --group quality --extra transcription --extra pixel ruff check src ui/engine
+      - run: uv run --locked --group quality --extra transcription --extra pixel mypy src ui/engine

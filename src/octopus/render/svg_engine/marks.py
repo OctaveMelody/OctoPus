@@ -8,7 +8,13 @@ from ...parser.ast import MusicTokenKind
 from ..core.annotations import _inline_time_signature
 from ..core.elements import RenderElement, SvgElement, _format_reference_number
 from ..core.glyphs import get_decoration_glyph
-from ..core.layout_types import GEOMETRY_EPSILON, LayoutEvent, LayoutMark, LayoutPage
+from ..core.layout_types import (
+    DEFAULT_SCORE_TEXT_FONT,
+    GEOMETRY_EPSILON,
+    LayoutEvent,
+    LayoutMark,
+    LayoutPage,
+)
 from .accessories import decoration_placement, is_dynamic_decoration
 from .primitives import attrs as _attrs
 from .primitives import text_element as _text_element
@@ -193,7 +199,7 @@ def score_text_attrs(dy: float) -> tuple[tuple[str, str], ...]:
         ("dy", _format_reference_number(dy)),
         ("fill", "#303030"),
         ("font-size", "12"),
-        ("font-family", "Microsoft YaHei"),
+        ("font-family", DEFAULT_SCORE_TEXT_FONT),
         ("xml:space", "preserve"),
     )
 

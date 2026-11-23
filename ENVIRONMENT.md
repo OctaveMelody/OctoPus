@@ -100,8 +100,12 @@ The worker reads JSON-lines on stdin and writes responses on stdout. For Python-
 setup use `python3 scripts/setup.py --runtime-only`. The optional `pixel` extra supports
 browser-DOM SVG export and tagged manual PDF generation; both require
 `uv run --extra pixel playwright install chromium`. The extra is not bundled into the offline
-worker. Pytest, Ruff, mypy and development evidence are excluded from this repository's Python
-dependency extras.
+worker. The optional `quality` group provides the same Python checks as production CI:
+
+```sh
+uv run --locked --group quality --extra transcription --extra pixel ruff check src ui/engine
+uv run --locked --group quality --extra transcription --extra pixel mypy src ui/engine
+```
 
 ## Batch export and desktop capabilities
 

@@ -142,6 +142,18 @@ def _flat_tuplet_dash(token: MusicToken) -> bool:
 
 
 def _tuplet_multipliers(tokens: tuple[MusicToken, ...]) -> list[Fraction]:
+    closed_numbered: set[int] = set()
+    pending_closes = 0
+    for index in range(len(tokens) - 1, -1, -1):
+        token = tokens[index]
+        if token.kind == MusicTokenKind.SPAN_END:
+            pending_closes += 1
+        elif token.kind in {MusicTokenKind.SPAN_START, MusicTokenKind.TUPLET_START}:
+            if pending_closes:
+                pending_closes -= 1
+                if token.kind == MusicTokenKind.TUPLET_START and token.value is not None:
+                    closed_numbered.add(index)
+
     multipliers: list[Fraction] = []
     opener_stack: list[tuple[Fraction, Fraction]] = []
     note_multiplier = extension_multiplier = Fraction(1)
@@ -149,9 +161,10 @@ def _tuplet_multipliers(tokens: tuple[MusicToken, ...]) -> list[Fraction]:
         if token.kind == MusicTokenKind.TUPLET_START:
             opener_stack.append((note_multiplier, extension_multiplier))
             if token.value is not None:
-                factor = Fraction(_TUPLET_NORMAL_UNITS[token.value], int(token.value))
-                note_multiplier *= factor
-                extension_multiplier *= factor
+                if token_index in closed_numbered:
+                    factor = Fraction(_TUPLET_NORMAL_UNITS[token.value], int(token.value))
+                    note_multiplier *= factor
+                    extension_multiplier *= factor
             elif not _tuplet_preserves_written_duration(tokens, token_index):
                 note_multiplier *= Fraction(2, 3)
             multipliers.append(Fraction(1, 1))

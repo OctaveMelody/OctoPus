@@ -72,6 +72,8 @@ function formatMusicLine(line, positions) {
   bracketDepth = 0;
   lastNote = "";
   let positionIndex = 0;
+  const tupletHeader = /\(y[0-9]+:/y;
+  let tupletHeaderEnd = -1;
   const mappedPositions = new Array(positions.length);
   for (let index = 0; index <= compact.length; index++) {
     while (compactPositions[positionIndex] === index) {
@@ -87,9 +89,13 @@ function formatMusicLine(line, positions) {
     }
     const previous = compact.charAt(index - 1);
     const next = compact.charAt(index + 1);
-    const afterTupletCount = /\(y[2-9]:$/.test(compact.slice(index - 4, index));
+    if (character === "(") {
+      tupletHeader.lastIndex = index;
+      if (tupletHeader.test(compact)) tupletHeaderEnd = tupletHeader.lastIndex;
+    }
+    const afterTupletCount = index === tupletHeaderEnd;
     const tupletPrefixAccidental = "#$=".includes(previous) && previous !== ""
-      && /\(y[2-9]:$/.test(compact.slice(index - 5, index - 1));
+      && index - 1 === tupletHeaderEnd;
     if (character === '"' && !escaped) quoted = !quoted;
     if (quoted) {
       output += character;
@@ -108,6 +114,7 @@ function formatMusicLine(line, positions) {
 
     const spaceBefore = (
       "0123456789-".includes(character)
+      && index >= tupletHeaderEnd
       && ![" ", "("].includes(previous)
       && !(previous === "y" && compact.charAt(index - 2) === "(")
       && !tupletPrefixAccidental

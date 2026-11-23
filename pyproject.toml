@@ -39,6 +39,9 @@ pixel = [
     "playwright>=1.64.1",
 ]
 
+[dependency-groups]
+quality = ["mypy==2.1.0", "ruff==0.15.18"]
+
 [project.scripts]
 octopus = "octopus.cli:main"
 
@@ -51,3 +54,19 @@ include = ["octopus*", "ui", "ui.engine"]
 
 "octopus.assets.fonts" = ["*.ttf", "*.json", "*.md", "licenses/*.txt", "licenses/*.pdf"]
 "octopus.assets.ocr_models" = ["manifest.json", "LICENSE", "NOTICE.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = ["src"]
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true

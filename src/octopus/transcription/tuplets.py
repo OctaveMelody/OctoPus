@@ -8,7 +8,7 @@ from typing import cast
 from PIL import Image
 
 from .components import Component
-from .glyphs import is_tuplet_number
+from .glyphs import tuplet_number_margin
 from .observations import Note
 
 
@@ -45,7 +45,7 @@ def row_tuplets(
         and top - height * 1.4 <= item.box[1]
         and item.box[3] <= top - height * 0.12
     ]
-    candidates: set[tuple[int, int]] = set()
+    candidates: dict[tuple[int, int], tuple[float, float]] = {}
     for number in band:
         x0, y0, x1, y1 = number.box
         if not height * 0.32 <= number.height <= height * 0.72:
@@ -80,11 +80,23 @@ def row_tuplets(
                 middle = (centers[(start + end) // 2] + centers[(start + end + 1) // 2]) / 2
                 if (abs(center - middle) <= height * 0.6
                         and all(note.duration_slashes for note in notes[start:end + 1])
-                        and not any(centers[start] < bar < centers[end] for bar in barlines)
-                        and is_tuplet_number(gray, number, count)):
-                    candidates.add((start, end))
-    # Crossing guesses cannot be expressed as nested JPS spans.
-    return tuple((start, end) for start, end in sorted(candidates) if not any(
-        start < left <= end < right or left < start <= right < end
-        for left, right in candidates
-    ))
+                        and not any(centers[start] < bar < centers[end] for bar in barlines)):
+                    margin = tuplet_number_margin(gray, number, count)
+                    if margin is not None:
+                        offset = (abs(center - middle) + abs(centers[start] - left.box[0])
+                                  + abs(centers[end] - right.box[2]))
+                        span = (start, end)
+                        candidates[span] = max(candidates.get(span, (0, 0)), (margin, -offset))
+    return _noncrossing_tuplets(candidates)
+
+
+def _noncrossing_tuplets(
+    candidates: dict[tuple[int, int], tuple[float, float]],
+) -> tuple[tuple[int, int], ...]:
+    # A rejected guess must not veto other supported spans.
+    accepted: list[tuple[int, int]] = []
+    for start, end in sorted(candidates, key=lambda span: (candidates[span], span), reverse=True):
+        if not any(start < left <= end < right or left < start <= right < end
+                   for left, right in accepted):
+            accepted.append((start, end))
+    return tuple(sorted(accepted))

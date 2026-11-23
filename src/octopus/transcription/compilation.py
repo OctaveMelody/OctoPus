@@ -803,8 +803,8 @@ def assemble(
                     "row_semantics_unresolved",
                     page_number,
                     "Digits, octave/duration dots, underlines and barlines are provisional; "
-                    "remaining rhythm, accidentals, ornaments, slurs/tuplets, lyric alignment and voice "
-                    "identity need review.",
+                    "remaining rhythm, accidentals, ornaments, slurs/tuplets, lyric alignment "
+                    "and voice identity need review.",
                     row.unresolved_marks or (row.box,),
                 )
             )

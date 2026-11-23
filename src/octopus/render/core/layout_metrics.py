@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from octopus.normalization.types import ScoreModel
 
-from .layout_types import DEFAULT_FOOTER_CREDIT, DEFAULT_NOTE_SIZE, PageMetrics
+from .layout_types import (
+    DEFAULT_FOOTER_CREDIT,
+    DEFAULT_NOTE_SIZE,
+    DEFAULT_SCORE_TEXT_FONT,
+    PageMetrics,
+)
 
 DEFAULT_PAGE_WIDTH = 1000
 DEFAULT_PAGE_HEIGHT = 1415
@@ -83,7 +88,7 @@ def page_metrics(model: ScoreModel) -> PageMetrics:
             str(page_config.get("shuzi_font", "b")).casefold(),
             str(page_config.get("shuzi_font", "b")),
         ),
-        lyric_font=str(page_config.get("geci_font", "Microsoft YaHei")),
+        lyric_font=str(page_config.get("geci_font", DEFAULT_SCORE_TEXT_FONT)),
         title_size=_config_int(
             page_config, "biaoti_size", 36, minimum=1, maximum=_MAX_FONT_SIZE
         ),

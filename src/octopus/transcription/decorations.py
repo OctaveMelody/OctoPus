@@ -640,7 +640,7 @@ def _accent_wedge(gray: Image.Image, component: Component) -> bool:
     quarter = max(1, component.width // 4)
     ordinates = [
         [y for x in range(start, stop) for y in range(top, bottom)
-         if pixels[x, y] < 160]
+         if cast(int, pixels[x, y]) < 160]
         for start, stop in ((left, left + quarter), (right - quarter, right))
     ]
     if not all(ordinates):

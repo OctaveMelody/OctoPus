@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from octopus.font_profile import regular_text_width
 from octopus.normalization.types import ScoreModel
 from octopus.render.core.elements import SvgElement
 from octopus.render.core.layout_types import LayoutPage
@@ -22,6 +23,14 @@ def _roman_number(number: int) -> str:
         count, number = divmod(number, value)
         parts.append(symbol * count)
     return "".join(parts)
+
+
+def _footer_x(x: float, anchor: str, page_width: int, text_width: float) -> float:
+    if anchor == "start":
+        return min(x, page_width - 12 - text_width)
+    if anchor == "end":
+        return max(x, 12 + text_width)
+    return x
 
 
 def render_page_body_elements(
@@ -57,7 +66,11 @@ def render_page_body_elements(
     metrics = layout.metrics
     if metrics.has_footer:
         font_size = 12
-        footer_style = (("font-family", "Arial"), ("font-size", str(font_size)), ("fill", "#1b1b1b"))
+        footer_style = (
+            ("font-family", metrics.lyric_font),
+            ("font-size", str(font_size)),
+            ("fill", "#1b1b1b"),
+        )
         y = metrics.height - 12
         positions = {
             "left": (max(12, metrics.margin_left), "start"),
@@ -66,20 +79,19 @@ def render_page_body_elements(
         }
         number_position = metrics.footer_page_number_position
         show_number = metrics.has_page_number
+        sources = model.page_config.get("_font_sources")
+        font_sources = sources if isinstance(sources, dict) else None
         if metrics.footer_credit and metrics.footer_credit_text:
             position = metrics.footer_credit_position
             if show_number and position == number_position:
                 position = "right" if number_position == "left" else "left"
             x, anchor = positions[position]
-            # Leave room for wide fallback glyphs even with extreme saved margins.
-            clearance = 12 + 2 * font_size * len(metrics.footer_credit_text)
-            if position == "left":
-                x = min(x, metrics.width - clearance)
-            elif position == "right":
-                x = max(x, clearance)
+            width = regular_text_width(
+                metrics.footer_credit_text, metrics.lyric_font, font_size, font_sources,
+            )
             elements.append(
                 text_element(
-                    x=x,
+                    x=_footer_x(x, anchor, metrics.width, width),
                     y=y - 16 if show_number else y,
                     text=metrics.footer_credit_text,
                     layer="footer",
@@ -94,9 +106,10 @@ def render_page_body_elements(
             if style in ("total", "roman_total"):
                 number += f"/{format_number(len(model.pages))}"
             x, anchor = positions[number_position]
+            width = regular_text_width(number, metrics.lyric_font, font_size, font_sources)
             elements.append(
                 text_element(
-                    x=x,
+                    x=_footer_x(x, anchor, metrics.width, width),
                     y=y,
                     text=number,
                     layer="footer",

@@ -19,7 +19,7 @@ _STANDALONE_DECORATIONS_RE = re.compile(
 )
 _EXTENSION_RE = re.compile(r"-+[!*<>+]*(?:&[A-Za-z]+)*$")
 _BLOCK_NAME_RE = re.compile(r"[A-Za-z]+")
-_TUPLET_START_RE = re.compile(r"\(y(?:([2-9]):)?")
+_TUPLET_START_RE = re.compile(r"\(y(?:([0-9]+):)?")
 _VALID_BARLINES = frozenset({"|", "||", "|:", ":|", ":|:", "|/", "|*", "||/"})
 _STRUCTURAL = frozenset('[]{}()"|:')
 _MODIFIER_CHARS = frozenset("<>+!~./^,")
@@ -77,8 +77,18 @@ class MusicLexer:
                 tuplet = _TUPLET_START_RE.match(self.body, start)
                 if tuplet:
                     self.index = tuplet.end()
-                    self._append(MusicTokenKind.TUPLET_START, start, self.index,
-                                 value=tuplet[1], attached=attached)
+                    count = tuplet[1]
+                    if count is not None and (len(count) != 1 or count not in "23456789"):
+                        token = self._append(
+                            MusicTokenKind.SPAN_START, start, self.index, attached=attached,
+                        )
+                        self._diagnose(
+                            "JPS107", "A numbered tuplet needs a count from 2 to 9",
+                            token.span, "Treated as an ordinary span with written durations",
+                        )
+                    else:
+                        self._append(MusicTokenKind.TUPLET_START, start, self.index,
+                                     value=count, attached=attached)
                 else:
                     self.index += 1
                     self._append(MusicTokenKind.SPAN_START, start, self.index, attached=attached)

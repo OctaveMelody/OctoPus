@@ -13,11 +13,14 @@ import sys
 from functools import cache, lru_cache
 from importlib.resources import files
 from pathlib import Path
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from octopus.assets import fonts as font_assets
 
 from .system_fonts import font_face, mac_font_assets, mac_font_roots
+
+if TYPE_CHECKING:
+    from PIL import ImageFont
 
 _SVG_TAG = re.compile(r"<(?:[^>\"']|\"[^\"]*\"|'[^']*')+>")
 _ATTRIBUTE = re.compile(r"([\w:-]+)(\s*=\s*)([\"'])(.*?)(\3)", re.DOTALL)
@@ -514,6 +517,49 @@ def font_coverage(include_system: bool = False) -> dict[str, frozenset[int]]:
                 if face is not None:
                     coverage[family] = face[2]
     return coverage
+
+
+@lru_cache(maxsize=32)
+def _regular_pillow_font(
+    family: str, size: int,
+) -> tuple[ImageFont.FreeTypeFont, frozenset[int]] | None:
+    from PIL import ImageFont  # Measure text only; core SVG rendering stays Pillow-free.
+
+    path = next(
+        (path for name, weight, style, path in bundled_fonts()
+         if (name, weight, style) == (family, "normal", "normal")),
+        None,
+    ) or system_font_path(family)
+    if path is not None:
+        face = font_face(path, family)
+        if face is not None:
+            try:
+                return ImageFont.truetype(str(path), size, index=face[0]), face[2]
+            except OSError:
+                pass
+    return None
+
+
+def regular_text_width(
+    text: str, family: str, size: int, sources: dict[str, str] | None = None,
+) -> float:
+    """Measure the ink and advance of short score text using the active families."""
+    resolved_family = release_family(family, sources)
+    map_role = family.casefold() in {*_FONT_ROLES, "heiti"}
+    primary = resolved_family if release_profile() or sources is not None or map_role else family
+    for candidate in (
+        primary, "Noto Sans SC", "Noto Serif SC", resolved_family,
+        *(name for name, _ in selected_system_fonts()),
+    ):
+        resolved = _regular_pillow_font(candidate, size)
+        if resolved is not None:
+            font, coverage = resolved
+            if all(char.isspace() or ord(char) in coverage for char in text):
+                left, _, right, _ = font.getbbox(text)
+                advance = font.getlength(text)
+                return advance + 2 * max(0, -left, right - advance)
+    # shortcut: allow two ems per character when the platform cannot expose the fallback face.
+    return float(2 * size * len(text))
 
 
 class RasterFontOptions(TypedDict, total=False):
