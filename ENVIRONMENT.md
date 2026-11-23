@@ -171,11 +171,15 @@ GitHub's `macos-26` runner and validates the mounted DMG's app bundle and resour
 Packages are currently unsigned and not notarized.
 
 For a Linux x86_64 AppImage, use
-`python3 scripts/build_portable.py --bundles appimage`. If linuxdeploy completes deployment but
-AppImage finalization cannot download its runtime, the builder uses the cached AppImage runtime
-and appimagetool. Deployment diagnostics are saved in `build/cargo/appimage-build.log`; other
-deployment failures stop the build. To retry only final
-packaging after such a failure, run
+`python3 scripts/build_portable.py --bundles appimage`. Tauri runs linuxdeploy to deploy the
+AppDir, then the builder finalizes the package itself from that deployed AppDir with the cached
+AppImage runtime and appimagetool, so the shipped launcher is always the staged one; a package
+Tauri finalized on its own is replaced rather than published. Staging checks the deployed AppDir,
+installs the working-directory handoff described below, and records the deployment identity in
+`build/cargo/release/bundle/appimage/.octopus-build.json`. Deployment diagnostics are saved in
+`build/cargo/appimage-build.log`; other deployment failures stop the build. To redo only the final
+packaging, for example after linuxdeploy completed deployment but its finalizer could not download
+the runtime, run
 `python3 scripts/build_portable.py --package-appimage-only` (include the same `--target` if the
 original build specified one). The resume command requires a verified complete deployment matching
 the current production commit; older unverified staging records require a full build. Use
@@ -183,6 +187,14 @@ the current production commit; older unverified staging records require a full b
 let Cargo reuse release compilation data; it uses more disk. The frozen worker's PyInstaller cache
 is retained under `build/pyinstaller-cache`; remove that directory to force a clean
 worker analysis after changing the build environment.
+
+The AppImage runtime changes the process working directory to the application directory, which is
+read-only while mounted, so the staged `AppRun` exports `OCTOPUS_INVOCATION_CWD` with the directory
+the user ran the package from before it execs the runtime. The headless CLI resolves a relative
+input, `--out`, `--out-dir` or `--issues` path against that directory when it is absolute, still
+exists, and differs from the process working directory; otherwise the working directory is used, so
+a missing or stale value cannot change behavior. The variable is read only by the headless command
+line, and only the Linux package sets it.
 
 Published files use `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}` with `x64` or `arm64` and
 `win64` or `linux`. Linux AppImages omit the purpose suffix, for example

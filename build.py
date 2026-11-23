@@ -178,6 +178,9 @@ def _package_appimage(app_dir: Path, package: Path, target_triple: str) -> Path:
         if not staged.is_file() or staged.stat().st_size == 0:
             raise RuntimeError(f"appimagetool did not create {staged}")
         os.replace(staged, package)
+    for superseded in package.parent.glob("*.AppImage"):
+        if superseded != package:
+            superseded.unlink()
     return package
 
 
@@ -213,7 +216,7 @@ def _package_staged_appimage(target: str | None) -> Path:
     identity_path = bundle_dir / ".octopus-build.json"
     if not identity_path.is_file():
         raise RuntimeError(
-            f"No failed AppImage build is staged at {bundle_dir}; run "
+            f"No staged AppImage deployment is available at {bundle_dir}; run "
             "build.py --bundles appimage first"
         )
     identity = json.loads(identity_path.read_text(encoding="utf-8"))
@@ -481,7 +484,7 @@ def main() -> None:
     parser.add_argument(
         "--package-appimage-only",
         action="store_true",
-        help="finalize an AppDir left by a failed AppImage build without recompiling",
+        help="finalize a deployed AppDir from a previous AppImage build without recompiling",
     )
     parser.add_argument(
         "--no-portable-zip",
@@ -634,30 +637,34 @@ def main() -> None:
     }
     if args.incremental:
         native_environment["CARGO_INCREMENTAL"] = "1"
-    appimage_fallback = platform.system() == "Linux" and requested_bundles == {"appimage"}
-    if appimage_fallback:
+    appimage_package = platform.system() == "Linux" and requested_bundles == {"appimage"}
+    _, app_dir, package, identity_path = _appimage_paths(args.target, version, target_triple)
+    if appimage_package:
         native_environment = _linux_appimage_environment(native_environment, target_triple)
         # Two verbose flags make Tauri retain linuxdeploy stderr, including the finalizer phase.
         command.extend(("--verbose", "--verbose"))
     try:
-        if appimage_fallback:
+        if appimage_package:
             _run_appimage_build(command, native_environment)
         else:
             subprocess.run(command, cwd=WEB, env=native_environment, check=True)
     except subprocess.CalledProcessError as error:
-        if not appimage_fallback:
+        if not appimage_package:
             raise
-        _, app_dir, package, identity_path = _appimage_paths(
-            args.target, version, target_triple
-        )
         if not app_dir.is_dir() or not _appimage_runtime_download_failed(error.output, app_dir):
             raise
-        _prepare_appimage_app_dir(app_dir)
-        _write_appimage_identity(identity_path, version, build_number, target_triple)
         print(
-            "Tauri AppImage finalization failed; using cached appimagetool and runtime.",
+            "Tauri AppImage finalization failed; packaging the deployed AppDir instead.",
             flush=True,
         )
+    if appimage_package:
+        # Finalize from the deployed AppDir rather than Tauri's own package so the shipped
+        # launcher is the staged one that publishes the caller's working directory. This re-runs
+        # mksquashfs and supersedes any package Tauri finalized itself.
+        if not app_dir.is_dir():
+            raise RuntimeError(f"Tauri created no AppImage deployment at {app_dir}")
+        _prepare_appimage_app_dir(app_dir)
+        _write_appimage_identity(identity_path, version, build_number, target_triple)
         _package_appimage(app_dir, package, target_triple)
 
     triple = target_triple

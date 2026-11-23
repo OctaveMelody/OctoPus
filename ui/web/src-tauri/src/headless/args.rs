@@ -3,6 +3,9 @@ use std::path::{Path, PathBuf};
 
 use super::CliFailure;
 
+/// Exported by the packaged Linux launcher with the directory it was started from.
+const INVOCATION_DIRECTORY_VARIABLE: &str = "OCTOPUS_INVOCATION_CWD";
+
 pub(super) struct CliOptions {
     pub(super) operands: Vec<String>,
     values: HashMap<String, String>,
@@ -162,19 +165,60 @@ pub(super) fn has_extension(path: &Path, expected: &str) -> bool {
 
 fn absolute_path(path: &Path) -> Result<PathBuf, CliFailure> {
     if path.is_absolute() {
-        Ok(path.to_path_buf())
+        return Ok(path.to_path_buf());
+    }
+    let working_directory = std::env::current_dir().map_err(|error| {
+        CliFailure::execution("working_directory_unavailable", error.to_string())
+    })?;
+    let base = relative_path_base(invocation_directory().as_deref(), &working_directory);
+    Ok(base.join(path))
+}
+
+/// Directory the application launcher was invoked from, when it published one.
+///
+/// The AppImage runtime moves the process working directory into the application directory
+/// before starting the executable, and that directory is read-only while mounted. The packaged
+/// launcher therefore exports the caller's directory so relative command-line paths keep meaning
+/// what the user typed.
+fn invocation_directory() -> Option<PathBuf> {
+    let value = std::env::var_os(INVOCATION_DIRECTORY_VARIABLE)?;
+    let directory = PathBuf::from(value);
+    if directory.is_absolute() && directory.is_dir() {
+        Some(directory)
     } else {
-        std::env::current_dir()
-            .map(|directory| directory.join(path))
-            .map_err(|error| {
-                CliFailure::execution("working_directory_unavailable", error.to_string())
-            })
+        None
+    }
+}
+
+fn relative_path_base(invocation: Option<&Path>, working_directory: &Path) -> PathBuf {
+    match invocation {
+        Some(directory) if directory != working_directory => directory.to_path_buf(),
+        _ => working_directory.to_path_buf(),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_options, resolve_output_path};
+    use std::path::{Path, PathBuf};
+
+    use super::{parse_options, relative_path_base, resolve_output_path};
+
+    #[test]
+    fn relative_paths_use_the_launchers_invocation_directory() {
+        let invocation = PathBuf::from("/home/user/scores");
+        let mounted = Path::new("/tmp/.mount_OctoPuabcdef");
+        assert_eq!(relative_path_base(Some(&invocation), mounted), invocation);
+    }
+
+    #[test]
+    fn relative_paths_keep_the_working_directory_without_a_usable_hint() {
+        let working = Path::new("/home/user/work");
+        assert_eq!(relative_path_base(None, working), working);
+        assert_eq!(
+            relative_path_base(Some(working), working),
+            working.to_path_buf()
+        );
+    }
 
     #[test]
     fn flags_and_unicode_option_values_are_preserved() {

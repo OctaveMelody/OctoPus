@@ -13,6 +13,13 @@ RUNTIME_ARCHES = {
     "armv7": "armhf",
 }
 
+# Published by the packaged launcher so the headless CLI can resolve relative paths against the
+# directory the user ran the AppImage from, before the AppImage runtime changes the working
+# directory to the (possibly read-only) application directory.
+INVOCATION_DIRECTORY_VARIABLE = "OCTOPUS_INVOCATION_CWD"
+INVOCATION_DIRECTORY_EXPORT = f'export {INVOCATION_DIRECTORY_VARIABLE}="${{PWD:-$(pwd)}}"'
+LINUXDEPLOY_EXEC = 'exec "$this_dir"/AppRun.wrapped "$@"'
+
 
 def paths(
     target: str | None,
@@ -30,6 +37,27 @@ def paths(
     package = bundle_dir / artifact_filename(version, target_triple, "Linux", None)
     identity = bundle_dir / ".octopus-build.json"
     return bundle_dir, app_dir, package, identity
+
+
+def preserve_invocation_directory(app_dir: Path) -> Path:
+    """Teach the deployed launcher to publish the directory it was started from.
+
+    linuxdeploy writes a shell AppRun that execs the AppImage runtime, and that runtime moves the
+    working directory into the AppDir before starting the application. The shell AppRun still runs
+    in the caller's directory, so the export is inserted immediately before it hands over.
+    """
+    launcher = app_dir / "AppRun"
+    text = launcher.read_text(encoding="utf-8")
+    if INVOCATION_DIRECTORY_EXPORT not in text:
+        if LINUXDEPLOY_EXEC not in text:
+            raise RuntimeError(
+                "The staged AppImage launcher does not use the expected linuxdeploy chain; "
+                "refusing to package it"
+            )
+        text = text.replace(LINUXDEPLOY_EXEC, f"{INVOCATION_DIRECTORY_EXPORT}\n{LINUXDEPLOY_EXEC}")
+        launcher.write_text(text, encoding="utf-8")
+    launcher.chmod(0o755)
+    return launcher
 
 
 def prepare_app_dir(app_dir: Path, find_executable: Callable[..., str | None]) -> None:
@@ -56,6 +84,7 @@ def prepare_app_dir(app_dir: Path, find_executable: Callable[..., str | None]) -
             "The staged AppImage directory is incomplete: "
             + ", ".join(path.relative_to(app_dir).as_posix() for path in missing)
         )
+    preserve_invocation_directory(app_dir)
     _check_font_assets(app_dir / "usr/lib/OctoPus/fonts")
     for helper in (
         "WebKitNetworkProcess",
