@@ -103,7 +103,7 @@ browser-DOM SVG export and tagged manual PDF generation; both require
 worker. The optional `quality` group provides the same Python checks as production CI:
 
 ```sh
-uv run --locked --group quality --extra transcription --extra pixel ruff check src ui/engine
+uv run --locked --group quality --extra transcription --extra pixel ruff check src ui/engine tools
 uv run --locked --group quality --extra transcription --extra pixel mypy src ui/engine
 ```
 

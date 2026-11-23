@@ -8,7 +8,6 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-
 ROOT = Path(__file__).resolve().parents[1]
 LANGUAGES = ("en", "zh-CN")
 
@@ -50,7 +49,8 @@ def render_pdf(source: Path, output: Path, language: str) -> None:
                 """() => {
                     for (const link of document.querySelectorAll('a[href]')) {
                         const href = link.getAttribute('href');
-                        if (!href.startsWith('#') && new URL(href, document.baseURI).protocol === 'file:') {
+                        if (!href.startsWith('#')
+                            && new URL(href, document.baseURI).protocol === 'file:') {
                             link.remove();
                         }
                     }

@@ -84,7 +84,7 @@ uv run --locked --extra transcription python -m ui.engine
 可选 `quality` 依赖组提供与生产仓库 CI 相同的 Python 检查：
 
 ```sh
-uv run --locked --group quality --extra transcription --extra pixel ruff check src ui/engine
+uv run --locked --group quality --extra transcription --extra pixel ruff check src ui/engine tools
 uv run --locked --group quality --extra transcription --extra pixel mypy src ui/engine
 ```
 
