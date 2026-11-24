@@ -201,8 +201,10 @@ def _appimage_source_digest() -> str:
         path = ROOT / os.fsdecode(name)
         digest.update(name + b"\0")
         if path.is_symlink():
+            if not path.is_file():
+                raise RuntimeError(f"AppImage source link {path} must resolve to a regular file")
             digest.update(b"link\0" + os.fsencode(os.readlink(path)) + b"\0")
-        elif path.exists():
+        if path.exists():
             digest.update(b"exec" if path.stat().st_mode & 0o111 else b"file")
             with path.open("rb") as source:
                 digest.update(hashlib.file_digest(source, "sha256").digest())

@@ -171,7 +171,9 @@ GitHub's `macos-26` runner and validates the mounted DMG's app bundle and resour
 Packages are currently unsigned and not notarized.
 
 Portable-only builds preserve staged installers. AppImage retries require the same tracked
-files and non-ignored local additions as the original deployment. Run a full AppImage build
+files and non-ignored local additions as the original deployment. Source symlinks must
+resolve to regular files. The fingerprint includes the link destination and the file contents
+and executable mode. Run a full AppImage build
 after changing those inputs or when retrying a deployment created before this check.
 
 For a Linux x86_64 AppImage, use
