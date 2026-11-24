@@ -28,6 +28,7 @@ from .glyphs import (
     match_page_digit,
     ocr_digit_has_page_conflict,
     page_digit_templates,
+    supported_digit_shapes,
 )
 from .marks import (
     has_parallel_duration_tiers,
@@ -1406,6 +1407,49 @@ def _recover_curve_fused_heads(
     return found
 
 
+def _anchored_row_characters(
+    readings: tuple[tuple[str, float, float], ...],
+    group: list[tuple[Component, DigitMatch]], height: int,
+) -> list[tuple[str, float, float]]:
+    characters: list[tuple[str, float, float]] = []
+    for item in sorted(readings, key=lambda item: item[2]):
+        if characters and item[2] - characters[-1][2] <= height * 0.2:
+            characters[-1] = max(characters[-1], item, key=lambda value: value[1])
+        else:
+            characters.append(item)
+    if sum(any(digit == match[0] and component.box[0] <= center <= component.box[2]
+               for digit, _, center in characters) for component, match in group) < 3:
+        return []
+    return characters
+
+
+def _needs_row_retry(
+    gray: Image.Image, component: Component, height: int,
+    characters: list[tuple[str, float, float]],
+) -> bool:
+    if component.width > height:
+        return True
+    owned = [(digit, score) for digit, score, center in characters
+             if component.box[0] <= center < component.box[2]]
+    # Rests can enter the row evidence below the normal digit confidence threshold.
+    if len(owned) > 1 or any(score < 0.9 for _, score in owned):
+        return True
+    if supported_digit_shapes(gray, component) != {digit for digit, _ in owned}:
+        return True
+    # Keep the second segmentation if a cut could produce two full-height digit pieces.
+    min_width = ceil(height * 0.2)
+    if component.width < 2 * min_width:
+        return False
+    ink = gray.crop(component.box).point(lambda value: 255 if value < 160 else 0)
+    min_height = height - max(3, height * 0.12)
+    for cut in range(min_width, component.width - min_width + 1):
+        left = ink.crop((0, 0, cut, ink.height)).getbbox()
+        right = ink.crop((cut, 0, ink.width, ink.height)).getbbox()
+        if left and right and min(left[3] - left[1], right[3] - right[1]) >= min_height:
+            return True
+    return False
+
+
 def _recover_row_digits(
     group: list[tuple[Component, DigitMatch]], components: list[Component],
     height: int, gray: Image.Image, claimed: set[Box],
@@ -1547,14 +1591,13 @@ def _recover_row_digits(
         return found
     top = min(component.box[1] for component, _ in group)
     bottom = max(component.box[3] for component, _ in group)
-    characters: list[tuple[str, float, float]] = []
-    for item in music_characters(gray, (0, top, gray.width, bottom)):
-        if characters and item[2] - characters[-1][2] <= height * 0.2:
-            characters[-1] = max(characters[-1], item, key=lambda value: value[1])
-        else:
-            characters.append(item)
-    if sum(any(digit == match[0] and component.box[0] <= center <= component.box[2]
-               for digit, _, center in characters) for component, match in group) < 3:
+    box = (0, top, gray.width, bottom)
+    first = music_characters(gray, box, (0.2,))
+    characters = _anchored_row_characters(first, group, height)
+    if any(_needs_row_retry(gray, c, height, characters) for c in unresolved):
+        second = music_characters(gray, box, (0.3,))
+        characters = _anchored_row_characters(first + second, group, height)
+    if not characters:
         return found
     for component in unresolved:
         left, upper, right, lower = component.box

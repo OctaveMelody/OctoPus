@@ -114,6 +114,11 @@ def digit_shape_similarity(gray: Image.Image, component: Component, digit: str) 
     return scores.get(digit, 0.0)
 
 
+def supported_digit_shapes(gray: Image.Image, component: Component) -> set[str]:
+    return {digit for digit, score in _digit_scores(gray, component).items()
+            if score >= MIN_DIGIT_VECTOR_SUPPORT}
+
+
 def tuplet_number_margin(gray: Image.Image, component: Component, count: int) -> float | None:
     """Return the numeral's lead over its closest rival if both thresholds pass."""
     scores = _digit_scores(gray, component, grace=True)

@@ -762,7 +762,9 @@ def image_digit(
     return None
 
 
-def music_characters(gray: Image.Image, box: Box) -> tuple[tuple[str, float, float], ...]:
+def music_characters(
+    gray: Image.Image, box: Box, padding_ratios: tuple[float, ...] = (0.2, 0.3),
+) -> tuple[tuple[str, float, float], ...]:
     """Read row characters with their own confidence and source-space horizontal center."""
     engine = _ocr_engine()
     if engine is None:
@@ -772,7 +774,7 @@ def music_characters(gray: Image.Image, box: Box) -> tuple[tuple[str, float, flo
     crop = gray.crop(box)
     found: list[tuple[str, float, float]] = []
     # Context padding changes CTC segmentation; corroborate each reading against glyph ink.
-    for ratio in (0.2, 0.3):
+    for ratio in padding_ratios:
         border = max(2, round(crop.height * ratio))
         padded = ImageOps.expand(crop, border=border, fill="white")
         padded = padded.resize((padded.width * 2, padded.height * 2), Image.Resampling.LANCZOS)
