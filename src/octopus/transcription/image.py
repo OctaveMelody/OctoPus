@@ -351,19 +351,28 @@ def _normalize_recognition_contrast(gray: Image.Image) -> Image.Image:
             - _percentile_bin(histogram, population, 0.5) > 28:
         return gray
 
-    dark_end = low + max(1, round(span * 0.2))
+    dark_radius = max(1, round(span * 0.2))
     middle_start = low + round(span * 0.25)
     middle_end = low + round(span * 0.75)
     background_start = high - max(16, round(span * 0.15))
-    dark_peak = max(histogram[low:dark_end + 1], default=0)
+    ink_bins = range(max(0, low - dark_radius), low + dark_radius + 1)
+    ink_mode = max(ink_bins, key=histogram.__getitem__)
+    dark_peak = histogram[ink_mode]
     middle = histogram[middle_start:middle_end + 1]
     middle_level = sum(middle) / max(1, len(middle))
     background_peak = max(histogram[background_start:high + 1], default=0)
     if (dark_peak < population * 0.001 or dark_peak < middle_level * 2
             or background_peak < population * 0.02):
         return gray
-    # A clear ink mode and a stable paper mode are required before linear stretching.
-    return ImageOps.autocontrast(gray, cutoff=0.5)
+    # The darkest ink peak can fall just below the percentile on sparse printed pages.
+    low = min(low, ink_mode)
+    # Map interior gray levels from the center of each quantization bin. Mapping the
+    # lower edge biases antialiased note boundaries toward ink after contrast compression.
+    scale = 255 / (high - low)
+    return gray.point([
+        0 if value <= low else 255 if value >= high else int((value - low + 0.5) * scale)
+        for value in range(256)
+    ])
 
 
 def _short_measure_bars(
