@@ -13,7 +13,7 @@ from typing import NamedTuple, cast
 from PIL import Image, ImageOps
 
 from .accompaniment import bracketed_row_centers, compact_accompaniment_owner
-from .components import Box, Component, connected_components
+from .components import Box, Component, connected_components, normalize_recognition_contrast
 from .decorations import attached_mordents, row_hairpins, symbol_decorations
 from .glyphs import (
     MAX_DIGIT_HEIGHT,
@@ -323,56 +323,6 @@ def _read_page(path: Path) -> Image.Image:
     white = Image.new("RGBA", oriented.size, "white")
     white.alpha_composite(oriented)
     return white.convert("L")
-
-
-def _percentile_bin(histogram: list[int], population: int, percentile: float) -> int:
-    target = population * percentile
-    running = 0
-    for value, count in enumerate(histogram):
-        running += count
-        if running >= target:
-            return value
-    return 255
-
-
-def _normalize_recognition_contrast(gray: Image.Image) -> Image.Image:
-    """Expand compressed print and paper levels when both form distinct modes."""
-    histogram = gray.histogram()
-    population = gray.width * gray.height
-    # Ignore sparse extrema, but skip weak spans and broad upper levels from gradients.
-    low = _percentile_bin(histogram, population, 0.005)
-    high = _percentile_bin(histogram, population, 0.995)
-    # Preserve pages with real black print and white paper; sparse specks still normalize.
-    if (sum(histogram[:2]) >= population * 0.001
-            and sum(histogram[254:]) >= population * 0.005):
-        return gray
-    span = high - low
-    if span < 48 or _percentile_bin(histogram, population, 0.99) \
-            - _percentile_bin(histogram, population, 0.5) > 28:
-        return gray
-
-    dark_radius = max(1, round(span * 0.2))
-    middle_start = low + round(span * 0.25)
-    middle_end = low + round(span * 0.75)
-    background_start = high - max(16, round(span * 0.15))
-    ink_bins = range(max(0, low - dark_radius), low + dark_radius + 1)
-    ink_mode = max(ink_bins, key=histogram.__getitem__)
-    dark_peak = histogram[ink_mode]
-    middle = histogram[middle_start:middle_end + 1]
-    middle_level = sum(middle) / max(1, len(middle))
-    background_peak = max(histogram[background_start:high + 1], default=0)
-    if (dark_peak < population * 0.001 or dark_peak < middle_level * 2
-            or background_peak < population * 0.02):
-        return gray
-    # The darkest ink peak can fall just below the percentile on sparse printed pages.
-    low = min(low, ink_mode)
-    # Map interior gray levels from the center of each quantization bin. Mapping the
-    # lower edge biases antialiased note boundaries toward ink after contrast compression.
-    scale = 255 / (high - low)
-    return gray.point([
-        0 if value <= low else 255 if value >= high else int((value - low + 0.5) * scale)
-        for value in range(256)
-    ])
 
 
 def _short_measure_bars(
@@ -1741,7 +1691,7 @@ def _compact_accompaniment_group(
 def _prepare_image(path: Path) -> _PreparedImage:
     """Read a page and prepare source-coordinate recognition components."""
     source_gray = _read_page(path)
-    recognition_gray = _normalize_recognition_contrast(source_gray)
+    recognition_gray = normalize_recognition_contrast(source_gray)
     excluded = _qr_regions(recognition_gray)
     components = _score_components(recognition_gray, excluded)
     source_components = components

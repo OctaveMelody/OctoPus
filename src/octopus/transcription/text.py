@@ -16,7 +16,7 @@ from xml.etree import ElementTree
 
 from PIL import Image, ImageOps
 
-from .components import Box, Component, connected_components
+from .components import Box, Component, connected_components, normalize_recognition_contrast
 from .marks import vertical_bend
 from .ocr_profiles import rapidocr_params
 from .session_artifacts import track_session_artifact
@@ -436,8 +436,11 @@ def image_lyric_text(
     white = Image.new("RGBA", oriented.size, "white")
     white.alpha_composite(oriented)
     rgb = white.convert("RGB")
-    dark = np.asarray(rgb.convert("L")) < 170
-    gray = rgb.convert("L")
+    source_gray = rgb.convert("L")
+    gray = normalize_recognition_contrast(source_gray)
+    if gray is not source_gray:
+        rgb = gray.convert("RGB")
+    dark = np.asarray(gray) < 170
     width, height = rgb.size
     margin = max(2, round(width * 0.02))
     spans: list[TextSpan] = []
