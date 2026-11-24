@@ -317,6 +317,39 @@ def _stable_handshake_result(result: object) -> object:
     return {key: value for key, value in result.items() if key != "ocr"}
 
 
+def _run_worker_requests(
+    executable: Path, requests: Sequence[dict[str, object]],
+) -> dict[str, dict[str, object]]:
+    input_text = "".join(json.dumps(item, allow_nan=False) + "\n" for item in requests)
+    try:
+        completed = subprocess.run(
+            [str(executable.resolve())], cwd=executable.parent, input=input_text,
+            text=True, capture_output=True, timeout=120, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise RuntimeError(f"could not run frozen engine {executable}: {error}") from error
+    if completed.returncode:
+        raise RuntimeError(
+            f"frozen engine exited {completed.returncode}: {completed.stderr[-4000:]}"
+        )
+    try:
+        responses = [json.loads(line) for line in completed.stdout.splitlines()]
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"frozen engine emitted invalid JSON: {error}") from error
+    return _index_smoke_responses(responses, requests)
+
+
+def check_worker_handshake(executable: Path) -> None:
+    request_id = "staged-worker-handshake"
+    request = _request(request_id, "handshake", 0, {})
+    response = _run_worker_requests(executable, [request])[request_id]
+    result = response.get("result")
+    operations = result.get("operations") if isinstance(result, dict) else None
+    if (response.get("status") != "ok" or not isinstance(operations, list)
+            or not all(op in operations for op in ("handshake", "render_page", "transcribe"))):
+        raise RuntimeError(f"invalid handshake from staged worker {executable}")
+
+
 def _smoke_test(
     bundle: Path,
     render_request: dict[str, object],
@@ -380,32 +413,9 @@ def _smoke_test_with_image(
             os.environ.pop("OCTOPUS_FONT_PROFILE", None)
         else:
             os.environ["OCTOPUS_FONT_PROFILE"] = previous_profile
-    input_text = (
-        "\n".join(
-            json.dumps(item, ensure_ascii=True, allow_nan=False)
-            for item in (handshake, render_request, *transcription_requests)
-        )
-        + "\n"
+    responses_by_id = _run_worker_requests(
+        executable, [handshake, render_request, *transcription_requests],
     )
-    completed = subprocess.run(
-        [str(executable)],
-        cwd=bundle,
-        input=input_text,
-        text=True,
-        capture_output=True,
-        timeout=120,
-        check=False,
-    )
-    if completed.returncode != 0:
-        raise RuntimeError(
-            f"frozen engine exited {completed.returncode}: {completed.stderr[-4000:]}"
-        )
-    try:
-        responses = [json.loads(line) for line in completed.stdout.splitlines()]
-    except json.JSONDecodeError as error:
-        raise RuntimeError(f"frozen engine emitted invalid JSON: {error}") from error
-    expected_requests = [handshake, render_request, *transcription_requests]
-    responses_by_id = _index_smoke_responses(responses, expected_requests)
     handshake_id = handshake["request_id"]
     render_id = render_request["request_id"]
     if not isinstance(handshake_id, str) or not isinstance(render_id, str):

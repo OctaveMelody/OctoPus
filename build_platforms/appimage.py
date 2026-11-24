@@ -61,7 +61,7 @@ def preserve_invocation_directory(app_dir: Path) -> Path:
 
 
 def prepare_app_dir(app_dir: Path, find_executable: Callable[..., str | None]) -> None:
-    from build_desktop_engine import _check_font_assets
+    from build_desktop_engine import _check_font_assets, check_worker_handshake
 
     required = (
         app_dir / "AppRun",
@@ -119,6 +119,8 @@ def prepare_app_dir(app_dir: Path, find_executable: Callable[..., str | None]) -
         icon_alias.symlink_to(icon_target)
     elif not icon_alias.is_file():
         raise RuntimeError(f"unexpected AppImage icon entry: {icon_alias}")
+
+    check_worker_handshake(app_dir / "usr/lib/OctoPus/engine/octopus-engine")
 
 
 def runtime_download_failed(output: object, app_dir: Path) -> bool:
