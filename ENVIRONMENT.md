@@ -170,6 +170,10 @@ performed on a native Apple Silicon host. The published package workflow runs th
 GitHub's `macos-26` runner and validates the mounted DMG's app bundle and resources before upload.
 Packages are currently unsigned and not notarized.
 
+Portable-only builds preserve staged installers. AppImage retries require the same tracked
+files and non-ignored local additions as the original deployment. Run a full AppImage build
+after changing those inputs or when retrying a deployment created before this check.
+
 For a Linux x86_64 AppImage, use
 `python3 scripts/build_portable.py --bundles appimage`. Tauri runs linuxdeploy to deploy the
 AppDir, then the builder finalizes the package itself from that deployed AppDir with the cached

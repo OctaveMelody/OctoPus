@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Iterator
 from dataclasses import asdict
+from functools import lru_cache
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
@@ -162,7 +163,8 @@ def _render_page(payload: dict[str, Any]) -> dict[str, Any]:
     page_index = payload["page_index"]
     if type(page_index) is not int or page_index < 0:
         raise ProtocolError("page_index must be a nonnegative integer")
-    model = _score_model(payload)
+    name, code, custom_code, config = _snapshot_fields(payload)
+    model = _preview_model(name, code, custom_code, json.dumps(config))
     if page_index >= len(model.pages):
         raise PageOutOfRangeError(len(model.pages))
     svg, layout = render_score_model_page_with_layout(model, page_index)
@@ -213,7 +215,7 @@ def _render_page(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _snapshot(payload: dict[str, Any]) -> JpsDocument:
+def _snapshot_fields(payload: dict[str, Any]) -> tuple[str, str, str, dict[str, Any]]:
     code = payload["code"]
     custom_code = payload.get("custom_code", "")
     name = _filename(payload.get("name", "Untitled.jps"))
@@ -222,8 +224,12 @@ def _snapshot(payload: dict[str, Any]) -> JpsDocument:
         raise ProtocolError("code and custom_code must be strings")
     if not isinstance(config, dict):
         raise ProtocolError("page_config must be an object")
+    return name, code, custom_code, config
+
+
+def _make_snapshot(name: str, code: str, custom_code: str, config: dict[str, Any]) -> JpsDocument:
     # The path is identity metadata only: the adapter never reads or writes score files.
-    source = JpsDocument(
+    return JpsDocument(
         path=Path(name),
         key=jps_key(name),
         code=code,
@@ -234,18 +240,22 @@ def _snapshot(payload: dict[str, Any]) -> JpsDocument:
         json_wrapped=False,
         encoding_repaired=False,
     )
-    return source
+
+
+@lru_cache(maxsize=1)
+def _preview_model(name: str, code: str, custom_code: str, page_config: str) -> ScoreModel:
+    return normalize_source(_make_snapshot(name, code, custom_code, json.loads(page_config)))
 
 
 def _score_model(payload: dict[str, Any]) -> ScoreModel:
-    source = _snapshot(payload)
+    source = _make_snapshot(*_snapshot_fields(payload))
     return normalize_source(source)
 
 
 def _parse(payload: dict[str, Any]) -> dict[str, Any]:
     if set(payload) - {"name", "code", "custom_code", "page_config"} or "code" not in payload:
         raise ProtocolError("parse requires code; allowed options: name, custom_code, page_config")
-    source = _snapshot(payload)
+    source = _make_snapshot(*_snapshot_fields(payload))
     document = parse_document(source)
     music_lines = [line for line in document.lines if isinstance(line, MusicLine)]
     return {

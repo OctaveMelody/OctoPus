@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -97,6 +98,13 @@ def _validate_macos_dmg(package: Path, product_name: str, identifier: str) -> No
     macos.validate_dmg(package, product_name, identifier)
 
 
+def _publish_installer(package: Path, destination: Path) -> None:
+    with tempfile.TemporaryDirectory(dir=destination.parent, prefix=".installer-") as staging:
+        staged = Path(staging) / destination.name
+        shutil.copy2(package, staged)
+        os.replace(staged, destination)
+
+
 def _create_portable_zip(source: Path, destination: Path) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -184,8 +192,28 @@ def _package_appimage(app_dir: Path, package: Path, target_triple: str) -> Path:
     return package
 
 
+def _appimage_source_digest() -> str:
+    """Hash the checkout used by the build, including local source additions."""
+    paths = subprocess.check_output(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=ROOT,
+    )
+    digest = hashlib.sha256()
+    for name in sorted(set(paths.split(b"\0")) - {b""}):
+        path = ROOT / os.fsdecode(name)
+        digest.update(name + b"\0")
+        if path.is_symlink():
+            digest.update(b"link\0" + os.fsencode(os.readlink(path)) + b"\0")
+        elif path.exists():
+            digest.update(b"exec" if path.stat().st_mode & 0o111 else b"file")
+            with path.open("rb") as source:
+                digest.update(hashlib.file_digest(source, "sha256").digest())
+        else:
+            digest.update(b"missing")
+    return digest.hexdigest()
+
+
 def _write_appimage_identity(
-    identity_path: Path, version: str, build_number: str, target_triple: str
+    identity_path: Path, version: str, build_number: str, target_triple: str, source_digest: str,
 ) -> None:
     commit = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
@@ -198,6 +226,7 @@ def _write_appimage_identity(
                 "commit": commit,
                 "target": target_triple,
                 "deployment_complete": True,
+                "source_digest": source_digest,
             },
             indent=2,
         )
@@ -234,6 +263,8 @@ def _package_staged_appimage(target: str | None) -> Path:
         or identity.get("target") != "x86_64-unknown-linux-gnu"
     ):
         raise RuntimeError("The staged AppImage belongs to a different production revision")
+    if identity.get("source_digest") != _appimage_source_digest():
+        raise RuntimeError("Staged AppImage differs from current source inputs; run a full build")
     _, app_dir, package, _ = _appimage_paths(target, version, identity["target"])
     destination = ROOT / "dist" / identity["target"] / package.name
     return _package_appimage(app_dir, destination, identity["target"])
@@ -553,6 +584,9 @@ def main() -> None:
         parser.error(str(error))
     version, build_number, build_commit = build_metadata()
 
+    appimage_package = platform.system() == "Linux" and requested_bundles == {"appimage"}
+    source_digest = _appimage_source_digest() if appimage_package else ""
+
     if not (WEB / "node_modules").is_dir():
         subprocess.run(
             [tools["npm"], "ci", "--no-audit", "--no-fund"],
@@ -626,7 +660,7 @@ def main() -> None:
         command.extend(("--target", args.target))
     # A renamed product must not accidentally republish a stale installer.
     bundle_output = BUILD / (args.target or "") / "release/bundle"
-    if bundle_output.exists():
+    if requested_bundles and bundle_output.exists():
         shutil.rmtree(bundle_output)
     print("==> Compiling the native desktop application", flush=True)
     native_environment = {
@@ -637,7 +671,6 @@ def main() -> None:
     }
     if args.incremental:
         native_environment["CARGO_INCREMENTAL"] = "1"
-    appimage_package = platform.system() == "Linux" and requested_bundles == {"appimage"}
     _, app_dir, package, identity_path = _appimage_paths(args.target, version, target_triple)
     if appimage_package:
         native_environment = _linux_appimage_environment(native_environment, target_triple)
@@ -664,7 +697,9 @@ def main() -> None:
         if not app_dir.is_dir():
             raise RuntimeError(f"Tauri created no AppImage deployment at {app_dir}")
         _prepare_appimage_app_dir(app_dir)
-        _write_appimage_identity(identity_path, version, build_number, target_triple)
+        if _appimage_source_digest() != source_digest:
+            raise RuntimeError("Source inputs changed during AppImage deployment; run a full build")
+        _write_appimage_identity(identity_path, version, build_number, target_triple, source_digest)
         _package_appimage(app_dir, package, target_triple)
 
     triple = target_triple
@@ -676,7 +711,7 @@ def main() -> None:
         path for kind in bundles.iterdir() if kind.is_dir()
         for path in kind.iterdir()
         if path.is_file() and path.suffix.lower() in PACKAGE_SUFFIXES
-    ] if bundles.is_dir() else []
+    ] if requested_bundles and bundles.is_dir() else []
     if args.bundles and not packages:
         raise RuntimeError(f"Tauri created no installation packages under {bundles}")
     destination = ROOT / "dist" / triple
@@ -704,7 +739,7 @@ def main() -> None:
         if canonical_package != package:
             os.replace(package, canonical_package)
         copied = destination / canonical_name
-        shutil.copy2(canonical_package, copied)
+        _publish_installer(canonical_package, copied)
         print(copied)
     print(f"Version: {version}, Build: {build_number}, Commit: {build_commit}")
     portable_archive_name = (

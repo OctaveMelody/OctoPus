@@ -5,9 +5,11 @@ from __future__ import annotations
 from ....parser.ast import MusicTokenKind
 from ...core.layout_types import LayoutEvent, LayoutMark
 from ...core.layout_widths import event_duration_weight
+from ...core.source_timing import duration_fraction
 from ..beat_grid_engine.analysis import analyze_line_with_lyric_text
 from ..beat_grid_engine.lyrics import lyric_overflow
 from ..beat_grid_engine.natural import compression_scale, natural_layout
+from ..visibility import is_synthetic_hidden_rest_placeholder
 
 # REF-derived cumulative x offsets for the catalog-grace template rows: the engraver
 # stamps these fixed-note-count grace brackets (the "qy" catalog pages) at fixed column
@@ -96,7 +98,7 @@ def project_short_plain_rows(
     for group in groups:
         if not group:
             continue
-        if any(not _plain_row(row) for row in group):
+        if any(not _plain_row(row, multi_voice=multi_voice) for row in group):
             continue
         analyzed = []
         for row in group:
@@ -107,6 +109,16 @@ def project_short_plain_rows(
                 for key, verses in texts.items()
             }
             analyzed.append(analyze_line_with_lyric_text([item.event for item in row], last_wide))
+        # Written hidden rests reserve shared grid columns even when voices enter late.
+        # Otherwise unequal measure durations retain the barlines of the per-voice layout.
+        if multi_voice and not any(
+            item.event.kind == MusicTokenKind.HIDDEN_REST for row in group for item in row
+        ) and len({
+            tuple(sum(duration_fraction(event) for beat in measure for event, _ in beat)
+                  for measure in line)
+            for line in analyzed
+        }) > 1:
+            continue
         grid = natural_layout(analyzed)
         bar_counts = [
             sum(item.event.kind == MusicTokenKind.BARLINE for item in row) for row in group
@@ -177,7 +189,7 @@ def project_short_plain_rows(
                 bar_index += is_bar
 
 
-def _plain_row(row: list[LayoutEvent]) -> bool:
+def _plain_row(row: list[LayoutEvent], *, multi_voice: bool) -> bool:
     return not (
         row[0].event.kind not in {
             MusicTokenKind.NOTE, MusicTokenKind.REST, MusicTokenKind.RHYTHM_NOTE,
@@ -189,7 +201,8 @@ def _plain_row(row: list[LayoutEvent]) -> bool:
                 MusicTokenKind.NOTE, MusicTokenKind.REST, MusicTokenKind.RHYTHM_NOTE,
                 MusicTokenKind.HIDDEN_REST, MusicTokenKind.BARLINE,
             }
-            or item.block is not None
+            or (item.block is not None and not (multi_voice and item.block == "bz-tail"))
+            or is_synthetic_hidden_rest_placeholder(item.event)
             or item.event.duration_slashes or item.event.accidental
             or any(
                 "decoration" not in role and ":slur:" not in role

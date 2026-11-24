@@ -122,6 +122,9 @@ Rust/Cargo、Tauri CLI 和系统依赖。它先构建前端与引擎，再调用
 目标架构必须与运行 Python 的主机一致，不支持引擎交叉编译。macOS 桌面包仅支持 Apple Silicon，要求
 macOS 26.0 或更高版本，并由 GitHub Actions 的 `macos-26` 工作流构建。
 
+仅构建便携版会保留暂存的安装包。重试 AppImage 打包时，Git 跟踪的文件和未被忽略的新增文件都须与部署时一致。
+更改这些文件后，或使用旧版构建器留下的暂存目录时，请重新完整构建 AppImage。
+
 Linux x86_64 AppImage 使用
 `python3 scripts/build_portable.py --bundles appimage`。linuxdeploy 完成部署后，如果 AppImage
 打包阶段无法下载 runtime，构建器会使用缓存的 runtime 和 appimagetool。部署诊断保存在
