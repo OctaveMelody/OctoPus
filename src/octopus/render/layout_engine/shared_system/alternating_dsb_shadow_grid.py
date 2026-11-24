@@ -150,75 +150,8 @@ def build_alternating_dual_verse_trailing_dsb_shadow_grid(
     ):
         return None
 
-    visible_rows = tuple(
-        SharedGridRow(
-            row[0].voice,
-            tuple(item.event for item in row),
-            filtered_lyrics.get(row[0].voice, {}),
-        )
-        for row in rows
-    )
-    shadow_voice = max(row.voice_index for row in visible_rows) + 1
-    shadow = SharedGridRow(
-        shadow_voice,
-        tuple(item.event for item in owner_row[: anchor_index + 1])
-        + tuple(item.event for item in hidden_group),
-        filtered_lyrics.get(voice, {}),
-    )
-    projection = project_shared_grid((*visible_rows, shadow))
-    if not projection.barline_x_offsets:
-        return None
-
-    anchor_ordinals = {anchor_ordinal}
-    close_ordinals: set[int] = set()
-    visible_event_adjustments: dict[GridEventKey, Fraction] = {}
-    for grid_row, row in zip(visible_rows, rows, strict=True):
-        barline_ordinal = -1
-        for item in row:
-            if item.event.kind == MusicTokenKind.BARLINE:
-                barline_ordinal += 1
-                continue
-            key = GridEventKey.for_event(item.event, grid_row.voice_index)
-            visible_event_adjustments[key] = _boundary_adjustment(
-                barline_ordinal,
-                after_current_barline=True,
-                anchor_ordinals=anchor_ordinals,
-                close_ordinals=close_ordinals,
-            )
-    barline_adjustments = tuple(
-        _boundary_adjustment(
-            ordinal,
-            after_current_barline=False,
-            anchor_ordinals=anchor_ordinals,
-            close_ordinals=close_ordinals,
-        )
-        for ordinal in range(len(projection.barline_x_offsets))
-    )
-    hidden_event_offsets = _hidden_offsets(
-        [(shadow, (voice, line), hidden_group)],
-        projection=projection,
-        anchor_ordinals=anchor_ordinals,
-        close_ordinals=close_ordinals,
-        visible_accidental_offsets=frozenset(
-            offset
-            for row in visible_rows
-            for event in row.events
-            if event.accidental is not None
-            for offset in (
-                projection.event_x_offsets.get(
-                    GridEventKey.for_event(event, row.voice_index)
-                ),
-            )
-            if offset is not None
-        ),
-    )
-    return DsbShadowGridProjection(
-        projection=projection,
-        visible_event_adjustments=MappingProxyType(visible_event_adjustments),
-        barline_adjustments=barline_adjustments,
-        hidden_event_offsets=MappingProxyType(hidden_event_offsets),
-        total_reserve=DSB_BOUNDARY_RESERVE,
-        hidden_event_right_pins=frozenset({(voice, line, hidden_group[-1].event.index)}),
+    return _project_trailing_shadow(
+        rows, owner_row, hidden_group, filtered_lyrics, voice, line, anchor_index, anchor_ordinal,
     )
 
 
@@ -337,6 +270,21 @@ def build_four_row_six_measure_trailing_dsb_shadow_grid(
         for voice, text_by_event in lyric_text_by_voice.items()
         if voice in row_voices
     }
+    return _project_trailing_shadow(
+        rows, owner_row, hidden_group, filtered_lyrics, voice, line, anchor_index, anchor_ordinal,
+    )
+
+
+def _project_trailing_shadow(
+    rows: list[list[LayoutEvent]],
+    owner_row: list[LayoutEvent],
+    hidden_group: tuple[LayoutEvent, ...],
+    filtered_lyrics: LyricTextByVoice,
+    voice: int,
+    line: int,
+    anchor_index: int,
+    anchor_ordinal: int,
+) -> DsbShadowGridProjection | None:
     visible_rows = tuple(
         SharedGridRow(
             row[0].voice,
