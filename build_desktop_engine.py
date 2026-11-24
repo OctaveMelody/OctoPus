@@ -16,8 +16,9 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
-from build_support import publish_directory
 from PIL import Image, ImageDraw
+
+from build_support import publish_directory
 
 ROOT = Path(__file__).resolve().parent
 TARGET_DIR = ROOT / "build"
@@ -202,6 +203,12 @@ def _prune_non_onnx_rapidocr_backends(bundle: Path) -> None:
         raise RuntimeError("frozen RapidOCR worker contains a non-ONNX inference backend")
 
 
+def _bundled_ocr_model_dir(bundle: Path) -> Path:
+    internal = bundle / "_internal"
+    package_root = internal if internal.is_dir() else bundle
+    return package_root / "octopus" / "assets" / "ocr_models"
+
+
 def _stage_ocr_models(
     bundle: Path,
     *,
@@ -219,9 +226,7 @@ def _stage_ocr_models(
         ) from error
     selected_files = {path.name for path in ocr_model_paths(model_dir).values()}
     verified = {name: all_models[name] for name in sorted(selected_files)}
-    internal = bundle / "_internal"
-    package_root = internal if internal.is_dir() else bundle
-    target = package_root / "octopus" / "assets" / "ocr_models"
+    target = _bundled_ocr_model_dir(bundle)
     target.mkdir(parents=True, exist_ok=True)
 
     for path in bundle.rglob("*.onnx"):
@@ -235,8 +240,7 @@ def _stage_ocr_models(
 
     packaged = verify_ocr_assets(target)
     found = {path.relative_to(bundle).as_posix() for path in bundle.rglob("*.onnx")}
-    expected = {f"_internal/octopus/assets/ocr_models/{name}" if internal.is_dir()
-                else f"octopus/assets/ocr_models/{name}" for name in verified}
+    expected = {(target / name).relative_to(bundle).as_posix() for name in verified}
     if found != expected or packaged != verified:
         raise RuntimeError("frozen worker does not contain exactly the selected OCR models")
     if any(not (target / filename).is_file() for filename in ("LICENSE", "NOTICE.md")):
@@ -340,6 +344,7 @@ def _run_worker_requests(
 
 
 def check_worker_handshake(executable: Path) -> None:
+    """Require a responsive staged worker and an intact bundled OCR inventory."""
     request_id = "staged-worker-handshake"
     request = _request(request_id, "handshake", 0, {})
     response = _run_worker_requests(executable, [request])[request_id]
@@ -348,6 +353,7 @@ def check_worker_handshake(executable: Path) -> None:
     if (response.get("status") != "ok" or not isinstance(operations, list)
             or not all(op in operations for op in ("handshake", "render_page", "transcribe"))):
         raise RuntimeError(f"invalid handshake from staged worker {executable}")
+    verify_ocr_assets(_bundled_ocr_model_dir(executable.parent))
 
 
 def _smoke_test(
