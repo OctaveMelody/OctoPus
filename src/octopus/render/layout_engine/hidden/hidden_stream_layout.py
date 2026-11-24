@@ -5,7 +5,7 @@ from __future__ import annotations
 from fractions import Fraction
 from math import fsum
 
-from octopus.normalization.types import MusicEvent, SemanticConstruct
+from octopus.normalization.types import MusicEvent, SemanticConstruct, SystemModel
 from octopus.parser.ast import MusicTokenKind
 from octopus.render.core.layout_types import LayoutEvent, PageMetrics
 from octopus.render.core.layout_widths import NOTE_WIDTH, event_duration_weight
@@ -18,6 +18,7 @@ from octopus.render.layout_engine.rows.row_projection import (
     split_row_into_measures as _split_row_into_measures,
 )
 from octopus.render.layout_engine.spacing.system_spacing import DSB_INCOMING_CLEARANCE
+from octopus.render.layout_engine.streams import dsb_stream_beat_unit
 from octopus.render.layout_engine.streams import (
     duration_bucket as _duration_bucket,
 )
@@ -244,6 +245,55 @@ def _measure_aligned_hidden_dsb_events(
         target_slot_by_beat_bucket=_target_slot_by_beat_bucket,
         duration_bucket=_duration_bucket,
     )
+
+
+def reproject_dsb_at_generated_row_ends(
+    system: SystemModel,
+    laid_out: list[LayoutEvent],
+    hidden_events: list[LayoutEvent],
+    metrics: PageMetrics,
+) -> None:
+    """Reproject overlays when plain-row layout moves their generated barline."""
+    if not hidden_events:
+        return
+    tails = {
+        (item.voice, item.line, item.slot): item
+        for item in laid_out
+        if item.event.kind == MusicTokenKind.BARLINE and item.event.index < 0
+        and item.block is None and item.projection_kind == "ordinary"
+    }
+    if not tails:
+        return
+    by_voice: dict[int, dict[int, LayoutEvent]] = {}
+    affected: dict[int, set[int]] = {}
+    for item in hidden_events:
+        if item.block != "dsb-hidden":
+            continue
+        by_voice.setdefault(item.voice, {})[item.event.index] = item
+        if item.event.kind != MusicTokenKind.BARLINE or item.stream_slot is None:
+            continue
+        tail = tails.get((item.voice, item.line, item.stream_slot))
+        if tail is not None and item.x != tail.x:
+            affected.setdefault(item.voice, set()).add(item.event.index)
+    for voice_index, barlines in affected.items():
+        existing = by_voice[voice_index]
+        visible = [item for item in laid_out if item.voice == voice_index]
+        for construct in system.voices[voice_index].constructs:
+            if (
+                construct.kind != "block" or construct.value not in {None, "dsb"}
+                or barlines.isdisjoint(construct.event_indices)
+            ):
+                continue
+            items = [existing[index] for index in construct.event_indices if index in existing]
+            lines = {item.line for item in items if item.event.index in barlines}
+            projected = _measure_aligned_hidden_dsb_events(
+                construct, [item.event for item in items], visible,
+                page_index=items[0].page_index, voice=voice_index,
+                beat_unit=dsb_stream_beat_unit(metrics.time_sig), metrics=metrics,
+            )
+            for item in projected:
+                if item.line in lines and (original := existing.get(item.event.index)) is not None:
+                    original.x = item.x
 
 
 def _justify_hidden_measure(

@@ -580,7 +580,7 @@ def main() -> None:
         raise RuntimeError(f"Frontend build did not produce {frontend_entry}")
     from build_desktop_engine import _check_no_application_font_assets
 
-    _check_no_application_font_assets(BUILD / "frontend")
+    _check_no_application_font_assets(frontend_entry.parent)
 
     engine_environment = {
         **environment,

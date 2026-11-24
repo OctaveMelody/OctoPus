@@ -47,6 +47,7 @@ def _normalize_music_token_stream(
     tuplet_multipliers = _tuplet_multipliers(tokens)
     duration_overrides = _flat_tuplet_duration_overrides(tokens)
     opener_map = _precompute_openers(tokens)
+    bz_barlines: set[int] | None = None
     for token_index, token in enumerate(tokens):
         if token.kind == MusicTokenKind.IGNORED_TEXT:
             continue
@@ -59,7 +60,12 @@ def _normalize_music_token_stream(
             and events[-1].code == "|"
         ):
             second_code = _rendered_code(tokens, token_index)
-            if second_code in {"|", "|s", "|z"}:
+            if second_code == "|" and bz_barlines is None:
+                bz_barlines = _bz_measure_barlines(tokens)
+            if second_code in {"|s", "|z"} or (
+                bz_barlines is not None and second_code == "|"
+                and token_index not in bz_barlines and token_index - 1 not in bz_barlines
+            ):
                 previous = events[-1]
                 combined_code = "|j" + second_code[1:]
                 events[-1] = replace(
@@ -84,6 +90,46 @@ def _normalize_music_token_stream(
     constructs = resolve_visual_chain_endpoints(events, constructs)
     events = attach_grace_reservations(events)
     return _annotate_construct_roles(events, constructs), constructs
+
+
+def _bz_measure_barlines(tokens: tuple[MusicToken, ...]) -> set[int]:
+    """Keep plain barlines distinct where each one delimits a BZ measure."""
+    boundaries: set[int] = set()
+    depth = 0
+    bz_depth: int | None = None
+    hidden_measures = 0
+    open_measure = False
+    has_music = False
+    host_measures = 0
+    for index, token in enumerate(tokens):
+        if token.kind == MusicTokenKind.BLOCK_START:
+            depth += 1
+            if token.value == "bz" and bz_depth is None:
+                bz_depth = depth
+                hidden_measures = 0
+                open_measure = False
+                has_music = False
+        elif token.kind == MusicTokenKind.BLOCK_END and depth:
+            if depth == bz_depth:
+                if has_music:
+                    host_measures = max(host_measures, hidden_measures + int(open_measure))
+                bz_depth = None
+            depth -= 1
+        elif token.kind == MusicTokenKind.BARLINE:
+            if bz_depth is not None:
+                boundaries.add(index)
+                hidden_measures += 1
+                open_measure = False
+            elif depth == 0 and host_measures:
+                boundaries.add(index)
+                host_measures -= 1
+        elif bz_depth is not None and token.kind in {
+            MusicTokenKind.NOTE, MusicTokenKind.REST, MusicTokenKind.HIDDEN_REST,
+            MusicTokenKind.RHYTHM_NOTE, MusicTokenKind.EXTENSION,
+        }:
+            open_measure = True
+            has_music = True
+    return boundaries
 
 
 def _normalize_music_token(

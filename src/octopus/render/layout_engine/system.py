@@ -14,6 +14,9 @@ from octopus.render.layout_engine.group_projection import (
     _register_shared_projection_plan,
 )
 from octopus.render.layout_engine.hidden.bz_layout import reproject_bz_events
+from octopus.render.layout_engine.hidden.hidden_stream_layout import (
+    reproject_dsb_at_generated_row_ends,
+)
 from octopus.render.layout_engine.hidden.leading_dsb import reproject_leading_dsb_events
 from octopus.render.layout_engine.legacy_cell_projection import (
     reproject_legacy_cell_rows,
@@ -242,6 +245,7 @@ def _layout_system(
                 multi_voice=True, lyric_text_by_voice=grid_lyric_text_by_voice,
             )
     reproject_leading_dsb_events(system, system_layout_events, system_hidden_events)
+    reproject_dsb_at_generated_row_ends(system, system_layout_events, system_hidden_events, metrics)
     reproject_bz_events(
         system, system_layout_events, layout.hidden_events[hidden_event_start:],
         page_index=page_index, metrics=metrics,
