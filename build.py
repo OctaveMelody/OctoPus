@@ -167,7 +167,6 @@ def _cached_appimage_tooling(target_triple: str) -> tuple[Path, Path]:
 
 
 def _package_appimage(app_dir: Path, package: Path, target_triple: str) -> Path:
-    _prepare_appimage_app_dir(app_dir)
     appimagetool, runtime = _cached_appimage_tooling(target_triple)
     package.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".appimage-package-", dir=package.parent) as work:
@@ -267,6 +266,7 @@ def _package_staged_appimage(target: str | None) -> Path:
         raise RuntimeError("Staged AppImage differs from current source inputs; run a full build")
     _, app_dir, package, _ = _appimage_paths(target, version, identity["target"])
     destination = ROOT / "dist" / identity["target"] / package.name
+    _prepare_appimage_app_dir(app_dir)
     return _package_appimage(app_dir, destination, identity["target"])
 
 

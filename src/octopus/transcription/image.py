@@ -1929,7 +1929,6 @@ def _recognize_working_rows(
             main.extend(recovered)
             candidates.extend(recovered)
     main_groups = _groups(main, digit_height)
-    candidate_rows = []
     row_records: list[tuple[list[tuple[Component, DigitMatch]], MusicRow, bool]] = []
     for group in main_groups:
         group.sort(key=lambda pair: pair[0].box[0])
@@ -1940,7 +1939,6 @@ def _recognize_working_rows(
             short_bars=classification.short_bars,
             shared_beams=shared_beams,
         )
-        candidate_rows.append(row)
         sustained_row = len(row.barlines) >= 2 and len(row_sustains(
             tuple(note.box for note in row.notes), row.unresolved_marks,
         )) >= 3
@@ -2011,7 +2009,6 @@ def _recognize_working_rows(
             shared_beams=shared_beams,
         )
         accepted[index] = row
-        candidate_rows[index] = row
 
     rows = [accepted[index] for index in sorted(accepted)]
     row_boxes = tuple(row.box for row in rows)
@@ -2021,7 +2018,8 @@ def _recognize_working_rows(
     )
     compact_overlays = []
     converted_rows: set[int] = set()
-    for candidate in candidate_rows:
+    for index, (group, original_row, _) in enumerate(row_records):
+        candidate = accepted.get(index, original_row)
         if sum(note.duration_slashes > 0 for note in candidate.notes) < len(candidate.notes) * 0.6:
             continue
         owner = compact_accompaniment_owner(
@@ -2031,8 +2029,6 @@ def _recognize_working_rows(
         )
         if owner is not None:
             converted_rows.add(id(candidate))
-            group = next(group for group, row in zip(main_groups, candidate_rows, strict=True)
-                         if row is candidate)
             recovered = _recover_row_digits(
                 group, components, digit_height, gray, known_boxes, templates,
                 antialiased_templates, barlines=candidate.barlines,
