@@ -416,14 +416,42 @@ def image_score_direction_text(
     return tuple(spans)
 
 
+def _only_intervoice_rules(
+    parts: list[Component], gap_height: int, top: int, bottom: int, note_height: int,
+) -> bool:
+    """Check a lyric crop against connected ink in the complete inter-voice gap."""
+    crosses_gap = False
+    isolated_dot = False
+    for part in parts:
+        if part.box[1] >= bottom or part.box[3] <= top:
+            continue
+        touches_top = part.box[1] == 0
+        touches_bottom = part.box[3] == gap_height
+        if ((touches_top or touches_bottom) and part.width <= note_height * 0.5
+                and (part.height >= 3 * part.width or part.width <= 2)):
+            crosses_gap |= touches_top and touches_bottom
+            continue
+        if (part.width >= 1.8 * note_height and part.height <= note_height * 0.75
+                and part.area <= max(2, round(note_height * 0.15)) * part.width):
+            continue  # Thin beam spanning multiple note positions.
+        if (not isolated_dot and max(part.width, part.height) <= note_height * 0.25
+                and part.area >= part.width * part.height * 0.5):
+            isolated_dot = True
+            continue
+        return False
+    return crosses_gap
+
+
 def image_lyric_text(
     path: Path, rows: tuple[Box, ...], *, small_page: bool, recover_sparse: bool = False,
     row_indices: frozenset[int] | None = None,
+    intervoice_gaps: frozenset[int] = frozenset(),
 ) -> tuple[TextSpan, ...] | None:
     """Read separate lyric baselines when whole-page OCR merges them.
 
     `row_indices` restricts the read to those music rows (and the lyric band under each);
     callers that only need one system pass it because each selected row costs its own OCR call.
+    `intervoice_gaps` identifies upper rows of grouped voices with no page text in the gap.
     """
     engine = _ocr_engine()
     if engine is None:
@@ -484,6 +512,15 @@ def image_lyric_text(
                                     < note_height * 2.5):
                     baseline_ranges = [band for band in baseline_ranges if band not in overlaps]
                     baseline_ranges.append((low, high))
+        gap_parts = []
+        gap_top = row[3] - 1
+        gap_height = 0
+        if baseline_ranges and index in intervoice_gaps and index + 1 < len(rows):
+            gap_height = rows[index + 1][1] + 1 - gap_top
+            if 2 < gap_height <= 2 + 2.5 * note_height:
+                gap_parts = connected_components(gray.crop(
+                    (margin, gap_top, width - margin, gap_top + gap_height),
+                ), threshold=170)
         baseline_ranges.sort()
         row_start = len(spans)
         for low, high in baseline_ranges:
@@ -494,6 +531,10 @@ def image_lyric_text(
                 padding = max(padding, round(note_height * 0.3))
             crop_top = max(0, low - padding)
             crop_bottom = min(height, high + padding)
+            if gap_parts and _only_intervoice_rules(
+                gap_parts, gap_height, crop_top - gap_top, crop_bottom - gap_top, note_height,
+            ):
+                continue
             glyph_parts = [part for part in connected_components(
                 gray.crop((margin, crop_top, width - margin, crop_bottom)),
             ) if part.height >= note_height * 0.5

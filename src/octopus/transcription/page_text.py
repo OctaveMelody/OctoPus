@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from itertools import pairwise
 from pathlib import Path
 from statistics import median
 from typing import cast
@@ -614,9 +615,26 @@ def _lyric_recovery(
                 return _LyricRecovery(spans, note_height, None)
         elif not merged_lyrics and not crop_has_lyric_reading:
             return _LyricRecovery(spans, note_height, None)
+    # A page word box can overhang a neighboring voice. Use character baselines
+    # when available so vertically merged readings still protect both rows.
+    text_centers: list[float] = []
+    if page.voice_groups:
+        for span in spans:
+            if len(span.character_boxes) == len(span.text):
+                text_centers.extend((box[1] + box[3]) / 2 for char, box in zip(
+                    span.text, span.character_boxes, strict=True,
+                ) if char.isalpha())
+            elif any(char.isalpha() for char in span.text):
+                text_centers.append(span.center_y)
     lyrics = image_lyric_text(
         path, tuple(row.box for row in page.rows), small_page=note_height < 16,
         recover_sparse=bool(page.voice_groups),
+        intervoice_gaps=frozenset(
+            upper for group in page.voice_groups for upper, lower in pairwise(group.rows)
+            if lower == upper + 1 and not any(
+                page.rows[upper].box[3] < y < page.rows[lower].box[1] for y in text_centers
+            )
+        ),
     )
     if not lyrics:
         return _LyricRecovery(spans, note_height, None)
