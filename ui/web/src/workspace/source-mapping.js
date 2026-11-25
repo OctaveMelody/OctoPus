@@ -10,7 +10,15 @@
  *   y: number
  * }} EventAnchor
  */
-/** @typedef {{source_spans: SourceSpan[], row: number, x: number, y: number}} LyricAnchor */
+/**
+ * @typedef {{
+ *   source_spans: SourceSpan[],
+ *   row: number,
+ *   x: number,
+ *   y: number,
+ *   annotation: boolean
+ * }} LyricAnchor
+ */
 /** @typedef {{events: EventAnchor[], lyrics: LyricAnchor[]}} PageAnchors */
 
 /** CodeMirror accepts one separator; keep the first serialized ending for round-tripping.
@@ -151,6 +159,7 @@ function findAnchorAt(pages, offset) {
           x: lyric.x,
           y: lyric.y,
           row: lyric.row,
+          annotation: lyric.annotation,
           sourceSpans: lyric.source_spans,
         };
       }
@@ -182,6 +191,7 @@ function sourceAnchors(pages) {
         x: lyric.x,
         y: lyric.y,
         row: lyric.row,
+        annotation: lyric.annotation,
         sourceSpans: lyric.source_spans,
       });
     }
@@ -241,6 +251,7 @@ export function hitTestSourceAnchor(page, x, y, maxDistance = 36) {
         x: lyric.x,
         y: lyric.y,
         row: lyric.row,
+        annotation: lyric.annotation,
         sourceSpans: lyric.source_spans,
       })),
   ];

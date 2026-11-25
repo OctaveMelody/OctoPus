@@ -33,6 +33,11 @@ export function ScorePreview({ preview, copy, documentOpen, status, controls, hi
     cursorMarkerRef,
     highlightPage, cursorAnchor, cursorRowBounds, diagnostics, jumpToDiagnostic,
     selectPage, renderSelectedPage, selectPreviewAnchor, previewImageSettled } = preview;
+  const cursorAnchorClass = cursorAnchor?.kind === "lyric"
+    ? cursorAnchor.annotation
+      ? "cursor-anchor cursor-anchor-lyric-end"
+      : "cursor-anchor cursor-anchor-lyric-start"
+    : "cursor-anchor";
   useEffect(() => {
     const element = previewCanvasRef.current;
     if (!element) return;
@@ -164,7 +169,7 @@ export function ScorePreview({ preview, copy, documentOpen, status, controls, hi
               {highlightPage && cursorAnchor && (
                 <span
                   aria-hidden="true"
-                  className="cursor-anchor"
+                  className={cursorAnchorClass}
                   ref={cursorMarkerRef}
                   style={{
                     left: `${(cursorAnchor.x / highlightPage.page_width) * 100}%`,

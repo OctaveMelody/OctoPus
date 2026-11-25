@@ -196,6 +196,7 @@ export type SourceAnchor = {
   row?: number;
   sourceSpans: SourceSpan[];
   eventIndex?: number;
+  annotation?: boolean;
 };
 
 export type StagedReferenceImage = {
