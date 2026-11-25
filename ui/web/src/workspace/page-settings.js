@@ -177,7 +177,7 @@ export const pageSettingGroups = [
         key: "footer_credit_text",
         label: "pageSettingsFooterText",
         kind: "text",
-        defaultValue: "编辑排版: 章鱼简谱",
+        defaultValue: "章鱼简谱 V{{VERSION}}",
       },
     ],
   },

@@ -22,7 +22,7 @@ from octopus.parser.source import SourceSpan
 GEOMETRY_EPSILON = 1e-9
 DEFAULT_NOTE_START_OFFSET = 3.0
 DEFAULT_NOTE_SIZE = 18
-DEFAULT_FOOTER_CREDIT = "编辑排版: 章鱼简谱"
+DEFAULT_FOOTER_CREDIT = "章鱼简谱 V{{VERSION}}"
 DEFAULT_SCORE_TEXT_FONT = "Microsoft YaHei"
 
 

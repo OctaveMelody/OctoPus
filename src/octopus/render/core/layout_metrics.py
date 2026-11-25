@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from octopus.normalization.types import ScoreModel
 
 from .layout_types import (
@@ -23,6 +26,20 @@ _PAGE_SIZES = {
 _MAX_FONT_SIZE = 256
 _MAX_FOOTNOTE_LENGTH = 24
 _MAX_VERTICAL_SPACING = 512
+
+
+def _read_product_version() -> str:
+    configured = os.environ.get("OCTOPUS_PRODUCT_VERSION", "").strip()
+    if configured:
+        return configured
+    version_file = Path(__file__).resolve().parents[4] / "VERSION"
+    try:
+        return version_file.read_text(encoding="utf-8").strip() or "development"
+    except OSError:
+        return "development"
+
+
+_PRODUCT_VERSION = _read_product_version()
 
 
 def _config_int(
@@ -71,6 +88,7 @@ def page_metrics(model: ScoreModel) -> PageMetrics:
     )
     footer_text = page_config.get("footer_credit_text", DEFAULT_FOOTER_CREDIT)
     if isinstance(footer_text, str):
+        footer_text = footer_text.replace("{{VERSION}}", _PRODUCT_VERSION)
         words = footer_text.split(maxsplit=_MAX_FOOTNOTE_LENGTH)[:_MAX_FOOTNOTE_LENGTH]
         footer_text = " ".join(words)[:_MAX_FOOTNOTE_LENGTH].rstrip()
     else:
