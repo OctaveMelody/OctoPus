@@ -13,6 +13,8 @@ from .layout_types import (
 
 DEFAULT_PAGE_WIDTH = 1000
 DEFAULT_PAGE_HEIGHT = 1415
+_FOOTER_POSITIONS = ("left", "center", "right", "top_left", "top_center", "top_right")
+_PAGE_NUMBER_POSITIONS = (*_FOOTER_POSITIONS, "null")
 
 _PAGE_SIZES = {
     "A4": (1000, 1415),
@@ -110,10 +112,10 @@ def page_metrics(model: ScoreModel) -> PageMetrics:
         footer_credit=page_config.get("footer_credit") is True,
         footer_credit_text=footer_text,
         footer_credit_position=footer_position
-        if footer_position in ("center", "right") else "left",
+        if footer_position in _FOOTER_POSITIONS else "top_left",
         footer_page_number=str(page_config.get("footer_page_number", "off")),
         footer_page_number_position=number_position
-        if number_position in ("left", "center", "null") else "right",
+        if number_position in _PAGE_NUMBER_POSITIONS else "center",
         height_quci=_config_int(
             page_config, "height_quci", 12, minimum=0, maximum=_MAX_VERTICAL_SPACING
         ),

@@ -71,28 +71,39 @@ def render_page_body_elements(
             ("font-size", str(font_size)),
             ("fill", "#1b1b1b"),
         )
-        y = metrics.height - 12
+        bottom_y = metrics.height - 12
+        top_y = font_size + 12
         positions = {
             "left": (max(12, metrics.margin_left), "start"),
             "center": (metrics.width / 2, "middle"),
             "right": (metrics.width - max(12, metrics.margin_right), "end"),
         }
         number_position = metrics.footer_page_number_position
+        credit_position = metrics.footer_credit_position
         show_number = metrics.has_page_number
+        show_credit = metrics.footer_credit and bool(metrics.footer_credit_text)
+        credit_top = credit_position.startswith("top_")
+        number_top = number_position.startswith("top_")
+        credit_alignment = credit_position.removeprefix("top_") if credit_top else credit_position
+        number_alignment = number_position.removeprefix("top_") if number_top else number_position
+        same_top_region = show_credit and show_number and credit_top and number_top
+        same_bottom_region = show_credit and show_number and not credit_top and not number_top
+        number_y = top_y if number_top else bottom_y
+        if same_top_region:
+            number_y = top_y + 16
+        elif same_bottom_region:
+            number_y = bottom_y - 16
         sources = model.page_config.get("_font_sources")
         font_sources = sources if isinstance(sources, dict) else None
-        if metrics.footer_credit and metrics.footer_credit_text:
-            position = metrics.footer_credit_position
-            if show_number and position == number_position:
-                position = "right" if number_position == "left" else "left"
-            x, anchor = positions[position]
+        if show_credit:
+            x, anchor = positions[credit_alignment]
             width = regular_text_width(
                 metrics.footer_credit_text, metrics.lyric_font, font_size, font_sources,
             )
             elements.append(
                 text_element(
                     x=_footer_x(x, anchor, metrics.width, width),
-                    y=y - 16 if show_number else y,
+                    y=top_y if credit_top else bottom_y,
                     text=metrics.footer_credit_text,
                     layer="footer",
                     synthetic=True,
@@ -105,12 +116,12 @@ def render_page_body_elements(
             number = format_number(page_index + 1)
             if style in ("total", "roman_total"):
                 number += f"/{format_number(len(model.pages))}"
-            x, anchor = positions[number_position]
+            x, anchor = positions[number_alignment]
             width = regular_text_width(number, metrics.lyric_font, font_size, font_sources)
             elements.append(
                 text_element(
                     x=_footer_x(x, anchor, metrics.width, width),
-                    y=y,
+                    y=number_y,
                     text=number,
                     layer="footer",
                     synthetic=True,

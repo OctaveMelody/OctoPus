@@ -77,9 +77,9 @@ export function createNewScorePageConfig() {
   const { biaoti_font, geci_font, shuzi_font } = createPageSettingsDraft({});
   return {
     biaoti_font, geci_font, shuzi_font,
-    footer_page_number_position: "null",
+    footer_page_number_position: "center",
     footer_page_number: "number",
     footer_credit: true,
-    footer_credit_position: "left",
+    footer_credit_position: "top_left",
   };
 }

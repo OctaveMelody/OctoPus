@@ -51,9 +51,9 @@ class PageMetrics:
     note_size: int = DEFAULT_NOTE_SIZE
     footer_credit: bool = False
     footer_credit_text: str = DEFAULT_FOOTER_CREDIT
-    footer_credit_position: str = "left"
+    footer_credit_position: str = "top_left"
     footer_page_number: str = "off"
-    footer_page_number_position: str = "right"
+    footer_page_number_position: str = "center"
 
     @property
     def has_page_number(self) -> bool:

@@ -246,7 +246,7 @@ The draft is a starting point, so check the notes and lyrics against the origina
 **Page Settings** controls how the score is laid out and which fonts draw it. Open it from the
 toolbar (**Page Settings**).
 
-![Page Settings for an existing score.](screenshots/page-settings-en.jpg)
+![Earlier Page Settings layout for an existing score. See the current Page notes and numbers instructions above.](screenshots/page-settings-en.jpg)
 
 Main groups:
 
@@ -255,7 +255,7 @@ Main groups:
 | **Paper & margins** | A4 / A5 page; top/bottom/left/right margins and body offset. |
 | **Fonts and sizes** | Title, subtitle and lyric fonts and sizes; note style (Regular, Italic, Bold) and note size. Note sizes go up to 24. Lyric sizes match Tomato Jianpu: 14 through 32 in steps of 2. Larger sizes already saved in a score are preserved. Select **Default** for Note size, which keeps the original Tomato Jianpu compatible rendering. |
 | **Spacing and Style** | Music-to-lyric, lyric-to-lyric, lyric-to-music and voice spacing. Slur style: Automatic, Arc, or Flat top. |
-| **Header & Footer** | Set the page number and footnote positions to Null, bottom left, bottom center, or bottom right. When both are visible, choose different positions. Page numbers can be numeric or Roman, with or without the total. New scores start with page numbers hidden (Numeric style) and show the editable “编辑排版: 章鱼简谱” footnote at bottom left. Footnotes are limited to 24 characters and appear above the page number when numbering is on. Existing JPS files without footnote settings leave it hidden. |
+| **Page notes & numbers** | Set each position to Null, bottom left/center/right, or top left/center/right. New scores show the editable “编辑排版: 章鱼简谱” page note at top left and a numeric page number at bottom center. An enabled page note with no saved position defaults to top left; numbering defaults to bottom center when no position is saved. If both are at the bottom, the number sits above the note. If both are at the top, the note sits above the number. Existing JPS files with page numbering set to Null remain unnumbered, and files without page-note settings keep the note hidden. Page notes are limited to 24 characters. |
 
 Buttons:
 

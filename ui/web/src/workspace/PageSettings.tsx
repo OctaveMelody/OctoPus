@@ -119,10 +119,6 @@ export function PageSettings({
                             )}
                             {field.options?.map((option) => (
                               <option
-                                disabled={option.value !== "null" && (
-                                  (field.key === "footer_page_number_position" && option.value === draft.footer_credit_position)
-                                  || (field.key === "footer_credit_position" && option.value === draft.footer_page_number_position)
-                                )}
                                 key={option.value}
                                 value={option.value}
                               >

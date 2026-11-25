@@ -23,29 +23,28 @@ const pageNumberStyles = [
 
 const footerPositions = [
   { value: "null", label: "footerPositionNull" },
-  { value: "left", label: "footerPositionLeft" },
-  { value: "center", label: "pageNumberCenter" },
-  { value: "right", label: "pageNumberRight" },
+  { value: "left", label: "footerPositionBottomLeft" },
+  { value: "center", label: "footerPositionBottomCenter" },
+  { value: "right", label: "footerPositionBottomRight" },
+  { value: "top_left", label: "footerPositionTopLeft" },
+  { value: "top_center", label: "footerPositionTopCenter" },
+  { value: "top_right", label: "footerPositionTopRight" },
 ];
 
-/** @param {string} position */
-function freeFootnoteEdge(position) {
-  return position === "left" ? "right" : "left";
-}
-
-/** @param {Record<string, unknown>} config */
+/** @param {Record<string, unknown>} config @returns {string} */
 function readPageNumberPosition(config) {
-  if (!pageNumberStyles.some(({ value }) => value === config.footer_page_number)) return "null";
   const position = config.footer_page_number_position;
-  return position === "left" || position === "center" || position === "null" ? position : "right";
+  return typeof position === "string" && footerPositions.some(({ value }) => value === position)
+    ? position : "center";
 }
 
-/** @param {Record<string, unknown>} config */
+/** @param {Record<string, unknown>} config @returns {string} */
 function readFootnotePosition(config) {
   if (config.footer_credit !== true) return "null";
   const stored = config.footer_credit_position;
-  const position = stored === "center" || stored === "right" ? stored : "left";
-  return position === readPageNumberPosition(config) ? freeFootnoteEdge(position) : position;
+  return typeof stored === "string"
+    && footerPositions.some(({ value }) => value === stored) && stored !== "null"
+    ? stored : "top_left";
 }
 
 /** @type {PageSettingGroup[]} */
@@ -157,7 +156,7 @@ export const pageSettingGroups = [
         key: "footer_page_number_position",
         label: "pageSettingsPageNumberPosition",
         kind: "select",
-        defaultValue: "right",
+        defaultValue: "center",
         options: footerPositions,
       },
       {
@@ -169,9 +168,9 @@ export const pageSettingGroups = [
       },
       {
         key: "footer_credit_position",
-        label: "pageSettingsFooterPosition",
+        label: "pageSettingsPageNotePosition",
         kind: "select",
-        defaultValue: "null",
+        defaultValue: "top_left",
         options: footerPositions,
       },
       {
@@ -222,9 +221,6 @@ export function applyPageSettings(config, draft) {
     } else {
       const editingPageNumber = field.key === "footer_page_number_position"
         || field.key === "footer_page_number";
-      if (field.key === "footer_page_number_position" && next.footer_credit === true) {
-        next.footer_credit_position = readFootnotePosition(decoded);
-      }
       if (editingPageNumber && !pageNumberStyles.some(({ value }) => value === next.footer_page_number)) {
         if (field.key === "footer_page_number") next.footer_page_number_position = "null";
         else if (normalized !== "null") next.footer_page_number = "number";
@@ -232,13 +228,6 @@ export function applyPageSettings(config, draft) {
       next[field.key] = normalized;
     }
     changed = true;
-  }
-  const numberPosition = readPageNumberPosition(next);
-  if ((next.footer_credit_position !== decoded.footer_credit_position
-      || next.footer_credit !== decoded.footer_credit
-      || numberPosition !== readPageNumberPosition(decoded))
-      && next.footer_credit === true && next.footer_credit_position === numberPosition) {
-    next.footer_credit_position = freeFootnoteEdge(numberPosition);
   }
   return { config: next, changed };
 }
