@@ -162,32 +162,28 @@ def _appimage_runtime_download_failed(output: object, app_dir: Path) -> bool:
     return linux_appimage.runtime_download_failed(output, app_dir)
 
 
-def _cached_appimage_tooling(target_triple: str) -> tuple[Path, Path]:
-    return linux_appimage.cached_tooling(target_triple, root=ROOT)
-
-
 def _package_appimage(app_dir: Path, package: Path, target_triple: str) -> Path:
-    appimagetool, runtime = _cached_appimage_tooling(target_triple)
+    environment = _linux_appimage_environment(dict(os.environ), target_triple)
+    plugin = linux_appimage.output_plugin(environment)
     package.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".appimage-package-", dir=package.parent) as work:
         staged = Path(work) / package.name
         subprocess.run(
             [
-                str(appimagetool),
-                "--no-appstream",
-                "--runtime-file",
-                str(runtime),
-                str(app_dir),
-                str(staged),
+                str(plugin), "--appimage-extract-and-run", "--appdir", str(app_dir),
             ],
+            cwd=work,
+            env={
+                **environment,
+                "APPIMAGE_EXTRACT_AND_RUN": "1",
+                "LDAI_NO_APPSTREAM": "1",
+                "LDAI_OUTPUT": str(staged),
+            },
             check=True,
         )
         if not staged.is_file() or staged.stat().st_size == 0:
-            raise RuntimeError(f"appimagetool did not create {staged}")
+            raise RuntimeError(f"AppImage output plugin did not create {staged}")
         os.replace(staged, package)
-    for superseded in package.parent.glob("*.AppImage"):
-        if superseded != package:
-            superseded.unlink()
     return package
 
 
@@ -692,17 +688,17 @@ def main() -> None:
             "Tauri AppImage finalization failed; packaging the deployed AppDir instead.",
             flush=True,
         )
+    appimage_artifact = None
     if appimage_package:
         # Finalize from the deployed AppDir rather than Tauri's own package so the shipped
-        # launcher is the staged one that publishes the caller's working directory. This re-runs
-        # mksquashfs and supersedes any package Tauri finalized itself.
+        # launcher is the staged one that publishes the caller's working directory.
         if not app_dir.is_dir():
             raise RuntimeError(f"Tauri created no AppImage deployment at {app_dir}")
         _prepare_appimage_app_dir(app_dir)
         if _appimage_source_digest() != source_digest:
             raise RuntimeError("Source inputs changed during AppImage deployment; run a full build")
         _write_appimage_identity(identity_path, version, build_number, target_triple, source_digest)
-        _package_appimage(app_dir, package, target_triple)
+        appimage_artifact = _package_appimage(app_dir, package, target_triple)
 
     triple = target_triple
     bundles = BUILD / (args.target or "") / "release" / "bundle"
@@ -714,6 +710,8 @@ def main() -> None:
         for path in kind.iterdir()
         if path.is_file() and path.suffix.lower() in PACKAGE_SUFFIXES
     ] if requested_bundles and bundles.is_dir() else []
+    if appimage_artifact is not None:
+        packages = [appimage_artifact]
     if args.bundles and not packages:
         raise RuntimeError(f"Tauri created no installation packages under {bundles}")
     destination = ROOT / "dist" / triple

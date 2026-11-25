@@ -18,6 +18,7 @@ RUNTIME_ARCHES = {
 # directory to the (possibly read-only) application directory.
 INVOCATION_DIRECTORY_VARIABLE = "OCTOPUS_INVOCATION_CWD"
 INVOCATION_DIRECTORY_EXPORT = f'export {INVOCATION_DIRECTORY_VARIABLE}="${{PWD:-$(pwd)}}"'
+INVOCATION_APPDIR_EXPORT = 'export OCTOPUS_INVOCATION_APPDIR="$this_dir"'
 LINUXDEPLOY_EXEC = 'exec "$this_dir"/AppRun.wrapped "$@"'
 
 
@@ -48,13 +49,16 @@ def preserve_invocation_directory(app_dir: Path) -> Path:
     """
     launcher = app_dir / "AppRun"
     text = launcher.read_text(encoding="utf-8")
-    if INVOCATION_DIRECTORY_EXPORT not in text:
-        if LINUXDEPLOY_EXEC not in text:
-            raise RuntimeError(
-                "The staged AppImage launcher does not use the expected linuxdeploy chain; "
-                "refusing to package it"
-            )
-        text = text.replace(LINUXDEPLOY_EXEC, f"{INVOCATION_DIRECTORY_EXPORT}\n{LINUXDEPLOY_EXEC}")
+    if LINUXDEPLOY_EXEC not in text:
+        raise RuntimeError(
+            "The staged AppImage launcher does not use the expected linuxdeploy chain; "
+            "refusing to package it"
+        )
+    if INVOCATION_APPDIR_EXPORT not in text or INVOCATION_DIRECTORY_EXPORT not in text:
+        text = text.replace(f"{INVOCATION_DIRECTORY_EXPORT}\n", "")
+        text = text.replace(f"{INVOCATION_APPDIR_EXPORT}\n", "")
+        handoff = f"{INVOCATION_DIRECTORY_EXPORT}\n{INVOCATION_APPDIR_EXPORT}"
+        text = text.replace(LINUXDEPLOY_EXEC, f"{handoff}\n{LINUXDEPLOY_EXEC}")
         launcher.write_text(text, encoding="utf-8")
     launcher.chmod(0o755)
     return launcher
@@ -133,20 +137,14 @@ def runtime_download_failed(output: object, app_dir: Path) -> bool:
     return packaging_started and "Failed to download runtime file" in output
 
 
-def cached_tooling(target_triple: str, *, root: Path) -> tuple[Path, Path]:
-    try:
-        runtime_arch = RUNTIME_ARCHES[target_triple.split("-", 1)[0]]
-    except KeyError as error:
-        raise RuntimeError(f"AppImage fallback does not support {target_triple}") from error
-    appimagetool = root / "build/cache/squashfs-root/usr/bin/appimagetool"
-    runtime = root / f"build/cache/tauri/runtime-{runtime_arch}"
-    missing = [path for path in (appimagetool, runtime) if not path.is_file()]
-    if missing:
-        raise RuntimeError(
-            "Cached AppImage fallback tools are missing: "
-            + ", ".join(str(path) for path in missing)
-        )
-    return appimagetool, runtime
+def output_plugin(environment: dict[str, str]) -> Path:
+    cache_home = Path(environment.get("XDG_CACHE_HOME", ""))
+    if not cache_home.is_absolute():
+        cache_home = Path.home() / ".cache"
+    plugin = cache_home / "tauri/linuxdeploy-plugin-appimage.AppImage"
+    if not plugin.is_file():
+        raise RuntimeError(f"Tauri's AppImage output plugin is missing: {plugin}. Run a full build.")
+    return plugin
 
 
 def environment(environment: dict[str, str], target_triple: str, *, root: Path) -> dict[str, str]:

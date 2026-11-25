@@ -5,6 +5,7 @@ use super::CliFailure;
 
 /// Exported by the packaged Linux launcher with the directory it was started from.
 const INVOCATION_DIRECTORY_VARIABLE: &str = "OCTOPUS_INVOCATION_CWD";
+const INVOCATION_APPDIR_VARIABLE: &str = "OCTOPUS_INVOCATION_APPDIR";
 
 pub(super) struct CliOptions {
     pub(super) operands: Vec<String>,
@@ -181,6 +182,13 @@ fn absolute_path(path: &Path) -> Result<PathBuf, CliFailure> {
 /// launcher therefore exports the caller's directory so relative command-line paths keep meaning
 /// what the user typed.
 fn invocation_directory() -> Option<PathBuf> {
+    if !cfg!(target_os = "linux") {
+        return None;
+    }
+    let app_dir = PathBuf::from(std::env::var_os(INVOCATION_APPDIR_VARIABLE)?);
+    if !matches_appimage_launcher(&app_dir, &std::env::current_exe().ok()?) {
+        return None;
+    }
     let value = std::env::var_os(INVOCATION_DIRECTORY_VARIABLE)?;
     let directory = PathBuf::from(value);
     if directory.is_absolute() && directory.is_dir() {
@@ -188,6 +196,14 @@ fn invocation_directory() -> Option<PathBuf> {
     } else {
         None
     }
+}
+
+fn matches_appimage_launcher(app_dir: &Path, executable: &Path) -> bool {
+    app_dir.is_absolute()
+        && app_dir
+            .join("usr/bin/octopus")
+            .canonicalize()
+            .is_ok_and(|packaged| packaged == executable)
 }
 
 fn relative_path_base(invocation: Option<&Path>, working_directory: &Path) -> PathBuf {
@@ -201,7 +217,24 @@ fn relative_path_base(invocation: Option<&Path>, working_directory: &Path) -> Pa
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use super::{parse_options, relative_path_base, resolve_output_path};
+    use super::{
+        matches_appimage_launcher, parse_options, relative_path_base, resolve_output_path,
+    };
+
+    #[test]
+    fn launcher_hint_is_bound_to_the_packaged_executable() {
+        let directory = tempfile::tempdir().unwrap();
+        let packaged = directory.path().join("appdir/usr/bin/octopus");
+        std::fs::create_dir_all(packaged.parent().unwrap()).unwrap();
+        std::fs::write(&packaged, "").unwrap();
+        let packaged = packaged.canonicalize().unwrap();
+        let app_dir = directory.path().join("appdir");
+        assert!(matches_appimage_launcher(&app_dir, &packaged));
+        assert!(!matches_appimage_launcher(
+            &app_dir,
+            &directory.path().join("portable/usr/bin/octopus")
+        ));
+    }
 
     #[test]
     fn relative_paths_use_the_launchers_invocation_directory() {

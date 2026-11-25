@@ -127,11 +127,14 @@ macOS 26.0 或更高版本，并由 GitHub Actions 的 `macos-26` 工作流构�
 更改这些文件后，或使用旧版构建器留下的暂存目录时，请重新完整构建 AppImage。
 
 Linux x86_64 AppImage 使用
-`python3 scripts/build_portable.py --bundles appimage`。linuxdeploy 完成部署后，如果 AppImage
-打包阶段无法下载 runtime，构建器会使用缓存的 runtime 和 appimagetool。部署诊断保存在
+`python3 scripts/build_portable.py --bundles appimage`。linuxdeploy 完成部署后，构建器复用 Tauri
+的 AppImage 输出插件打包。首次构建可由插件下载 runtime；离线重试可使用
+`LDAI_RUNTIME_FILE` 指定的 runtime 或本地缓存。构建器只发布最终产物，保留目标目录中的其他 AppImage。
+部署诊断保存在
 `build/cargo/appimage-build.log`；其他部署错误会停止构建。失败后只重试打包时，运行
 `python3 scripts/build_portable.py --package-appimage-only`；原构建若指定了 `--target`，这里也使用相同参数。
 续打命令要求 AppDir 已通过完整部署检查且对应当前生产提交；旧的未验证暂存记录需要重新完整构建。
+Linux 无界面命令仅在从启动器对应的 AppDir 运行时，才使用启动器传入的原始工作目录解析相对路径。
 本地反复构建可添加 `--incremental`，让 Cargo
 复用 release 编译数据，但会占用更多磁盘。冻结引擎的 PyInstaller 缓存保留在
 `build/pyinstaller-cache`；构建环境改变后可删除该目录以强制重新分析。

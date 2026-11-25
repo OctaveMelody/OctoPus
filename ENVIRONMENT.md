@@ -178,9 +178,10 @@ after changing those inputs or when retrying a deployment created before this ch
 
 For a Linux x86_64 AppImage, use
 `python3 scripts/build_portable.py --bundles appimage`. Tauri runs linuxdeploy to deploy the
-AppDir, then the builder finalizes the package itself from that deployed AppDir with the cached
-AppImage runtime and appimagetool, so the shipped launcher is always the staged one; a package
-Tauri finalized on its own is replaced rather than published. Staging checks the deployed AppDir,
+AppDir, then the builder reuses Tauri's AppImage output plugin to finalize the staged launcher.
+The plugin can fetch its runtime on a fresh build, or use `LDAI_RUNTIME_FILE` or the local cached
+runtime for an offline retry. The builder publishes only the final staged artifact and preserves
+other AppImages in the destination. Staging checks the deployed AppDir,
 installs the working-directory handoff described below, and records the deployment identity in
 `build/cargo/release/bundle/appimage/.octopus-build.json`. Deployment diagnostics are saved in
 `build/cargo/appimage-build.log`; other deployment failures stop the build. To redo only the final
@@ -195,12 +196,11 @@ is retained under `build/pyinstaller-cache`; remove that directory to force a cl
 worker analysis after changing the build environment.
 
 The AppImage runtime changes the process working directory to the application directory, which is
-read-only while mounted, so the staged `AppRun` exports `OCTOPUS_INVOCATION_CWD` with the directory
-the user ran the package from before it execs the runtime. The headless CLI resolves a relative
-input, `--out`, `--out-dir` or `--issues` path against that directory when it is absolute, still
-exists, and differs from the process working directory; otherwise the working directory is used, so
-a missing or stale value cannot change behavior. The variable is read only by the headless command
-line, and only the Linux package sets it.
+read-only while mounted, so the staged `AppRun` exports the original working directory and its
+own AppDir before handing off to the runtime. The Linux headless CLI uses the hint for relative
+input, `--out`, `--out-dir`, and `--issues` paths only when it is running the executable from
+that AppDir and the original directory is absolute and still exists. Portable and other launches
+resolve relative paths from their process working directory.
 
 Published files use `OctoPus_{version}_{arch}_{os}_{purpose}.{ext}` with `x64` or `arm64` and
 `win64` or `linux`. Linux AppImages omit the purpose suffix, for example
