@@ -165,6 +165,15 @@ Linux 使用 `--bundles appimage`，Windows 使用 `--bundles nsis` 来请求对
 `build.py` 在 `build/` 下构建前端、引擎和原生应用，并按上述命名规则将安装包发布到
 `dist/<target-triple>/`。目录发布会对临时访问错误进行有限重试，必要时复制已验证的暂存文件，
 并在失败时恢复上一个输出。引擎通过字形检查、协议握手及渲染冒烟测试后才替换原有输出。
+
+如需在本机复现 GitHub Actions 的原生安装包检查，请在对应平台的仓库根目录运行
+`python scripts/ci/build_package.py --package <package>`。支持 `linux-appimage`、
+`windows-installer`、`windows-portable` 和 Apple Silicon 上的 `macos-dmg`。该脚本执行格式检查、
+锁定依赖同步、OCR 模型准备、安装包构建、Rust lint/测试及可用的安装包冒烟检查。Windows
+安装程序的安装冒烟检查仅在隔离的 GitHub Actions 运行器中执行；前置条件和详情见
+[原生 CI 指南](scripts/ci/README.md)。
+本地运行会在构建前执行 `cargo fmt --all`；GitHub Actions 只检查格式，不修改检出内容。原生
+CI 指南还说明了如何启用提交前自动格式化。
 每个仓库拥有独立的锁定文件；有意更新时使用 `uv lock`、npm 或 Cargo，并验证更新结果。
 
 ## 发布字体

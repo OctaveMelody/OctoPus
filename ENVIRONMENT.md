@@ -245,6 +245,13 @@ builder preserves its previous output until the worker, fonts, glyphs,
 manual, examples and license checks pass. Each repository has its own locks; update them
 intentionally with `uv lock`/npm/Cargo and validate the resulting change.
 
+To run the same format, dependency, model-preparation, package, Clippy, Rust test and smoke checks
+used by GitHub Actions, run `python scripts/ci/build_package.py --package <package>` on the matching
+native host. Package names, prerequisites, local commands and the Windows installer smoke limit are
+in [the native CI guide](scripts/ci/README.md). The reusable package workflow calls this same
+runner. Local runs apply `cargo fmt --all` before building; GitHub Actions checks formatting without
+changing its checkout. The CI guide also explains how to enable automatic formatting before commits.
+
 ## Release fonts
 
 Pinned font assets and their OFL, IPA and Xiaomi MiSans licenses are in

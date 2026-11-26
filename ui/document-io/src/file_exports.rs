@@ -596,12 +596,16 @@ mod tests {
         let confirmed = existing_export_targets(&target, ExportFormat::Svg, 1).unwrap();
         let replacement = NamedTempFile::new_in(directory.path()).unwrap();
         fs::write(replacement.path(), b"original bytes").unwrap();
-        replacement.persist(&target).unwrap();
+        let displaced = directory.path().join("displaced.svg");
+        fs::rename(&target, &displaced).unwrap();
+        replacement.persist_noclobber(&target).unwrap();
         assert!(
             matches!(publish_export_pages(&target, ExportFormat::Svg, &[b"export"], &confirmed),
                          Err(DocumentIoError::ExportTargetChanged(path)) if path == target)
         );
         assert_eq!(fs::read(&target).unwrap(), b"original bytes");
+        drop(confirmed);
+        fs::remove_file(displaced).unwrap();
     }
 
     #[test]

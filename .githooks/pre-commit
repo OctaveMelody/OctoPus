@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+if git -C "$repo_root" diff --cached --quiet -- '*.rs'; then
+    exit 0
+fi
+
+(cd "$repo_root/ui" && cargo fmt --all)
+
+if ! git -C "$repo_root" diff --quiet -- '*.rs'; then
+    echo "cargo fmt updated Rust files or unstaged Rust changes remain." >&2
+    echo "Review the changes, stage the intended files, and retry the commit." >&2
+    git -C "$repo_root" status --short -- '*.rs' >&2
+    exit 1
+fi

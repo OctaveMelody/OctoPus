@@ -41,12 +41,6 @@ jobs:
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 0
-      - name: Check out package verification from the workflow revision
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.workflow_sha }}
-          path: workflow-source
-          fetch-depth: 1
       - name: Validate package selection
         shell: bash
         env:
@@ -60,9 +54,6 @@ jobs:
         with:
           toolchain: 1.98.1
           components: rustfmt, clippy
-      - name: Format check
-        working-directory: ui
-        run: cargo fmt --all --check
       - name: Install Linux desktop build dependencies
         if: ${{ inputs.package == 'linux-appimage' }}
         run: |
@@ -84,80 +75,24 @@ jobs:
           python-version: "3.12"
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version 2.11.5 --locked
-      - name: Install locked production build dependencies
-        run: uv sync --locked --extra desktop-build --extra transcription
-      - name: Prepare pinned OCR models
-        run: >-
-          uv run --project . --locked --extra desktop-build --extra transcription
-          python scripts/prepare_ocr_models.py
-      - name: Build and validate macOS DMG
-        if: ${{ inputs.package == 'macos-dmg' }}
-        run: >-
-          uv run --project . --locked --extra desktop-build --extra transcription
-          python build.py --bundles dmg
-      - name: Build and validate Windows installer
-        if: ${{ inputs.package == 'windows-installer' }}
-        run: >-
-          uv run --project . --locked --extra desktop-build --extra transcription
-          python build.py --bundles nsis --no-portable-zip
-      - name: Build and validate Windows portable ZIP
-        if: ${{ inputs.package == 'windows-portable' }}
-        run: >-
-          uv run --project . --locked --extra desktop-build --extra transcription
-          python build.py
-      - name: Build and validate Linux AppImage
-        if: ${{ inputs.package == 'linux-appimage' }}
-        run: >-
-          uv run --project . --locked --extra desktop-build --extra transcription
-          python build.py --bundles appimage
-      - name: Lint active Rust targets
-        working-directory: ui
-        run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Test standalone Rust workspace
-        working-directory: ui
-        run: cargo test --workspace
-      - name: Select package artifact path
-        id: artifact
+      - name: Check out package CI runner from the workflow revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: workflow-source
+          fetch-depth: 1
+      - name: Build, test, and smoke-check the package
+        id: package
         shell: bash
         env:
           PACKAGE: ${{ inputs.package }}
         run: |
-          case "$PACKAGE" in
-            macos-dmg) path='dist/*/OctoPus_*_arm64_macos.dmg' ;;
-            windows-installer) path='dist/*/OctoPus_*_x64_win64_setup.exe' ;;
-            windows-portable) path='dist/*/OctoPus_*_x64_win64_portable.zip' ;;
-            linux-appimage) path='dist/*/OctoPus_*_x64_linux.AppImage' ;;
-            *) echo "Unsupported package: $PACKAGE" >&2; exit 1 ;;
-          esac
-          shopt -s nullglob
-          packages=( $path )
-          if (( ${#packages[@]} != 1 )); then
-            echo "Expected exactly one package for $PACKAGE, found ${#packages[@]}" >&2
-            exit 1
-          fi
-          filename=${packages[0]##*/}
-          # GitHub appends .zip to downloads, so keep the canonical package filename stem here.
-          artifact_name=${filename%.*}
-          echo "path=${packages[0]}" >> "$GITHUB_OUTPUT"
-          echo "name=$artifact_name" >> "$GITHUB_OUTPUT"
-      - name: Exercise the packaged worker
-        if: ${{ inputs.package != 'macos-dmg' }}
-        shell: bash
-        env:
-          PACKAGE: ${{ inputs.package }}
-          ARTIFACT_PATTERN: ${{ steps.artifact.outputs.path }}
-        run: |
-          shopt -s nullglob
-          packages=($ARTIFACT_PATTERN)
-          if [ "${#packages[@]}" -ne 1 ]; then
-            echo "Expected exactly one package for $PACKAGE, found ${#packages[@]}" >&2
-            exit 1
-          fi
-          uv run --project . --locked --extra desktop-build --extra transcription \
-            python workflow-source/scripts/smoke_package.py "$PACKAGE" "${packages[0]}" \
-            --source-root "$GITHUB_WORKSPACE"
+          python workflow-source/scripts/ci/build_package.py \
+            --package "$PACKAGE" \
+            --source-root "$GITHUB_WORKSPACE" \
+            --stage-workflow-tools
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.artifact.outputs.name }}
-          path: ${{ steps.artifact.outputs.path }}
+          name: ${{ steps.package.outputs.name }}
+          path: ${{ steps.package.outputs.path }}
           if-no-files-found: error

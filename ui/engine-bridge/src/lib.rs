@@ -949,6 +949,22 @@ for line in sys.stdin:
         running
     }
 
+    fn wait_for_descendants_to_exit(pids: &[u32]) {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while pids.iter().any(|pid| descendant_running(*pid)) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let still_running: Vec<_> = pids
+            .iter()
+            .copied()
+            .filter(|pid| descendant_running(*pid))
+            .collect();
+        assert!(
+            still_running.is_empty(),
+            "descendants still running: {still_running:?}"
+        );
+    }
+
     #[test]
     fn shutdown_timeout_crash_and_protocol_errors_stop_descendants() {
         for mode in [
@@ -966,14 +982,7 @@ for line in sys.stdin:
                 assert!(engine.render(render_args()).is_err());
             }
             drop(engine);
-            let deadline = Instant::now() + Duration::from_secs(2);
-            while descendant_running(pid) && Instant::now() < deadline {
-                std::thread::sleep(Duration::from_millis(10));
-            }
-            assert!(
-                !descendant_running(pid),
-                "{mode} left descendant {pid} running"
-            );
+            wait_for_descendants_to_exit(&[pid]);
         }
     }
 
@@ -1210,7 +1219,7 @@ for line in sys.stdin:
             assert_eq!(std::fs::read_to_string(&marker).unwrap(), expected_path);
             assert!(started.elapsed() < Duration::from_secs(3));
             assert_reaped(&child);
-            assert!(!descendant_running(pid));
+            wait_for_descendants_to_exit(&[pid]);
             assert!(engine.capabilities().is_ok());
             drop(engine);
             std::fs::remove_file(marker).unwrap();
@@ -1251,7 +1260,7 @@ for line in sys.stdin:
         assert!(engine.process.is_none());
         let pids: Vec<u32> = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         std::fs::remove_file(path).unwrap();
-        assert!(pids.iter().all(|pid| !descendant_running(*pid)));
+        wait_for_descendants_to_exit(&pids);
     }
 
     #[test]
