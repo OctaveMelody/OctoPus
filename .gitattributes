@@ -1,1 +1,20 @@
+# Line-ending policy (deterministic on Windows, Linux and macOS alike):
+# text files are stored with LF in the repository AND checked out with LF,
+# regardless of each developer's core.autocrlf setting.
+* text=auto eol=lf
+
+# Byte-exact formats: never normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.pdf binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.zip binary
+*.gz binary
+
+# Font assets are opaque bytes; their license texts deliberately keep their
+# original CRLF and must not be rewritten.
 src/octopus/assets/fonts/** -text
