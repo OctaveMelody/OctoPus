@@ -298,8 +298,7 @@ mod tests {
 
         let output = resolve_output_path(alias.join("../score.svg")).expect("resolve output");
 
-        // assert_eq!(output.parent(), Some(real.as_path()));
-        // Do this:
-        assert_eq!(actual, Some(std::fs::canonicalize(&expected_path).unwrap()));
+        let expected_parent = real.canonicalize().expect("canonicalize real directory");
+        assert_eq!(output.parent(), Some(expected_parent.as_path()));
     }
 }
