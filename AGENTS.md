@@ -33,6 +33,13 @@ development-only dependencies and is not a substitute for this repository's prod
 
 - Preserve existing user changes. Begin with `git status --short --branch`; do not reset or clean
   the checkout to make a build appear reproducible.
+- GitHub and remote operations are opt-in; default to local-only work. Do not use GitHub apps,
+  APIs, `gh`, or GitHub browser pages; fetch/pull/push; create or change PRs, issues, releases, or
+  artifacts; dispatch Actions; or inspect/wait for hosted runs unless the user explicitly asks for
+  that specific operation. A request to "test CI" or "test the workflow" means run the local CI
+  script, not GitHub Actions. A local commit does not authorize a push. One explicit remote action
+  does not authorize another. An explicitly requested push may trigger configured workflows;
+  do not dispatch extra runs or inspect/wait for them unless separately asked.
 - Never run `git push` automatically or as a side effect of something else. No push from a build,
   compile, packaging, release, checkpoint, validation or suite flow; none from a script, hook,
   alias, scheduled or background job; and never as the closing step of an otherwise authorized
@@ -120,10 +127,10 @@ repository's manifests. Do not replace it with `uv sync` against OctoPus-dev or 
 
 Run requested builds, compiles, and packaging locally on the current host by default. Do not
 dispatch GitHub Actions workflows, start hosted runners, or use another remote/CI build service
-unless the user explicitly requests a remote build. If the local host cannot perform the requested
-build, report the blocker instead of switching to remote CI. A normal authorized push may still
+unless the user explicitly requests that remote operation. If the local host cannot perform the
+requested build, report the blocker instead of switching to remote CI. A normal authorized push may
 trigger workflows configured for push events; do not dispatch or wait on those workflows unless
-the user asks.
+the user explicitly asks.
 
 From the repository root (or pass the full script path from any working directory):
 

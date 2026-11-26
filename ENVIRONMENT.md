@@ -143,6 +143,11 @@ change the version. Use it only when a distribution intentionally omits that men
 
 ## Build packages
 
+GitHub operations are opt-in. The workflow information below documents available jobs; it does not
+authorize running them. Default to local builds and checks. A request to "test CI" or "test the
+workflow" means run the local CI script, not GitHub Actions. Do not use GitHub APIs, `gh`, hosted
+runners, or workflow status pages unless the user explicitly requests that operation.
+
 During development, create only the local portable tree by default. Do not build installers or
 other variants unless the user explicitly asks for them. Run `python3 scripts/build_portable.py` on
 Linux/macOS or `py scripts/build_portable.py` on Windows. Use `--bundles appimage` on Linux,
@@ -246,8 +251,9 @@ manual, examples and license checks pass. Each repository has its own locks; upd
 intentionally with `uv lock`/npm/Cargo and validate the resulting change.
 
 To run the same format, dependency, model-preparation, package, Clippy, Rust test and smoke checks
-used by GitHub Actions, run `python scripts/ci/build_package.py --package <package>` on the matching
-native host. Package names, prerequisites, local commands and the Windows installer smoke limit are
+used by GitHub Actions locally, run `python scripts/ci/build_package.py --package <package>` on the
+matching native host. This command stays local and does not access GitHub. Package names,
+prerequisites, local commands and the Windows installer smoke limit are
 in [the native CI guide](scripts/ci/README.md). The reusable package workflow calls this same
 runner. Local runs apply `cargo fmt --all` before building; GitHub Actions checks formatting without
 changing its checkout. The CI guide also explains how to enable automatic formatting before commits.

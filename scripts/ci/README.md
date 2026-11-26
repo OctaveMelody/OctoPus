@@ -1,5 +1,11 @@
 # Native package CI checks
 
+## Local-only default
+
+These commands run CI checks on the current machine. They do not contact GitHub or dispatch,
+inspect, or wait for GitHub Actions. Treat a request to "test CI" or "test the workflow" as a local
+run unless the user explicitly asks for a hosted GitHub operation.
+
 `build_package.py` runs formatting, locked Python environment sync, OCR-model preparation, native
 package build, Rust Clippy/tests, and package smoke check. Local runs apply `cargo fmt --all` before
 building; GitHub Actions uses `cargo fmt --all -- --check` so the workflow does not modify its
