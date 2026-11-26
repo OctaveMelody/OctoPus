@@ -137,6 +137,12 @@ On Windows, build the portable package with:
 py scripts\build_portable.py
 ```
 
+To build the Windows NSIS installer instead, run:
+
+```powershell
+py scripts\build_portable.py --bundles nsis --no-portable-zip
+```
+
 ## Run the Windows portable application
 
 On Windows, run `octopus.exe` in `dist/<target>/portable/`. Keep the entire portable directory
