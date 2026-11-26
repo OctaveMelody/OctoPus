@@ -466,7 +466,10 @@ impl EngineProcess {
     ) -> Result<Self, String> {
         let mut command = launch.command()?;
         command
-            .env("OCTOPUS_PRODUCT_VERSION", include_str!("../../../VERSION").trim())
+            .env(
+                "OCTOPUS_PRODUCT_VERSION",
+                include_str!("../../../VERSION").trim(),
+            )
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
