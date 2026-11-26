@@ -300,9 +300,6 @@ mod tests {
 
         // assert_eq!(output.parent(), Some(real.as_path()));
         // Do this:
-        assert_eq!(
-            actual,
-            Some(std::fs::canonicalize(&expected_path).unwrap())
-        );
+        assert_eq!(actual, Some(std::fs::canonicalize(&expected_path).unwrap()));
     }
 }
