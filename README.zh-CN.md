@@ -114,6 +114,12 @@ py scripts\build_portable.py
 py scripts\build_portable.py --bundles nsis --no-portable-zip
 ```
 
+在 Apple Silicon macOS 上构建 DMG：
+
+```sh
+python3 scripts/build_portable.py --bundles dmg
+```
+
 ## 运行 Windows 便携版
 
 在 Windows 上运行 `dist/<target>/portable/` 中的 `octopus.exe`。请保留完整的便携版目录，其中包含程序资源、Python 引擎和示例乐谱。Windows 需要 WebView2。

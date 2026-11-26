@@ -143,6 +143,12 @@ To build the Windows NSIS installer instead, run:
 py scripts\build_portable.py --bundles nsis --no-portable-zip
 ```
 
+On Apple Silicon macOS, build the DMG with:
+
+```sh
+python3 scripts/build_portable.py --bundles dmg
+```
+
 ## Run the Windows portable application
 
 On Windows, run `octopus.exe` in `dist/<target>/portable/`. Keep the entire portable directory
