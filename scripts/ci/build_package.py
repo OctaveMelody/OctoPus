@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import os
 import platform
+import stat
 import shutil
 import subprocess
 import sys
@@ -118,6 +119,19 @@ def _write_github_outputs(root: Path, artifact: Path) -> None:
         stream.write(f"name={artifact.stem}\n")
 
 
+def _remove_readonly(func, path, exc_info_or_exc):  # pragma: no cover - Windows only
+    """Git marks pack/idx files read-only; clear the bit so rmtree can delete them."""
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
+
+
+def _rmtree(path: Path) -> None:
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=_remove_readonly)
+    else:  # pragma: no cover - Python < 3.12
+        shutil.rmtree(path, onerror=_remove_readonly)
+
+
 def _stage_workflow_tools(root: Path, package: str) -> int:
     if os.environ.get("GITHUB_ACTIONS") != "true":
         raise RuntimeError("--stage-workflow-tools is reserved for GitHub Actions")
@@ -141,7 +155,7 @@ def _stage_workflow_tools(root: Path, package: str) -> int:
     shutil.copy2(smoke_source, staged_smoke)
 
     # The source digest must not see this nested Git checkout as a build input.
-    shutil.rmtree(helper_root)
+    _rmtree(helper_root)
     command = [
         sys.executable,
         str(staged_driver),
