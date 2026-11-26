@@ -70,7 +70,7 @@ jobs:
         run: |
           npm install --global "npm@$(cat .npm-version)"
           test "$(npm --version)" = "$(cat .npm-version)"
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.4.0
         with:
           python-version: "3.12"
       - name: Install Tauri CLI
