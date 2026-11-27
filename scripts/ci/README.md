@@ -14,8 +14,7 @@ checkout. Build on the matching native host:
 | Package | Required host |
 | --- | --- |
 | `linux-appimage` | Linux x86_64 |
-| `windows-installer` | Windows x64 |
-| `windows-portable` | Windows x64 |
+| `windows-packages` | Windows x64 |
 | `macos-dmg` | Apple Silicon macOS |
 
 Install the same tool versions used by the workflow before running the script:
@@ -34,8 +33,7 @@ the pinned OCR models before building:
 
 ```sh
 python scripts/ci/build_package.py --package linux-appimage
-python scripts/ci/build_package.py --package windows-installer
-python scripts/ci/build_package.py --package windows-portable
+python scripts/ci/build_package.py --package windows-packages
 python scripts/ci/build_package.py --package macos-dmg
 ```
 
@@ -48,9 +46,11 @@ writable temporary directories before running the command. Leave `XDG_CACHE_HOME
 it contains Tauri's cached AppRun binary; overriding it can make Tauri try to download that helper.
 
 Linux AppImage and Windows portable runs include the package smoke check. The macOS workflow relies
-on the builder's DMG validation. Windows installer installation smoke remains restricted to the
-isolated GitHub Actions runner; local Windows runs still perform the installer build and full Rust
-checks, then report that single smoke step as skipped.
+on the builder's DMG validation. One `windows-packages` run compiles once and produces both the
+setup `.exe` and the portable ZIP, smoke-checking each; the installer-install smoke remains
+restricted to the isolated GitHub Actions runner, so local Windows runs report that single smoke
+step as skipped while still performing the installer build, the portable ZIP check, and the full
+Rust checks.
 
 The workflow runs the current package runner from `github.workflow_sha` against its selected
 `source_sha`. It stages the runner and smoke checker under the runner temporary directory, then

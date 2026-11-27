@@ -16,11 +16,16 @@ from typing import TypedDict
 TOOL_ROOT = Path(__file__).resolve().parents[2]
 
 
+class PackageArtifact(TypedDict):
+    filename: str
+    smoke: str | None
+
+
 class PackageSpec(TypedDict):
     system: str
     machines: set[str]
     build_args: tuple[str, ...]
-    filename: str
+    artifacts: tuple[PackageArtifact, ...]
 
 
 PACKAGES: dict[str, PackageSpec] = {
@@ -28,25 +33,32 @@ PACKAGES: dict[str, PackageSpec] = {
         "system": "Linux",
         "machines": {"x86_64", "amd64"},
         "build_args": ("--bundles", "appimage"),
-        "filename": "OctoPus_{version}_x64_linux.AppImage",
+        "artifacts": (
+            {"filename": "OctoPus_{version}_x64_linux.AppImage", "smoke": "linux-appimage"},
+        ),
     },
-    "windows-installer": {
+    # One build.py invocation compiles once and publishes both Windows packages:
+    # the NSIS bundle plus the portable ZIP staged from the same release tree.
+    "windows-packages": {
         "system": "Windows",
         "machines": {"amd64", "x86_64"},
-        "build_args": ("--bundles", "nsis", "--no-portable-zip"),
-        "filename": "OctoPus_{version}_x64_win64_setup.exe",
-    },
-    "windows-portable": {
-        "system": "Windows",
-        "machines": {"amd64", "x86_64"},
-        "build_args": (),
-        "filename": "OctoPus_{version}_x64_win64_portable.zip",
+        "build_args": ("--bundles", "nsis"),
+        "artifacts": (
+            {
+                "filename": "OctoPus_{version}_x64_win64_setup.exe",
+                "smoke": "windows-installer",
+            },
+            {
+                "filename": "OctoPus_{version}_x64_win64_portable.zip",
+                "smoke": "windows-portable",
+            },
+        ),
     },
     "macos-dmg": {
         "system": "Darwin",
         "machines": {"arm64", "aarch64"},
         "build_args": ("--bundles", "dmg"),
-        "filename": "OctoPus_{version}_arm64_macos.dmg",
+        "artifacts": ({"filename": "OctoPus_{version}_arm64_macos.dmg", "smoke": None},),
     },
 }
 
@@ -98,25 +110,31 @@ def _validate_host(package: str) -> None:
         )
 
 
-def _find_artifact(root: Path, package: str) -> Path:
+def _find_artifacts(root: Path, package: str) -> list[Path]:
     version = (root / "VERSION").read_text(encoding="utf-8").strip()
-    filename = PACKAGES[package]["filename"].format(version=version)
-    matches = sorted(path for path in (root / "dist").glob(f"*/{filename}") if path.is_file())
-    if len(matches) != 1:
-        raise RuntimeError(
-            f"expected one {package} artifact named {filename}, found {len(matches)}"
-        )
-    return matches[0]
+    artifacts = []
+    for specification in PACKAGES[package]["artifacts"]:
+        filename = specification["filename"].format(version=version)
+        matches = sorted(path for path in (root / "dist").glob(f"*/{filename}") if path.is_file())
+        if len(matches) != 1:
+            raise RuntimeError(
+                f"expected one {package} artifact named {filename}, found {len(matches)}"
+            )
+        artifacts.append(matches[0])
+    return artifacts
 
 
-def _write_github_outputs(root: Path, artifact: Path) -> None:
+def _write_github_outputs(root: Path, artifacts: list[Path]) -> None:
+    """Publish the first artifact as name/path and any extras as name_N/path_N."""
     output = os.environ.get("GITHUB_OUTPUT")
     if not output:
         return
-    relative_path = artifact.relative_to(root).as_posix()
     with Path(output).open("a", encoding="utf-8", newline="\n") as stream:
-        stream.write(f"path={relative_path}\n")
-        stream.write(f"name={artifact.stem}\n")
+        for index, artifact in enumerate(artifacts):
+            suffix = "" if index == 0 else f"_{index + 1}"
+            relative_path = artifact.relative_to(root).as_posix()
+            stream.write(f"path{suffix}={relative_path}\n")
+            stream.write(f"name{suffix}={artifact.stem}\n")
 
 
 def _remove_readonly(func, path, exc_info_or_exc):  # pragma: no cover - Windows only
@@ -212,35 +230,40 @@ def build_package(package: str, root: Path, tools_root: Path) -> None:
     )
     _run(["cargo", "test", "--workspace"], root / "ui", environment)
 
-    artifact = _find_artifact(root, package)
-    if package == "macos-dmg":
-        print(
-            "The macOS DMG build performs bundle validation; no package smoke step is configured."
-        )
-    elif package == "windows-installer" and environment.get("GITHUB_ACTIONS") != "true":
-        print(
-            "Skipping installer-install smoke locally; it is restricted to an isolated "
-            "GitHub Actions runner. The installer build and Rust checks passed."
-        )
-    else:
-        smoke_script = tools_root / "scripts" / "smoke_package.py"
-        if not smoke_script.is_file():
-            raise RuntimeError(f"package smoke checker is missing: {smoke_script}")
-        _run(
-            _uv_command(
+    artifacts = _find_artifacts(root, package)
+    smoke_script = tools_root / "scripts" / "smoke_package.py"
+    for artifact, specification in zip(
+        artifacts, PACKAGES[package]["artifacts"], strict=True
+    ):
+        kind = specification["smoke"]
+        if kind is None:
+            print(
+                "The macOS DMG build performs bundle validation; "
+                "no package smoke step is configured."
+            )
+        elif kind == "windows-installer" and environment.get("GITHUB_ACTIONS") != "true":
+            print(
+                "Skipping installer-install smoke locally; it is restricted to an isolated "
+                "GitHub Actions runner. The installer build and Rust checks passed."
+            )
+        else:
+            if not smoke_script.is_file():
+                raise RuntimeError(f"package smoke checker is missing: {smoke_script}")
+            _run(
+                _uv_command(
+                    root,
+                    "python",
+                    str(smoke_script),
+                    kind,
+                    str(artifact),
+                    "--source-root",
+                    str(root),
+                ),
                 root,
-                "python",
-                str(smoke_script),
-                package,
-                str(artifact),
-                "--source-root",
-                str(root),
-            ),
-            root,
-            environment,
-        )
-    _write_github_outputs(root, artifact)
-    print(f"Package checks passed: {artifact}")
+                environment,
+            )
+    _write_github_outputs(root, artifacts)
+    print("Package checks passed: " + ", ".join(artifact.name for artifact in artifacts))
 
 
 def main() -> int:

@@ -151,13 +151,13 @@ under `dist\<target-triple>\`; build intermediates are under `build\`. Keep the 
 macOS builds run natively on Apple Silicon with `--bundles dmg` and produce
 `OctoPus_{version}_arm64_macos.dmg`. The production `desktop-packages` workflow builds all packages
 on published releases and supports manual dispatch. Separate manual workflows build the macOS DMG,
-Windows installer, Windows portable ZIP, and Linux AppImage. Each manual workflow accepts an
-optional `source_ref` branch, tag, or commit to build directly. Each run resolves one immutable
-source commit and passes it to every package job. Published-release events build the event's tag;
-manual runs with an empty `source_ref` fall back to the nearest published release tag in the
-selected commit's history. An optional `release_tag` attaches artifacts only when its tag peels to
-the same source commit; mismatches are rejected before upload. The Windows installer workflow skips
-the portable ZIP. macOS DMGs are
+the Windows packages, and the Linux AppImage. The Windows workflow compiles once and produces both
+the setup `.exe` and the portable ZIP, uploaded as two artifacts from that single build. Each manual
+workflow accepts an optional `source_ref` branch, tag, or commit to build directly. Each run resolves
+one immutable source commit and passes it to every package job. Published-release events build the
+event's tag; manual runs with an empty `source_ref` fall back to the nearest published release tag in
+the selected commit's history. An optional `release_tag` attaches artifacts only when its tag peels to
+the same source commit; mismatches are rejected before upload. macOS DMGs are
 validated before upload and are currently unsigned and not notarized.
 GitHub workflow artifacts use the canonical package filename without its extension; GitHub's
 downloaded artifact archive adds `.zip` to that package stem.

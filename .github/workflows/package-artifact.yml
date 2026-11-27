@@ -18,7 +18,7 @@ permissions:
 jobs:
   package:
     name: Build ${{ inputs.package }}
-    runs-on: ${{ inputs.package == 'macos-dmg' && 'xcode-27' || (inputs.package == 'windows-installer' || inputs.package == 'windows-portable') && 'windows-2022' || 'ubuntu-24.04' }}
+    runs-on: ${{ inputs.package == 'macos-dmg' && 'xcode-27' || inputs.package == 'windows-packages' && 'windows-2022' || 'ubuntu-24.04' }}
     timeout-minutes: 180
     env:
       CARGO_BUILD_JOBS: "2"
@@ -47,7 +47,7 @@ jobs:
           PACKAGE: ${{ inputs.package }}
         run: |
           case "$PACKAGE" in
-            macos-dmg|windows-installer|windows-portable|linux-appimage) ;;
+            macos-dmg|windows-packages|linux-appimage) ;;
             *) echo "Unsupported package: $PACKAGE" >&2; exit 1 ;;
           esac
       - uses: dtolnay/rust-toolchain@stable
@@ -95,4 +95,13 @@ jobs:
         with:
           name: ${{ steps.package.outputs.name }}
           path: ${{ steps.package.outputs.path }}
+          if-no-files-found: error
+      # A windows-packages run compiles once and uploads both the setup .exe and
+      # the portable ZIP as separate artifacts; other packages stop after the first.
+      - name: Upload the second package artifact from the same build
+        if: ${{ steps.package.outputs.name_2 != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.name_2 }}
+          path: ${{ steps.package.outputs.path_2 }}
           if-no-files-found: error

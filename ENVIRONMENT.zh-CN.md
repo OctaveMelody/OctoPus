@@ -168,7 +168,8 @@ Linux 使用 `--bundles appimage`，Windows 使用 `--bundles nsis` 来请求对
 
 如需在本机复现 GitHub Actions 的原生安装包检查，请在对应平台的仓库根目录运行
 `python scripts/ci/build_package.py --package <package>`。支持 `linux-appimage`、
-`windows-installer`、`windows-portable` 和 Apple Silicon 上的 `macos-dmg`。该脚本执行格式检查、
+Windows x64 上的 `windows-packages`（一次编译同时产出安装程序和便携 ZIP）和
+Apple Silicon 上的 `macos-dmg`。该脚本执行格式检查、
 锁定依赖同步、OCR 模型准备、安装包构建、Rust lint/测试及可用的安装包冒烟检查。Windows
 安装程序的安装冒烟检查仅在隔离的 GitHub Actions 运行器中执行；前置条件和详情见
 [原生 CI 指南](scripts/ci/README.md)。

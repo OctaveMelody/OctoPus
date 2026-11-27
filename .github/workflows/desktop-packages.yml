@@ -40,24 +40,14 @@ jobs:
       package: macos-dmg
       source_sha: ${{ needs.resolve.outputs.source_sha }}
 
-  windows_installer:
-    name: Windows installer
+  windows_packages:
+    name: Windows installer and portable ZIP
     needs: resolve
     permissions:
       contents: read
     uses: ./.github/workflows/package-artifact.yml
     with:
-      package: windows-installer
-      source_sha: ${{ needs.resolve.outputs.source_sha }}
-
-  windows_portable:
-    name: Windows portable ZIP
-    needs: resolve
-    permissions:
-      contents: read
-    uses: ./.github/workflows/package-artifact.yml
-    with:
-      package: windows-portable
+      package: windows-packages
       source_sha: ${{ needs.resolve.outputs.source_sha }}
 
   linux_appimage:
@@ -73,7 +63,7 @@ jobs:
   publish:
     name: Attach all packages to the release
     if: ${{ github.event_name == 'release' || github.event.inputs.release_tag != '' }}
-    needs: [resolve, macos_dmg, windows_installer, windows_portable, linux_appimage]
+    needs: [resolve, macos_dmg, windows_packages, linux_appimage]
     permissions:
       contents: write
     uses: ./.github/workflows/publish-release-assets.yml
